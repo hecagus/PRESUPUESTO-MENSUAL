@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Presupuesto Mensual — Admin</title>
+
+  <link rel="stylesheet" href="assets/style.css" />
+  <!-- Chart.js CDN (admin no render necesario, pero ok si está) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <h1 class="logo">Presupuesto Mensual</h1>
+      <nav>
+        <a href="index.html" class="nav-link">Resumen</a>
+        <a href="admin.html" class="nav-link active">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container main-content">
+    <section class="card">
+      <h2>Agregar movimiento</h2>
+      <form id="movement-form" class="form-grid">
+        <div>
+          <label for="m-date">Fecha</label>
+          <input type="date" id="m-date" required />
+        </div>
+
+        <div>
+          <label for="m-type">Tipo</label>
+          <select id="m-type">
+            <option value="ingreso">Ingreso</option>
+            <option value="gasto">Gasto</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="m-category">Categoría</label>
+          <select id="m-category" required>
+            <option value="Transporte">Transporte</option>
+            <option value="Gasolina">Gasolina</option>
+            <option value="Despensa">Despensa</option>
+            <option value="Alquiler">Alquiler</option>
+            <option value="Internet">Internet</option>
+            <option value="Streaming">Streaming</option>
+            <option value="Luz">Luz</option>
+            <option value="Agua">Agua</option>
+            <option value="Comida">Comida</option>
+            <option value="Otros">Otros</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="m-desc">Descripción</label>
+          <input id="m-desc" type="text" placeholder="Opcional" />
+        </div>
+
+        <div>
+          <label for="m-amount">Monto (moneda)</label>
+          <input id="m-amount" type="number" step="0.01" min="0" value="0" required />
+        </div>
+
+        <div id="km-wrap" style="display:none;">
+          <label for="m-km">Kilómetros (solo Gasolina)</label>
+          <input id="m-km" type="number" step="0.1" min="0" value="0" />
+        </div>
+
+        <div class="actions" style="grid-column: 1 / -1;">
+          <button type="submit" class="btn primary">Agregar movimiento</button>
+          <button type="button" id="btn-clear" class="btn dangerous">Borrar todos los movimientos</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Configuración</h2>
+      <div class="form-grid">
+        <div>
+          <label for="cfg-price-km">Precio por kilómetro</label>
+          <input id="cfg-price-km" type="number" step="0.01" min="0" value="0" />
+        </div>
+
+        <div class="actions" style="grid-column: 1 / -1;">
+          <button id="btn-save-cfg" class="btn">Guardar configuración</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Exportar / Importar</h2>
+      <div class="row-gap">
+        <button id="btn-export" class="btn">Exportar datos a JSON</button>
+        <input type="file" id="import-file" accept="application/json" style="display:none" />
+        <button id="btn-import" class="btn">Importar desde JSON (archivo)</button>
+
+        <div style="margin-top:.5rem;">
+          <label for="import-text">O pegar JSON aquí</label>
+          <textarea id="import-text" rows="6" placeholder='{"data":[...], "cfg":{...}}'></textarea>
+          <div style="margin-top:.5rem;">
+            <button id="btn-import-paste" class="btn">Importar desde texto</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Movimientos (todos)</h2>
+      <div class="table-wrap">
+        <table id="all-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Categoría</th>
+              <th>Desc</th>
+              <th>Km</th>
+              <th>Monto</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">Panel admin • Los datos se almacenan en localStorage</div>
+  </footer>
+
+  <script src="assets/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (location.pathname.endsWith('admin.html')) {
+        window.app && window.app.initAdmin && window.app.initAdmin();
+      }
+    });
+  </script>
+</body>
+</html>
