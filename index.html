@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Presupuesto Mensual — Resumen</title>
+
+  <link rel="stylesheet" href="assets/style.css" />
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <h1 class="logo">Presupuesto Mensual</h1>
+      <nav>
+        <a href="index.html" class="nav-link active">Resumen</a>
+        <a href="admin.html" class="nav-link">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container main-content">
+    <section class="cards-row">
+      <div class="card stat">
+        <h3>Total ingresos</h3>
+        <p id="total-income">$0.00</p>
+      </div>
+
+      <div class="card stat">
+        <h3>Total gastos</h3>
+        <p id="total-expense">$0.00</p>
+      </div>
+
+      <div class="card stat">
+        <h3>Balance</h3>
+        <p id="balance">$0.00</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Movimientos recientes</h2>
+      <div class="table-wrap">
+        <table id="recent-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Categoría</th>
+              <th>Descripción</th>
+              <th>Monto</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="charts-row">
+      <div class="card chart-card">
+        <h2>Gastos por categoría</h2>
+        <canvas id="pie-expense"></canvas>
+      </div>
+
+      <div class="card chart-card">
+        <h2>Balance por mes</h2>
+        <canvas id="bar-balance"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">Proyecto estático • Guardado en localStorage (keys: <code>budget_data_v1</code>, <code>budget_cfg_v1</code>)</div>
+  </footer>
+
+  <script src="assets/app.js"></script>
+  <script>
+    // Inicializa solo la parte pública (index)
+    document.addEventListener('DOMContentLoaded', () => {
+      if (location.pathname.endsWith('index.html') || location.pathname.endsWith('/')) {
+        window.app && window.app.initPublic && window.app.initPublic();
+      }
+    });
+  </script>
+</body>
+</html>
