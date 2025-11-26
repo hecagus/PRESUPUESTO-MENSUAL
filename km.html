@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Kilometraje</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        input { width: 100%; padding: 8px; margin-bottom: 10px; }
+        label { font-weight: bold; }
+        button { padding: 10px; width: 100%; margin-top: 10px; }
+        a { display: block; margin-bottom: 15px; }
+        .box { padding: 15px; border: 1px solid #ccc; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <a href="index.html">⟵ Regresar</a>
+    <h1>Configuración de Kilometraje</h1>
+
+    <div class="box">
+        <label>Kilometraje Inicial:</label>
+        <input type="number" id="kmInicial">
+
+        <label>Kilometraje Final:</label>
+        <input type="number" id="kmFinal">
+
+        <label>Gasto Total (tanque, gas, etc):</label>
+        <input type="number" id="gastoTotal">
+
+        <button onclick="calcularKm()">Calcular y Guardar</button>
+    </div>
+
+    <div class="box">
+        <h2>Precio por km calculado:</h2>
+        <p>$ <span id="precioKm">0</span></p>
+    </div>
+
+    <script src="app.js"></script>
+
+</body>
+</html>
