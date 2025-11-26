@@ -9,8 +9,24 @@
 
 <body>
 
-    <h1>Panel de Administración</h1>
+<header class="app-header">
+    <div class="header-inner">
+        <div class="brand">
+            <div class="logo">Panel de Administración</div>
+            <div class="small muted">Local — localStorage</div>
+        </div>
+        <nav class="tabs">
+            <a href="index.html" class="tab">⟵ Regresar</a>
+            <a href="admin.html" class="tab active">Admin</a>
+        </nav>
+    </div>
+</header>
 
+<main class="container">
+
+    <!-- ==========================
+          AGREGAR MOVIMIENTO
+    ============================ -->
     <section class="card">
         <h2>Agregar Movimiento</h2>
 
@@ -25,9 +41,12 @@
         </select>
 
         <label id="labelCategoria">Categoría:</label>
-        <select id="movCategoria">
-            <option value="">Seleccione un tipo...</option>
-        </select>
+        <select id="movCategoria"></select>
+
+        <label>Agregar nueva categoría:</label>
+        <input type="text" id="nuevoTipo" placeholder="Ej. Bono, Taxi, Etc">
+
+        <button onclick="agregarNuevoTipo()">Agregar tipo</button>
 
         <label>Monto:</label>
         <input type="number" id="movMonto">
@@ -35,6 +54,9 @@
         <button onclick="agregarMovimiento()">Agregar movimiento</button>
     </section>
 
+    <!-- ==========================
+          CONFIGURACIÓN KM
+    ============================ -->
     <section class="card">
         <h2>Configuración de Kilometraje</h2>
 
@@ -53,6 +75,13 @@
         <button onclick="cargarKm()">Cargar configuración</button>
     </section>
 
-    <script src="assets/js/app.js"></script>
+</main>
+
+<script src="assets/js/app.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", cargarKm);
+    document.addEventListener("DOMContentLoaded", cambiarTipo);
+</script>
+
 </body>
 </html>
