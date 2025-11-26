@@ -1,89 +1,26 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Presupuesto Mensual</title>
-
-  <link rel="stylesheet" href="assets/css/style.css">
-
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <meta charset="UTF-8">
+    <title>Panel Principal</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        a { display: block; margin: 10px 0; font-size: 20px; }
+        .box { padding: 15px; border: 1px solid #ccc; margin-bottom: 20px; }
+    </style>
 </head>
 <body>
 
-<header class="app-header">
-  <div class="header-inner">
-    <div class="brand">
-      <div class="logo">Presupuesto Mensual</div>
-      <div class="small muted">Local — localStorage</div>
-    </div>
-    <nav class="tabs">
-      <a href="index.html" class="tab active">Resumen</a>
-      <a href="admin.html" class="tab">Admin</a>
-    </nav>
-  </div>
-</header>
+    <h1>Panel de Control</h1>
 
-<main class="container">
-  <!-- ======= RESUMEN ======= -->
-  <section class="grid">
-
-    <div class="cards-row">
-      <div class="card stat">
-        <div>Total ingresos</div>
-        <div class="value" id="total-income">$0.00</div>
-      </div>
-
-      <div class="card stat">
-        <div>Total gastos</div>
-        <div class="value" id="total-expense">$0.00</div>
-      </div>
-
-      <div class="card stat">
-        <div>Balance</div>
-        <div class="value" id="balance">$0.00</div>
-      </div>
+    <div class="box">
+        <h2>Deuda Total</h2>
+        <p>$ <span id="deudaTotalLabel">0</span></p>
     </div>
 
-    <div class="card">
-      <h3>Movimientos recientes</h3>
-      <div class="table-wrap">
-        <table id="recent-table">
-          <thead>
-            <tr><th>Fecha</th><th>Tipo</th><th>Cat/Tipo</th><th>Descripción</th><th>Monto</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
+    <a href="admin.html">➡ Ir al Panel de Administración</a>
+    <a href="km.html">➡ Configurar Kilometraje</a>
 
-    <div class="chart-row">
-      <div class="card chart-card">
-        <h3>Gastos por categoría</h3>
-        <canvas id="pie-expense"></canvas>
-      </div>
-
-      <div class="card chart-card">
-        <h3>Balance por mes</h3>
-        <canvas id="bar-balance"></canvas>
-      </div>
-    </div>
-
-  </section>
-</main>
-
-<footer class="footer">
-  &copy; Presupuesto • claves localStorage:
-  <code>budget_data_v1</code> —
-  <code>budget_cfg_v1</code>
-</footer>
-
-<script src="assets/js/app.js"></script>
-<script>
-  // Render de la página principal
-  document.addEventListener("DOMContentLoaded", renderPublic);
-</script>
-
+    <script src="app.js"></script>
 </body>
 </html>
