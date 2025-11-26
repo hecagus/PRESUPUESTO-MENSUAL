@@ -3,31 +3,85 @@
 ================================ */
 
 body {
-    font-family: Arial, Helvetica, sans-serif;
-    background: #f2f2f7;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #eef0f5;
     margin: 0;
-    padding: 20px;
+    padding: 0;
     color: #333;
 }
 
-h1 {
-    text-align: center;
-    margin-bottom: 25px;
+/* Header estilo aplicación */
+.app-header {
+    background: #ffffff;
+    padding: 14px 18px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    position: sticky;
+    top: 0;
+    z-index: 50;
 }
+
+.header-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.brand .logo {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.muted {
+    font-size: 12px;
+    color: #777;
+}
+
+.tabs {
+    display: flex;
+    gap: 10px;
+}
+
+.tab {
+    text-decoration: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    color: #007aff;
+    font-weight: bold;
+    background: rgba(0,122,255,0.12);
+}
+
+.tab.active {
+    background: #007aff;
+    color: white;
+}
+
+/* ============================
+   CONTENEDOR PRINCIPAL
+================================ */
+
+.container {
+    padding: 20px;
+}
+
+/* ============================
+   CARDS
+================================ */
 
 .card {
     background: #fff;
-    padding: 20px;
-    margin: 15px auto;
-    max-width: 450px;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    padding: 22px;
+    margin: 18px auto;
+    max-width: 480px;
+    border-radius: 14px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.12);
 }
 
 h2 {
     margin-top: 0;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 8px;
+    border-bottom: 1px solid #e3e3e3;
+    padding-bottom: 10px;
+    font-size: 18px;
+    font-weight: bold;
 }
 
 /* ============================
@@ -36,25 +90,27 @@ h2 {
 
 label {
     display: block;
-    margin-top: 12px;
+    margin-top: 14px;
     font-size: 14px;
-    font-weight: bold;
+    font-weight: 600;
 }
 
 input, select {
     width: 100%;
-    padding: 10px;
-    margin-top: 5px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    font-size: 15px;
+    padding: 12px;
+    margin-top: 6px;
+    border: 1px solid #cfd3d9;
+    border-radius: 10px;
+    font-size: 16px;
     background: #fafafa;
+    transition: 0.2s;
 }
 
 input:focus, select:focus {
     outline: none;
     border-color: #007aff;
     background: #fff;
+    box-shadow: 0 0 0 2px rgba(0,122,255,0.15);
 }
 
 /* ============================
@@ -63,24 +119,45 @@ input:focus, select:focus {
 
 button {
     width: 100%;
-    padding: 12px;
-    margin-top: 15px;
+    padding: 13px;
+    margin-top: 18px;
     border: none;
-    border-radius: 8px;
+    border-radius: 10px;
     background: #007aff;
     color: white;
-    font-size: 16px;
-    cursor: pointer;
+    font-size: 17px;
     font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
 }
 
 button:hover {
-    background: #005fcc;
+    background: #0063cc;
+    transform: translateY(-1px);
+}
+
+button:active {
+    background: #004fa8;
+    transform: translateY(0);
+}
+
+/* Botón secundario */
+button.secondary {
+    background: #e3e3e6;
+    color: #333;
+}
+
+button.secondary:hover {
+    background: #cacacc;
 }
 
 /* ============================
-   TABLAS (si las usas luego)
+   TABLAS
 ================================ */
+
+.table-wrap {
+    overflow-x: auto;
+}
 
 table {
     width: 100%;
@@ -90,19 +167,31 @@ table {
 
 th, td {
     padding: 10px;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid #e0e0e0;
 }
 
 th {
     background: #007aff;
     color: white;
+    text-align: left;
 }
 
 /* ============================
-   GRAFICA (index.html)
+   GRAFICA
 ================================ */
 
-#graficaCanvas {
+canvas {
     margin-top: 20px;
     width: 100% !important;
+}
+
+/* ============================
+   FOOTER
+================================ */
+
+.footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 13px;
+    color: #667;
 }
