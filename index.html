@@ -1,74 +1,108 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Inicio</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<style>
-    body {
-        font-family: 'Segoe UI', sans-serif;
-        background: #f5f7fa;
-        margin: 0;
-        padding: 20px;
-        color: #333;
-    }
-
-    .header {
-        text-align: center;
-        font-size: 24px;
-        font-weight: 600;
-        margin-bottom: 25px;
-    }
-
-    .card {
-        background: white;
-        padding: 20px;
-        margin-bottom: 20px;
-        border-radius: 16px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    }
-
-    .value {
-        font-size: 32px;
-        font-weight: 700;
-        margin-top: 10px;
-        color: #007aff;
-    }
-
-    .btn {
-        display: block;
-        width: 100%;
-        padding: 14px;
-        margin-top: 12px;
-        background: #007aff;
-        color: white;
-        text-align: center;
-        text-decoration: none;
-        border-radius: 12px;
-        font-size: 17px;
-        font-weight: 600;
-    }
-
-    .btn:active {
-        background: #005fcc;
-    }
-
-</style>
+    <meta charset="UTF-8">
+    <title>Presupuesto Mensual</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="header">Panel Principal</div>
+<h1>Presupuesto Mensual</h1>
+<a href="#" onclick="showSection('resumen')">Resumen</a> |
+<a href="#" onclick="showSection('admin')">Admin</a>
 
-<div class="card">
-    <h3>Deuda Total</h3>
-    <div class="value">$ <span id="deudaTotalLabel">0</span></div>
+<!-- ===================== RESUMEN ====================== -->
+<div id="resumen" class="section">
+
+    <h2>Total ingresos</h2>
+    <p id="total-ingresos">$0.00</p>
+
+    <h2>Total gastos</h2>
+    <p id="total-gastos">$0.00</p>
+
+    <h2>Balance</h2>
+    <p id="balance">$0.00</p>
+
+    <h2>Movimientos recientes</h2>
+    <table id="tabla-recientes"></table>
+
+    <h2>Gastos por categoría</h2>
+    <canvas id="grafica-categorias"></canvas>
+
+    <h2>Balance por mes</h2>
+    <canvas id="grafica-mensual"></canvas>
+
 </div>
 
-<a class="btn" href="admin.html">Panel de Administración</a>
-<a class="btn" href="km.html">Kilometraje</a>
+<!-- ===================== ADMIN ====================== -->
+<div id="admin" class="section" style="display:none;">
 
-<script src="app.js"></script>
+    <h2>Agregar movimiento</h2>
+
+    Fecha:
+    <input type="date" id="mov-fecha"><br>
+
+    Tipo:
+    <select id="mov-tipo">
+        <option value="Ingreso">Ingreso</option>
+        <option value="Gasto">Gasto</option>
+    </select><br>
+
+    <div id="bloque-ingreso">
+        Tipo de ingreso:
+        <select id="ingreso-tipo"></select>
+        <input id="nuevo-ingreso" placeholder="Nuevo tipo">
+        <button onclick="agregarNuevoIngreso()">+</button>
+    </div>
+
+    <div id="bloque-gasto">
+        Categoría:
+        <select id="gasto-cat"></select>
+        <input id="nuevo-gasto" placeholder="Nueva categoría">
+        <button onclick="agregarNuevaCategoria()">+</button>
+    </div>
+
+    Descripción:
+    <input id="mov-desc"><br>
+
+    Monto:
+    <input type="number" id="mov-monto"><br>
+
+    <button onclick="agregarMovimiento()">Agregar movimiento</button>
+
+    <h2>Configuración (Kilometraje)</h2>
+
+    Kilometraje inicial:
+    <input type="number" id="km-inicial"><br>
+
+    Kilometraje final:
+    <input type="number" id="km-final"><br>
+
+    Kilómetros recorridos:
+    <input type="number" id="km-total" disabled><br>
+
+    Precio por km:
+    <input type="number" id="precio-km" disabled><br>
+
+    Gasto total:
+    <input type="number" id="gasto-total" disabled><br>
+
+    <button onclick="calcularKilometraje()">Calcular</button>
+    <button onclick="guardarConfig()">Guardar configuración</button>
+
+    <h2>Exportar / Importar</h2>
+    <button onclick="exportarJSON()">Exportar datos</button>
+    <textarea id="json-area"></textarea><br>
+
+    <button onclick="importarJSON()">Importar</button>
+
+    <h2>Movimientos (todos)</h2>
+    <table id="tabla-todos"></table>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="script.js"></script>
 
 </body>
 </html>
