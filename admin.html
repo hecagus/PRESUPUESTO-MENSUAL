@@ -1,117 +1,143 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Administración</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Panel de Administración</title>
 
+<!-- ESTILOS TIPO APP MÓVIL -->
 <style>
     body {
-        font-family: 'Segoe UI', sans-serif;
-        background: #f5f7fa;
         margin: 0;
-        padding: 20px;
-        color: #333;
+        font-family: Arial, sans-serif;
+        background: #f4f4f4;
+        padding: 15px;
     }
-
-    .topbar {
+    .container {
+        max-width: 480px;
+        margin: auto;
+    }
+    h2 {
         text-align: center;
-        font-size: 22px;
-        font-weight: 600;
-        margin-bottom: 25px;
+        margin-bottom: 15px;
+        color: #222;
     }
-
-    .back {
-        color: #007aff;
-        text-decoration: none;
-        font-size: 16px;
-    }
-
     .card {
-        background: white;
-        padding: 20px;
-        margin-bottom: 25px;
-        border-radius: 16px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        background: #fff;
+        padding: 15px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
     }
-
-    label {
-        display: block;
-        margin-top: 10px;
-        font-size: 14px;
-        font-weight: 600;
-    }
-
-    input, select {
+    input, select, button {
         width: 100%;
         padding: 12px;
-        border-radius: 12px;
+        margin-top: 8px;
+        border-radius: 8px;
         border: 1px solid #ccc;
-        margin-top: 6px;
-        background: #fdfdfd;
         font-size: 16px;
     }
-
-    .btn {
-        width: 100%;
-        padding: 14px;
-        margin-top: 18px;
-        background: #007aff;
+    button {
+        background: #007bff;
         color: white;
         border: none;
-        border-radius: 12px;
-        font-size: 17px;
+        cursor: pointer;
         font-weight: bold;
     }
-
-    .value {
-        font-size: 30px;
+    button:hover {
+        background: #005fcc;
+    }
+    .back-btn {
+        background: #444;
+        margin-bottom: 15px;
+    }
+    .section-title {
         font-weight: bold;
-        color: #007aff;
-        margin-top: 10px;
+        margin-top: 15px;
+        margin-bottom: 5px;
+    }
+    .deuda-box {
+        background: #ffecec;
+        padding: 12px;
+        border-radius: 10px;
+        font-size: 18px;
+        margin-bottom: 20px;
+        border: 1px solid #ffb3b3;
     }
 </style>
 </head>
+
 <body>
 
-<a class="back" href="index.html">⟵ Regresar</a>
-<div class="topbar">Administración</div>
+<div class="container">
 
-<!-- AGREGAR MOVIMIENTO -->
-<div class="card">
-    <h3>Agregar Movimiento</h3>
+    <!-- BOTÓN VOLVER -->
+    <button class="back-btn" onclick="location.href='index.html'">⟵ Regresar</button>
 
-    <label>Fecha:</label>
-    <input type="date" id="fecha">
+    <h2>Panel de Administración</h2>
 
-    <label>Tipo:</label>
-    <select id="tipo">
-        <option>Ingreso</option>
-        <option>Gasto</option>
-        <option>Nueva Deuda</option>
-        <option>Abono Deuda</option>
-    </select>
+    <!-- ============================= -->
+    <!--        DEUDA TOTAL           -->
+    <!-- ============================= -->
+    <div class="card">
+        <h3>💳 Deuda Total</h3>
+        <div class="deuda-box">
+            Deuda actual: <strong>$<span id="deudaTotalLabel">0.00</span></strong>
+        </div>
+    </div>
 
-    <label>Categoría:</label>
-    <select id="categoria"></select>
+    <!-- ============================= -->
+    <!--      AGREGAR MOVIMIENTO      -->
+    <!-- ============================= -->
+    <div class="card">
+        <h3>➕ Agregar Movimiento</h3>
 
-    <label>Agregar nueva categoría:</label>
-    <input type="text" id="nuevaCategoria" placeholder="Ej: Gasolina">
-    <button class="btn" onclick="agregarCategoria()">Agregar categoría</button>
+        <label>Fecha:</label>
+        <input type="date" id="fecha">
 
-    <label>Monto:</label>
-    <input type="number" id="monto">
+        <label>Tipo:</label>
+        <select id="tipo">
+            <option value="Ingreso">Ingreso</option>
+            <option value="Gasto">Gasto</option>
+        </select>
 
-    <button class="btn" onclick="agregarMovimiento()">Agregar movimiento</button>
+        <label>Categoría:</label>
+        <select id="categoria"></select>
+
+        <label>Agregar nueva categoría:</label>
+        <input type="text" id="nuevaCategoria" placeholder="Ej. Gasolina extra">
+        <button onclick="agregarCategoria()">Agregar categoría</button>
+
+        <label>Monto:</label>
+        <input type="number" id="monto" placeholder="0.00">
+
+        <button id="btnAddMovimiento" onclick="agregarMovimiento()">Agregar movimiento</button>
+    </div>
+
+    <!-- ============================= -->
+    <!--      CONFIG KILOMETRAJE      -->
+    <!-- ============================= -->
+    <div class="card">
+        <h3>🚗 Configuración de Kilometraje</h3>
+
+        <label>Kilometraje Inicial:</label>
+        <input type="number" id="kmInicial">
+
+        <label>Kilometraje Final:</label>
+        <input type="number" id="kmFinal">
+
+        <label>Gasto Total (tanque, gas, etc):</label>
+        <input type="number" id="gastoTotal">
+
+        <div class="section-title">Precio por km calculado:</div>
+        <strong>$<span id="precioKm">0.00</span></strong>
+
+        <button onclick="calcularKm()">Calcular y guardar</button>
+        <button onclick="cargarConfiguracionKm()">Cargar configuración</button>
+    </div>
+
 </div>
 
-<!-- DEUDA -->
-<div class="card">
-    <h3>Deuda Total</h3>
-    <div class="value">$ <span id="deudaTotalLabel">0</span></div>
-</div>
-
-<script src="app.js"></script>
-
+<script src="assets/js/app.js"></script>
 </body>
 </html>
