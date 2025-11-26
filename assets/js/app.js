@@ -2,11 +2,15 @@
 //   VARIABLES GLOBALES
 // =========================
 let movimientos = JSON.parse(localStorage.getItem("movimientos")) || [];
-let categorias = JSON.parse(localStorage.getItem("categorias")) || ["Transporte", "Comida", "Servicios"];
+let categorias = JSON.parse(localStorage.getItem("categorias")) || [
+    "Transporte", "Comida", "Servicios"
+];
+
 let kmConfig = JSON.parse(localStorage.getItem("kmConfig")) || null;
 
-// NUEVO: SISTEMA DE DEUDA TOTAL
+// SISTEMA DE DEUDA TOTAL
 let deudaTotal = parseFloat(localStorage.getItem("deudaTotal")) || 0;
+
 
 // =========================
 //   GUARDAR TODO
@@ -18,24 +22,36 @@ function guardarDatos() {
     localStorage.setItem("deudaTotal", deudaTotal.toString());
 }
 
+
+// ==================================================
+//   SAFE GET — Evita errores si el elemento no existe
+// ==================================================
+function $(id) {
+    return document.getElementById(id) || null;
+}
+
+
 // =========================
 //   AGREGAR NUEVA CATEGORÍA
 // =========================
 function agregarCategoria() {
-    const nueva = document.getElementById("nuevaCategoria").value.trim();
-    if (nueva !== "") {
-        categorias.push(nueva);
-        guardarDatos();
-        cargarCategorias();
-        document.getElementById("nuevaCategoria").value = "";
-    }
+    const nueva = $("nuevaCategoria")?.value.trim();
+    if (!nueva) return;
+
+    categorias.push(nueva);
+    guardarDatos();
+    cargarCategorias();
+    $("nuevaCategoria").value = "";
 }
+
 
 // =========================
 //   CARGAR CATEGORÍAS
 // =========================
 function cargarCategorias() {
-    const select = document.getElementById("categoria");
+    const select = $("categoria");
+    if (!select) return; // Evita errores
+
     select.innerHTML = "";
 
     categorias.forEach(cat => {
@@ -46,14 +62,15 @@ function cargarCategorias() {
     });
 }
 
+
 // =========================
 //   AGREGAR MOVIMIENTO
 // =========================
 function agregarMovimiento() {
-    const fecha = document.getElementById("fecha").value;
-    const tipo = document.getElementById("tipo").value;
-    const categoria = document.getElementById("categoria").value;
-    const monto = parseFloat(document.getElementById("monto").value);
+    const fecha = $("fecha")?.value;
+    const tipo = $("tipo")?.value;
+    const categoria = $("categoria")?.value;
+    const monto = parseFloat($("monto")?.value);
 
     if (!fecha || !monto) {
         alert("Completa todos los campos");
@@ -63,27 +80,30 @@ function agregarMovimiento() {
     // ------------------------
     // NUEVO: SISTEMA DE DEUDA
     // ------------------------
-    if (categoria === "Abono Deuda") {
-        deudaTotal -= monto; // disminuye la deuda
+    if (tipo === "Abono Deuda") {
+        deudaTotal -= monto;
         if (deudaTotal < 0) deudaTotal = 0;
     }
 
-    if (categoria === "Nueva Deuda") {
-        deudaTotal += monto; // aumenta la deuda
+    if (tipo === "Nueva Deuda") {
+        deudaTotal += monto;
     }
 
     movimientos.push({ fecha, tipo, categoria, monto });
     guardarDatos();
+
     alert("Movimiento agregado correctamente");
+    mostrarDeuda();
 }
+
 
 // =========================
 //   CALCULAR KILOMETRAJE
 // =========================
 function calcularKm() {
-    const kmInicial = parseFloat(document.getElementById("kmInicial").value);
-    const kmFinal = parseFloat(document.getElementById("kmFinal").value);
-    const gastoTotal = parseFloat(document.getElementById("gastoTotal").value);
+    const kmInicial = parseFloat($("kmInicial")?.value);
+    const kmFinal = parseFloat($("kmFinal")?.value);
+    const gastoTotal = parseFloat($("gastoTotal")?.value);
 
     if (!kmInicial || !kmFinal || !gastoTotal) {
         alert("Completa todos los campos de kilometraje");
@@ -93,11 +113,14 @@ function calcularKm() {
     const kmRecorridos = kmFinal - kmInicial;
     const precioKm = kmRecorridos > 0 ? gastoTotal / kmRecorridos : 0;
 
-    document.getElementById("precioKm").textContent = precioKm.toFixed(2);
+    if ($("precioKm")) $("precioKm").textContent = precioKm.toFixed(2);
 
     kmConfig = { kmInicial, kmFinal, gastoTotal, precioKm };
     guardarDatos();
+
+    alert("Kilometraje guardado");
 }
+
 
 // =========================
 //   CARGAR CONFIGURACIÓN KM
@@ -105,21 +128,24 @@ function calcularKm() {
 function cargarConfiguracionKm() {
     if (!kmConfig) return;
 
-    document.getElementById("kmInicial").value = kmConfig.kmInicial;
-    document.getElementById("kmFinal").value = kmConfig.kmFinal;
-    document.getElementById("gastoTotal").value = kmConfig.gastoTotal;
-    document.getElementById("precioKm").textContent = kmConfig.precioKm.toFixed(2);
+    if ($("kmInicial")) $("kmInicial").value = kmConfig.kmInicial;
+    if ($("kmFinal")) $("kmFinal").value = kmConfig.kmFinal;
+    if ($("gastoTotal")) $("gastoTotal").value = kmConfig.gastoTotal;
+
+    if ($("precioKm")) {
+        $("precioKm").textContent = kmConfig.precioKm.toFixed(2);
+    }
 }
+
 
 // =========================
 // MOSTRAR DEUDA EN PANTALLA
 // =========================
 function mostrarDeuda() {
-    const label = document.getElementById("deudaTotalLabel");
-    if (label) {
-        label.textContent = deudaTotal.toFixed(2);
-    }
+    const label = $("deudaTotalLabel");
+    if (label) label.textContent = deudaTotal.toFixed(2);
 }
+
 
 // =========================
 //   INICIALIZAR APP
