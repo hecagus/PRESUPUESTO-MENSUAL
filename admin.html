@@ -1,165 +1,94 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Presupuesto Mensual — Admin</title>
-
-  <link rel="stylesheet" href="assets/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8">
+    <title>Panel Admin – Presupuesto Mensual</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="site-header">
-    <div class="container header-inner">
-      <h1 class="logo">Presupuesto Mensual</h1>
-      <nav>
-        <a href="index.html" class="nav-link">Resumen</a>
-        <a href="admin.html" class="nav-link active">Admin</a>
-      </nav>
+
+<h1>Panel Admin</h1>
+<a href="index.html">← Regresar al resumen</a>
+
+<!-- ===================== ADMIN ====================== -->
+<div id="admin" class="section">
+
+    <h2>Agregar movimiento</h2>
+
+    Fecha:
+    <input type="date" id="mov-fecha"><br>
+
+    Tipo:
+    <select id="mov-tipo">
+        <option value="Ingreso">Ingreso</option>
+        <option value="Gasto">Gasto</option>
+    </select><br>
+
+    <!-- TIPOS DE INGRESO -->
+    <div id="bloque-ingreso">
+        Tipo de ingreso:
+        <select id="ingreso-tipo"></select>
+        <input id="nuevo-ingreso" placeholder="Nuevo tipo">
+        <button onclick="agregarNuevoIngreso()">+</button>
     </div>
-  </header>
 
-  <main class="container main-content">
-    <section class="card">
-      <h2>Agregar movimiento</h2>
-      <form id="movement-form" class="form-grid">
-        <div>
-          <label for="m-date">Fecha</label>
-          <input type="date" id="m-date" required />
-        </div>
+    <!-- CATEGORÍAS DE GASTO -->
+    <div id="bloque-gasto">
+        Categoría:
+        <select id="gasto-cat"></select>
+        <input id="nuevo-gasto" placeholder="Nueva categoría">
+        <button onclick="agregarNuevaCategoria()">+</button>
+    </div>
 
-        <div>
-          <label for="m-type">Tipo</label>
-          <select id="m-type">
-            <option value="ingreso">Ingreso</option>
-            <option value="gasto">Gasto</option>
-          </select>
-        </div>
+    Descripción:
+    <input id="mov-desc"><br>
 
-        <div id="income-type-wrap" style="display:none;">
-          <label for="m-income-type">Tipo de ingreso</label>
-          <div style="display:flex;gap:.5rem;align-items:center">
-            <select id="m-income-type"></select>
-            <input id="new-income-type" placeholder="Nuevo tipo (ej. Bono)" />
-            <button id="btn-add-income-type" type="button" class="btn">➕</button>
-          </div>
-        </div>
+    Monto:
+    <input type="number" id="mov-monto"><br>
 
-        <div id="category-wrap" style="display:none;">
-          <label for="m-category">Categoría</label>
-          <div style="display:flex;gap:.5rem;align-items:center">
-            <select id="m-category"></select>
-            <input id="new-category" placeholder="Nueva categoría" />
-            <button id="btn-add-category" type="button" class="btn">➕</button>
-          </div>
-        </div>
+    <button onclick="agregarMovimiento()">Agregar movimiento</button>
 
-        <div>
-          <label for="m-desc">Descripción</label>
-          <input id="m-desc" type="text" placeholder="Opcional" />
-        </div>
 
-        <div id="amount-wrap">
-          <label for="m-amount">Monto (moneda)</label>
-          <input id="m-amount" type="number" step="0.01" min="0" value="0" />
-        </div>
 
-        <div id="gas-info" style="display:none;">
-          <p class="muted">Gasolina: el costo se calcula usando la configuración (KM final - KM inicial) × precio por km.</p>
-          <p class="muted">Km recorrido: <span id="cfg-km-diff">0</span></p>
-          <p class="muted">Costo calculado: <strong id="cfg-gas-cost">$0.00</strong></p>
-        </div>
+    <!-- ==================== CONFIGURACIÓN KM ==================== -->
+    <h2>Configuración de Kilometraje</h2>
 
-        <div class="actions" style="grid-column: 1 / -1;">
-          <button type="submit" class="btn primary">Agregar movimiento</button>
-          <button type="button" id="btn-clear" class="btn dangerous">Borrar todos los movimientos</button>
-        </div>
-      </form>
-    </section>
+    Kilometraje inicial:
+    <input type="number" id="km-inicial"><br>
 
-    <section class="card">
-      <h2>Configuración</h2>
-      <div class="form-grid">
-        <div>
-          <label for="cfg-km-start">Kilometraje inicial</label>
-          <input id="cfg-km-start" type="number" step="1" min="0" />
-        </div>
-        <div>
-          <label for="cfg-km-end">Kilometraje final</label>
-          <input id="cfg-km-end" type="number" step="1" min="0" />
-        </div>
-        <div>
-          <label for="cfg-price-km">Precio por kilómetro</label>
-          <input id="cfg-price-km" type="number" step="0.01" min="0" />
-        </div>
+    Kilometraje final:
+    <input type="number" id="km-final"><br>
 
-        <div class="actions" style="grid-column: 1 / -1;">
-          <button id="btn-save-cfg" class="btn">Guardar configuración</button>
-        </div>
-      </div>
-    </section>
+    Kilómetros recorridos:
+    <input type="number" id="km-total" disabled><br>
 
-    <section class="card">
-      <h2>Categorías personalizables</h2>
-      <p class="muted">Las categorías originales se mantienen (no se pueden borrar). Puedes borrar solo las categorías que agregues.</p>
-      <div id="custom-categories-list"></div>
-    </section>
+    Precio por kilómetro:
+    <input type="number" id="precio-km" disabled><br>
 
-    <section class="card">
-      <h2>Tipos de ingreso personalizables</h2>
-      <p class="muted">Puedes borrar los tipos de ingreso que hayas creado.</p>
-      <div id="custom-income-types-list"></div>
-    </section>
+    Gasto total:
+    <input type="number" id="gasto-total" disabled><br>
 
-    <section class="card">
-      <h2>Exportar / Importar</h2>
-      <div class="row-gap">
-        <button id="btn-export" class="btn">Exportar datos a JSON</button>
-        <input type="file" id="import-file" accept="application/json" style="display:none" />
-        <button id="btn-import" class="btn">Importar desde JSON (archivo)</button>
+    <button onclick="calcularKilometraje()">Calcular</button>
+    <button onclick="guardarConfig()">Guardar configuración</button>
 
-        <div style="margin-top:.5rem;">
-          <label for="import-text">O pegar JSON aquí</label>
-          <textarea id="import-text" rows="6" placeholder='{"data":[...], "cfg":{...}}'></textarea>
-          <div style="margin-top:.5rem;">
-            <button id="btn-import-paste" class="btn">Importar desde texto</button>
-          </div>
-        </div>
-      </div>
-    </section>
 
-    <section class="card">
-      <h2>Movimientos (todos)</h2>
-      <div class="table-wrap">
-        <table id="all-table">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Tipo</th>
-              <th>Categoria/Tipo</th>
-              <th>Desc</th>
-              <th>Monto</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
 
-  </main>
+    <!-- ==================== EXPORTAR / IMPORTAR ==================== -->
+    <h2>Exportar / Importar</h2>
+    <button onclick="exportarJSON()">Exportar datos</button>
+    <textarea id="json-area"></textarea><br>
 
-  <footer class="site-footer">
-    <div class="container">Panel admin • Los datos se almacenan en localStorage</div>
-  </footer>
+    <button onclick="importarJSON()">Importar</button>
 
-  <script src="assets/app.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      if (location.pathname.endsWith('admin.html')) {
-        window.app && window.app.initAdmin && window.app.initAdmin();
-      }
-    });
-  </script>
+
+
+    <!-- ==================== TABLA COMPLETA ==================== -->
+    <h2>Movimientos (todos)</h2>
+    <table id="tabla-todos"></table>
+
+</div>
+
+
+<script src="script.js"></script>
 </body>
 </html>
