@@ -1,60 +1,117 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Administración</title>
-    <style>
-        body { font-family: Arial; padding: 20px; }
-        label { font-weight: bold; }
-        input, select { width: 100%; padding: 8px; margin: 6px 0; }
-        button { padding: 10px; width: 100%; margin-top: 10px; }
-        a { display: block; margin: 15px 0; }
-        .box { padding: 15px; border: 1px solid #ccc; margin-bottom: 25px; }
-    </style>
+<meta charset="UTF-8">
+<title>Administración</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+    body {
+        font-family: 'Segoe UI', sans-serif;
+        background: #f5f7fa;
+        margin: 0;
+        padding: 20px;
+        color: #333;
+    }
+
+    .topbar {
+        text-align: center;
+        font-size: 22px;
+        font-weight: 600;
+        margin-bottom: 25px;
+    }
+
+    .back {
+        color: #007aff;
+        text-decoration: none;
+        font-size: 16px;
+    }
+
+    .card {
+        background: white;
+        padding: 20px;
+        margin-bottom: 25px;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    label {
+        display: block;
+        margin-top: 10px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    input, select {
+        width: 100%;
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid #ccc;
+        margin-top: 6px;
+        background: #fdfdfd;
+        font-size: 16px;
+    }
+
+    .btn {
+        width: 100%;
+        padding: 14px;
+        margin-top: 18px;
+        background: #007aff;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 17px;
+        font-weight: bold;
+    }
+
+    .value {
+        font-size: 30px;
+        font-weight: bold;
+        color: #007aff;
+        margin-top: 10px;
+    }
+</style>
 </head>
 <body>
 
-    <a href="index.html">⟵ Regresar</a>
-    <h1>Panel de Administración</h1>
+<a class="back" href="index.html">⟵ Regresar</a>
+<div class="topbar">Administración</div>
 
-    <!-- =========================
-          AGREGAR MOVIMIENTO
-    ========================== -->
-    <div class="box">
-        <h2>Agregar Movimiento</h2>
+<!-- AGREGAR MOVIMIENTO -->
+<div class="card">
+    <h3>Agregar Movimiento</h3>
 
-        <label>Fecha:</label>
-        <input type="date" id="fecha" value="2025-11-25">
+    <label>Fecha:</label>
+    <input type="date" id="fecha">
 
-        <label>Tipo:</label>
-        <select id="tipo">
-            <option>Ingreso</option>
-            <option>Gasto</option>
-        </select>
+    <label>Tipo:</label>
+    <select id="tipo">
+        <option>Ingreso</option>
+        <option>Gasto</option>
+        <option>Nueva Deuda</option>
+        <option>Abono Deuda</option>
+    </select>
 
-        <label>Categoría:</label>
-        <select id="categoria"></select>
+    <label>Categoría:</label>
+    <select id="categoria"></select>
 
-        <label>Agregar nueva categoría:</label>
-        <input type="text" id="nuevaCategoria" placeholder="Ej: Gasolina">
-        <button onclick="agregarCategoria()">Agregar categoría</button>
+    <label>Agregar nueva categoría:</label>
+    <input type="text" id="nuevaCategoria" placeholder="Ej: Gasolina">
+    <button class="btn" onclick="agregarCategoria()">Agregar categoría</button>
 
-        <label>Monto:</label>
-        <input type="number" id="monto">
+    <label>Monto:</label>
+    <input type="number" id="monto">
 
-        <button onclick="agregarMovimiento()">Agregar movimiento</button>
-    </div>
+    <button class="btn" onclick="agregarMovimiento()">Agregar movimiento</button>
+</div>
 
-    <!-- =========================
-            MOSTRAR DEUDA
-    ========================== -->
-    <div class="box">
-        <h2>Deuda Total</h2>
-        <p>$ <span id="deudaTotalLabel">0</span></p>
-        <p>Usa las categorías "Nueva Deuda" y "Abono Deuda" para modificarla.</p>
-    </div>
+<!-- DEUDA -->
+<div class="card">
+    <h3>Deuda Total</h3>
+    <div class="value">$ <span id="deudaTotalLabel">0</span></div>
+</div>
 
-    <script src="app.js"></script>
+<script src="app.js"></script>
 
 </body>
 </html>
