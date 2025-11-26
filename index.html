@@ -3,16 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <title>Presupuesto Mensual</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="assets/css/style.css"> 
 </head>
 <body>
 
-<h1>Presupuesto Mensual</h1>
-<a href="#" onclick="showSection('resumen')">Resumen</a> |
-<a href="#" onclick="showSection('admin')">Admin</a>
+<header class="app-header">
+    <div class="header-inner">
+        <div class="brand">
+            <span class="logo">💰 Presupuesto</span>
+            <div class="muted">Gestión de Finanzas Personales</div>
+        </div>
+        <div class="tabs">
+            <a href="#" class="tab active" onclick="showSection('resumen')">Resumen</a>
+            <a href="#" class="tab" onclick="showSection('admin')">Admin</a>
+        </div>
+    </div>
+</header>
+<div class="container">
 
-<!-- ===================== RESUMEN ====================== -->
-<div id="resumen" class="section">
+<div id="resumen" class="section card">
+
+    <h2>📊 Resumen Financiero</h2>
+    <h3>💳 Deuda Total</h3>
+    <p>Deuda actual: <strong>$<span id="deudaTotalLabel">0.00</span></strong></p>
 
     <h2>Total ingresos</h2>
     <p id="total-ingresos">$0.00</p>
@@ -34,62 +47,58 @@
 
 </div>
 
-<!-- ===================== ADMIN ====================== -->
-<div id="admin" class="section" style="display:none;">
+<div id="admin" class="section card" style="display:none;">
 
-    <h2>Agregar movimiento</h2>
+    <h2>➕ Agregar Movimiento</h2>
 
-    Fecha:
-    <input type="date" id="mov-fecha"><br>
+    <label>Fecha:</label>
+    <input type="date" id="fecha">
 
-    Tipo:
-    <select id="mov-tipo">
+    <label>Tipo:</label>
+    <select id="tipo">
         <option value="Ingreso">Ingreso</option>
         <option value="Gasto">Gasto</option>
-    </select><br>
+        <option value="Nueva Deuda">Nueva Deuda</option>
+        <option value="Abono Deuda">Abono Deuda</option>
+    </select>
+    
+    <label>Categoría:</label>
+    <select id="categoria"></select>
+    
+    <label>Agregar nueva categoría:</label>
+    <input type="text" id="nuevaCategoria" placeholder="Ej. Gasolina extra">
+    
+    <button onclick="agregarCategoria()">Agregar categoría</button>
+    
+    <label>Descripción:</label>
+    <input id="mov-desc" placeholder="Descripción opcional">
 
-    <div id="bloque-ingreso">
-        Tipo de ingreso:
-        <select id="ingreso-tipo"></select>
-        <input id="nuevo-ingreso" placeholder="Nuevo tipo">
-        <button onclick="agregarNuevoIngreso()">+</button>
-    </div>
+    <label>Monto:</label>
+    <input type="number" id="monto" placeholder="0.00">
 
-    <div id="bloque-gasto">
-        Categoría:
-        <select id="gasto-cat"></select>
-        <input id="nuevo-gasto" placeholder="Nueva categoría">
-        <button onclick="agregarNuevaCategoria()">+</button>
-    </div>
+    <button onclick="agregarMovimiento()">Guardar Movimiento</button>
 
-    Descripción:
-    <input id="mov-desc"><br>
+    ---
 
-    Monto:
-    <input type="number" id="mov-monto"><br>
+    <h2>🚗 Configuración de Kilometraje</h2>
 
-    <button onclick="agregarMovimiento()">Agregar movimiento</button>
+    <label>Kilometraje Inicial:</label>
+    <input type="number" id="kmInicial">
 
-    <h2>Configuración (Kilometraje)</h2>
+    <label>Kilometraje Final:</label>
+    <input type="number" id="kmFinal">
+    
+    <label>Gasto Total (tanque, gas, etc):</label>
+    <input type="number" id="gastoTotal">
 
-    Kilometraje inicial:
-    <input type="number" id="km-inicial"><br>
+    <div class="section-title">Precio por km calculado:</div>
+    <strong>$<span id="precioKm">0.00</span></strong>
 
-    Kilometraje final:
-    <input type="number" id="km-final"><br>
-
-    Kilómetros recorridos:
-    <input type="number" id="km-total" disabled><br>
-
-    Precio por km:
-    <input type="number" id="precio-km" disabled><br>
-
-    Gasto total:
-    <input type="number" id="gasto-total" disabled><br>
-
-    <button onclick="calcularKilometraje()">Calcular</button>
-    <button onclick="guardarConfig()">Guardar configuración</button>
-
+    <button onclick="calcularKm()">Calcular y Guardar</button>
+    <button onclick="cargarConfiguracionKm()">Cargar Configuración</button>
+    
+    ---
+    
     <h2>Exportar / Importar</h2>
     <button onclick="exportarJSON()">Exportar datos</button>
     <textarea id="json-area"></textarea><br>
@@ -101,8 +110,42 @@
 
 </div>
 
+</div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="script.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+    // Función de ayuda para la navegación de pestañas
+    function showSection(sectionId) {
+        const sections = ['resumen', 'admin'];
+        sections.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = (id === sectionId) ? 'block' : 'none';
+        });
+
+        // Actualizar clase de pestañas (tabs)
+        const tabs = document.querySelectorAll('.tabs .tab');
+        tabs.forEach(tab => {
+            tab.classList.remove('active');
+        });
+        const activeTab = document.querySelector(`.tabs a[onclick*="${sectionId}"]`);
+        if (activeTab) activeTab.classList.add('active');
+    }
+
+    // Al cargar la página, se inicializa el resumen (y se llama al window.onload de app.js)
+    window.addEventListener('load', () => {
+        showSection('resumen');
+    });
+
+    // Estas funciones (exportarJSON/importarJSON) necesitan ser implementadas en app.js
+    function exportarJSON() {
+        console.warn("Función 'exportarJSON' no implementada en assets/js/app.js.");
+        alert("La funcionalidad de Exportar JSON aún no está implementada.");
+    }
+    function importarJSON() {
+        console.warn("Función 'importarJSON' no implementada en assets/js/app.js.");
+        alert("La funcionalidad de Importar JSON aún no está implementada.");
+    }
+</script>
 
 </body>
 </html>
