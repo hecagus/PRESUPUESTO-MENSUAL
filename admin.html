@@ -6,7 +6,6 @@
   <title>Presupuesto Mensual — Admin</title>
 
   <link rel="stylesheet" href="assets/style.css" />
-  <!-- Chart.js CDN (admin no render necesario, pero ok si está) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -37,20 +36,22 @@
           </select>
         </div>
 
-        <div>
+        <div id="income-type-wrap" style="display:none;">
+          <label for="m-income-type">Tipo de ingreso</label>
+          <div style="display:flex;gap:.5rem;align-items:center">
+            <select id="m-income-type"></select>
+            <input id="new-income-type" placeholder="Nuevo tipo (ej. Bono)" />
+            <button id="btn-add-income-type" type="button" class="btn">➕</button>
+          </div>
+        </div>
+
+        <div id="category-wrap" style="display:none;">
           <label for="m-category">Categoría</label>
-          <select id="m-category" required>
-            <option value="Transporte">Transporte</option>
-            <option value="Gasolina">Gasolina</option>
-            <option value="Despensa">Despensa</option>
-            <option value="Alquiler">Alquiler</option>
-            <option value="Internet">Internet</option>
-            <option value="Streaming">Streaming</option>
-            <option value="Luz">Luz</option>
-            <option value="Agua">Agua</option>
-            <option value="Comida">Comida</option>
-            <option value="Otros">Otros</option>
-          </select>
+          <div style="display:flex;gap:.5rem;align-items:center">
+            <select id="m-category"></select>
+            <input id="new-category" placeholder="Nueva categoría" />
+            <button id="btn-add-category" type="button" class="btn">➕</button>
+          </div>
         </div>
 
         <div>
@@ -58,14 +59,15 @@
           <input id="m-desc" type="text" placeholder="Opcional" />
         </div>
 
-        <div>
+        <div id="amount-wrap">
           <label for="m-amount">Monto (moneda)</label>
-          <input id="m-amount" type="number" step="0.01" min="0" value="0" required />
+          <input id="m-amount" type="number" step="0.01" min="0" value="0" />
         </div>
 
-        <div id="km-wrap" style="display:none;">
-          <label for="m-km">Kilómetros (solo Gasolina)</label>
-          <input id="m-km" type="number" step="0.1" min="0" value="0" />
+        <div id="gas-info" style="display:none;">
+          <p class="muted">Gasolina: el costo se calcula usando la configuración (KM final - KM inicial) × precio por km.</p>
+          <p class="muted">Km recorrido: <span id="cfg-km-diff">0</span></p>
+          <p class="muted">Costo calculado: <strong id="cfg-gas-cost">$0.00</strong></p>
         </div>
 
         <div class="actions" style="grid-column: 1 / -1;">
@@ -79,14 +81,34 @@
       <h2>Configuración</h2>
       <div class="form-grid">
         <div>
+          <label for="cfg-km-start">Kilometraje inicial</label>
+          <input id="cfg-km-start" type="number" step="1" min="0" />
+        </div>
+        <div>
+          <label for="cfg-km-end">Kilometraje final</label>
+          <input id="cfg-km-end" type="number" step="1" min="0" />
+        </div>
+        <div>
           <label for="cfg-price-km">Precio por kilómetro</label>
-          <input id="cfg-price-km" type="number" step="0.01" min="0" value="0" />
+          <input id="cfg-price-km" type="number" step="0.01" min="0" />
         </div>
 
         <div class="actions" style="grid-column: 1 / -1;">
           <button id="btn-save-cfg" class="btn">Guardar configuración</button>
         </div>
       </div>
+    </section>
+
+    <section class="card">
+      <h2>Categorías personalizables</h2>
+      <p class="muted">Las categorías originales se mantienen (no se pueden borrar). Puedes borrar solo las categorías que agregues.</p>
+      <div id="custom-categories-list"></div>
+    </section>
+
+    <section class="card">
+      <h2>Tipos de ingreso personalizables</h2>
+      <p class="muted">Puedes borrar los tipos de ingreso que hayas creado.</p>
+      <div id="custom-income-types-list"></div>
     </section>
 
     <section class="card">
@@ -114,9 +136,8 @@
             <tr>
               <th>Fecha</th>
               <th>Tipo</th>
-              <th>Categoría</th>
+              <th>Categoria/Tipo</th>
               <th>Desc</th>
-              <th>Km</th>
               <th>Monto</th>
               <th>Acciones</th>
             </tr>
