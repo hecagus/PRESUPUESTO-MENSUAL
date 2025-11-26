@@ -1,0 +1,108 @@
+/* ============================
+   ESTILOS GENERALES
+================================ */
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f2f2f7;
+    margin: 0;
+    padding: 20px;
+    color: #333;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.card {
+    background: #fff;
+    padding: 20px;
+    margin: 15px auto;
+    max-width: 450px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+h2 {
+    margin-top: 0;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 8px;
+}
+
+/* ============================
+   FORMULARIOS
+================================ */
+
+label {
+    display: block;
+    margin-top: 12px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+input, select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fafafa;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: #007aff;
+    background: #fff;
+}
+
+/* ============================
+   BOTONES
+================================ */
+
+button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 15px;
+    border: none;
+    border-radius: 8px;
+    background: #007aff;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+button:hover {
+    background: #005fcc;
+}
+
+/* ============================
+   TABLAS (si las usas luego)
+================================ */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+th, td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+th {
+    background: #007aff;
+    color: white;
+}
+
+/* ============================
+   GRAFICA (index.html)
+================================ */
+
+#graficaCanvas {
+    margin-top: 20px;
+    width: 100% !important;
+}
