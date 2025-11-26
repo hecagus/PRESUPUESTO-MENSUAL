@@ -1,0 +1,47 @@
+body {
+    font-family: Arial;
+    padding: 20px;
+    background: #fafafa;
+}
+
+h1, h2 {
+    color: #222;
+}
+
+.section {
+    margin-top: 20px;
+}
+
+input, select, button, textarea {
+    padding: 8px;
+    margin: 5px 0;
+    width: 100%;
+    max-width: 350px;
+}
+
+button {
+    background: #4b4bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #3333cc;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+table td, table th {
+    border: 1px solid #ccc;
+    padding: 6px;
+    text-align: left;
+}
+
+textarea {
+    height: 120px;
+}
