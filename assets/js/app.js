@@ -25,7 +25,7 @@ let config = JSON.parse(localStorage.getItem(CFG_KEY)) || {
 // Categorías separadas por tipo
 let categorias = JSON.parse(localStorage.getItem(CAT_KEY)) || {
     ingreso: ["Quincenal", "Mensual", "Propinas", "Uber", "Otros"],
-    gasto: ["Comida", "Gasolina", "Internet", "Renta", "Servicios", "Despensa"]
+    gasto: ["Comida", "Gasolina", "Internet", "Renta",  "pasajes", "Servicios", "Despensa"]
 };
 
 // =========================
