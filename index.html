@@ -1,108 +1,706 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Presupuesto Mensual</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Presupuesto Mensual — App Unificada</title>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* ========== Reset & variables ========== */
+    :root{
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --accent: #0066cc;
+      --muted: #6b7280;
+      --text: #111827;
+      --danger: #d9534f;
+      --radius: 12px;
+      --shadow: 0 8px 24px rgba(15,23,42,0.06);
+      --maxw: 1100px;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; min-height:100vh; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased;}
+    a{color:var(--accent); text-decoration:none}
+
+    /* ========== Header / nav ========== */
+    header.app-header{
+      background:var(--card);
+      position:sticky; top:0; z-index:30;
+      box-shadow:0 2px 6px rgba(0,0,0,0.04);
+    }
+    .header-inner{ max-width:var(--maxw); margin:0 auto; padding:12px 16px; display:flex; gap:16px; align-items:center; justify-content:space-between;}
+    .brand{ display:flex; gap:12px; align-items:center;}
+    .logo { font-weight:700; color:var(--accent); font-size:1.15rem; }
+    nav.tabs{ display:flex; gap:8px; align-items:center;}
+    .tab {
+      padding:8px 12px; border-radius:8px; cursor:pointer;
+      color:var(--muted); font-weight:600; background:transparent; border:1px solid transparent;
+    }
+    .tab.active{ background:rgba(0,102,204,0.08); color:var(--accent); border-color:rgba(0,102,204,0.12); }
+
+    /* ========== Container ========== */
+    main.container{ max-width:var(--maxw); margin:22px auto; padding:0 16px 80px; }
+
+    /* ========== Layout ========== */
+    .grid{
+      display:grid;
+      gap:16px;
+    }
+    .cards-row{ display:grid; gap:12px; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); margin-bottom:10px; }
+    .card{
+      background:var(--card); padding:16px; border-radius:var(--radius); box-shadow:var(--shadow);
+    }
+    .stat { font-size:0.95rem; color:var(--muted); }
+    .stat .value{ display:block; font-size:1.3rem; font-weight:700; margin-top:6px; color:var(--text); }
+
+    /* ========== Forms & tables ========== */
+    label{ display:block; font-size:0.9rem; color:var(--muted); margin-bottom:6px; }
+    input[type="text"], input[type="date"], input[type="number"], select, textarea {
+      width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.06); background:transparent; font-size:0.95rem;
+    }
+    .form-grid{ display:grid; gap:12px; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); align-items:end; }
+    .actions{ display:flex; gap:8px; flex-wrap:wrap; }
+    .btn{ padding:10px 14px; border-radius:8px; border:none; cursor:pointer; font-weight:600; background:var(--accent); color:white; }
+    .btn.ghost{ background:transparent; color:var(--accent); border:1px solid rgba(0,102,204,0.12); }
+    .btn.danger{ background:var(--danger); }
+
+    .table-wrap{ overflow:auto; }
+    table{ width:100%; border-collapse:collapse; font-size:0.95rem; }
+    thead th{ text-align:left; padding:10px; color:var(--muted); border-bottom:1px solid rgba(0,0,0,0.06); font-weight:700; }
+    tbody td{ padding:10px; border-bottom:1px solid rgba(0,0,0,0.04); vertical-align:middle; }
+    .small{ font-size:0.85rem; color:var(--muted); }
+
+    /* ========== Charts ========== */
+    .chart-card canvas{ width:100%; height:260px !important; }
+
+    /* ========== Chips / lists ========== */
+    .chip{ display:inline-flex; gap:8px; align-items:center; padding:8px 12px; background:var(--card); border-radius:999px; box-shadow:0 6px 16px rgba(0,0,0,0.04); margin:6px 6px 6px 0; }
+    .btn.small{ padding:6px 8px; font-size:0.85rem; }
+
+    /* ========== Responsive tweaks ========== */
+    @media (min-width:900px){ .chart-row{ display:grid; grid-template-columns:1fr 1fr; gap:16px; } }
+    @media (max-width:480px){
+      .header-inner{ padding:10px; }
+      .chart-card canvas{ height:220px !important; }
+    }
+  </style>
 </head>
 <body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="logo">Presupuesto Mensual</div>
+        <div class="small muted">Local — localStorage</div>
+      </div>
 
-<h1>Presupuesto Mensual</h1>
-<a href="#" onclick="showSection('resumen')">Resumen</a> |
-<a href="#" onclick="showSection('admin')">Admin</a>
-
-<!-- ===================== RESUMEN ====================== -->
-<div id="resumen" class="section">
-
-    <h2>Total ingresos</h2>
-    <p id="total-ingresos">$0.00</p>
-
-    <h2>Total gastos</h2>
-    <p id="total-gastos">$0.00</p>
-
-    <h2>Balance</h2>
-    <p id="balance">$0.00</p>
-
-    <h2>Movimientos recientes</h2>
-    <table id="tabla-recientes"></table>
-
-    <h2>Gastos por categoría</h2>
-    <canvas id="grafica-categorias"></canvas>
-
-    <h2>Balance por mes</h2>
-    <canvas id="grafica-mensual"></canvas>
-
-</div>
-
-<!-- ===================== ADMIN ====================== -->
-<div id="admin" class="section" style="display:none;">
-
-    <h2>Agregar movimiento</h2>
-
-    Fecha:
-    <input type="date" id="mov-fecha"><br>
-
-    Tipo:
-    <select id="mov-tipo">
-        <option value="Ingreso">Ingreso</option>
-        <option value="Gasto">Gasto</option>
-    </select><br>
-
-    <div id="bloque-ingreso">
-        Tipo de ingreso:
-        <select id="ingreso-tipo"></select>
-        <input id="nuevo-ingreso" placeholder="Nuevo tipo">
-        <button onclick="agregarNuevoIngreso()">+</button>
+      <nav class="tabs" role="tablist" aria-label="Secciones">
+        <button class="tab active" id="tab-resumen" onclick="showTab('resumen')">Resumen</button>
+        <button class="tab" id="tab-admin" onclick="showTab('admin')">Admin</button>
+      </nav>
     </div>
+  </header>
 
-    <div id="bloque-gasto">
-        Categoría:
-        <select id="gasto-cat"></select>
-        <input id="nuevo-gasto" placeholder="Nueva categoría">
-        <button onclick="agregarNuevaCategoria()">+</button>
-    </div>
+  <main class="container" role="main">
+    <!-- ========== RESUMEN ========== -->
+    <section id="resumen" class="grid">
+      <div class="cards-row">
+        <div class="card stat">
+          <div>Total ingresos</div>
+          <div class="value" id="total-income">$0.00</div>
+        </div>
+        <div class="card stat">
+          <div>Total gastos</div>
+          <div class="value" id="total-expense">$0.00</div>
+        </div>
+        <div class="card stat">
+          <div>Balance</div>
+          <div class="value" id="balance">$0.00</div>
+        </div>
+      </div>
 
-    Descripción:
-    <input id="mov-desc"><br>
+      <div class="card">
+        <h3 style="margin:0 0 12px 0;">Movimientos recientes</h3>
+        <div class="table-wrap">
+          <table id="recent-table">
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Cat/Tipo</th><th>Descripción</th><th>Monto</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
 
-    Monto:
-    <input type="number" id="mov-monto"><br>
+      <div class="chart-row">
+        <div class="card chart-card">
+          <h3 style="margin:0 0 12px 0;">Gastos por categoría</h3>
+          <canvas id="pie-expense"></canvas>
+        </div>
 
-    <button onclick="agregarMovimiento()">Agregar movimiento</button>
+        <div class="card chart-card">
+          <h3 style="margin:0 0 12px 0;">Balance por mes</h3>
+          <canvas id="bar-balance"></canvas>
+        </div>
+      </div>
+    </section>
+      <!-- ========== ADMIN ========== -->
+    <section id="admin" class="grid" style="display:none;">
+      <div class="card">
+        <h3 style="margin-top:0">Agregar movimiento</h3>
 
-    <h2>Configuración (Kilometraje)</h2>
+        <form id="movement-form" class="form-grid" onsubmit="handleAddMovement(event)">
+          <div>
+            <label for="m-date">Fecha</label>
+            <input id="m-date" type="date" />
+          </div>
 
-    Kilometraje inicial:
-    <input type="number" id="km-inicial"><br>
+          <div>
+            <label for="m-type">Tipo</label>
+            <select id="m-type" onchange="toggleTypeFields()">
+              <option value="ingreso">Ingreso</option>
+              <option value="gasto">Gasto</option>
+            </select>
+          </div>
 
-    Kilometraje final:
-    <input type="number" id="km-final"><br>
+          <div id="income-wrap">
+            <label for="m-income-type">Tipo de ingreso</label>
+            <div style="display:flex; gap:8px;">
+              <select id="m-income-type" style="flex:1"></select>
+              <input id="new-income" placeholder="Nuevo tipo" style="flex:1" />
+              <button type="button" class="btn ghost" onclick="addIncomeType()">➕</button>
+            </div>
+          </div>
 
-    Kilómetros recorridos:
-    <input type="number" id="km-total" disabled><br>
+          <div id="category-wrap" style="display:none">
+            <label for="m-category">Categoría (gasto)</label>
+            <div style="display:flex; gap:8px;">
+              <select id="m-category" style="flex:1"></select>
+              <input id="new-category" placeholder="Nueva categoría" style="flex:1" />
+              <button type="button" class="btn ghost" onclick="addCategory()">➕</button>
+            </div>
+          </div>
 
-    Precio por km:
-    <input type="number" id="precio-km" disabled><br>
+          <div style="grid-column:1/-1">
+            <label for="m-desc">Descripción</label>
+            <input id="m-desc" type="text" placeholder="Opcional" />
+          </div>
 
-    Gasto total:
-    <input type="number" id="gasto-total" disabled><br>
+          <div id="amount-wrap">
+            <label for="m-amount">Monto (moneda)</label>
+            <input id="m-amount" type="number" step="0.01" min="0" value="0" />
+          </div>
 
-    <button onclick="calcularKilometraje()">Calcular</button>
-    <button onclick="guardarConfig()">Guardar configuración</button>
+          <div id="gas-info" style="display:none; grid-column:1/-1">
+            <div class="small muted">Gasolina: costo calculado desde configuración</div>
+            <div style="display:flex; gap:12px; margin-top:8px;">
+              <div class="chip">Km recorridos: <strong id="cfg-km-diff" style="margin-left:8px">0</strong></div>
+              <div class="chip">Costo calculado: <strong id="cfg-gas-cost" style="margin-left:8px">$0.00</strong></div>
+            </div>
+          </div>
 
-    <h2>Exportar / Importar</h2>
-    <button onclick="exportarJSON()">Exportar datos</button>
-    <textarea id="json-area"></textarea><br>
+          <div style="grid-column:1/-1; display:flex; gap:8px;">
+            <button type="submit" class="btn">Agregar movimiento</button>
+            <button type="button" class="btn ghost" onclick="exportData()">Exportar JSON</button>
+          </div>
+        </form>
+      </div>
 
-    <button onclick="importarJSON()">Importar</button>
+      <div class="card">
+        <h3 style="margin-top:0">Configuración (Kilometraje)</h3>
+        <div class="form-grid">
+          <div>
+            <label for="cfg-km-start">Kilometraje inicial</label>
+            <input id="cfg-km-start" type="number" min="0" />
+          </div>
+          <div>
+            <label for="cfg-km-end">Kilometraje final</label>
+            <input id="cfg-km-end" type="number" min="0" />
+          </div>
+          <div>
+            <label for="cfg-gasto-pesos">Gasto en pesos (ej. tanque)</label>
+            <input id="cfg-gasto-pesos" type="number" min="0" step="0.01" />
+          </div>
+          <div>
+            <label for="cfg-price-per-km">Precio por kilómetro (calculado)</label>
+            <input id="cfg-price-per-km" type="number" readonly />
+          </div>
+        </div>
 
-    <h2>Movimientos (todos)</h2>
-    <table id="tabla-todos"></table>
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button class="btn" onclick="calcAndSaveCfg()">Calcular y guardar</button>
+          <button class="btn ghost" onclick="loadCfgToForm()">Cargar configuración</button>
+        </div>
 
-</div>
+        <div style="margin-top:12px;">
+          <small class="small muted">Precio por km = gasto en pesos ÷ km recorridos</small>
+        </div>
+      </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="script.js"></script>
+      <div class="card">
+        <h3 style="margin-top:0">Categorías personalizadas</h3>
+        <p class="small muted">Las categorías por defecto se mantienen. Puedes eliminar sólo las categorías que agregues.</p>
+        <div id="custom-categories"></div>
+      </div>
 
+      <div class="card">
+        <h3 style="margin-top:0">Tipos de ingreso personalizados</h3>
+        <p class="small muted">Puedes eliminar los tipos de ingreso que hayas creado.</p>
+        <div id="custom-income-types"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0">Importar JSON</h3>
+        <textarea id="import-text" placeholder='Pega aquí JSON exportado (data + cfg)' rows="6" style="width:100%"></textarea>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn ghost" onclick="importFromText()">Importar desde texto</button>
+          <input id="import-file" type="file" accept="application/json" style="display:none" onchange="importFromFile(event)" />
+          <button class="btn ghost" onclick="document.getElementById('import-file').click()">Importar desde archivo</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0">Movimientos (todos)</h3>
+        <div class="table-wrap">
+          <table id="all-table">
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Cat/Tipo</th><th>Desc</th><th>Monto</th><th>Acciones</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer style="text-align:center; padding:18px 12px; color:var(--muted)">&copy; Presupuesto • localStorage keys: <code>budget_data_v1</code>, <code>budget_cfg_v1</code></footer>
+
+  <script>
+      /* =========================
+     App unificado (index.html)
+     ========================= */
+
+  (function(){
+    // Keys
+    const DATA_KEY = 'budget_data_v1';
+    const CFG_KEY  = 'budget_cfg_v1';
+
+    // Defaults
+    const BUILTIN_CATEGORIES = ['Transporte','Gasolina','Despensa','Alquiler','Internet','Streaming','Luz','Agua','Comida','Otros'];
+    const DEFAULT_INCOME_TYPES = ['Quincenal','Mensual','Propinas','Otros'];
+
+    // Charts
+    let pieChart = null, barChart = null;
+
+    // ---------- Storage helpers ----------
+    function readData(){ try { return JSON.parse(localStorage.getItem(DATA_KEY)) || []; } catch(e){ console.error(e); return []; } }
+    function saveData(d){ localStorage.setItem(DATA_KEY, JSON.stringify(d)); }
+    function readCfg(){ try { return JSON.parse(localStorage.getItem(CFG_KEY)) || { km_start:0, km_end:0, gasto_pesos:0, price_per_km:0, custom_categories:[], custom_income:[] }; } catch(e){ return { km_start:0, km_end:0, gasto_pesos:0, price_per_km:0, custom_categories:[], custom_income:[] }; } }
+    function saveCfg(c){ localStorage.setItem(CFG_KEY, JSON.stringify(c)); }
+
+    // ---------- Util ----------
+    function formatMoney(v){ const n = Number(v)||0; return '$' + n.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}); }
+    function escapeHtml(s){ if (s==null) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+    function capitalize(s){ if(!s) return s; return s.charAt(0).toUpperCase()+s.slice(1); }
+
+    // ---------- Tabs ----------
+    function showTab(id){
+      document.getElementById('resumen').style.display = id==='resumen' ? '' : 'none';
+      document.getElementById('admin').style.display = id==='admin' ? '' : 'none';
+      document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.id === 'tab-'+id ));
+      // refresh when switching
+      if(id === 'resumen') renderPublic();
+      if(id === 'admin') renderAdmin();
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+    window.showTab = showTab;
+
+    // ---------- Categories & income types ----------
+    function getCategories(){ const cfg = readCfg(); return BUILTIN_CATEGORIES.concat(cfg.custom_categories || []); }
+    function getIncomeTypes(){ const cfg = readCfg(); return DEFAULT_INCOME_TYPES.concat(cfg.custom_income || []); }
+
+    function addCategory(name){
+      if(!name) return alert('Escribe un nombre de categoría');
+      const cfg = readCfg();
+      cfg.custom_categories = cfg.custom_categories || [];
+      if(getCategories().includes(name)) return alert('La categoría ya existe');
+      cfg.custom_categories.push(name);
+      saveCfg(cfg);
+      renderAdmin();
+    }
+    function removeCustomCategory(idx){
+      const cfg = readCfg();
+      if(!cfg.custom_categories || !cfg.custom_categories[idx]) return;
+      if(!confirm('Eliminar categoría personalizada "'+cfg.custom_categories[idx]+'"?')) return;
+      cfg.custom_categories.splice(idx,1);
+      saveCfg(cfg);
+      renderAdmin();
+    }
+
+    function addIncomeType(name){
+      if(!name) return alert('Escribe un nombre de tipo de ingreso');
+      const cfg = readCfg();
+      cfg.custom_income = cfg.custom_income || [];
+      if(getIncomeTypes().includes(name)) return alert('Ya existe');
+      cfg.custom_income.push(name);
+      saveCfg(cfg);
+      renderAdmin();
+    }
+    function removeCustomIncome(idx){
+      const cfg = readCfg();
+      if(!cfg.custom_income || !cfg.custom_income[idx]) return;
+      if(!confirm('Eliminar tipo de ingreso "'+cfg.custom_income[idx]+'"?')) return;
+      cfg.custom_income.splice(idx,1);
+      saveCfg(cfg);
+      renderAdmin();
+    }
+
+    // ---------- Gasolina calc ----------
+    function kmDiffAndPrice(cfg){
+      const start = Number(cfg.km_start)||0;
+      const end = Number(cfg.km_end)||0;
+      const gasto = Number(cfg.gasto_pesos)||0;
+      const diff = Math.max(0, end - start);
+      const price = diff>0 ? (gasto / diff) : 0;
+      return { diff, price };
+    }
+      // ---------- Add / Remove movements ----------
+    function handleAddMovement(e){
+      e && e.preventDefault && e.preventDefault();
+      const date = document.getElementById('m-date').value || (new Date()).toISOString().slice(0,10);
+      const tipo = document.getElementById('m-type').value;
+      const desc = document.getElementById('m-desc').value || '';
+      const cfg = readCfg();
+      let monto = Number(document.getElementById('m-amount').value) || 0;
+      let categoria = null, income_type = null;
+
+      if(tipo === 'ingreso'){
+        income_type = document.getElementById('m-income-type').value || '';
+      } else {
+        categoria = document.getElementById('m-category').value || '';
+        if(String(categoria).toLowerCase() === 'gasolina'){
+          // calculate using cfg
+          const gas = kmDiffAndPrice(cfg);
+          monto = +(gas.diff * gas.price) || 0;
+        }
+      }
+
+      // validate
+      if(tipo==='ingreso' && (!income_type || isNaN(monto))){
+        alert('Completa tipo de ingreso y monto');
+        return;
+      }
+      if(tipo==='gasto' && (!categoria || isNaN(monto))){
+        alert('Completa categoría y monto');
+        return;
+      }
+
+      const data = readData();
+      data.push({
+        fecha: date,
+        tipo,
+        categoria,
+        income_type,
+        descripcion: desc,
+        monto: +monto
+      });
+      saveData(data);
+      // reset basic fields
+      document.getElementById('m-desc').value = '';
+      document.getElementById('m-amount').value = 0;
+      renderAdmin();
+      renderPublic();
+      alert('Movimiento agregado.');
+    }
+    window.handleAddMovement = handleAddMovement;
+
+    function deleteMovementAt(index){
+      const data = readData();
+      if(index < 0 || index >= data.length) return;
+      if(!confirm('Eliminar este movimiento?')) return;
+      data.splice(index,1);
+      saveData(data);
+      renderAdmin();
+      renderPublic();
+    }
+
+    // ---------- Export / Import ----------
+    function exportData(){
+      const payload = { data: readData(), cfg: readCfg() };
+      const txt = JSON.stringify(payload, null, 2);
+      // download
+      const blob = new Blob([txt], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url;
+      a.download = `presupuesto_export_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    window.exportData = exportData;
+
+    function importFromText(){
+      const txt = document.getElementById('import-text').value.trim();
+      if(!txt) return alert('Pega JSON válido en el área de importación.');
+      try {
+        const parsed = JSON.parse(txt);
+        if(Array.isArray(parsed)) saveData(parsed);
+        else if(parsed.data && Array.isArray(parsed.data)) saveData(parsed.data);
+        if(parsed.cfg) {
+          const cfgOld = readCfg();
+          saveCfg(Object.assign(cfgOld, parsed.cfg));
+        }
+        renderAdmin(); renderPublic();
+        alert('Importación correcta.');
+      } catch(err){
+        alert('JSON inválido: ' + err.message);
+      }
+    }
+    window.importFromText = importFromText;
+
+    function importFromFile(ev){
+      const f = ev.target.files && ev.target.files[0];
+      if(!f) return;
+      const reader = new FileReader();
+      reader.onload = function(e){
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if(Array.isArray(parsed)) saveData(parsed);
+          else if(parsed.data && Array.isArray(parsed.data)) saveData(parsed.data);
+          if(parsed.cfg) {
+            const cfgOld = readCfg();
+            saveCfg(Object.assign(cfgOld, parsed.cfg));
+          }
+          renderAdmin(); renderPublic();
+          alert('Importación exitosa.');
+        } catch(err){ alert('Error importando JSON: ' + err.message); }
+      };
+      reader.readAsText(f);
+      ev.target.value = '';
+    }
+    window.importFromFile = importFromFile;
+
+    // ---------- Config calculations ----------
+    function calcAndSaveCfg(){
+      const start = Number(document.getElementById('cfg-km-start').value) || 0;
+      const end = Number(document.getElementById('cfg-km-end').value) || 0;
+      const gasto = Number(document.getElementById('cfg-gasto-pesos').value) || 0;
+      const diff = Math.max(0, end - start);
+      const price = diff > 0 ? (gasto / diff) : 0;
+      const cfg = readCfg();
+      cfg.km_start = start; cfg.km_end = end; cfg.gasto_pesos = gasto; cfg.price_per_km = price;
+      saveCfg(cfg);
+      renderAdmin();
+      renderPublic();
+      alert('Configuración guardada (precio por km = ' + price.toFixed(2) + ').');
+    }
+    window.calcAndSaveCfg = calcAndSaveCfg;
+
+    function loadCfgToForm(){
+      const cfg = readCfg();
+      document.getElementById('cfg-km-start').value = cfg.km_start || 0;
+      document.getElementById('cfg-km-end').value = cfg.km_end || 0;
+      document.getElementById('cfg-gasto-pesos').value = cfg.gasto_pesos || 0;
+      const g = kmDiffAndPrice(cfg);
+      document.getElementById('cfg-price-per-km').value = +(g.price||0).toFixed(2);
+      document.getElementById('cfg-gasto-pesos').value = cfg.gasto_pesos || 0;
+    }
+    window.loadCfgToForm = loadCfgToForm;
+
+    // ---------- Render Public (index/resumen) ----------
+    function computeSummary(data, cfg){
+      let ingresos = 0, gastos = 0;
+      data.forEach(it=>{
+        if(it.tipo === 'ingreso') ingresos += Number(it.monto)||0;
+        else {
+          if(String(it.categoria).toLowerCase() === 'gasolina'){
+            const g = kmDiffAndPrice(cfg); gastos += +g.diff * +g.price;
+          } else gastos += Number(it.monto)||0;
+        }
+      });
+      return { ingresos, gastos, balance: ingresos - gastos };
+    }
+
+    function renderPublic(){
+      const data = readData();
+      const cfg = readCfg();
+      const sum = computeSummary(data, cfg);
+      document.getElementById('total-income').textContent = formatMoney(sum.ingresos);
+      document.getElementById('total-expense').textContent = formatMoney(sum.gastos);
+      document.getElementById('balance').textContent = formatMoney(sum.balance);
+
+      // recent table (max 12)
+      const tbody = document.querySelector('#recent-table tbody');
+      tbody.innerHTML = '';
+      const sorted = data.slice().sort((a,b)=> (b.fecha||'').localeCompare(a.fecha||''));
+      sorted.slice(0,12).forEach(r=>{
+        const m = r.tipo === 'ingreso' ? Number(r.monto) : Number(r.monto);
+        const label = r.tipo === 'ingreso' ? (r.income_type||'') : (r.categoria||'');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${escapeHtml(r.fecha||'')}</td>
+                        <td>${escapeHtml(capitalize(r.tipo||''))}</td>
+                        <td>${escapeHtml(label)}</td>
+                        <td>${escapeHtml(r.descripcion||'')}</td>
+                        <td>${formatMoney(m)}</td>`;
+        tbody.appendChild(tr);
+      });
+
+      renderPieExpenses(data, cfg);
+      renderBarBalance(data, cfg);
+    }
+
+    function renderPieExpenses(data, cfg){
+      const gastos = data.filter(d=>d.tipo === 'gasto');
+      const byCat = {};
+      gastos.forEach(g=>{
+        const cat = g.categoria || 'Otros';
+        // gasolina special: computed via cfg (km diff * price)
+        const amount = String(cat).toLowerCase() === 'gasolina' ? (kmDiffAndPrice(cfg).diff * kmDiffAndPrice(cfg).price) : (Number(g.monto)||0);
+        byCat[cat] = (byCat[cat]||0) + amount;
+      });
+      const labels = Object.keys(byCat);
+      const values = labels.map(l => +byCat[l].toFixed(2));
+      const ctx = document.getElementById('pie-expense').getContext('2d');
+      if(pieChart) pieChart.destroy();
+      pieChart = new Chart(ctx, { type:'pie', data: { labels, datasets:[{ data: values, backgroundColor: generateColors(labels.length) }] }, options:{ plugins:{ legend:{ position:'bottom'} } } });
+    }
+
+    function renderBarBalance(data, cfg){
+      const byMonth = {};
+      data.forEach(it=>{
+        const f = it.fecha || '';
+        if(!f) return;
+        const m = f.slice(0,7);
+        byMonth[m] = byMonth[m] || { ingresos:0, gastos:0 };
+        if(it.tipo === 'ingreso') byMonth[m].ingresos += Number(it.monto)||0;
+        else {
+          if(String(it.categoria).toLowerCase() === 'gasolina'){
+            const g = kmDiffAndPrice(cfg);
+            byMonth[m].gastos += g.diff * g.price;
+          } else byMonth[m].gastos += Number(it.monto)||0;
+        }
+      });
+      const months = Object.keys(byMonth).sort();
+      const balances = months.map(mm => +(byMonth[mm].ingresos - byMonth[mm].gastos).toFixed(2));
+      const ctx = document.getElementById('bar-balance').getContext('2d');
+      if(barChart) barChart.destroy();
+      barChart = new Chart(ctx, { type:'bar', data: { labels: months, datasets:[{ label:'Balance', data: balances, backgroundColor: generateColors(months.length) }] }, options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:false } } } });
+      }
+      // ---------- Render Admin ----------
+    function renderAdmin(){
+      // fill selects
+      const incomeSel = document.getElementById('m-income-type');
+      const catSel = document.getElementById('m-category');
+      incomeSel.innerHTML = ''; catSel.innerHTML = '';
+      getIncomeTypes().forEach(t=>{ incomeSel.innerHTML += `<option>${escapeHtml(t)}</option>`; });
+      getCategories().forEach(c=>{ catSel.innerHTML += `<option>${escapeHtml(c)}</option>`; });
+
+      // update gas info in add form
+      const cfg = readCfg();
+      const g = kmDiffAndPrice(cfg);
+      document.getElementById('cfg-km-start').value = cfg.km_start||0;
+      document.getElementById('cfg-km-end').value = cfg.km_end||0;
+      document.getElementById('cfg-gasto-pesos').value = cfg.gasto_pesos||0;
+      document.getElementById('cfg-price-per-km').value = +(g.price||0).toFixed(2);
+      document.getElementById('cfg-gasto-pesos').value = cfg.gasto_pesos || 0;
+      document.getElementById('cfg-km-start').value = cfg.km_start || 0;
+      document.getElementById('cfg-km-end').value = cfg.km_end || 0;
+      document.getElementById('cfg-price-per-km').value = +(g.price||0).toFixed(2);
+      document.getElementById('cfg-gasto-pesos').value = cfg.gasto_pesos || 0;
+      document.getElementById('cfg-gasto-pesos').value = cfg.gasto_pesos || 0;
+
+      // gas info panel
+      document.getElementById('cfg-km-diff').textContent = g.diff;
+      document.getElementById('cfg-gas-cost').textContent = formatMoney(g.diff * g.price);
+
+      // render custom lists
+      const customCats = document.getElementById('custom-categories');
+      customCats.innerHTML = '';
+      const cfgLocal = readCfg();
+      (cfgLocal.custom_categories||[]).forEach((c,i)=>{
+        const d = document.createElement('div'); d.className='chip';
+        d.innerHTML = `<span>${escapeHtml(c)}</span><button class="btn small" onclick="removeCustomCategory(${i})">Eliminar</button>`;
+        customCats.appendChild(d);
+      });
+      const customInc = document.getElementById('custom-income-types');
+      customInc.innerHTML = '';
+      (cfgLocal.custom_income||[]).forEach((c,i)=>{
+        const d = document.createElement('div'); d.className='chip';
+        d.innerHTML = `<span>${escapeHtml(c)}</span><button class="btn small" onclick="removeCustomIncome(${i})">Eliminar</button>`;
+        customInc.appendChild(d);
+      });
+
+      // render all movements table
+      const tbody = document.querySelector('#all-table tbody');
+      tbody.innerHTML = '';
+      const data = readData();
+      const sorted = data.slice().sort((a,b)=> (b.fecha||'').localeCompare(a.fecha||''));
+      sorted.forEach((it, idx) => {
+        const label = it.tipo === 'ingreso' ? (it.income_type||'') : (it.categoria||'');
+        const monto = Number(it.monto)||0;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${escapeHtml(it.fecha||'')}</td>
+                        <td>${escapeHtml(capitalize(it.tipo||''))}</td>
+                        <td>${escapeHtml(label)}</td>
+                        <td>${escapeHtml(it.descripcion||'')}</td>
+                        <td>${formatMoney(monto)}</td>
+                        <td><button class="btn small" onclick="deleteMovementAt(${idx})">Eliminar</button></td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ---------- UI helpers ----------
+    function toggleTypeFields(){
+      const t = document.getElementById('m-type').value;
+      document.getElementById('income-wrap').style.display = t==='ingreso' ? '' : 'none';
+      document.getElementById('category-wrap').style.display = t==='gasto' ? '' : 'none';
+      // show gas-info when category is gasolina
+      const cat = document.getElementById('m-category').value || '';
+      const showingGas = t==='gasto' && String(cat).toLowerCase() === 'gasolina';
+      document.getElementById('gas-info').style.display = showingGas ? '' : 'none';
+    }
+    window.toggleTypeFields = toggleTypeFields;
+
+    // ---------- Colors generator ----------
+    function generateColors(n){
+      const base = ['#0066cc','#2b9af3','#00a86b','#ffb020','#ff6b6b','#7b61ff','#00b5ad','#f77f00','#9fb0ff','#ffd6a5','#caffbf','#bdb2ff'];
+      const out = [];
+      for(let i=0;i<n;i++) out.push(base[i % base.length]);
+      return out;
+    }
+
+    // ---------- Init ----------
+    function init(){
+      // wire some global functions to window for inline onclick usage
+      window.addCategory = function(){ addCategory(document.getElementById('new-category').value.trim()); document.getElementById('new-category').value=''; }
+      window.addIncomeType = function(){ addIncomeType(document.getElementById('new-income').value.trim()); document.getElementById('new-income').value=''; }
+      window.removeCustomCategory = removeCustomCategory;
+      window.removeCustomIncome = removeCustomIncome;
+      window.deleteMovementAt = deleteMovementAt;
+      window.exportData = exportData;
+      window.importFromText = importFromText;
+      window.importFromFile = importFromFile;
+      window.loadCfgToForm = loadCfgToForm;
+      window.calcAndSaveCfg = calcAndSaveCfg;
+
+      // show default
+      showTab('resumen');
+
+      // attach change handlers
+      document.getElementById('m-type').addEventListener('change', toggleTypeFields);
+      document.getElementById('m-category').addEventListener('change', toggleTypeFields);
+
+      // initial renders
+      renderPublic();
+      renderAdmin();
+
+      // keep charts responsive on resize
+      window.addEventListener('resize', () => { try{ renderPublic(); }catch(e){} });
+    }
+
+    init();
+
+    // expose for console debugging
+    window._budget = { readData, saveData, readCfg, saveCfg, renderPublic, renderAdmin };
+
+  })();
+  </script>
 </body>
 </html>
