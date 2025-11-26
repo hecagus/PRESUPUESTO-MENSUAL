@@ -1,85 +1,108 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Presupuesto Mensual — Resumen</title>
-
-  <link rel="stylesheet" href="assets/style.css" />
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8">
+    <title>Presupuesto Mensual</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="site-header">
-    <div class="container header-inner">
-      <h1 class="logo">Presupuesto Mensual</h1>
-      <nav>
-        <a href="index.html" class="nav-link active">Resumen</a>
-        <a href="admin.html" class="nav-link">Admin</a>
-      </nav>
+
+<h1>Presupuesto Mensual</h1>
+<a href="#" onclick="showSection('resumen')">Resumen</a> |
+<a href="#" onclick="showSection('admin')">Admin</a>
+
+<!-- ===================== RESUMEN ====================== -->
+<div id="resumen" class="section">
+
+    <h2>Total ingresos</h2>
+    <p id="total-ingresos">$0.00</p>
+
+    <h2>Total gastos</h2>
+    <p id="total-gastos">$0.00</p>
+
+    <h2>Balance</h2>
+    <p id="balance">$0.00</p>
+
+    <h2>Movimientos recientes</h2>
+    <table id="tabla-recientes"></table>
+
+    <h2>Gastos por categoría</h2>
+    <canvas id="grafica-categorias"></canvas>
+
+    <h2>Balance por mes</h2>
+    <canvas id="grafica-mensual"></canvas>
+
+</div>
+
+<!-- ===================== ADMIN ====================== -->
+<div id="admin" class="section" style="display:none;">
+
+    <h2>Agregar movimiento</h2>
+
+    Fecha:
+    <input type="date" id="mov-fecha"><br>
+
+    Tipo:
+    <select id="mov-tipo">
+        <option value="Ingreso">Ingreso</option>
+        <option value="Gasto">Gasto</option>
+    </select><br>
+
+    <div id="bloque-ingreso">
+        Tipo de ingreso:
+        <select id="ingreso-tipo"></select>
+        <input id="nuevo-ingreso" placeholder="Nuevo tipo">
+        <button onclick="agregarNuevoIngreso()">+</button>
     </div>
-  </header>
 
-  <main class="container main-content">
-    <section class="cards-row">
-      <div class="card stat">
-        <h3>Total ingresos</h3>
-        <p id="total-income">$0.00</p>
-      </div>
+    <div id="bloque-gasto">
+        Categoría:
+        <select id="gasto-cat"></select>
+        <input id="nuevo-gasto" placeholder="Nueva categoría">
+        <button onclick="agregarNuevaCategoria()">+</button>
+    </div>
 
-      <div class="card stat">
-        <h3>Total gastos</h3>
-        <p id="total-expense">$0.00</p>
-      </div>
+    Descripción:
+    <input id="mov-desc"><br>
 
-      <div class="card stat">
-        <h3>Balance</h3>
-        <p id="balance">$0.00</p>
-      </div>
-    </section>
+    Monto:
+    <input type="number" id="mov-monto"><br>
 
-    <section class="card">
-      <h2>Movimientos recientes</h2>
-      <div class="table-wrap">
-        <table id="recent-table">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Tipo</th>
-              <th>Categoría / Tipo ingreso</th>
-              <th>Descripción</th>
-              <th>Monto</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
+    <button onclick="agregarMovimiento()">Agregar movimiento</button>
 
-    <section class="charts-row">
-      <div class="card chart-card">
-        <h2>Gastos por categoría</h2>
-        <canvas id="pie-expense"></canvas>
-      </div>
+    <h2>Configuración (Kilometraje)</h2>
 
-      <div class="card chart-card">
-        <h2>Balance por mes</h2>
-        <canvas id="bar-balance"></canvas>
-      </div>
-    </section>
-  </main>
+    Kilometraje inicial:
+    <input type="number" id="km-inicial"><br>
 
-  <footer class="site-footer">
-    <div class="container">Proyecto estático • Guardado en localStorage (keys: <code>budget_data_v1</code>, <code>budget_cfg_v1</code>)</div>
-  </footer>
+    Kilometraje final:
+    <input type="number" id="km-final"><br>
 
-  <script src="assets/app.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      if (location.pathname.endsWith('index.html') || location.pathname.endsWith('/')) {
-        window.app && window.app.initPublic && window.app.initPublic();
-      }
-    });
-  </script>
+    Kilómetros recorridos:
+    <input type="number" id="km-total" disabled><br>
+
+    Precio por km:
+    <input type="number" id="precio-km" disabled><br>
+
+    Gasto total:
+    <input type="number" id="gasto-total" disabled><br>
+
+    <button onclick="calcularKilometraje()">Calcular</button>
+    <button onclick="guardarConfig()">Guardar configuración</button>
+
+    <h2>Exportar / Importar</h2>
+    <button onclick="exportarJSON()">Exportar datos</button>
+    <textarea id="json-area"></textarea><br>
+
+    <button onclick="importarJSON()">Importar</button>
+
+    <h2>Movimientos (todos)</h2>
+    <table id="tabla-todos"></table>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="script.js"></script>
+
 </body>
 </html>
