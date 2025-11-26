@@ -1,26 +1,74 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Panel Principal</title>
-    <style>
-        body { font-family: Arial; padding: 20px; }
-        a { display: block; margin: 10px 0; font-size: 20px; }
-        .box { padding: 15px; border: 1px solid #ccc; margin-bottom: 20px; }
-    </style>
+<meta charset="UTF-8">
+<title>Inicio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+    body {
+        font-family: 'Segoe UI', sans-serif;
+        background: #f5f7fa;
+        margin: 0;
+        padding: 20px;
+        color: #333;
+    }
+
+    .header {
+        text-align: center;
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 25px;
+    }
+
+    .card {
+        background: white;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .value {
+        font-size: 32px;
+        font-weight: 700;
+        margin-top: 10px;
+        color: #007aff;
+    }
+
+    .btn {
+        display: block;
+        width: 100%;
+        padding: 14px;
+        margin-top: 12px;
+        background: #007aff;
+        color: white;
+        text-align: center;
+        text-decoration: none;
+        border-radius: 12px;
+        font-size: 17px;
+        font-weight: 600;
+    }
+
+    .btn:active {
+        background: #005fcc;
+    }
+
+</style>
 </head>
 <body>
 
-    <h1>Panel de Control</h1>
+<div class="header">Panel Principal</div>
 
-    <div class="box">
-        <h2>Deuda Total</h2>
-        <p>$ <span id="deudaTotalLabel">0</span></p>
-    </div>
+<div class="card">
+    <h3>Deuda Total</h3>
+    <div class="value">$ <span id="deudaTotalLabel">0</span></div>
+</div>
 
-    <a href="admin.html">➡ Ir al Panel de Administración</a>
-    <a href="km.html">➡ Configurar Kilometraje</a>
+<a class="btn" href="admin.html">Panel de Administración</a>
+<a class="btn" href="km.html">Kilometraje</a>
 
-    <script src="app.js"></script>
+<script src="app.js"></script>
+
 </body>
 </html>
