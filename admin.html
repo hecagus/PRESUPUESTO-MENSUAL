@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+
+<body>
+
+    <h1>Panel de Administración</h1>
+
+    <section class="card">
+        <h2>Agregar Movimiento</h2>
+
+        <label>Fecha:</label>
+        <input type="date" id="movFecha">
+
+        <label>Tipo:</label>
+        <select id="movTipo" onchange="cambiarTipo()">
+            <option value="">Seleccione...</option>
+            <option value="ingreso">Ingreso</option>
+            <option value="gasto">Gasto</option>
+        </select>
+
+        <label id="labelCategoria">Categoría:</label>
+        <select id="movCategoria">
+            <option value="">Seleccione un tipo...</option>
+        </select>
+
+        <label>Monto:</label>
+        <input type="number" id="movMonto">
+
+        <button onclick="agregarMovimiento()">Agregar movimiento</button>
+    </section>
+
+    <section class="card">
+        <h2>Configuración de Kilometraje</h2>
+
+        <label>Kilometraje Inicial:</label>
+        <input type="number" id="kmInicial">
+
+        <label>Kilometraje Final:</label>
+        <input type="number" id="kmFinal">
+
+        <label>Gasto Total (tanque, gas, etc):</label>
+        <input type="number" id="kmGasto">
+
+        <p><strong>Precio por km calculado:</strong> <span id="precioKmCalc">0</span></p>
+
+        <button onclick="calcularKm()">Calcular y guardar</button>
+        <button onclick="cargarKm()">Cargar configuración</button>
+    </section>
+
+    <script src="assets/js/app.js"></script>
+</body>
+</html>
