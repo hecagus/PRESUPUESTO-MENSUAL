@@ -2,86 +2,59 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Administración</title>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <title>Administración</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        label { font-weight: bold; }
+        input, select { width: 100%; padding: 8px; margin: 6px 0; }
+        button { padding: 10px; width: 100%; margin-top: 10px; }
+        a { display: block; margin: 15px 0; }
+        .box { padding: 15px; border: 1px solid #ccc; margin-bottom: 25px; }
+    </style>
 </head>
-
 <body>
 
-<header class="app-header">
-    <div class="header-inner">
-        <div class="brand">
-            <div class="logo">Panel de Administración</div>
-            <div class="small muted">Local — localStorage</div>
-        </div>
-        <nav class="tabs">
-            <a href="index.html" class="tab">⟵ Regresar</a>
-            <a href="admin.html" class="tab active">Admin</a>
-        </nav>
-    </div>
-</header>
+    <a href="index.html">⟵ Regresar</a>
+    <h1>Panel de Administración</h1>
 
-<main class="container">
-
-    <!-- ==========================
+    <!-- =========================
           AGREGAR MOVIMIENTO
-    ============================ -->
-    <section class="card">
+    ========================== -->
+    <div class="box">
         <h2>Agregar Movimiento</h2>
 
         <label>Fecha:</label>
-        <input type="date" id="movFecha">
+        <input type="date" id="fecha" value="2025-11-25">
 
         <label>Tipo:</label>
-        <select id="movTipo" onchange="cambiarTipo()">
-            <option value="">Seleccione...</option>
-            <option value="ingreso">Ingreso</option>
-            <option value="gasto">Gasto</option>
+        <select id="tipo">
+            <option>Ingreso</option>
+            <option>Gasto</option>
         </select>
 
-        <label id="labelCategoria">Categoría:</label>
-        <select id="movCategoria"></select>
+        <label>Categoría:</label>
+        <select id="categoria"></select>
 
         <label>Agregar nueva categoría:</label>
-        <input type="text" id="nuevoTipo" placeholder="Ej. Bono, Taxi, Etc">
-
-        <button onclick="agregarNuevoTipo()">Agregar tipo</button>
+        <input type="text" id="nuevaCategoria" placeholder="Ej: Gasolina">
+        <button onclick="agregarCategoria()">Agregar categoría</button>
 
         <label>Monto:</label>
-        <input type="number" id="movMonto">
+        <input type="number" id="monto">
 
         <button onclick="agregarMovimiento()">Agregar movimiento</button>
-    </section>
+    </div>
 
-    <!-- ==========================
-          CONFIGURACIÓN KM
-    ============================ -->
-    <section class="card">
-        <h2>Configuración de Kilometraje</h2>
+    <!-- =========================
+            MOSTRAR DEUDA
+    ========================== -->
+    <div class="box">
+        <h2>Deuda Total</h2>
+        <p>$ <span id="deudaTotalLabel">0</span></p>
+        <p>Usa las categorías "Nueva Deuda" y "Abono Deuda" para modificarla.</p>
+    </div>
 
-        <label>Kilometraje Inicial:</label>
-        <input type="number" id="kmInicial">
-
-        <label>Kilometraje Final:</label>
-        <input type="number" id="kmFinal">
-
-        <label>Gasto Total (tanque, gas, etc):</label>
-        <input type="number" id="kmGasto">
-
-        <p><strong>Precio por km calculado:</strong> <span id="precioKmCalc">0</span></p>
-
-        <button onclick="calcularKm()">Calcular y guardar</button>
-        <button onclick="cargarKm()">Cargar configuración</button>
-    </section>
-
-</main>
-
-<script src="assets/js/app.js"></script>
-<script>
-    document.addEventListener("DOMContentLoaded", cargarKm);
-    document.addEventListener("DOMContentLoaded", cambiarTipo);
-</script>
+    <script src="app.js"></script>
 
 </body>
 </html>
