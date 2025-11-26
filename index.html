@@ -46,7 +46,7 @@
             <tr>
               <th>Fecha</th>
               <th>Tipo</th>
-              <th>Categoría</th>
+              <th>Categoría / Tipo ingreso</th>
               <th>Descripción</th>
               <th>Monto</th>
             </tr>
@@ -75,7 +75,6 @@
 
   <script src="assets/app.js"></script>
   <script>
-    // Inicializa solo la parte pública (index)
     document.addEventListener('DOMContentLoaded', () => {
       if (location.pathname.endsWith('index.html') || location.pathname.endsWith('/')) {
         window.app && window.app.initPublic && window.app.initPublic();
