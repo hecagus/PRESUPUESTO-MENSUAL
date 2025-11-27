@@ -5,64 +5,45 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Panel de Administración</title>
 
-<!-- ESTILOS TIPO APP MÓVIL -->
+<link rel="stylesheet" href="assets/css/style.css"> 
 <style>
+    /* Estilos base (puedes quitarlos si el assets/css/style.css ya los cubre bien) */
     body {
         margin: 0;
-        font-family: Arial, sans-serif;
-        background: #f4f4f4;
-        padding: 15px;
+        padding: 0;
+        background: #eef0f5; /* Fondo del body */
     }
     .container {
-        max-width: 480px;
-        margin: auto;
-    }
-    h2 {
-        text-align: center;
-        margin-bottom: 15px;
-        color: #222;
-    }
-    .card {
-        background: #fff;
-        padding: 15px;
-        border-radius: 12px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-    }
-    input, select, button {
-        width: 100%;
-        padding: 12px;
-        margin-top: 8px;
-        border-radius: 8px;
-        border: 1px solid #ccc;
-        font-size: 16px;
-    }
-    button {
-        background: #007bff;
-        color: white;
-        border: none;
-        cursor: pointer;
-        font-weight: bold;
-    }
-    button:hover {
-        background: #005fcc;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 15px 10px;
     }
     .back-btn {
         background: #444;
         margin-bottom: 15px;
     }
-    .section-title {
-        font-weight: bold;
-        margin-top: 15px;
-        margin-bottom: 5px;
+
+    /* MODAL (Necesario para la gestión de deudas) */
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 100;
     }
-    .deuda-box {
-        background: #ffecec;
-        padding: 12px;
-        border-radius: 10px;
-        font-size: 18px;
-        margin-bottom: 20px;
-        border: 1px solid #ffb3b3;
+    .close-button {
+        position: absolute;
+        top: 10px;
+        right: 20px;
+        font-size: 24px;
+        font-weight: bold;
+        color: #aaa;
+        cursor: pointer;
     }
 </style>
 </head>
@@ -71,73 +52,115 @@
 
 <div class="container">
 
-    <!-- BOTÓN VOLVER -->
-    <button class="back-btn" onclick="location.href='index.html'">⟵ Regresar</button>
+    <button class="back-btn" onclick="location.href='index.html'">⟵ Regresar al Resumen</button>
 
     <h2>Panel de Administración</h2>
 
-    <!-- ============================= -->
-    <!--        DEUDA TOTAL           -->
-    <!-- ============================= -->
     <div class="card">
-        <h3>💳 Deuda Total</h3>
-        <div class="deuda-box">
-            Deuda actual: <strong>$<span id="deudaTotalLabel">0.00</span></strong>
-        </div>
+        <h3>💳 Gestión de Deudas</h3>
+
+        <table id="tabla-deudas" class="tabla-listado">
+            <thead>
+                <tr><th>Nombre</th><th>Monto Actual</th><th>Acción</th></tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+        <button onclick="mostrarFormularioDeuda()">Agregar/Abonar Deuda</button>
     </div>
 
-    <!-- ============================= -->
-    <!--      AGREGAR MOVIMIENTO      -->
-    <!-- ============================= -->
     <div class="card">
-        <h3>➕ Agregar Movimiento</h3>
+        <h3>➕ Agregar Movimiento (Ingreso/Gasto)</h3>
 
         <label>Fecha:</label>
-        <input type="date" id="fecha">
-
-        <label>Tipo:</label>
-        <select id="tipo">
-            <option value="Ingreso">Ingreso</option>
+        <input type="date" id="fecha"> <label>Tipo:</label>
+        <select id="tipo"> <option value="Ingreso">Ingreso</option>
             <option value="Gasto">Gasto</option>
         </select>
 
         <label>Categoría:</label>
-        <select id="categoria"></select>
+        <select id="categoria"></select> <label>Agregar nueva categoría:</label>
+        <input type="text" id="nuevaCategoria" placeholder="Ej. Gasolina extra"> <button onclick="agregarCategoria()">Agregar categoría</button>
 
-        <label>Agregar nueva categoría:</label>
-        <input type="text" id="nuevaCategoria" placeholder="Ej. Gasolina extra">
-        <button onclick="agregarCategoria()">Agregar categoría</button>
+        <label>Descripción:</label>
+        <input id="mov-desc" placeholder="Descripción opcional">
 
         <label>Monto:</label>
-        <input type="number" id="monto" placeholder="0.00">
-
-        <button id="btnAddMovimiento" onclick="agregarMovimiento()">Agregar movimiento</button>
+        <input type="number" id="monto" placeholder="0.00"> <button onclick="agregarMovimiento()">Guardar Movimiento</button>
     </div>
 
-    <!-- ============================= -->
-    <!--      CONFIG KILOMETRAJE      -->
-    <!-- ============================= -->
     <div class="card">
         <h3>🚗 Configuración de Kilometraje</h3>
 
         <label>Kilometraje Inicial:</label>
-        <input type="number" id="kmInicial">
-
-        <label>Kilometraje Final:</label>
-        <input type="number" id="kmFinal">
-
-        <label>Gasto Total (tanque, gas, etc):</label>
-        <input type="number" id="gastoTotal">
-
-        <div class="section-title">Precio por km calculado:</div>
-        <strong>$<span id="precioKm">0.00</span></strong>
-
-        <button onclick="calcularKm()">Calcular y guardar</button>
+        <input type="number" id="kmInicial"> <label>Kilometraje Final:</label>
+        <input type="number" id="kmFinal"> <label>Gasto Total (tanque, gas, etc):</label>
+        <input type="number" id="gastoTotal"> <div class="section-title">Precio por km calculado:</div>
+        <strong>$<span id="precioKm">0.00</span></strong> <button onclick="calcularKm()">Calcular y guardar</button>
         <button onclick="cargarConfiguracionKm()">Cargar configuración</button>
+    </div>
+
+    <div class="card">
+        <h2>Exportar / Importar</h2>
+        <button onclick="exportarJSON()">Exportar datos</button>
+        <textarea id="json-area"></textarea><br>
+
+        <button onclick="importarJSON()">Importar</button>
+    </div>
+    
+    <div class="card">
+        <h2>Movimientos (todos)</h2>
+        <table id="tabla-todos" class="tabla-listado"></table>
     </div>
 
 </div>
 
+<div id="deuda-modal" class="modal" style="display:none;">
+    <div class="modal-content card">
+        <h3>Gestión de Deuda</h3>
+        <span class="close-button" onclick="cerrarFormularioDeuda()">&times;</span>
+        
+        <h4>Registrar Nueva Deuda</h4>
+        <label>Nombre de la Deuda:</label>
+        <input type="text" id="deuda-nombre" placeholder="Ej. Crédito Coche">
+        <label>Monto Inicial:</label>
+        <input type="number" id="deuda-monto-inicial">
+        <button onclick="registrarNuevaDeuda()">Registrar Deuda</button>
+
+        <h4>Abonar a Deuda Existente</h4>
+        <label>Seleccionar Deuda:</label>
+        <select id="deuda-select-abono"></select>
+        <label>Monto del Abono:</label>
+        <input type="number" id="deuda-monto-abono">
+        <button onclick="abonarADeuda()">Realizar Abono</button>
+
+    </div>
+</div>
+
 <script src="assets/js/app.js"></script>
+<script>
+    // Funciones necesarias para el modal y tablas
+    function mostrarFormularioDeuda() {
+        if (typeof cargarSelectDeudas === 'function') cargarSelectDeudas();
+        document.getElementById('deuda-modal').style.display = 'flex';
+    }
+    function cerrarFormularioDeuda() {
+        document.getElementById('deuda-modal').style.display = 'none';
+    }
+
+    // Al cargar admin.html, cargar todas las listas
+    window.onload = () => {
+        // Ejecuta la lógica de app.js (cargar categorías, km)
+        if (typeof window.onloadApp === 'function') window.onloadApp(); 
+        
+        // Cargamos tablas específicas de admin
+        if (typeof cargarTablaDeudas === 'function') cargarTablaDeudas();
+        if (typeof cargarTablaTodos === 'function') cargarTablaTodos();
+    };
+
+    // Placeholders para funciones no implementadas en app.js
+    function exportarJSON() { alert("La funcionalidad de Exportar JSON aún no está implementada."); }
+    function importarJSON() { alert("La funcionalidad de Importar JSON aún no está implementada."); }
+</script>
 </body>
 </html>
