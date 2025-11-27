@@ -18,40 +18,22 @@
     <h3>💳 Deuda Total</h3>
     <p>$<span id="deudaTotalLabel">0.00</span></p>
   </div>
+
   <div class="card">
     <h3>💵 Total Ingresos</h3>
     <p>$<span id="total-ingresos">0.00</span></p>
   </div>
+
   <div class="card">
     <h3>💸 Total Gastos</h3>
     <p>$<span id="total-gastos">0.00</span></p>
   </div>
+
   <div class="card">
     <h3>🚗 Kilometraje Total</h3>
     <p>Kilómetros recorridos: <span id="km-recorridos">0</span></p>
     <p>Gasto total de combustible: $<span id="km-gasto">0.00</span></p>
   </div>
-</div>
-
-<div class="card">
-  <h3>➕ Agregar Movimiento</h3>
-  <label>Fecha:</label>
-  <input type="date" id="fecha-index">
-  <label>Tipo:</label>
-  <select id="tipo-index">
-    <option value="Ingreso">Ingreso</option>
-    <option value="Gasto">Gasto</option>
-  </select>
-  <label>Categoría:</label>
-  <select id="categoria-index"></select>
-  <label>Agregar nueva categoría:</label>
-  <input type="text" id="nuevaCategoria-index" placeholder="Ej. Gasolina extra">
-  <button onclick="agregarCategoria('index')">Agregar categoría</button>
-  <label>Descripción:</label>
-  <input type="text" id="mov-desc-index" placeholder="Descripción opcional">
-  <label>Monto:</label>
-  <input type="number" id="monto-index" placeholder="0.00">
-  <button onclick="agregarMovimiento('index')">Guardar Movimiento</button>
 </div>
 
 <div class="card">
@@ -78,7 +60,7 @@
 <script src="assets/js/app.js"></script>
 <script>
 window.addEventListener('load', function(){
-    onloadApp('index'); // inicializa solo la vista index
+    onloadApp('index'); // Solo carga datos, NO captura
 });
 </script>
 
