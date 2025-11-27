@@ -232,8 +232,43 @@ function renderGraficas(){
 
     new Chart(ctxCat,{type:'bar',data:{labels:Object.keys(categoriasGastos),datasets:[{label:'Gastos por Categoría',data:Object.values(categoriasGastos),backgroundColor:'rgba(255,99,132,0.5)'}]},options:{responsive:true}});
 
-    // Balance mensual (simple por mes actual)
+    // Balance mensual
     const meses={};
     movimientos.forEach(m=>{
-        const mes=new Date(m.fecha).toLocaleDateString('es-MX',{month:'short',year:'numeric'});
-        if(!meses
+        const date=new Date(m.fecha);
+        const key=date.getFullYear()+"-"+(date.getMonth()+1);
+        if(!meses[key]) meses[key]={Ingreso:0,Gasto:0,Deuda:0};
+        meses[key][m.tipo]= (meses[key][m.tipo]||0)+m.monto;
+    });
+
+    const labels=Object.keys(meses);
+    const ingresos=labels.map(l=>meses[l].Ingreso||0);
+    const gastos=labels.map(l=>meses[l].Gasto||0);
+
+    new Chart(ctxMes,{
+        type:'line',
+        data:{
+            labels,
+            datasets:[
+                {label:'Ingresos',data:ingresos,borderColor:'green',fill:false},
+                {label:'Gastos',data:gastos,borderColor:'red',fill:false},
+            ]
+        },
+        options:{responsive:true}
+    });
+}
+
+// =========================
+// INICIALIZACIÓN
+// =========================
+function onloadApp(){
+    cargarCategorias();
+    cargarTablaTodos();
+    cargarTablaDeudas();
+    mostrarDeuda();
+}
+function showSection(id){
+    document.querySelectorAll(".section").forEach(s=>s.style.display="none");
+    const sec=$(id);
+    if(sec) sec.style.display="block";
+}
