@@ -1,136 +1,32 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Presupuesto Mensual</title>
-    <link rel="stylesheet" href="assets/css/style.css"> 
+<meta charset="UTF-8">
+<title>Inicio</title>
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/app.js" defer></script>
 </head>
 <body>
 
-<header class="app-header">
-    <div class="header-inner">
-        <div class="brand">
-            <span class="logo">💰 Presupuesto</span>
-            <div class="muted">Gestión de Finanzas Personales</div>
-        </div>
-        <div class="tabs">
-            <a href="#" class="tab active" onclick="showSection('resumen')">Resumen</a>
-            <a href="#" class="tab" onclick="showSection('admin')">Admin</a>
-        </div>
-    </div>
-</header>
-<div class="container">
+<div id="loader" class="loader"></div>
 
-<div id="resumen" class="section card">
+<h1>Resumen General</h1>
 
-    <h2>📊 Resumen Financiero</h2>
-    <h3>💳 Deuda Total</h3>
-    <p>Deuda actual: <strong>$<span id="deudaTotalLabel">0.00</span></strong></p>
-
-    <h2>Total ingresos</h2>
-    <p id="total-ingresos">$0.00</p>
-
-    <h2>Total gastos</h2>
-    <p id="total-gastos">$0.00</p>
-
-    <h2>Balance</h2>
-    <p id="balance">$0.00</p>
-
-    <h2>Movimientos recientes</h2>
-    <table id="tabla-recientes"></table>
-
-    <h2>Gastos por categoría</h2>
-    <canvas id="grafica-categorias"></canvas>
-
-    <h2>Balance por mes</h2>
-    <canvas id="grafica-mensual"></canvas>
-
+<div class="card">
+    <p><strong>Ingresos:</strong> $<span id="total-ingresos">0</span></p>
+    <p><strong>Gastos:</strong> $<span id="total-gastos">0</span></p>
+    <p><strong>Balance:</strong> $<span id="balance">0</span></p>
 </div>
 
-<div id="admin" class="section card" style="display:none;">
-
-    <h2>➕ Agregar Movimiento</h2>
-
-    <label>Fecha:</label>
-    <input type="date" id="fecha">
-
-    <label>Tipo:</label>
-    <select id="tipo">
-        <option value="Ingreso">Ingreso</option>
-        <option value="Gasto">Gasto</option>
-        <option value="Nueva Deuda">Nueva Deuda</option>
-        <option value="Abono Deuda">Abono Deuda</option>
-    </select>
-    
-    <label>Categoría:</label>
-    <select id="categoria"></select>
-    
-    <label>Agregar nueva categoría:</label>
-    <input type="text" id="nuevaCategoria" placeholder="Ej. Gasolina extra">
-    
-    <button onclick="agregarCategoria()">Agregar categoría</button>
-    
-    <label>Descripción:</label>
-    <input id="mov-desc" placeholder="Descripción opcional">
-
-    <label>Monto:</label>
-    <input type="number" id="monto" placeholder="0.00">
-
-    <button onclick="agregarMovimiento()">Guardar Movimiento</button>
-
-    ---
-
-    <h2>🚗 Configuración de Kilometraje</h2>
-
-    <label>Kilometraje Inicial:</label>
-    <input type="number" id="kmInicial">
-
-    <label>Kilometraje Final:</label>
-    <input type="number" id="kmFinal">
-    
-    <label>Gasto Total (tanque, gas, etc):</label>
-    <input type="number" id="gastoTotal">
-
-    <div class="section-title">Precio por km calculado:</div>
-    <strong>$<span id="precioKm">0.00</span></strong>
-
-    <button onclick="calcularKm()">Calcular y Guardar</button>
-    <button onclick="cargarConfiguracionKm()">Cargar Configuración</button>
-    
-    ---
-    
-    <h2>Exportar / Importar</h2>
-    <button onclick="exportarJSON()">Exportar datos</button>
-    <textarea id="json-area"></textarea><br>
-
-    <button onclick="importarJSON()">Importar</button>
-
-    <h2>Movimientos (todos)</h2>
-    <table id="tabla-todos"></table>
-
+<div class="card">
+    <p><strong>Deuda Total:</strong> $<span id="deudaTotalLabel">0</span></p>
 </div>
 
-</div>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="assets/js/app.js"></script>
-<script>
-    function showSection(sectionId) {
-        const sections = ["resumen", "admin"];
-        sections.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = id === sectionId ? "block" : "none";
-        });
+<h2>Movimientos recientes</h2>
+<table id="tabla-recientes"></table>
 
-        document.querySelectorAll(".tabs .tab").forEach(tab => tab.classList.remove("active"));
-        const current = document.querySelector(`.tabs a[onclick*="${sectionId}"]`);
-        if (current) current.classList.add("active");
-    }
-
-    window.addEventListener("load", () => {
-        showSection("resumen");
-        if (typeof window.onloadApp === "function") window.onloadApp();
-    });
-</script>
+<button onclick="toggleModo()">Modo oscuro</button>
+<button onclick="descargarBackup()">Descargar Backup</button>
 
 </body>
 </html>
