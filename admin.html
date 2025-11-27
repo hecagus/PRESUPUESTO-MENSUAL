@@ -1,34 +1,57 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Panel de Administración</title>
-<link rel="stylesheet" href="assets/css/style.css"> 
+<link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 
 <div class="container">
 
-    <button class="back-btn" onclick="location.href='index.html'">⟵ Regresar al Resumen</button>
+    <button class="back-btn" onclick="location.href='index.html'">⟵ Ir al Resumen</button>
 
     <h2>Panel de Administración</h2>
 
+    <!-- Gestión de Deudas -->
     <div class="card">
         <h3>💳 Gestión de Deudas</h3>
         <table id="tabla-deudas" class="tabla-listado">
-            <thead>
-                <tr><th>Nombre</th><th>Monto Actual</th><th>Acción</th></tr>
-            </thead>
+            <thead><tr><th>Nombre</th><th>Monto Actual</th><th>Acción</th></tr></thead>
             <tbody></tbody>
         </table>
         <button onclick="mostrarFormularioDeuda()">Agregar/Abonar Deuda</button>
     </div>
 
+    <!-- Modal de Deuda -->
+    <div id="deuda-modal" class="modal">
+        <div class="modal-content card">
+            <span class="close-button" onclick="cerrarFormularioDeuda()">&times;</span>
+
+            <h4>Registrar Nueva Deuda</h4>
+            <label>Nombre:</label>
+            <input type="text" id="deuda-nombre" placeholder="Ej. Crédito Coche">
+            <label>Monto Inicial:</label>
+            <input type="number" id="deuda-monto-inicial">
+            <button onclick="registrarNuevaDeuda()">Registrar Deuda</button>
+
+            <h4>Abonar a Deuda Existente</h4>
+            <label>Seleccionar Deuda:</label>
+            <select id="deuda-select-abono"></select>
+            <label>Monto del Abono:</label>
+            <input type="number" id="deuda-monto-abono">
+            <button onclick="abonarADeuda()">Realizar Abono</button>
+        </div>
+    </div>
+
+    <!-- Movimientos -->
     <div class="card">
         <h3>➕ Agregar Movimiento (Ingreso/Gasto)</h3>
+
         <label>Fecha:</label>
-        <input type="date" id="fecha"> 
+        <input type="date" id="fecha">
+
         <label>Tipo:</label>
         <select id="tipo">
             <option value="Ingreso">Ingreso</option>
@@ -37,75 +60,51 @@
 
         <label>Categoría:</label>
         <select id="categoria"></select>
+
         <label>Agregar nueva categoría:</label>
-        <input type="text" id="nuevaCategoria" placeholder="Ej. Gasolina extra"> 
+        <input type="text" id="nuevaCategoria" placeholder="Ej. Gasolina extra">
         <button onclick="agregarCategoria()">Agregar categoría</button>
 
         <label>Descripción:</label>
         <input id="mov-desc" placeholder="Descripción opcional">
 
         <label>Monto:</label>
-        <input type="number" id="monto" placeholder="0.00"> 
+        <input type="number" id="monto" placeholder="0.00">
+
         <button onclick="agregarMovimiento()">Guardar Movimiento</button>
     </div>
 
+    <!-- Configuración Kilometraje -->
     <div class="card">
         <h3>🚗 Configuración de Kilometraje</h3>
         <label>Kilometraje Inicial:</label>
-        <input type="number" id="kmInicial"> 
+        <input type="number" id="kmInicial">
         <label>Kilometraje Final:</label>
-        <input type="number" id="kmFinal"> 
+        <input type="number" id="kmFinal">
         <label>Gasto Total (tanque, gas, etc):</label>
-        <input type="number" id="gastoTotal"> 
+        <input type="number" id="gastoTotal">
         <div class="section-title">Precio por km calculado:</div>
-        <strong>$<span id="precioKm">0.00</span></strong> 
+        <strong>$<span id="precioKm">0.00</span></strong>
         <button onclick="calcularKm()">Calcular y guardar</button>
-        <button onclick="cargarConfiguracionKm()">Cargar configuración</button>
+        <button onclick="cargarConfiguracionKm()">Cargar Configuración</button>
     </div>
 
+    <!-- Export/Import -->
     <div class="card">
-        <h2>Exportar / Importar</h2>
-        <button onclick="exportarJSON()">Exportar datos</button>
+        <h3>Exportar / Importar Datos</h3>
+        <button onclick="exportarJSON()">Exportar</button>
         <textarea id="json-area"></textarea><br>
         <button onclick="importarJSON()">Importar</button>
     </div>
-    
+
+    <!-- Tabla de Movimientos -->
     <div class="card">
-        <h2>Movimientos (todos)</h2>
+        <h3>Movimientos (todos)</h3>
         <table id="tabla-todos" class="tabla-listado"></table>
     </div>
 
 </div>
 
-<div id="deuda-modal" class="modal" style="display:none;">
-    <div class="modal-content card">
-        <h3>Gestión de Deuda</h3>
-        <span class="close-button" onclick="cerrarFormularioDeuda()">&times;</span>
-        
-        <h4>Registrar Nueva Deuda</h4>
-        <label>Nombre de la Deuda:</label>
-        <input type="text" id="deuda-nombre" placeholder="Ej. Crédito Coche">
-        <label>Monto Inicial:</label>
-        <input type="number" id="deuda-monto-inicial">
-        <button onclick="registrarNuevaDeuda()">Registrar Deuda</button>
-
-        <h4>Abonar a Deuda Existente</h4>
-        <label>Seleccionar Deuda:</label>
-        <select id="deuda-select-abono"></select>
-        <label>Monto del Abono:</label>
-        <input type="number" id="deuda-monto-abono">
-        <button onclick="abonarADeuda()">Realizar Abono</button>
-    </div>
-</div>
-
 <script src="assets/js/app.js"></script>
-<script>
-window.addEventListener('load', () => {
-    onloadApp();
-    cargarTablaDeudas();
-    cargarTablaTodos();
-});
-</script>
-
 </body>
 </html>
