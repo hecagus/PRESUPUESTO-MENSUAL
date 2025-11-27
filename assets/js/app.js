@@ -355,17 +355,20 @@ function eliminarMovimiento(id) {
     mostrarDeuda(); // Recalcular totales
 }
 
+// assets/js/app.js
+// ... (resto del código sin cambios) ...
+
 // =========================
 //   INICIALIZAR APP
 // =========================
-window.onload = () => {
+// CAMBIA el antiguo window.onload por una función nombrada
+function onloadApp() { 
     cargarCategorias();
     cargarConfiguracionKm();
     mostrarDeuda(); // Muestra totales y deuda
-    // La carga de tablas se hace al cambiar a la pestaña Admin
 };
 
-// Necesario para el modal
-function cerrarFormularioDeuda() {
-    $("deuda-modal").style.display = 'none';
-}
+// Si quieres mantener el window.onload para cuando se usa solo index.html (diseño de página única)
+// window.onload = onloadApp; 
+
+// Si usas el admin.html, este se encarga de llamar a onloadApp() y a las demás funciones de carga.
