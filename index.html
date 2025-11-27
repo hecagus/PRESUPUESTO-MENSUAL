@@ -1,32 +1,63 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Inicio</title>
-<link rel="stylesheet" href="assets/css/style.css">
-<script src="assets/js/app.js" defer></script>
+    <meta charset="UTF-8">
+    <title>Presupuesto Mensual</title>
+    <link rel="stylesheet" href="assets/css/style.css"> 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-<div id="loader" class="loader"></div>
+<header class="app-header">
+    <div class="header-inner">
+        <div class="brand">
+            <span class="logo">💰 Presupuesto</span>
+            <div class="muted">Gestión de Finanzas Personales</div>
+        </div>
+        <div class="tabs">
+            <a href="index.html" class="tab active">Resumen</a>
+            <a href="admin.html" class="tab">Admin</a>
+        </div>
+    </div>
+</header>
 
-<h1>Resumen General</h1>
+<div class="container">
 
-<div class="card">
-    <p><strong>Ingresos:</strong> $<span id="total-ingresos">0</span></p>
-    <p><strong>Gastos:</strong> $<span id="total-gastos">0</span></p>
-    <p><strong>Balance:</strong> $<span id="balance">0</span></p>
+    <div class="section card" id="resumen">
+        <h2>📊 Resumen Financiero</h2>
+
+        <h3>💳 Deuda Total</h3>
+        <p>Deuda actual: <strong>$<span id="deudaTotalLabel">0.00</span></strong></p>
+
+        <h2>Total ingresos</h2>
+        <p id="total-ingresos">$0.00</p>
+
+        <h2>Total gastos</h2>
+        <p id="total-gastos">$0.00</p>
+
+        <h2>Balance</h2>
+        <p id="balance">$0.00</p>
+
+        <h2>Movimientos recientes</h2>
+        <table id="tabla-recientes" class="tabla-listado"></table>
+
+        <h2>Gastos por categoría</h2>
+        <canvas id="grafica-categorias"></canvas>
+
+        <h2>Balance por mes</h2>
+        <canvas id="grafica-mensual"></canvas>
+
+        <button onclick="location.href='admin.html'">⟵ Ir a Administración</button>
+    </div>
+
 </div>
 
-<div class="card">
-    <p><strong>Deuda Total:</strong> $<span id="deudaTotalLabel">0</span></p>
-</div>
-
-<h2>Movimientos recientes</h2>
-<table id="tabla-recientes"></table>
-
-<button onclick="toggleModo()">Modo oscuro</button>
-<button onclick="descargarBackup()">Descargar Backup</button>
+<script src="assets/js/app.js"></script>
+<script>
+window.addEventListener('load', () => {
+    onloadApp();
+});
+</script>
 
 </body>
 </html>
