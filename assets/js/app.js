@@ -1,274 +1,256 @@
-// =========================
-// VARIABLES GLOBALES
-// =========================
-let movimientos = JSON.parse(localStorage.getItem("movimientos")) || [];
-let categorias = JSON.parse(localStorage.getItem("categorias")) || ["Transporte","Comida","Servicios","Gasolina","Alquiler","Luz","Agua"];
-let deudas = JSON.parse(localStorage.getItem("deudas")) || [];
-let kmConfig = JSON.parse(localStorage.getItem("kmConfig")) || null;
+// =====================================================
+//  FUNCIONES BASE
+// =====================================================
+const $ = id => document.getElementById(id);
 
-// =========================
-// FUNCIONES BÁSICAS
-// =========================
-function $(id){ return document.getElementById(id) || null; }
+// Cargar datos
+let movimientos = JSON.parse(localStorage.getItem("movimientos")) || [];
+let categorias  = JSON.parse(localStorage.getItem("categorias")) || ["Comida","Gasolina","Servicios","Renta"];
+let deudas      = JSON.parse(localStorage.getItem("deudas")) || [];
+let kmConfig    = JSON.parse(localStorage.getItem("km")) || { kmInicial:0, kmFinal:0, gastoTotal:0 };
+
+// Guardar datos
 function guardarDatos(){
     localStorage.setItem("movimientos", JSON.stringify(movimientos));
-    localStorage.setItem("categorias", JSON.stringify(categorias));
-    localStorage.setItem("deudas", JSON.stringify(deudas));
-    localStorage.setItem("kmConfig", JSON.stringify(kmConfig));
+    localStorage.setItem("categorias",  JSON.stringify(categorias));
+    localStorage.setItem("deudas",      JSON.stringify(deudas));
+    localStorage.setItem("km",          JSON.stringify(kmConfig));
 }
 
-// =========================
-// CATEGORÍAS
-// =========================
-function agregarCategoria(){
-    const nueva = $("nuevaCategoria")?.value.trim();
-    if(!nueva) return;
-    if(!categorias.includes(nueva)){
+// =====================================================
+// INICIO DE APP
+// =====================================================
+function onloadApp(contexto){
+    cargarCategorias(contexto);
+    cargarTabla(contexto);
+    mostrarResumen();
+    cargarGraficaCategorias();
+}
+
+// =====================================================
+//  CATEGORÍAS
+// =====================================================
+function cargarCategorias(contexto){
+    const idSelect = contexto === "index" ? "categoria-index" : "categoria-admin";  
+    const select = $(idSelect);
+    if (!select) return;
+
+    select.innerHTML = "";
+    categorias.forEach(cat => {
+        let opt = document.createElement("option");
+        opt.value = cat;
+        opt.textContent = cat;
+        select.appendChild(opt);
+    });
+}
+
+function agregarCategoria(contexto){
+    const inputId = contexto === "index" ? "nuevaCategoria-index" : "nuevaCategoria-admin";
+    const nueva = $(inputId).value.trim();
+    if (!nueva) return;
+
+    if (!categorias.includes(nueva)) {
         categorias.push(nueva);
         guardarDatos();
-        cargarCategorias();
-    }
-    $("nuevaCategoria").value="";
-}
-function cargarCategorias(){
-    const select=$("categoria");
-    if(!select) return;
-    select.innerHTML="";
-    categorias.forEach(cat=>{
-        const op=document.createElement("option");
-        op.value=cat;
-        op.textContent=cat;
-        select.appendChild(op);
-    });
-}
-
-// =========================
-// MOVIMIENTOS
-// =========================
-function agregarMovimiento(){
-    const fecha=$("fecha")?.value;
-    const tipo=$("tipo")?.value;
-    const categoria=$("categoria")?.value;
-    const monto=parseFloat($("monto")?.value);
-    const descripcion=$("mov-desc")?.value.trim() || "";
-
-    if(!fecha || !tipo || !categoria || !monto || isNaN(monto)){
-        return alert("Completa todos los campos correctamente.");
+        cargarCategorias(contexto);
     }
 
-    movimientos.push({id:Date.now(),fecha,tipo,categoria,monto,descripcion});
-    guardarDatos();
-    cargarTablaTodos();
-    mostrarDeuda();
-    alert(`${tipo} agregado correctamente.`);
+    $(inputId).value = "";
+    alert("Categoría agregada");
 }
 
-// =========================
-// DEUDAS
-// =========================
-function registrarNuevaDeuda(){
-    const nombre=$("deuda-nombre")?.value.trim();
-    const monto=parseFloat($("deuda-monto-inicial")?.value);
-    if(!nombre || !monto || isNaN(monto) || monto<=0) return alert("Nombre o monto inválido.");
+// =====================================================
+//  MOVIMIENTOS
+// =====================================================
+function agregarMovimiento(contexto){
+    const fecha = $(contexto === "index" ? "fecha-index" : "fecha-admin").value;
+    const tipo  = $(contexto === "index" ? "tipo-index"  : "tipo-admin").value;
+    const cat   = $(contexto === "index" ? "categoria-index" : "categoria-admin").value;
+    const monto = parseFloat($(contexto === "index" ? "monto-index" : "monto-admin").value);
+    const desc  = $(contexto === "index" ? "mov-desc-index" : "mov-desc-admin").value;
 
-    deudas.push({id:Date.now(),nombre,montoOriginal:monto,montoActual:monto,fechaCreacion:new Date().toLocaleDateString(),movimientos:[]});
-    guardarDatos();
-    cargarTablaDeudas();
-    mostrarDeuda();
-    cerrarFormularioDeuda();
-    alert(`Deuda "${nombre}" registrada.`);
-}
-function abonarADeuda(){
-    const deudaId=parseInt($("deuda-select-abono")?.value);
-    const abonoMonto=parseFloat($("deuda-monto-abono")?.value);
-    if(!deudaId || !abonoMonto || isNaN(abonoMonto) || abonoMonto<=0) return alert("Monto inválido.");
-    const deuda=deudas.find(d=>d.id===deudaId);
-    if(!deuda) return alert("Deuda no encontrada");
-    if(deuda.montoActual-abonoMonto<0) return alert("Abono excede el monto actual");
+    if (!fecha || !tipo || isNaN(monto)) {
+        alert("Completa todos los campos");
+        return;
+    }
 
-    deuda.montoActual-=abonoMonto;
-    deuda.movimientos.push({fecha:new Date().toLocaleDateString(),monto:abonoMonto});
-
-    // Registrar gasto como movimiento
-    movimientos.push({id:Date.now()+1,fecha:new Date().toISOString().substring(0,10),tipo:"Gasto",categoria:"Abono a Deuda",descripcion:`Abono a ${deuda.nombre}`,monto:abonoMonto});
-
-    guardarDatos();
-    cargarTablaDeudas();
-    cargarTablaTodos();
-    mostrarDeuda();
-    cerrarFormularioDeuda();
-    alert(`Abono $${abonoMonto} realizado a "${deuda.nombre}"`);
-}
-function eliminarDeuda(id){
-    if(!confirm("¿Eliminar deuda?")) return;
-    deudas=deudas.filter(d=>d.id!==id);
-    guardarDatos();
-    cargarTablaDeudas();
-    mostrarDeuda();
-}
-function cargarTablaDeudas(){
-    const tabla=$("tabla-deudas");
-    if(!tabla) return;
-    let tbody=tabla.querySelector('tbody');
-    if(!tbody){tbody=document.createElement('tbody');tabla.appendChild(tbody);}
-    tbody.innerHTML="";
-    if(deudas.length===0){tbody.innerHTML='<tr><td colspan="3">No hay deudas registradas.</td></tr>';return;}
-    deudas.forEach(d=>{
-        const tr=document.createElement("tr");
-        const status=d.montoActual>0?'valor-negativo':'valor-positivo';
-        tr.innerHTML=`<td>${d.nombre}</td><td class="${status}">$${d.montoActual.toFixed(2)}</td>
-        <td><button onclick="eliminarDeuda(${d.id})" class="button-small secondary">Eliminar</button></td>`;
-        tbody.appendChild(tr);
+    movimientos.push({
+        id: Date.now(),
+        fecha,
+        tipo,
+        categoria: cat,
+        descripcion: desc || "",
+        monto
     });
+
+    guardarDatos();
+    mostrarResumen();
+    cargarTabla(contexto);
+
+    alert("Movimiento agregado correctamente");
 }
-function mostrarFormularioDeuda(){cargarSelectDeudas();$("deuda-modal").style.display="flex";}
-function cerrarFormularioDeuda(){ $("deuda-modal").style.display="none";}
-function cargarSelectDeudas(){
-    const select=$("deuda-select-abono");
-    if(!select) return;
-    select.innerHTML='<option value="">-- Selecciona una Deuda --</option>';
-    deudas.filter(d=>d.montoActual>0).forEach(d=>{
-        const op=document.createElement("option");
-        op.value=d.id;
-        op.textContent=`${d.nombre} ($${d.montoActual.toFixed(2)})`;
-        select.appendChild(op);
+
+// =====================================================
+//  TABLA DE MOVIMIENTOS (INDEX y ADMIN)
+// =====================================================
+function cargarTabla(contexto){
+    const tablaId = contexto === "index" ? "tabla-recientes" : "tabla-admin";
+    const tabla = $(tablaId);
+    if (!tabla) return;
+
+    tabla.innerHTML = `
+        <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Categoría</th>
+            <th>Descripción</th>
+            <th>Monto</th>
+        </tr>
+    `;
+
+    movimientos.slice().reverse().forEach(m => {
+        let tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${m.fecha}</td>
+            <td>${m.tipo}</td>
+            <td>${m.categoria}</td>
+            <td>${m.descripcion}</td>
+            <td>$${m.monto.toFixed(2)}</td>
+        `;
+        tabla.appendChild(tr);
     });
 }
 
-// =========================
-// KILOMETRAJE
-// =========================
-function calcularKm(){
-    const kmIni=parseFloat($("kmInicial")?.value);
-    const kmFin=parseFloat($("kmFinal")?.value);
-    const gasto=parseFloat($("gastoTotal")?.value);
-    if(isNaN(kmIni)||isNaN(kmFin)||isNaN(gasto)) return alert("Completa los campos");
+// =====================================================
+//  RESÚMENES: INGRESOS, GASTOS, KM, BALANCE, DEUDA
+// =====================================================
+function mostrarResumen(){
+    let ingresos = movimientos.filter(m => m.tipo === "Ingreso")
+                              .reduce((s,m)=>s+m.monto,0);
 
-    const kmRec=kmFin-kmIni;
-    const precioKm=kmRec>0?gasto/kmRec:0;
-    $("precioKm").textContent=precioKm.toFixed(2);
+    let gastos   = movimientos.filter(m => m.tipo === "Gasto")
+                              .reduce((s,m)=>s+m.monto,0);
 
-    kmConfig={kmInicial:kmIni,kmFinal:kmFin,gastoTotal:gasto,precioKm};
-    guardarDatos();
+    let balance = ingresos - gastos;
 
-    // Registrar gasto de gasolina como movimiento
-    movimientos.push({id:Date.now()+999,fecha:new Date().toISOString().substring(0,10),tipo:"Gasto",categoria:"Gasolina",descripcion:"Gasto combustible",monto:gasto});
-    guardarDatos();
-    cargarTablaTodos();
-    mostrarDeuda();
-    alert("Kilometraje guardado y gasto registrado");
-}
-function cargarConfiguracionKm(){
-    if(!kmConfig) return;
-    $("kmInicial").value=kmConfig.kmInicial;
-    $("kmFinal").value=kmConfig.kmFinal;
-    $("gastoTotal").value=kmConfig.gastoTotal;
-    $("precioKm").textContent=kmConfig.precioKm.toFixed(2);
-}
+    // Deuda
+    let deudaTotal = deudas.reduce((t,d)=>t+d.montoActual,0);
 
-// =========================
-// TABLAS
-// =========================
-function cargarTablaTodos(){
-    const tabla=$("tabla-todos");
-    if(!tabla) return;
-    let tbody=tabla.querySelector('tbody');
-    if(!tbody){tbody=document.createElement('tbody');tabla.appendChild(tbody);}
-    tbody.innerHTML="";
-    if(movimientos.length===0){tbody.innerHTML='<tr><td colspan="5">No hay movimientos.</td></tr>';return;}
-    const movs=[...movimientos].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
-    movs.forEach(m=>{
-        const cls=m.tipo==='Ingreso'?'valor-positivo':'valor-negativo';
-        const tr=document.createElement("tr");
-        tr.innerHTML=`<td>${m.fecha}</td><td>${m.tipo}</td><td>${m.categoria}</td><td class="${cls}">$${m.monto.toFixed(2)}</td>
-        <td><button onclick="eliminarMovimiento(${m.id})" class="button-small secondary">X</button></td>`;
-        tbody.appendChild(tr);
-    });
-}
-function eliminarMovimiento(id){movimientos=movimientos.filter(m=>m.id!==id);guardarDatos();cargarTablaTodos();mostrarDeuda();}
-
-// =========================
-// RESUMEN FINANCIERO
-// =========================
-function mostrarDeuda(){
-    // Total deuda
-    const totalDeuda=deudas.reduce((sum,d)=>sum+d.montoActual,0);
-    $("deudaTotalLabel").textContent=totalDeuda.toFixed(2);
-
-    // Ingresos/Gastos
-    const totalIngresos=movimientos.filter(m=>m.tipo==='Ingreso').reduce((sum,m)=>sum+m.monto,0);
-    const totalGastos=movimientos.filter(m=>m.tipo==='Gasto').reduce((sum,m)=>sum+m.monto,0);
-    $("total-ingresos").textContent=totalIngresos.toFixed(2);
-    $("total-gastos").textContent=totalGastos.toFixed(2);
-
-    // Balance
-    const balance=totalIngresos-totalGastos;
-    $("balance").textContent=balance.toFixed(2);
+    // Mostrar resultados
+    if ($("total-ingresos")) $("total-ingresos").textContent = ingresos.toFixed(2);
+    if ($("total-gastos"))   $("total-gastos").textContent   = gastos.toFixed(2);
+    if ($("balance"))        $("balance").textContent        = balance.toFixed(2);
+    if ($("deudaTotalLabel"))$("deudaTotalLabel").textContent = deudaTotal.toFixed(2);
 
     // Kilometraje
-    const kmTotal=kmConfig?kmConfig.kmFinal-kmConfig.kmInicial:0;
-    $("kmTotal").textContent=kmTotal;
-    $("gastoCombustible").textContent=kmConfig?kmConfig.gastoTotal.toFixed(2):"0.00";
-
-    // Graficas
-    renderGraficas();
+    if ($("km-recorridos")) $("km-recorridos").textContent = (kmConfig.kmFinal - kmConfig.kmInicial).toFixed(1);
+    if ($("km-gasto")) $("km-gasto").textContent = kmConfig.gastoTotal.toFixed(2);
 }
 
-// =========================
-// GRÁFICAS
-// =========================
-function renderGraficas(){
-    const ctxCat=document.getElementById("grafica-categorias");
-    const ctxMes=document.getElementById("grafica-mensual");
-    if(!ctxCat || !ctxMes) return;
+// =====================================================
+//  GRAFICA
+// =====================================================
+function cargarGraficaCategorias(){
+    const canvas = $("grafica-categorias");
+    if (!canvas) return;
 
-    // Categorías
-    const categoriasGastos={};
-    categorias.forEach(cat=>categoriasGastos[cat]=0);
-    movimientos.filter(m=>m.tipo==='Gasto').forEach(m=>{
-        if(categoriasGastos[m.categoria]!==undefined) categoriasGastos[m.categoria]+=m.monto;
-        else categoriasGastos[m.categoria]=m.monto;
+    const gastos = movimientos.filter(m => m.tipo === "Gasto");
+
+    const dataCat = {};
+
+    gastos.forEach(g => {
+        dataCat[g.categoria] = (dataCat[g.categoria] || 0) + g.monto;
     });
 
-    new Chart(ctxCat,{type:'bar',data:{labels:Object.keys(categoriasGastos),datasets:[{label:'Gastos por Categoría',data:Object.values(categoriasGastos),backgroundColor:'rgba(255,99,132,0.5)'}]},options:{responsive:true}});
-
-    // Balance mensual
-    const meses={};
-    movimientos.forEach(m=>{
-        const date=new Date(m.fecha);
-        const key=date.getFullYear()+"-"+(date.getMonth()+1);
-        if(!meses[key]) meses[key]={Ingreso:0,Gasto:0,Deuda:0};
-        meses[key][m.tipo]= (meses[key][m.tipo]||0)+m.monto;
-    });
-
-    const labels=Object.keys(meses);
-    const ingresos=labels.map(l=>meses[l].Ingreso||0);
-    const gastos=labels.map(l=>meses[l].Gasto||0);
-
-    new Chart(ctxMes,{
-        type:'line',
-        data:{
-            labels,
-            datasets:[
-                {label:'Ingresos',data:ingresos,borderColor:'green',fill:false},
-                {label:'Gastos',data:gastos,borderColor:'red',fill:false},
-            ]
+    new Chart(canvas, {
+        type: "bar",
+        data: {
+            labels: Object.keys(dataCat),
+            datasets: [{
+                label: "Gastos por categoría",
+                data: Object.values(dataCat),
+                backgroundColor: "#e74c3c"
+            }]
         },
-        options:{responsive:true}
+        options: { responsive:true }
     });
 }
 
-// =========================
-// INICIALIZACIÓN
-// =========================
-function onloadApp(){
-    cargarCategorias();
-    cargarTablaTodos();
-    cargarTablaDeudas();
-    mostrarDeuda();
+// =====================================================
+//  DEUDAS
+// =====================================================
+function registrarDeuda(){
+    const nombre = $("deuda-nombre").value.trim();
+    const monto  = parseFloat($("deuda-monto-inicial").value);
+
+    if (!nombre || isNaN(monto)){
+        alert("Completa los campos");
+        return;
+    }
+
+    deudas.push({
+        id: Date.now(),
+        nombre,
+        montoActual: monto
+    });
+
+    guardarDatos();
+    mostrarResumen();
+    cargarDeudasAdmin();
+    alert("Deuda registrada");
 }
-function showSection(id){
-    document.querySelectorAll(".section").forEach(s=>s.style.display="none");
-    const sec=$(id);
-    if(sec) sec.style.display="block";
+
+function abonarDeuda(){
+    const id   = $("deuda-select-abono").value;
+    const abono = parseFloat($("deuda-monto-abono").value);
+
+    if (!id || isNaN(abono)){
+        alert("Completa los campos");
+        return;
+    }
+
+    let deuda = deudas.find(d => d.id == id);
+    deuda.montoActual -= abono;
+    if (deuda.montoActual < 0) deuda.montoActual = 0;
+
+    guardarDatos();
+    mostrarResumen();
+    cargarDeudasAdmin();
+    alert("Abono aplicado");
+}
+
+function cargarDeudasAdmin(){
+    const tabla = $("tabla-deudas");
+    if (!tabla) return;
+
+    tabla.innerHTML = `
+        <tr><th>Nombre</th><th>Monto</th><th>Acción</th></tr>
+    `;
+
+    const select = $("deuda-select-abono");
+    if (select) select.innerHTML = `<option value="">-- Selecciona una deuda --</option>`;
+
+    deudas.forEach(d => {
+        let tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${d.nombre}</td>
+            <td>$${d.montoActual.toFixed(2)}</td>
+            <td><button onclick="eliminarDeuda(${d.id})" class="button-small secondary">Eliminar</button></td>
+        `;
+        tabla.appendChild(tr);
+
+        if (select){
+            let op = document.createElement("option");
+            op.value = d.id;
+            op.textContent = d.nombre;
+            select.appendChild(op);
+        }
+    });
+}
+
+function eliminarDeuda(id){
+    deudas = deudas.filter(d => d.id !== id);
+    guardarDatos();
+    cargarDeudasAdmin();
+    mostrarResumen();
 }
