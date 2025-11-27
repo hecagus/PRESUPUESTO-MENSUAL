@@ -3,66 +3,78 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Presupuesto Mensual</title>
+<title>Presupuesto Mensual — Resumen</title>
 <link rel="stylesheet" href="assets/css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
 <div class="container">
+  <h2>📊 Resumen Financiero</h2>
 
-<h2>📊 Resumen Financiero</h2>
+  <div class="resumen">
+    <div class="card">
+      <h3>💳 Deuda Total</h3>
+      <p>$<span id="deudaTotalLabel">0.00</span></p>
+    </div>
 
-<div class="resumen">
-  <div class="card">
-    <h3>💳 Deuda Total</h3>
-    <p>$<span id="deudaTotalLabel">0.00</span></p>
+    <div class="card">
+      <h3>💵 Total Ingresos</h3>
+      <p>$<span id="total-ingresos">0.00</span></p>
+    </div>
+
+    <div class="card">
+      <h3>💸 Total Gastos</h3>
+      <p>$<span id="total-gastos">0.00</span></p>
+    </div>
+
+    <div class="card">
+      <h3>🚗 Kilometraje Total</h3>
+      <p>Kilómetros recorridos: <span id="km-recorridos">0</span></p>
+      <p>Gasto total de combustible: $<span id="km-gasto">0.00</span></p>
+    </div>
   </div>
 
   <div class="card">
-    <h3>💵 Total Ingresos</h3>
-    <p>$<span id="total-ingresos">0.00</span></p>
+    <h3>Balance</h3>
+    <p>$<span id="balance">0.00</span></p>
   </div>
 
   <div class="card">
-    <h3>💸 Total Gastos</h3>
-    <p>$<span id="total-gastos">0.00</span></p>
+    <h3>Movimientos Recientes</h3>
+    <table id="tabla-recientes" class="tabla-listado"></table>
   </div>
 
   <div class="card">
-    <h3>🚗 Kilometraje Total</h3>
-    <p>Kilómetros recorridos: <span id="km-recorridos">0</span></p>
-    <p>Gasto total de combustible: $<span id="km-gasto">0.00</span></p>
+    <h3>Desglose de Gastos por Categoría</h3>
+    <canvas id="grafica-categorias"></canvas>
   </div>
-</div>
 
-<div class="card">
-  <h3>Balance</h3>
-  <p>$<span id="balance">0.00</span></p>
-</div>
+  <div class="card">
+    <h3>Ingresos vs Gastos</h3>
+    <canvas id="grafica-ingresos-gastos"></canvas>
+  </div>
 
-<div class="card">
-  <h3>Movimientos Recientes</h3>
-  <table id="tabla-recientes"></table>
-</div>
+  <div class="card">
+    <h3>Deuda vs Abonos</h3>
+    <canvas id="grafica-deuda-abono"></canvas>
+  </div>
 
-<div class="card">
-  <h3>Desglose de Gastos por Categoría</h3>
-  <canvas id="grafica-categorias"></canvas>
-</div>
+  <div class="card">
+    <h3>Kilometraje vs Gasto de Combustible</h3>
+    <canvas id="grafica-km-gasto"></canvas>
+  </div>
 
-<div class="admin-link">
-  <a href="admin.html">⟵ Ir a Administración</a>
-</div>
-
+  <div class="admin-link">
+    <a href="admin.html">⟵ Ir a Administración</a>
+  </div>
 </div>
 
 <script src="assets/js/app.js"></script>
 <script>
-window.addEventListener('load', function(){
-    onloadApp('index'); // Solo carga datos, NO captura
+window.addEventListener('load', () => {
+  onloadApp('index'); // solo muestra datos
 });
 </script>
-
 </body>
 </html>
