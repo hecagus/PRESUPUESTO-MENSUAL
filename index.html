@@ -114,37 +114,22 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
-    // Función de ayuda para la navegación de pestañas
     function showSection(sectionId) {
-        const sections = ['resumen', 'admin'];
+        const sections = ["resumen", "admin"];
         sections.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.style.display = (id === sectionId) ? 'block' : 'none';
+            if (el) el.style.display = id === sectionId ? "block" : "none";
         });
 
-        // Actualizar clase de pestañas (tabs)
-        const tabs = document.querySelectorAll('.tabs .tab');
-        tabs.forEach(tab => {
-            tab.classList.remove('active');
-        });
-        const activeTab = document.querySelector(`.tabs a[onclick*="${sectionId}"]`);
-        if (activeTab) activeTab.classList.add('active');
+        document.querySelectorAll(".tabs .tab").forEach(tab => tab.classList.remove("active"));
+        const current = document.querySelector(`.tabs a[onclick*="${sectionId}"]`);
+        if (current) current.classList.add("active");
     }
 
-    // Al cargar la página, se inicializa el resumen (y se llama al window.onload de app.js)
-    window.addEventListener('load', () => {
-        showSection('resumen');
+    window.addEventListener("load", () => {
+        showSection("resumen");
+        if (typeof window.onloadApp === "function") window.onloadApp();
     });
-
-    // Estas funciones (exportarJSON/importarJSON) necesitan ser implementadas en app.js
-    function exportarJSON() {
-        console.warn("Función 'exportarJSON' no implementada en assets/js/app.js.");
-        alert("La funcionalidad de Exportar JSON aún no está implementada.");
-    }
-    function importarJSON() {
-        console.warn("Función 'importarJSON' no implementada en assets/js/app.js.");
-        alert("La funcionalidad de Importar JSON aún no está implementada.");
-    }
 </script>
 
 </body>
