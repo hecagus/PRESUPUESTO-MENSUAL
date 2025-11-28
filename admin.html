@@ -9,107 +9,133 @@
 <body>
 
 <div class="container">
-  <button class="back-btn button" onclick="location.href='index.html'">⟵ Ir al Resumen</button>
 
-  <h2>Panel de Administración</h2>
+    <button class="back-btn" onclick="location.href='index.html'">⟵ Ir al Resumen</button>
 
-  <!-- Gestión de Deudas -->
-  <div class="card">
-    <h3>💳 Gestión de Deudas</h3>
-    <table id="tabla-deudas" class="tabla-listado">
-      <thead><tr><th>Nombre</th><th>Monto Actual</th><th>Acción</th></tr></thead>
-      <tbody></tbody>
-    </table>
-    <button class="button" onclick="mostrarFormularioDeuda()">Agregar/Abonar Deuda</button>
-  </div>
+    <h2>Panel de Administración</h2>
 
-  <!-- Modal de Deuda -->
-  <div id="deuda-modal" class="modal">
-    <div class="modal-content card">
-      <span class="close-button" onclick="cerrarFormularioDeuda()">&times;</span>
-
-      <h4>Registrar Nueva Deuda</h4>
-      <label>Nombre:</label>
-      <input type="text" id="deuda-nombre" placeholder="Ej. Crédito Coche">
-      <label>Monto Inicial:</label>
-      <input type="number" id="deuda-monto-inicial" placeholder="0.00">
-      <button class="button" onclick="registrarNuevaDeuda()">Registrar Deuda</button>
-
-      <hr>
-
-      <h4>Abonar a Deuda Existente</h4>
-      <label>Seleccionar Deuda:</label>
-      <select id="deuda-select-abono"></select>
-      <label>Monto del Abono:</label>
-      <input type="number" id="deuda-monto-abono" placeholder="0.00">
-      <button class="button" onclick="abonarADeuda()">Realizar Abono</button>
+    <!-- Gestión de Deudas -->
+    <div class="card">
+        <h3>💳 Gestión de Deudas</h3>
+        <table id="tabla-deudas" class="tabla-listado">
+            <thead><tr><th>Nombre</th><th>Monto Actual</th><th>Acción</th></tr></thead>
+            <tbody></tbody>
+        </table>
+        <button onclick="mostrarFormularioDeuda()">Agregar / Abonar Deuda</button>
     </div>
-  </div>
 
-  <!-- Movimientos (ADMIN CAPTURA) -->
-  <div class="card">
-    <h3>➕ Agregar Movimiento (ADMIN)</h3>
+    <!-- Modal Deudas -->
+    <div id="deuda-modal" class="modal">
+        <div class="modal-content card">
+            <span class="close-button" onclick="cerrarFormularioDeuda()">&times;</span>
 
-    <label>Fecha:</label>
-    <input type="date" id="fecha-admin">
+            <h4>Registrar Nueva Deuda</h4>
+            <label>Nombre:</label>
+            <input type="text" id="deuda-nombre" placeholder="Ej. Crédito Moto">
+            <label>Monto Inicial:</label>
+            <input type="number" id="deuda-monto-inicial">
+            <button onclick="registrarNuevaDeuda()">Registrar Deuda</button>
 
-    <label>Tipo:</label>
-    <select id="tipo-admin">
-      <option value="Ingreso">Ingreso</option>
-      <option value="Gasto">Gasto</option>
-    </select>
+            <h4>Abonar a Deuda Existente</h4>
+            <label>Seleccionar Deuda:</label>
+            <select id="deuda-select-abono"></select>
+            <label>Monto del Abono:</label>
+            <input type="number" id="deuda-monto-abono">
+            <button onclick="abonarADeuda()">Realizar Abono</button>
+        </div>
+    </div>
 
-    <label>Categoría:</label>
-    <select id="categoria-admin"></select>
+    <!-- Movimientos -->
+    <div class="card">
+        <h3>➕ Agregar Movimiento (Ingreso/Gasto)</h3>
 
-    <label>Agregar nueva categoría:</label>
-    <input type="text" id="nuevaCategoria-admin" placeholder="Ej. Gasolina">
-    <button class="button" onclick="agregarCategoria('admin')">Agregar categoría</button>
+        <label>Fecha:</label>
+        <input type="date" id="fecha-admin">
 
-    <label>Descripción:</label>
-    <input id="mov-desc-admin" placeholder="Descripción opcional">
+        <label>Tipo:</label>
+        <select id="tipo-admin">
+            <option value="Ingreso">Ingreso</option>
+            <option value="Gasto">Gasto</option>
+        </select>
 
-    <label>Monto:</label>
-    <input type="number" id="monto-admin" placeholder="0.00">
+        <label>Categoría:</label>
+        <select id="categoria-admin"></select>
 
-    <button class="button" onclick="agregarMovimiento('admin')">Guardar Movimiento</button>
-  </div>
+        <label>Agregar nueva categoría:</label>
+        <input type="text" id="nuevaCategoria-admin" placeholder="Ej. Gasolina extra">
+        <button onclick="agregarCategoria('admin')">Agregar categoría</button>
 
-  <!-- Kilometraje -->
-  <div class="card">
-    <h3>🚗 Configuración de Kilometraje</h3>
-    <label>Kilometraje Inicial:</label>
-    <input type="number" id="kmInicial" placeholder="0">
-    <label>Kilometraje Final:</label>
-    <input type="number" id="kmFinal" placeholder="0">
-    <label>Gasto Total (tanque, gas, etc):</label>
-    <input type="number" id="gastoTotal" placeholder="0.00">
-    <div class="section-title">Precio por km calculado:</div>
-    <strong>$<span id="precioKm">0.00</span></strong>
-    <button class="button" onclick="calcularKm()">Calcular y guardar</button>
-    <button class="button" onclick="cargarConfiguracionKm()">Cargar Configuración</button>
-  </div>
+        <label>Descripción:</label>
+        <input type="text" id="mov-desc-admin" placeholder="Descripción opcional">
 
-  <!-- Export / Import -->
-  <div class="card">
-    <h3>Exportar / Importar Datos</h3>
-    <button class="button" onclick="exportarJSON()">Exportar</button>
-    <textarea id="json-area" style="min-height:80px;"></textarea><br>
-    <button class="button" onclick="importarJSON()">Importar</button>
-  </div>
+        <label>Monto:</label>
+        <input type="number" id="monto-admin" placeholder="0.00">
 
-  <!-- Tabla completa de movimientos -->
-  <div class="card">
-    <h3>Movimientos (todos)</h3>
-    <table id="tabla-todos" class="tabla-listado"></table>
-  </div>
+        <button onclick="agregarMovimiento('admin')">Guardar Movimiento</button>
+    </div>
+
+    <!-- Kilometraje Diario -->
+    <div class="card">
+        <h3>🚗 Registro de Kilometraje Diario</h3>
+
+        <label>Kilometraje Inicial:</label>
+        <input type="number" id="kmDiarioInicial">
+
+        <label>Kilometraje Final:</label>
+        <input type="number" id="kmDiarioFinal">
+
+        <button onclick="registrarKmDiario()">Guardar Kilometraje</button>
+
+        <p>Km recorridos hoy: <strong id="kmDiarioResultado">0</strong></p>
+    </div>
+
+    <!-- Registro de Gasolina -->
+    <div class="card">
+        <h3>⛽ Registro de Gasolina</h3>
+
+        <label>Litros repostados:</label>
+        <input type="number" id="gas-litros">
+
+        <label>Costo por Litro:</label>
+        <input type="number" id="gas-precio-litro">
+
+        <label>Total Pagado:</label>
+        <input type="number" id="gas-total" disabled>
+
+        <label>Kilometraje Inicial:</label>
+        <input type="number" id="gas-kmInicial">
+
+        <label>Kilometraje Final:</label>
+        <input type="number" id="gas-kmFinal">
+
+        <p>Km recorridos: <strong id="gas-kmRecorridos">0</strong></p>
+        <p>Precio por km: <strong id="gas-precioKm">0.00</strong></p>
+
+        <button onclick="registrarGasolina()">Guardar Repostaje</button>
+    </div>
+
+    <!-- Exportación / Importación -->
+    <div class="card">
+        <h3>Exportar / Importar Datos</h3>
+        <button onclick="exportarJSON()">Exportar</button>
+        <textarea id="json-area"></textarea><br>
+        <button onclick="importarJSON()">Importar</button>
+    </div>
+
+    <!-- Tabla Movimientos -->
+    <div class="card">
+        <h3>Movimientos Registrados</h3>
+        <table id="tabla-todos" class="tabla-listado"></table>
+    </div>
+
 </div>
 
 <script src="assets/js/app.js"></script>
 <script>
-window.addEventListener('load', () => {
-  onloadApp('admin'); // admin carga captura + vistas admin
-});
+window.onload = function() {
+    onloadApp('admin');
+};
 </script>
+
 </body>
 </html>
