@@ -17,6 +17,9 @@ let deudas = JSON.parse(localStorage.getItem("deudas")) || [];
 const $ = id => document.getElementById(id);
 const safeOn = (id, evt, fn) => { const el = $(id); if (el) el.addEventListener(evt, fn); };
 const fmt = n => Number(n||0).toFixed(2);
+// Helper para generar ID único de deuda
+const generarId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+
 
 // -------------------------
 // FUNCIONES DE GUARDADO
@@ -59,6 +62,99 @@ safeOn("formGasto", "submit", (e) => {
   alert("Gasto guardado");
   renderAdminTables();
 });
+
+// ----------------------------------------------------
+// DEUDAS Y ABONOS (NUEVA LÓGICA)
+// ----------------------------------------------------
+
+function renderDeudasAdmin() {
+    const select = $("selectDeuda");
+    const lista = $("lista-deudas");
+    if (!select || !lista) return;
+
+    // 1. Renderizar el SELECT de Abonos
+    select.innerHTML = '<option value="">-- Seleccione una deuda --</option>';
+    // 2. Renderizar la LISTA de deudas pendientes
+    lista.innerHTML = ''; 
+
+    const deudasPendientes = deudas.filter(d => (d.montoActual || 0) > 0);
+
+    if (deudasPendientes.length === 0) {
+        lista.innerHTML = '<li>No hay deudas pendientes.</li>';
+    }
+
+    deudasPendientes.forEach(d => {
+        // Opción para el SELECT de Abonos
+        const opt = document.createElement("option");
+        opt.value = d.id;
+        opt.textContent = `${d.nombre} ($${fmt(d.montoActual)})`;
+        select.appendChild(opt);
+
+        // Elemento para la LISTA de Deudas
+        const li = document.createElement("li");
+        li.innerHTML = `<span>${d.nombre}</span><span class="debt-amount">$${fmt(d.montoActual)}</span>`;
+        lista.appendChild(li);
+    });
+}
+
+// A. Registrar Nueva Deuda
+safeOn("formNuevaDeuda", "submit", (e) => {
+    e.preventDefault();
+    const nombre = $("deudaNombre")?.value?.trim();
+    const monto = Number($("deudaMonto")?.value);
+
+    if (!nombre || !monto || monto <= 0) return alert("Ingresa un nombre y un monto válido para la deuda.");
+
+    deudas.push({
+        id: generarId(),
+        nombre: nombre,
+        montoInicial: monto,
+        montoActual: monto,
+        fechaCreacion: new Date().toISOString()
+    });
+
+    saveAll();
+    e.target.reset();
+    alert("Deuda registrada con éxito.");
+    renderDeudasAdmin();
+    renderAdminTables();
+});
+
+// B. Registrar Abono a Deuda
+safeOn("formAbonoDeuda", "submit", (e) => {
+    e.preventDefault();
+    const deudaId = $("selectDeuda")?.value;
+    const abonoMonto = Number($("abonoMonto")?.value);
+
+    const deudaIndex = deudas.findIndex(d => d.id === deudaId);
+    
+    if (deudaIndex === -1) return alert("Selecciona una deuda válida.");
+    if (!abonoMonto || abonoMonto <= 0) return alert("Ingresa un monto de abono válido.");
+
+    const deuda = deudas[deudaIndex];
+
+    if (abonoMonto > deuda.montoActual) {
+        return alert(`El abono ($${fmt(abonoMonto)}) excede el monto actual de la deuda ($${fmt(deuda.montoActual)}).`);
+    }
+
+    // 1. Actualizar el monto de la deuda
+    deudas[deudaIndex].montoActual -= abonoMonto;
+
+    // 2. Registrar el GASTO del abono para el resumen
+    gastos.push({ 
+        descripcion: `Abono a: ${deuda.nombre}`, 
+        cantidad: abonoMonto, 
+        categoria: "Abono a Deuda", // Categoría especial para gráficas
+        fecha: new Date().toISOString() 
+    });
+
+    saveAll();
+    e.target.reset();
+    alert(`Abono de $${fmt(abonoMonto)} a ${deuda.nombre} registrado.`);
+    renderDeudasAdmin();
+    renderAdminTables();
+});
+
 
 // ----------------------------------------------------
 // KM + GASOLINA CONSOLIDADO (Lógica unificada)
@@ -147,11 +243,11 @@ safeOn("formKmConsolidado", "submit", (e) => {
     fecha: new Date().toISOString() 
   });
   
-  // 2. Registrar el Gasto
+  // 2. Registrar el GASTO
   gastos.push({ 
     descripcion: `Gasolina ${data.lt}L @ ${fmt(costoLitro)}/L`, 
     cantidad: data.totalPagado, 
-    categoria: "Transporte", // Usamos Transporte o podrías añadir 'Gasolina' si es preferible
+    categoria: "Transporte", 
     fecha: new Date().toISOString() 
   });
   
@@ -189,7 +285,8 @@ safeOn("btnImport", "click", () => {
     saveAll();
     alert("Importación completada");
     renderAdminTables();
-    renderIndex(); // Aseguramos que el resumen se actualice si estamos en Index
+    renderDeudasAdmin(); // NUEVA llamada
+    renderIndex(); 
   } catch (err) {
     alert("JSON inválido: " + err.message);
   }
@@ -232,7 +329,8 @@ function renderAdminTables() {
 function calcularResumen() {
   const totalIngresos = ingresos.reduce((s,i)=>s + (i.cantidad||0), 0);
   const totalGastos = gastos.reduce((s,g)=>s + (g.cantidad||0), 0);
-  const deudaTotal = deudas.reduce((s,d)=>s + (d.montoActual || 0), 0);
+  // Suma de los montos actuales pendientes de cada deuda
+  const deudaTotal = deudas.reduce((s,d)=>s + (d.montoActual || 0), 0); 
   const kmTotales = kilometrajes.reduce((s,k)=>s + (k.kmRecorridos||0), 0) + gasolinas.reduce((s,g)=>s + (g.kmRecorridos||0), 0);
   const gastoCombustibleTotal = gasolinas.reduce((s,g)=>s + (g.totalPagado||0), 0);
   const precioKmPromedio = kmTotales > 0 ? (gastoCombustibleTotal / kmTotales) : 0;
@@ -308,12 +406,13 @@ function renderIndex() {
   const canvasDA = $("grafica-deuda-abono");
   if (canvasDA && typeof Chart !== "undefined") {
     const totalDeuda = deudas.reduce((s,d)=>s + (d.montoActual||0),0);
+    // Se filtra la categoría "Abono a Deuda"
     const totalAbonos = gastos.filter(g => g.categoria === "Abono a Deuda").reduce((s,g)=>s + (g.cantidad||0),0);
     if (window._chartDA) window._chartDA.destroy();
     window._chartDA = new Chart(canvasDA.getContext('2d'), { 
       type:'bar', 
       data:{ 
-        labels:['Deuda Pendiente','Total Abonos'], 
+        labels:['Deuda Pendiente','Total Abonos Realizados'], 
         datasets:[{ label:'$', data:[totalDeuda,totalAbonos], backgroundColor: ['#f39c12', '#2ecc71'] }] 
       } 
     });
@@ -348,7 +447,7 @@ function onloadApp(context) {
 
   if (context === 'admin') {
     renderAdminTables();
-    // Aseguramos que la UI del formulario consolidado se inicialice si existe
+    renderDeudasAdmin(); // Carga las deudas en el select y la lista al iniciar
     actualizarKmUI();
   } else {
     renderIndex();
@@ -361,3 +460,4 @@ window.saveAll = saveAll;
 window.renderAdminTables = renderAdminTables;
 window.renderIndex = renderIndex;
 window.actualizarKmUI = actualizarKmUI;
+window.renderDeudasAdmin = renderDeudasAdmin;
