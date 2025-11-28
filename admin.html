@@ -6,6 +6,7 @@
   <title>Admin - Presupuesto</title>
   <link rel="stylesheet" href="assets/css/style.css" />
   <style>
+    /* Estilos para la acción de guardar KM/Repostaje */
     .form-actions {
       display: flex;
       gap: 10px;
@@ -14,6 +15,7 @@
     .form-actions button {
       flex: 1;
     }
+    /* Estilos para la lista de deudas */
     .debt-list {
         list-style: none;
         padding: 0;
@@ -33,12 +35,30 @@
         font-weight: 600;
         color: #e74c3c;
     }
+    /* Estilos para los botones de navegación superiores e inferiores */
+    .top-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 20px;
+    }
+    .admin-btn {
+        padding: 8px 15px;
+        background-color: #3498db; 
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+    }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <button class="back-btn" onclick="location.href='index.html'">⟵ Ir al Resumen</button>
+    <div class="top-actions">
+        <button class="admin-btn" onclick="location.href='index.html'">⟵ Ir al Resumen</button>
+    </div>
+    
     <h1>Panel Admin</h1>
 
     <div class="card">
@@ -61,14 +81,7 @@
         <input type="number" id="gastoCantidad" placeholder="Cantidad" required>
         <label>Categoría</label>
         <select id="gastoCategoria">
-          <option value="Transporte">Transporte</option>
-          <option value="Comida">Comida</option>
-          <option value="Servicios">Servicios</option>
-          <option value="Alquiler">Alquiler</option>
-          <option value="Luz">Luz</option>
-          <option value="Agua">Agua</option>
-          <option value="Otros">Otros</option>
-        </select>
+          </select>
         <button type="submit">Guardar Gasto</button>
       </form>
     </div>
@@ -143,6 +156,10 @@
     <div class="card">
       <h2>Movimientos (últimos)</h2>
       <table id="tabla-todos" class="tabla-listado"></table>
+    </div>
+
+    <div class="top-actions">
+        <button class="admin-btn" onclick="location.href='index.html'">⟵ Ir al Resumen</button>
     </div>
 
   </div>
