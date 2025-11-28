@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin - Presupuesto</title>
   <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    .form-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .form-actions button {
+      flex: 1;
+    }
+  </style>
 </head>
 <body>
 
@@ -12,9 +22,6 @@
     <button class="back-btn" onclick="location.href='index.html'">⟵ Ir al Resumen</button>
     <h1>Panel Admin</h1>
 
-    <!-- ===================== -->
-    <!--      INGRESOS         -->
-    <!-- ===================== -->
     <div class="card">
       <h2>Registrar Ingreso</h2>
       <form id="formIngreso">
@@ -26,9 +33,6 @@
       </form>
     </div>
 
-    <!-- ===================== -->
-    <!--        GASTOS         -->
-    <!-- ===================== -->
     <div class="card">
       <h2>Registrar Gasto</h2>
       <form id="formGasto">
@@ -50,48 +54,37 @@
       </form>
     </div>
 
-    <!-- ===================== -->
-    <!--  KM DIARIO (NO GAS)   -->
-    <!-- ===================== -->
     <div class="card">
-      <h2>Registrar Kilometraje Diario</h2>
-      <form id="formKmDiario">
+      <h2>Registrar Kilometraje y/o Repostaje</h2>
+      <form id="formKmConsolidado">
+        
         <label>KM Inicial</label>
-        <input type="number" id="kmInicialDiario" placeholder="KM Inicial" required>
+        <input type="number" id="kmInicialConsolidado" placeholder="KM Inicial" required>
+        
         <label>KM Final</label>
-        <input type="number" id="kmFinalDiario" placeholder="KM Final" required>
-        <p>Km recorridos hoy: <strong id="kmDiarioResultado">0</strong></p>
-        <button type="submit">Guardar KM Diario</button>
+        <input type="number" id="kmFinalConsolidado" placeholder="KM Final" required>
+
+        <p>Km recorridos: <strong id="kmRecorridosConsolidado">0</strong></p>
+        
+        <fieldset style="border: none; padding: 0; margin-top: 10px;">
+            <legend style="font-weight: bold; margin-bottom: 5px;">Detalles de Repostaje (Opcional)</legend>
+            <label>Litros cargados</label>
+            <input type="number" id="litrosConsolidado" placeholder="Litros" step="0.01">
+
+            <label>Costo total</label>
+            <input type="number" id="costoTotalConsolidado" placeholder="Costo total de la carga" step="0.01">
+            
+            <p>Precio por km: <strong id="precioKmConsolidado">0.00</strong></p>
+        </fieldset>
+
+        <div class="form-actions">
+          <button type="button" id="btnGuardarKmDiario">Guardar KM Diario</button>
+          <button type="submit" id="btnGuardarRepostaje">Guardar Repostaje</button>
+        </div>
+
       </form>
     </div>
 
-    <!-- ===================== -->
-    <!--   GASOLINA + KM       -->
-    <!-- ===================== -->
-    <div class="card">
-      <h2>Registrar Repostaje (Gasolina)</h2>
-      <form id="formGasolina">
-        <label>KM Inicial</label>
-        <input type="number" id="kmInicial" placeholder="KM Inicial" required>
-        <label>KM Final</label>
-        <input type="number" id="kmFinal" placeholder="KM Final" required>
-
-        <label>Litros cargados</label>
-        <input type="number" id="litros" placeholder="Litros" step="0.01" required>
-
-        <label>Costo por litro</label>
-        <input type="number" id="costoLitro" placeholder="Costo por litro" step="0.01" required>
-
-        <p>Km recorridos: <strong id="kmRecorridos">0</strong></p>
-        <p>Precio por km: <strong id="precioKm">0.00</strong></p>
-
-        <button type="submit">Guardar Repostaje</button>
-      </form>
-    </div>
-
-    <!-- ===================== -->
-    <!--   EXPORT / IMPORT     -->
-    <!-- ===================== -->
     <div class="card">
       <h2>Exportar / Importar Datos</h2>
       <button id="btnExport">Exportar</button>
@@ -99,9 +92,6 @@
       <button id="btnImport">Importar</button>
     </div>
 
-    <!-- ===================== -->
-    <!--    TABLA MOVIMIENTOS  -->
-    <!-- ===================== -->
     <div class="card">
       <h2>Movimientos (últimos)</h2>
       <table id="tabla-todos" class="tabla-listado"></table>
