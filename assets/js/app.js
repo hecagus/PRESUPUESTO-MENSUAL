@@ -105,10 +105,10 @@ safeOn("formGasolina", "submit", (e) => {
   const lt = Number($("litros")?.value);
   const costo = Number($("costoLitro")?.value);
   if (!Number.isFinite(ini) || !Number.isFinite(fin) || fin <= ini) return alert("KM inválidos.");
-  if (!lt || !cost o) {
-    // typo guard: but we'll validate properly below
-  }
+  
+  // CORRECCIÓN 1: El typo 'cost o' ha sido corregido a 'costo' para la validación.
   if (!Number.isFinite(lt) || lt <= 0 || !Number.isFinite(costo) || costo <= 0) return alert("Litros y costo por litro válidos.");
+  
   const kmRec = fin - ini;
   const total = lt * costo;
   const precioKm = kmRec > 0 ? total / kmRec : 0;
@@ -167,6 +167,7 @@ function renderAdminTables() {
     const tbody = document.createElement("tbody");
     // unificar list: ingresos (tipo Ingreso), gastos (tipo Gasto)
     const items = [
+      // Añadimos una marca de tipo para distinguir en la tabla, si es necesario
       ...gastos.map(g => ({ tipo: "Gasto", desc: g.descripcion || g.categoria, monto: g.cantidad, fecha: g.fecha })),
       ...ingresos.map(i => ({ tipo: "Ingreso", desc: i.descripcion, monto: i.cantidad, fecha: i.fecha }))
     ].sort((a,b) => new Date(b.fecha) - new Date(a.fecha)).slice(0,50);
@@ -175,7 +176,8 @@ function renderAdminTables() {
     } else {
       items.forEach(it => {
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${it.tipo}</td><td>${it.desc}</td><td>$${fmt(it.monto)}</td><td>${new Date(it.fecha).toLocaleString()}</td>`;
+        const montoClase = it.tipo === "Ingreso" ? "valor-positivo" : "valor-negativo";
+        tr.innerHTML = `<td>${it.tipo}</td><td>${it.desc}</td><td class="${montoClase}">$${fmt(it.monto)}</td><td>${new Date(it.fecha).toLocaleString()}</td>`;
         tbody.appendChild(tr);
       });
     }
@@ -189,7 +191,8 @@ function renderAdminTables() {
 function calcularResumen() {
   const totalIngresos = ingresos.reduce((s,i)=>s + (i.cantidad||0), 0);
   const totalGastos = gastos.reduce((s,g)=>s + (g.cantidad||0), 0);
-  const deudaTotal = deudas.reduce((s,d)=>s + (d.montoActual || 0), 0);
+  // NOTA: Se asume que 'montoActual' en deudas es el campo correcto, si deudas fuera a implementarse.
+  const deudaTotal = deudas.reduce((s,d)=>s + (d.montoActual || 0), 0); 
   const kmTotales = kilometrajes.reduce((s,k)=>s + (k.kmRecorridos||0), 0) + gasolinas.reduce((s,g)=>s + (g.kmRecorridos||0), 0);
   const gastoCombustibleTotal = gasolinas.reduce((s,g)=>s + (g.totalPagado||0), 0);
   const precioKmPromedio = kmTotales > 0 ? (gastoCombustibleTotal / kmTotales) : 0;
@@ -204,7 +207,9 @@ function renderIndex() {
   if ($("balance")) $("balance").textContent = fmt(res.totalIngresos - res.totalGastos);
   if ($("km-recorridos")) $("km-recorridos").textContent = Number(res.kmTotales).toFixed(2);
   if ($("km-gasto")) $("km-gasto").textContent = fmt(res.gastoCombustibleTotal);
+  
   // tablas y gráficas: solo si existen canvases
+  
   // gráfica de categorías (pie)
   const canvasCat = $("grafica-categorias");
   if (canvasCat && typeof Chart !== "undefined") {
@@ -217,48 +222,79 @@ function renderIndex() {
     if (window._chartCategorias) window._chartCategorias.destroy();
     window._chartCategorias = new Chart(canvasCat.getContext('2d'), { type:'pie', data:{ labels, datasets:[{ data, backgroundColor: labels.map((_,i)=>`hsl(${i*55 % 360} 70% 60%)`) }] } });
   }
+  
   // Ingresos vs Gastos (por mes)
   const canvasIG = $("grafica-ingresos-gastos");
   if (canvasIG && typeof Chart !== "undefined") {
-    const meses = {};
-    [...ingresos, ...gastos].forEach(m => {
-      const d = new Date(m.fecha);
-      if (isNaN(d)) return;
-      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-      if (!meses[key]) meses[key] = { Ingreso:0, Gasto:0 };
-      if (m.cantidad !== undefined) {
-        if (ingresos.includes(m)) meses[key].Ingreso += m.cantidad;
-      } else if (m.cantidad === undefined && m.monto !== undefined) {
-        // skip
+    const monthly = {};
+    
+    // CORRECCIÓN 2: Se simplificó y se mantuvo solo la lógica de cálculo por mes correcta, 
+    // eliminando el bloque de código redundante e incorrecto.
+    ingresos.forEach(i => { 
+      const d=new Date(i.fecha); 
+      if (!isNaN(d)) { 
+        const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; 
+        monthly[k]=monthly[k]||{Ingreso:0,Gasto:0}; 
+        monthly[k].Ingreso+=i.cantidad; 
       }
     });
-    // fallback using our arrays explicitly:
-    Object.keys(meses).forEach(k=>{});
-    // simpler: compute monthly sums
-    const monthly = {};
-    ingresos.forEach(i => { const d=new Date(i.fecha); if (!isNaN(d)) { const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; monthly[k]=monthly[k]||{Ingreso:0,Gasto:0}; monthly[k].Ingreso+=i.cantidad; }});
-    gastos.forEach(g => { const d=new Date(g.fecha); if (!isNaN(d)) { const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; monthly[k]=monthly[k]||{Ingreso:0,Gasto:0}; monthly[k].Gasto+=g.cantidad; }});
+    
+    gastos.forEach(g => { 
+      const d=new Date(g.fecha); 
+      if (!isNaN(d)) { 
+        const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; 
+        monthly[k]=monthly[k]||{Ingreso:0,Gasto:0}; 
+        monthly[k].Gasto+=g.cantidad; 
+      }
+    });
+    
     const labels = Object.keys(monthly).sort();
     const ingresosData = labels.map(l => monthly[l].Ingreso || 0);
     const gastosData = labels.map(l => monthly[l].Gasto || 0);
+    
     if (window._chartIG) window._chartIG.destroy();
-    window._chartIG = new Chart(canvasIG.getContext('2d'), { type:'bar', data:{ labels, datasets:[{ label:'Ingresos', data:ingresosData }, { label:'Gastos', data:gastosData }] }, options:{ responsive:true }});
+    window._chartIG = new Chart(canvasIG.getContext('2d'), { 
+      type:'bar', 
+      data:{ 
+        labels, 
+        datasets:[
+          { label:'Ingresos', data:ingresosData, backgroundColor: 'rgba(75, 192, 192, 0.6)' }, 
+          { label:'Gastos', data:gastosData, backgroundColor: 'rgba(255, 99, 132, 0.6)' }
+        ] 
+      }, 
+      options:{ responsive:true }
+    });
   }
+  
   // Deuda vs Abonos
   const canvasDA = $("grafica-deuda-abono");
   if (canvasDA && typeof Chart !== "undefined") {
     const totalDeuda = deudas.reduce((s,d)=>s + (d.montoActual||0),0);
+    // Se asume que los abonos a deuda se registran como gastos con categoría "Abono a Deuda".
     const totalAbonos = gastos.filter(g => g.categoria === "Abono a Deuda").reduce((s,g)=>s + (g.cantidad||0),0);
     if (window._chartDA) window._chartDA.destroy();
-    window._chartDA = new Chart(canvasDA.getContext('2d'), { type:'bar', data:{ labels:['Deuda Pendiente','Total Abonos'], datasets:[{ label:'$', data:[totalDeuda,totalAbonos] }] } });
+    window._chartDA = new Chart(canvasDA.getContext('2d'), { 
+      type:'bar', 
+      data:{ 
+        labels:['Deuda Pendiente','Total Abonos'], 
+        datasets:[{ label:'$', data:[totalDeuda,totalAbonos], backgroundColor: ['#f39c12', '#2ecc71'] }] 
+      } 
+    });
   }
+  
   // Km vs Gasto
   const canvasKM = $("grafica-km-gasto");
   if (canvasKM && typeof Chart !== "undefined") {
     const kmTotales = kilometrajes.reduce((s,k)=>s + (k.kmRecorridos||0),0) + gasolinas.reduce((s,g)=>s + (g.kmRecorridos||0),0);
     const gastoComb = gasolinas.reduce((s,g)=>s + (g.totalPagado||0),0);
     if (window._chartKM) window._chartKM.destroy();
-    window._chartKM = new Chart(canvasKM.getContext('2d'), { type:'bar', data:{ labels:['Km totales','Gasto combustible'], datasets:[{ label:'Valor', data:[kmTotales,gastoComb] }] } });
+    window._chartKM = new Chart(canvasKM.getContext('2d'), { 
+      type:'bar', 
+      data:{ 
+        labels:['Km totales','Gasto combustible'], 
+        datasets:[{ label:'Valor', data:[kmTotales,gastoComb], backgroundColor: ['#3498db', '#e74c3c'] }] 
+      } 
+    });
   }
 }
 
