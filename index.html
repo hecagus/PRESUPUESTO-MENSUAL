@@ -1,80 +1,97 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Presupuesto Mensual — Resumen</title>
-<link rel="stylesheet" href="assets/css/style.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resumen - Presupuesto</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        /* Estilo para los botones superiores */
+        .top-actions {
+            display: flex;
+            justify-content: flex-end; /* Alinea a la derecha */
+            margin-bottom: 20px;
+        }
+        .admin-btn {
+            padding: 8px 15px;
+            background-color: #3498db; /* Un color distinto para destacar */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+    </style>
 </head>
 <body>
 
-<div class="container">
-  <h2>📊 Resumen Financiero</h2>
+    <div class="container">
+        <div class="top-actions">
+            <button class="admin-btn" onclick="location.href='admin.html'">Ir a Administración ⟼</button>
+        </div>
+        
+        <h1>Resumen Financiero</h1>
 
-  <div class="resumen">
-    <div class="card">
-      <h3>💳 Deuda Total</h3>
-      <p>$<span id="deudaTotalLabel">0.00</span></p>
+        <div class="card">
+            <p>🏁 Deuda Total</p>
+            <h2 id="deudaTotalLabel">$0.00</h2>
+        </div>
+
+        <div class="card">
+            <p>➕ Total Ingresos</p>
+            <h2 id="total-ingresos">$0.00</h2>
+        </div>
+
+        <div class="card">
+            <p>➖ Gasto Operacional (Neto)</p>
+            <h2 id="total-gastos-neto">$0.00</h2>
+            <small>Gastos de consumo sin Abonos a Deuda.</small>
+        </div>
+
+        <div class="card balance-card">
+            <p>💰 Balance (Ingresos - Gasto Operacional)</p>
+            <h2 id="balance">$0.00</h2>
+        </div>
+
+        <div class="card">
+            <p>⛽ Kilometraje Total</p>
+            <p>Kilómetros recorridos: <strong id="km-recorridos">0.00</strong></p>
+            <p>Gasto total de combustible: <strong id="km-gasto">$0.00</strong></p>
+            <p>Rendimiento (Km/L): <strong id="km-rendimiento">0.00</strong></p>
+        </div>
+
+        <div class="card">
+            <h2>Desglose de Gastos por Categoría</h2>
+            <canvas id="grafica-categorias"></canvas>
+        </div>
+
+        <div class="card">
+            <h2>Ingresos vs Gastos</h2>
+            <canvas id="grafica-ingresos-gastos"></canvas>
+        </div>
+
+        <div class="card">
+            <h2>Deuda vs Abonos</h2>
+            <canvas id="grafica-deuda-abono"></canvas>
+        </div>
+        
+        <div class="card">
+            <h2>Kilometraje vs Gasto de Combustible</h2>
+            <canvas id="grafica-km-gasto"></canvas>
+        </div>
+        
+        <div class="bottom-actions">
+            <button class="admin-btn" onclick="location.href='admin.html'">Ir a Administración ⟼</button>
+        </div>
     </div>
 
-    <div class="card">
-      <h3>💵 Total Ingresos</h3>
-      <p>$<span id="total-ingresos">0.00</span></p>
-    </div>
-
-    <div class="card">
-      <h3>💸 Total Gastos</h3>
-      <p>$<span id="total-gastos">0.00</span></p>
-    </div>
-
-    <div class="card">
-      <h3>🚗 Kilometraje Total</h3>
-      <p>Kilómetros recorridos: <span id="km-recorridos">0</span></p>
-      <p>Gasto total de combustible: $<span id="km-gasto">0.00</span></p>
-    </div>
-  </div>
-
-  <div class="card">
-    <h3>Balance</h3>
-    <p>$<span id="balance">0.00</span></p>
-  </div>
-
-  <div class="card">
-    <h3>Movimientos Recientes</h3>
-    <table id="tabla-recientes" class="tabla-listado"></table>
-  </div>
-
-  <div class="card">
-    <h3>Desglose de Gastos por Categoría</h3>
-    <canvas id="grafica-categorias"></canvas>
-  </div>
-
-  <div class="card">
-    <h3>Ingresos vs Gastos</h3>
-    <canvas id="grafica-ingresos-gastos"></canvas>
-  </div>
-
-  <div class="card">
-    <h3>Deuda vs Abonos</h3>
-    <canvas id="grafica-deuda-abono"></canvas>
-  </div>
-
-  <div class="card">
-    <h3>Kilometraje vs Gasto de Combustible</h3>
-    <canvas id="grafica-km-gasto"></canvas>
-  </div>
-
-  <div class="admin-link">
-    <a href="admin.html">⟵ Ir a Administración</a>
-  </div>
-</div>
-
-<script src="assets/js/app.js"></script>
-<script>
-window.addEventListener('load', () => {
-  onloadApp('index'); // solo muestra datos
-});
-</script>
+    <script src="assets/js/app.js"></script>
+    <script>
+        // Inicializa index
+        window.addEventListener('load', () => {
+            if (typeof onloadApp === 'function') onloadApp('index');
+        });
+    </script>
 </body>
 </html>
