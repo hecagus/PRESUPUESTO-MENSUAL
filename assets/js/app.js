@@ -50,6 +50,18 @@ safeOn("formIngreso", "submit", (e) => {
 // -------------------------
 // ADMIN: Gastos
 // -------------------------
+// Se actualizan las categorías disponibles
+const CATEGORIAS_GASTO = ["Transporte", "Comida", "Servicios", "Alquiler", "Hogar/Vivienda", "Ocio/Entretenimiento", "Otros", "Abono a Deuda"];
+
+function renderCategorias() {
+    const select = $("gastoCategoria");
+    if (select) {
+        // Aseguramos que la lista no contenga la categoría interna de Abono a Deuda
+        const categoriasVisibles = CATEGORIAS_GASTO.filter(c => c !== "Abono a Deuda");
+        select.innerHTML = categoriasVisibles.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+}
+
 safeOn("formGasto", "submit", (e) => {
   e.preventDefault();
   const desc = $("gastoDescripcion")?.value?.trim();
@@ -187,9 +199,6 @@ function actualizarKmUI() {
   if ($("precioKmConsolidado")) $("precioKmConsolidado").textContent = fmt(precioKm);
 }
 
-/**
- * Busca el último KM Final registrado en gasolina o kilometrajes y lo asigna al campo KM Inicial.
- */
 function precargarKmInicial() {
     const kmInput = $("kmInicialConsolidado");
     if (!kmInput) return;
@@ -203,12 +212,18 @@ function precargarKmInicial() {
     // 2. Tomar el último KM Final
     if (allKmEntries.length > 0) {
         const lastKmFinal = allKmEntries[0].kmFinal;
-        // Solo precargar si el campo está vacío (para evitar sobrescribir si el usuario ya empezó a escribir)
+        // Solo precargar si el campo está vacío o es 0
         if (kmInput.value === "" || Number(kmInput.value) === 0) {
             kmInput.value = lastKmFinal;
         }
-        actualizarKmUI(); // Actualiza los cálculos si precargamos
+        actualizarKmUI();
     }
+}
+
+/** Limpia el campo KM Final después de guardar */
+function limpiarKmFinal() {
+    const kmFinalInput = $("kmFinalConsolidado");
+    if(kmFinalInput) kmFinalInput.value = "";
 }
 
 
@@ -224,7 +239,7 @@ safeOn("btnGuardarKmDiario", "click", () => {
   const data = obtenerCamposKm();
   if (!data) return;
 
-  // Registrar KM Diario (no tiene costo asociado)
+  // Registrar KM Diario
   kilometrajes.push({ 
     kmInicial: data.ini, 
     kmFinal: data.fin, 
@@ -236,8 +251,9 @@ safeOn("btnGuardarKmDiario", "click", () => {
   
   const form = $("formKmConsolidado");
   if(form) form.reset();
+  limpiarKmFinal(); // Limpia KM Final
   precargarKmInicial(); // Precarga el KM inicial para el próximo registro
-  actualizarKmUI(); // Limpia los totales en la UI
+  actualizarKmUI();
   alert("Kilometraje diario guardado");
   renderAdminTables();
 });
@@ -280,8 +296,9 @@ safeOn("formKmConsolidado", "submit", (e) => {
   saveAll();
   
   e.target.reset();
+  limpiarKmFinal(); // Limpia KM Final
   precargarKmInicial(); // Precarga el KM inicial para el próximo registro
-  actualizarKmUI(); // Limpia los totales en la UI
+  actualizarKmUI();
   alert("Repostaje guardado");
   renderAdminTables();
 });
@@ -313,7 +330,7 @@ safeOn("btnImport", "click", () => {
     alert("Importación completada");
     renderAdminTables();
     renderDeudasAdmin(); 
-    precargarKmInicial(); // Asegura la precarga después de importar
+    precargarKmInicial();
     renderIndex(); 
   } catch (err) {
     alert("JSON inválido: " + err.message);
@@ -324,7 +341,6 @@ safeOn("btnImport", "click", () => {
 // RENDERS (admin e index)
 // -------------------------
 function renderAdminTables() {
-  // tabla-todos (mostramos últimos movimientos básicos)
   const tabla = $("tabla-todos");
   if (tabla) {
     tabla.innerHTML = "";
@@ -332,7 +348,6 @@ function renderAdminTables() {
     thead.innerHTML = "<tr><th>Tipo</th><th>Descripción / Categoria</th><th>Monto</th><th>Fecha</th></tr>";
     tabla.appendChild(thead);
     const tbody = document.createElement("tbody");
-    // unificar list: ingresos (tipo Ingreso), gastos (tipo Gasto)
     const items = [
       ...gastos.map(g => ({ tipo: "Gasto", desc: g.descripcion || g.categoria, monto: g.cantidad, fecha: g.fecha })),
       ...ingresos.map(i => ({ tipo: "Ingreso", desc: i.descripcion, monto: i.cantidad, fecha: i.fecha }))
@@ -356,27 +371,42 @@ function renderAdminTables() {
 // -------------------------
 function calcularResumen() {
   const totalIngresos = ingresos.reduce((s,i)=>s + (i.cantidad||0), 0);
-  const totalGastos = gastos.reduce((s,g)=>s + (g.cantidad||0), 0);
+  
+  // 1. Cálculo del Gasto Neto (Excluyendo Abonos a Deuda)
+  const gastosOperacionales = gastos.filter(g => g.categoria !== "Abono a Deuda");
+  const totalGastosNeto = gastosOperacionales.reduce((s,g)=>s + (g.cantidad||0), 0);
+  
   const deudaTotal = deudas.reduce((s,d)=>s + (d.montoActual || 0), 0); 
   const kmTotales = kilometrajes.reduce((s,k)=>s + (k.kmRecorridos||0), 0) + gasolinas.reduce((s,g)=>s + (g.kmRecorridos||0), 0);
   const gastoCombustibleTotal = gasolinas.reduce((s,g)=>s + (g.totalPagado||0), 0);
+  const totalLitros = gasolinas.reduce((s,g)=>s + (g.litros||0), 0);
+  
+  // 2. Cálculo de Rendimiento
+  const kmPorLitro = totalLitros > 0 ? (kmTotales / totalLitros) : 0;
   const precioKmPromedio = kmTotales > 0 ? (gastoCombustibleTotal / kmTotales) : 0;
-  return { totalIngresos, totalGastos, deudaTotal, kmTotales, gastoCombustibleTotal, precioKmPromedio };
+  
+  return { totalIngresos, totalGastosNeto, deudaTotal, kmTotales, gastoCombustibleTotal, precioKmPromedio, kmPorLitro };
 }
 
 function renderIndex() {
   const res = calcularResumen();
   if ($("total-ingresos")) $("total-ingresos").textContent = fmt(res.totalIngresos);
-  if ($("total-gastos")) $("total-gastos").textContent = fmt(res.totalGastos);
+  // Se actualiza la tarjeta de Gasto Neto
+  if ($("total-gastos-neto")) $("total-gastos-neto").textContent = fmt(res.totalGastosNeto);
   if ($("deudaTotalLabel")) $("deudaTotalLabel").textContent = fmt(res.deudaTotal);
-  if ($("balance")) $("balance").textContent = fmt(res.totalIngresos - res.totalGastos);
+  // Balance ahora usa Gasto Neto
+  if ($("balance")) $("balance").textContent = fmt(res.totalIngresos - res.totalGastosNeto);
+  
   if ($("km-recorridos")) $("km-recorridos").textContent = Number(res.kmTotales).toFixed(2);
   if ($("km-gasto")) $("km-gasto").textContent = fmt(res.gastoCombustibleTotal);
+  // Se actualiza la tarjeta de Rendimiento
+  if ($("km-rendimiento")) $("km-rendimiento").textContent = Number(res.kmPorLitro).toFixed(2);
   
-  // gráfica de categorías (pie)
+  // Gráfica de categorías (pie)
   const canvasCat = $("grafica-categorias");
   if (canvasCat && typeof Chart !== "undefined") {
     const map = {};
+    // La gráfica de categorías debe incluir Abonos a Deuda para ser completa
     gastos.forEach(g => { map[g.categoria] = (map[g.categoria]||0) + g.cantidad; });
     const labels = Object.keys(map);
     const data = labels.map(l => map[l]);
@@ -389,6 +419,7 @@ function renderIndex() {
   if (canvasIG && typeof Chart !== "undefined") {
     const monthly = {};
     
+    // Los ingresos siguen siendo todos
     ingresos.forEach(i => { 
       const d=new Date(i.fecha); 
       if (!isNaN(d)) { 
@@ -398,6 +429,7 @@ function renderIndex() {
       }
     });
     
+    // Los gastos aquí deben ser TODOS (incluidos abonos) para tener una vista completa del dinero que salió
     gastos.forEach(g => { 
       const d=new Date(g.fecha); 
       if (!isNaN(d)) { 
@@ -443,8 +475,8 @@ function renderIndex() {
   // Km vs Gasto
   const canvasKM = $("grafica-km-gasto");
   if (canvasKM && typeof Chart !== "undefined") {
-    const kmTotales = kilometrajes.reduce((s,k)=>s + (k.kmRecorridos||0),0) + gasolinas.reduce((s,g)=>s + (g.kmRecorridos||0),0);
-    const gastoComb = gasolinas.reduce((s,g)=>s + (g.totalPagado||0),0);
+    const kmTotales = res.kmTotales;
+    const gastoComb = res.gastoCombustibleTotal;
     if (window._chartKM) window._chartKM.destroy();
     window._chartKM = new Chart(canvasKM.getContext('2d'), { 
       type:'bar', 
@@ -470,7 +502,8 @@ function onloadApp(context) {
   if (context === 'admin') {
     renderAdminTables();
     renderDeudasAdmin(); 
-    precargarKmInicial(); // Llama a la nueva función de precarga
+    renderCategorias(); // Carga las categorías
+    precargarKmInicial();
     actualizarKmUI();
   } else {
     renderIndex();
@@ -484,5 +517,4 @@ window.renderAdminTables = renderAdminTables;
 window.renderIndex = renderIndex;
 window.actualizarKmUI = actualizarKmUI;
 window.renderDeudasAdmin = renderDeudasAdmin;
-window.precargarKmInicial = precargarKmInicial; // Exponer para fácil acceso si es necesario
-       
+window.precargarKmInicial = precargarKmInicial;
