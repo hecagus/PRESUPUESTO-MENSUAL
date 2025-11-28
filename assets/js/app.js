@@ -60,68 +60,109 @@ safeOn("formGasto", "submit", (e) => {
   renderAdminTables();
 });
 
-// -------------------------
-// KM DIARIO (no gasolina)
-// -------------------------
-safeOn("formKmDiario", "submit", (e) => {
-  e.preventDefault();
-  const ini = Number($("kmInicialDiario")?.value);
-  const fin = Number($("kmFinalDiario")?.value);
-  if (!Number.isFinite(ini) || !Number.isFinite(fin) || fin <= ini) return alert("KM inválidos.");
-  const rec = fin - ini;
-  kilometrajes.push({ kmInicial: ini, kmFinal: fin, kmRecorridos: rec, fecha: new Date().toISOString() });
+// ----------------------------------------------------
+// KM + GASOLINA CONSOLIDADO (Lógica unificada)
+// ----------------------------------------------------
+
+function obtenerCamposKm() {
+  const ini = Number($("kmInicialConsolidado")?.value);
+  const fin = Number($("kmFinalConsolidado")?.value);
+  const lt = Number($("litrosConsolidado")?.value);
+  const totalPagado = Number($("costoTotalConsolidado")?.value);
+  const kmRec = (fin > ini) ? (fin - ini) : 0;
+  const precioKm = (kmRec > 0 && totalPagado > 0) ? (totalPagado / kmRec) : 0;
+  
+  // Validaciones básicas de KM
+  if (!Number.isFinite(ini) || !Number.isFinite(fin) || fin <= ini) {
+    alert("KM Inicial y KM Final son inválidos.");
+    return false;
+  }
+  return { ini, fin, lt, totalPagado, kmRec, precioKm };
+}
+
+function actualizarKmUI() {
+  const ini = Number($("kmInicialConsolidado")?.value || 0);
+  const fin = Number($("kmFinalConsolidado")?.value || 0);
+  const totalPagado = Number($("costoTotalConsolidado")?.value || 0);
+  const kmRec = (fin > ini) ? (fin - ini) : 0;
+  const precioKm = (kmRec > 0 && totalPagado > 0) ? (totalPagado / kmRec) : 0;
+  
+  if ($("kmRecorridosConsolidado")) $("kmRecorridosConsolidado").textContent = kmRec;
+  if ($("precioKmConsolidado")) $("precioKmConsolidado").textContent = fmt(precioKm);
+}
+
+// Escuchas para actualizar la UI en vivo
+["kmInicialConsolidado", "kmFinalConsolidado", "litrosConsolidado", "costoTotalConsolidado"].forEach(id => {
+  const el = $(id);
+  if (el) el.addEventListener("input", actualizarKmUI);
+});
+
+
+// 1. Guardar KM Diario (Botón: Guardar KM Diario)
+safeOn("btnGuardarKmDiario", "click", () => {
+  const data = obtenerCamposKm();
+  if (!data) return;
+
+  // Registrar KM Diario (no tiene costo asociado)
+  kilometrajes.push({ 
+    kmInicial: data.ini, 
+    kmFinal: data.fin, 
+    kmRecorridos: data.kmRec, 
+    fecha: new Date().toISOString() 
+  });
+  
   saveAll();
-  e.target.reset();
-  if ($("kmDiarioResultado")) $("kmDiarioResultado").textContent = rec;
+  
+  const form = $("formKmConsolidado");
+  if(form) form.reset();
+  actualizarKmUI(); // Limpia los totales en la UI
   alert("Kilometraje diario guardado");
   renderAdminTables();
 });
 
-// -------------------------
-// GASOLINA + cálculo en vivo
-// -------------------------
-function actualizarGasUI() {
-  const ini = Number($("kmInicial")?.value || 0);
-  const fin = Number($("kmFinal")?.value || 0);
-  const lt = Number($("litros")?.value || 0);
-  const costo = Number($("costoLitro")?.value || 0);
-  const kmRec = (fin > ini) ? (fin - ini) : 0;
-  const total = lt * costo;
-  const precioKm = kmRec > 0 ? total / kmRec : 0;
-  if ($("kmRecorridos")) $("kmRecorridos").textContent = kmRec;
-  if ($("precioKm")) $("precioKm").textContent = fmt(precioKm);
-}
 
-["kmInicial","kmFinal","litros","costoLitro"].forEach(id => {
-  const el = $(id);
-  if (el) el.addEventListener("input", actualizarGasUI);
-});
-
-// Guardar repostaje
-safeOn("formGasolina", "submit", (e) => {
+// 2. Guardar Repostaje (Botón: Guardar Repostaje, o submit general del form)
+safeOn("formKmConsolidado", "submit", (e) => {
   e.preventDefault();
-  const ini = Number($("kmInicial")?.value);
-  const fin = Number($("kmFinal")?.value);
-  const lt = Number($("litros")?.value);
-  const costo = Number($("costoLitro")?.value);
-  if (!Number.isFinite(ini) || !Number.isFinite(fin) || fin <= ini) return alert("KM inválidos.");
+  const data = obtenerCamposKm();
+  if (!data) return;
   
-  // CORRECCIÓN 1: El typo 'cost o' ha sido corregido a 'costo' para la validación.
-  if (!Number.isFinite(lt) || lt <= 0 || !Number.isFinite(costo) || costo <= 0) return alert("Litros y costo por litro válidos.");
+  // Validaciones Repostaje: debe tener litros y costo total
+  if (!Number.isFinite(data.lt) || data.lt <= 0 || !Number.isFinite(data.totalPagado) || data.totalPagado <= 0) {
+    return alert("Para Repostaje, debes completar Litros cargados y Costo total válidos.");
+  }
+
+  // Costo por litro calculado para la gasolina
+  const costoLitro = data.totalPagado / data.lt;
+
+  // 1. Registrar Repostaje
+  gasolinas.push({ 
+    kmInicial: data.ini, 
+    kmFinal: data.fin, 
+    kmRecorridos: data.kmRec, 
+    litros: data.lt, 
+    costoLitro: costoLitro, // calculado
+    totalPagado: data.totalPagado, 
+    precioPorKm: data.precioKm, 
+    fecha: new Date().toISOString() 
+  });
   
-  const kmRec = fin - ini;
-  const total = lt * costo;
-  const precioKm = kmRec > 0 ? total / kmRec : 0;
-  gasolinas.push({ kmInicial: ini, kmFinal: fin, kmRecorridos: kmRec, litros: lt, costoLitro: costo, totalPagado: total, precioPorKm: precioKm, fecha: new Date().toISOString() });
-  // también añadimos gasto a 'gastos' para que el resumen lo considere
-  gastos.push({ descripcion: `Gasolina ${lt}L @ ${fmt(costo)}`, cantidad: total, categoria: "Gasolina", fecha: new Date().toISOString() });
+  // 2. Registrar el Gasto
+  gastos.push({ 
+    descripcion: `Gasolina ${data.lt}L @ ${fmt(costoLitro)}/L`, 
+    cantidad: data.totalPagado, 
+    categoria: "Transporte", // Usamos Transporte o podrías añadir 'Gasolina' si es preferible
+    fecha: new Date().toISOString() 
+  });
+  
   saveAll();
+  
   e.target.reset();
-  if ($("kmRecorridos")) $("kmRecorridos").textContent = "0";
-  if ($("precioKm")) $("precioKm").textContent = "0.00";
+  actualizarKmUI(); // Limpia los totales en la UI
   alert("Repostaje guardado");
   renderAdminTables();
 });
+
 
 // -------------------------
 // EXPORT / IMPORT
@@ -148,6 +189,7 @@ safeOn("btnImport", "click", () => {
     saveAll();
     alert("Importación completada");
     renderAdminTables();
+    renderIndex(); // Aseguramos que el resumen se actualice si estamos en Index
   } catch (err) {
     alert("JSON inválido: " + err.message);
   }
@@ -167,7 +209,6 @@ function renderAdminTables() {
     const tbody = document.createElement("tbody");
     // unificar list: ingresos (tipo Ingreso), gastos (tipo Gasto)
     const items = [
-      // Añadimos una marca de tipo para distinguir en la tabla, si es necesario
       ...gastos.map(g => ({ tipo: "Gasto", desc: g.descripcion || g.categoria, monto: g.cantidad, fecha: g.fecha })),
       ...ingresos.map(i => ({ tipo: "Ingreso", desc: i.descripcion, monto: i.cantidad, fecha: i.fecha }))
     ].sort((a,b) => new Date(b.fecha) - new Date(a.fecha)).slice(0,50);
@@ -191,8 +232,7 @@ function renderAdminTables() {
 function calcularResumen() {
   const totalIngresos = ingresos.reduce((s,i)=>s + (i.cantidad||0), 0);
   const totalGastos = gastos.reduce((s,g)=>s + (g.cantidad||0), 0);
-  // NOTA: Se asume que 'montoActual' en deudas es el campo correcto, si deudas fuera a implementarse.
-  const deudaTotal = deudas.reduce((s,d)=>s + (d.montoActual || 0), 0); 
+  const deudaTotal = deudas.reduce((s,d)=>s + (d.montoActual || 0), 0);
   const kmTotales = kilometrajes.reduce((s,k)=>s + (k.kmRecorridos||0), 0) + gasolinas.reduce((s,g)=>s + (g.kmRecorridos||0), 0);
   const gastoCombustibleTotal = gasolinas.reduce((s,g)=>s + (g.totalPagado||0), 0);
   const precioKmPromedio = kmTotales > 0 ? (gastoCombustibleTotal / kmTotales) : 0;
@@ -228,8 +268,6 @@ function renderIndex() {
   if (canvasIG && typeof Chart !== "undefined") {
     const monthly = {};
     
-    // CORRECCIÓN 2: Se simplificó y se mantuvo solo la lógica de cálculo por mes correcta, 
-    // eliminando el bloque de código redundante e incorrecto.
     ingresos.forEach(i => { 
       const d=new Date(i.fecha); 
       if (!isNaN(d)) { 
@@ -270,7 +308,6 @@ function renderIndex() {
   const canvasDA = $("grafica-deuda-abono");
   if (canvasDA && typeof Chart !== "undefined") {
     const totalDeuda = deudas.reduce((s,d)=>s + (d.montoActual||0),0);
-    // Se asume que los abonos a deuda se registran como gastos con categoría "Abono a Deuda".
     const totalAbonos = gastos.filter(g => g.categoria === "Abono a Deuda").reduce((s,g)=>s + (g.cantidad||0),0);
     if (window._chartDA) window._chartDA.destroy();
     window._chartDA = new Chart(canvasDA.getContext('2d'), { 
@@ -311,6 +348,8 @@ function onloadApp(context) {
 
   if (context === 'admin') {
     renderAdminTables();
+    // Aseguramos que la UI del formulario consolidado se inicialice si existe
+    actualizarKmUI();
   } else {
     renderIndex();
   }
@@ -321,3 +360,4 @@ window.onloadApp = onloadApp;
 window.saveAll = saveAll;
 window.renderAdminTables = renderAdminTables;
 window.renderIndex = renderIndex;
+window.actualizarKmUI = actualizarKmUI;
