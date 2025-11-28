@@ -1,97 +1,171 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resumen - Presupuesto</title>
-    <link rel="stylesheet" href="assets/css/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <style>
-        /* Estilo para los botones superiores */
-        .top-actions {
-            display: flex;
-            justify-content: flex-end; /* Alinea a la derecha */
-            margin-bottom: 20px;
-        }
-        .admin-btn {
-            padding: 8px 15px;
-            background-color: #3498db; /* Un color distinto para destacar */
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            text-decoration: none;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Presupuesto Personal</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    /* Estilos generales */
+    .balance-card {
+        background-color: #2ecc71; /* Verde fuerte */
+        color: white;
+    }
+    .balance-card p {
+        margin-bottom: 5px;
+        font-size: 0.9em;
+    }
+    .balance-card h2 {
+        margin: 0;
+    }
+    .projection-card {
+        border-left: 5px solid #3498db; /* Borde azul para destacar */
+    }
+    .projection-card button {
+        padding: 8px 15px;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    .top-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 20px;
+    }
+    .admin-btn {
+        padding: 8px 15px;
+        background-color: #3498db; 
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    .tabla-listado {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    .tabla-listado th, .tabla-listado td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    .tabla-listado th {
+        background-color: #f2f2f2;
+    }
+    /* Estilo para valores positivos */
+    .valor-positivo {
+        font-weight: bold;
+        color: #27ae60;
+    }
+  </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="top-actions">
-            <button class="admin-btn" onclick="location.href='admin.html'">Ir a Administración ⟼</button>
-        </div>
-        
-        <h1>Resumen Financiero</h1>
+  <div class="container">
+    <div class="top-actions">
+        <button class="admin-btn" onclick="location.href='admin.html'">Administrar Datos ⟶</button>
+    </div>
+    
+    <h1>📊 Resumen Financiero</h1>
 
-        <div class="card">
-            <p>🏁 Deuda Total</p>
-            <h2 id="deudaTotalLabel">$0.00</h2>
-        </div>
-
-        <div class="card">
-            <p>➕ Total Ingresos</p>
-            <h2 id="total-ingresos">$0.00</h2>
-        </div>
-
-        <div class="card">
-            <p>➖ Gasto Operacional (Neto)</p>
-            <h2 id="total-gastos-neto">$0.00</h2>
-            <small>Gastos de consumo sin Abonos a Deuda.</small>
-        </div>
-
-        <div class="card balance-card">
-            <p>💰 Balance (Ingresos - Gasto Operacional)</p>
-            <h2 id="balance">$0.00</h2>
-        </div>
-
-        <div class="card">
-            <p>⛽ Kilometraje Total</p>
-            <p>Kilómetros recorridos: <strong id="km-recorridos">0.00</strong></p>
-            <p>Gasto total de combustible: <strong id="km-gasto">$0.00</strong></p>
-            <p>Rendimiento (Km/L): <strong id="km-rendimiento">0.00</strong></p>
-        </div>
-
-        <div class="card">
-            <h2>Desglose de Gastos por Categoría</h2>
-            <canvas id="grafica-categorias"></canvas>
-        </div>
-
-        <div class="card">
-            <h2>Ingresos vs Gastos</h2>
-            <canvas id="grafica-ingresos-gastos"></canvas>
-        </div>
-
-        <div class="card">
-            <h2>Deuda vs Abonos</h2>
-            <canvas id="grafica-deuda-abono"></canvas>
-        </div>
-        
-        <div class="card">
-            <h2>Kilometraje vs Gasto de Combustible</h2>
-            <canvas id="grafica-km-gasto"></canvas>
-        </div>
-        
-        <div class="bottom-actions">
-            <button class="admin-btn" onclick="location.href='admin.html'">Ir a Administración ⟼</button>
-        </div>
+    <div class="card balance-card">
+        <p>💰 Balance (Ingresos - Gasto Operacional)</p>
+        <h2 id="balance">$0.00</h2>
     </div>
 
-    <script src="assets/js/app.js"></script>
-    <script>
-        // Inicializa index
-        window.addEventListener('load', () => {
-            if (typeof onloadApp === 'function') onloadApp('index');
-        });
-    </script>
+    <div class="card projection-card">
+        <h2>🎯 Proyección de Ganancias y Deuda (Uber Eats)</h2>
+        <button id="btnExportProjection" style="margin-bottom: 15px; background-color: #2ecc71;">
+            Exportar Proyección a CSV
+        </button>
+        
+        <fieldset style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;">
+            <legend style="font-weight: bold;">Parámetros de la Meta</legend>
+            
+            <label for="inputDiasRestantes">Días Restantes para la Meta:</label>
+            <input type="number" id="inputDiasRestantes" value="33" min="1" required style="width: 100%; margin-bottom: 10px;">
+
+            <label for="inputDeudaMeta">Monto Total de Deuda a Liquidar (MXN):</label>
+            <input type="number" id="inputDeudaMeta" value="19793" min="0" required style="width: 100%; margin-bottom: 10px;">
+            
+            <label for="inputGananciaHr">Ganancia por Hora (MXN):</label>
+            <input type="number" id="inputGananciaHr" value="101.56" step="0.01" min="1" required style="width: 100%; margin-bottom: 10px;">
+        </fieldset>
+
+        <fieldset style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;">
+            <legend style="font-weight: bold;">Gastos Fijos Diarios</legend>
+
+            <label for="gastoComidaDiario">Comida Fija (MXN):</label>
+            <input type="number" id="gastoComidaDiario" value="200" min="0" step="1" required style="width: 100%; margin-bottom: 10px;">
+            
+            <label for="gastoMotoDiario">Pago Moto Diario (MXN/día):</label>
+            <input type="number" id="gastoMotoDiario" value="74.83" min="0" step="0.01" required style="width: 100%; margin-bottom: 10px;">
+            
+            <label for="gastoDeudaOtroDiario">Otra Deuda Diaria (MXN/día):</label>
+            <input type="number" id="gastoDeudaOtroDiario" value="100" min="0" step="0.01" required style="width: 100%; margin-bottom: 10px;">
+            
+            <p>⚠️ **Gasolina Diaria (Variable):** Se calcula con el promedio histórico de KM.</p>
+            <p>Gasto Fijo Diario (Sin Gasolina): <strong id="gastoFijoDiarioTotal">$0.00</strong></p>
+            <p>Gastos Diarios Totales (Proyectado): <strong id="gastoTotalProyeccion">$0.00</strong></p>
+        </fieldset>
+
+        <fieldset style="border: 1px solid #2ecc71; padding: 10px; margin-bottom: 20px;">
+            <legend style="font-weight: bold; color: #2ecc71;">Simulador Rápido (Horas Hoy)</legend>
+            <label for="inputHorasTrabajadas">Horas a Trabajar Hoy (4-12):</label>
+            <input type="range" id="inputHorasTrabajadas" min="4" max="12" value="8" step="0.5" style="width: 100%; margin: 10px 0;">
+            <p>Horas seleccionadas: <strong id="horasSeleccionadas">8.0</strong> h</p>
+            
+            <hr>
+
+            <p>Ganancia Neta Potencial por Día: <strong id="simuladorGananciaDiariaNeto">$0.00</strong></p>
+            <p>Pago Potencial a Deuda (en <strong id="diasRestantesSimulador">33</strong> días): <strong id="simuladorPagoDeuda">$0.00</strong></p>
+        </fieldset>
+
+        <h3>Escenarios de Meta (Pagos Potenciales)</h3>
+        <table id="tabla-proyeccion" class="tabla-listado">
+            <thead>
+                <tr>
+                    <th>Escenario</th>
+                    <th>Ganancia (Total)</th>
+                    <th>Pago Deuda (Potencial)</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+
+        <h4>Progreso de Liquidación de Deuda ($<span id="deudaMetaTotal">19,793.00</span>)</h4>
+        <div id="proyeccion-barras">
+            </div>
+
+    </div>
+
+    <div class="card">
+      <h2>💸 Ingresos y Gastos</h2>
+      <p>Total Ingresos: <strong id="total-ingresos">$0.00</strong></p>
+      <p>Total Gastos Operacionales: <strong id="total-gastos-neto">$0.00</strong></p>
+      <p>Total Deuda Pendiente: <strong id="deudaTotalLabel">$0.00</strong></p>
+    </div>
+
+    <div class="card">
+        <h2>🚗 Datos de Kilometraje</h2>
+        <p>KM Recorridos Totales: <strong id="km-recorridos">0.00</strong> km</p>
+        <p>Gasto Total Combustible: <strong id="km-gasto">$0.00</strong></p>
+        <p>Rendimiento Promedio: <strong id="km-rendimiento">0.00</strong> km/L</p>
+    </div>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script>
+    // Inicializa index
+    window.addEventListener('load', () => {
+      if (typeof onloadApp === 'function') onloadApp('index');
+    });
+  </script>
 </body>
 </html>
