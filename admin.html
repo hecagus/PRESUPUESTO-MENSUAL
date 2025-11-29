@@ -63,6 +63,17 @@
     .tabla-listado th {
         background-color: #f2f2f2;
     }
+    .projection-card {
+        border-left: 5px solid #3498db; /* Borde azul para destacar */
+    }
+    .projection-card button {
+        padding: 8px 15px;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+    }
   </style>
 </head>
 <body>
@@ -73,6 +84,55 @@
     </div>
     
     <h1>Panel Admin</h1>
+
+    <div class="card projection-card">
+        <h2>🎯 Parámetros de Proyección (Uber Eats)</h2>
+        <button id="btnExportProjection" style="margin-bottom: 15px; background-color: #2ecc71;">
+            Exportar Proyección a CSV
+        </button>
+        
+        <fieldset style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;">
+            <legend style="font-weight: bold;">Parámetros de la Meta</legend>
+            
+            <label for="inputDiasRestantes">Días Restantes para la Meta:</label>
+            <input type="number" id="inputDiasRestantes" value="33" min="1" required style="width: 100%; margin-bottom: 10px;">
+
+            <label for="inputDeudaMeta">Monto Total de Deuda a Liquidar (MXN):</label>
+            <input type="number" id="inputDeudaMeta" value="19793" min="0" required style="width: 100%; margin-bottom: 10px;">
+            
+            <label for="inputGananciaHr">Ganancia por Hora (MXN):</label>
+            <input type="number" id="inputGananciaHr" value="101.56" step="0.01" min="1" required style="width: 100%; margin-bottom: 10px;">
+        </fieldset>
+
+        <fieldset style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;">
+            <legend style="font-weight: bold;">Gastos Fijos Diarios</legend>
+
+            <label for="gastoComidaDiario">Comida Fija (MXN):</label>
+            <input type="number" id="gastoComidaDiario" value="200" min="0" step="1" required style="width: 100%; margin-bottom: 10px;">
+            
+            <label for="gastoMotoDiario">Pago Moto Diario (MXN/día):</label>
+            <input type="number" id="gastoMotoDiario" value="74.83" min="0" step="0.01" required style="width: 100%; margin-bottom: 10px;">
+            
+            <label for="gastoDeudaOtroDiario">Otra Deuda Diaria (MXN/día):</label>
+            <input type="number" id="gastoDeudaOtroDiario" value="100" min="0" step="0.01" required style="width: 100%; margin-bottom: 10px;">
+            
+            <p>⚠️ **Gasolina Diaria (Variable):** Se calcula con el promedio histórico de KM.</p>
+            <p>Gasto Fijo Diario (Sin Gasolina): <strong id="gastoFijoDiarioTotal">$0.00</strong></p>
+            <p>Gastos Diarios Totales (Proyectado): <strong id="gastoTotalProyeccion">$0.00</strong></p>
+        </fieldset>
+
+        <fieldset style="border: 1px solid #2ecc71; padding: 10px; margin-bottom: 20px;">
+            <legend style="font-weight: bold; color: #2ecc71;">Simulador Rápido (Horas Hoy)</legend>
+            <label for="inputHorasTrabajadas">Horas a Trabajar Hoy (4-12):</label>
+            <input type="range" id="inputHorasTrabajadas" min="4" max="12" value="8" step="0.5" style="width: 100%; margin: 10px 0;">
+            <p>Horas seleccionadas: <strong id="horasSeleccionadas">8.0</strong> h</p>
+            
+            <hr>
+
+            <p>Ganancia Neta Potencial por Día: <strong id="simuladorGananciaDiariaNeto">$0.00</strong></p>
+            <p>Pago Potencial a Deuda (en <strong id="diasRestantesSimulador">33</strong> días): <strong id="simuladorPagoDeuda">$0.00</strong></p>
+        </fieldset>
+    </div>
 
     <div class="card">
       <h2>Registrar Ingreso</h2>
