@@ -6,63 +6,36 @@
   <title>Presupuesto Personal</title>
   <link rel="stylesheet" href="assets/css/style.css" />
   <style>
-    /* Estilos generales */
-    .balance-card {
-        background-color: #2ecc71; /* Verde fuerte */
-        color: white;
-    }
-    .balance-card p {
-        margin-bottom: 5px;
-        font-size: 0.9em;
-    }
-    .balance-card h2 {
-        margin: 0;
-    }
-    .projection-results-card {
-        border-left: 5px solid #3498db; /* Borde azul para destacar */
-    }
-    .top-actions {
-        display: flex;
-        justify-content: flex-end;
-        margin-bottom: 20px;
-    }
-    .admin-btn {
-        padding: 8px 15px;
-        background-color: #3498db; 
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        text-decoration: none;
-    }
-    .tabla-listado {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 15px;
-    }
-    .tabla-listado th, .tabla-listado td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: left;
-    }
-    .tabla-listado th {
-        background-color: #f2f2f2;
-    }
-    /* Estilo para valores positivos */
-    .valor-positivo {
-        font-weight: bold;
-        color: #27ae60;
-    }
+    .balance-card { background-color: #2ecc71; color: white; }
+    .projection-results-card { border-left: 5px solid #3498db; }
+    .top-actions { display:flex; justify-content:flex-end; margin-bottom:20px; }
+    .admin-btn { padding:8px 15px; background:#3498db; color:white; border-radius:5px; }
+    .tabla-listado th, .tabla-listado td { border:1px solid #ddd; padding:8px; text-align:left; }
+    .valor-positivo { font-weight:bold; color:#27ae60; }
+    .charts { display:flex; gap:1rem; flex-wrap:wrap; }
+    .charts canvas { background:#fff; padding:0.5rem; border-radius:8px; box-shadow:0 1px 6px rgba(0,0,0,0.06); width:100%; max-width:600px; }
   </style>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-
   <div class="container">
     <div class="top-actions">
         <button class="admin-btn" onclick="location.href='admin.html'">Administrar Datos ⟶</button>
     </div>
-    
+
     <h1>📊 Resumen Financiero</h1>
+
+    <!-- BOTONES DE TURNO -->
+    <div class="card" style="text-align:center;">
+      <button id="btnIniciarTurno" onclick="iniciarTurno()" class="button" style="background:#27ae60;">
+        ▶ Iniciar Turno
+      </button>
+
+      <button id="btnFinalizarTurno" onclick="finalizarTurno()" class="button" style="background:#c0392b; display:none;">
+        ■ Finalizar Turno
+      </button>
+    </div>
 
     <div class="card balance-card">
         <p>💰 Balance (Ingresos - Gasto Operacional)</p>
@@ -70,29 +43,22 @@
     </div>
 
     <div class="card projection-results-card">
-        <h2>📈 Resultados de Proyección de Deuda</h2>
+        <h2>📈 Resultados de Proyección de Deuda (Basado en datos reales)</h2>
 
-        <h3>Simulador Rápido (Basado en 8h de trabajo)</h3>
+        <h3>Simulador Rápido</h3>
         <p>Ganancia Neta Potencial por Día: <strong id="simuladorGananciaDiariaNeto">$0.00</strong></p>
         <p>Pago Potencial a Deuda (en <strong id="diasRestantesSimulador">33</strong> días): <strong id="simuladorPagoDeuda">$0.00</strong></p>
-        
+
         <h3>Escenarios de Meta (Pagos Potenciales)</h3>
         <table id="tabla-proyeccion" class="tabla-listado">
             <thead>
-                <tr>
-                    <th>Escenario</th>
-                    <th>Ganancia (Total)</th>
-                    <th>Pago Deuda (Potencial)</th>
-                </tr>
+                <tr><th>Escenario</th><th>Ganancia (Total)</th><th>Pago Deuda (Potencial)</th></tr>
             </thead>
-            <tbody>
-                </tbody>
+            <tbody></tbody>
         </table>
 
         <h4>Progreso de Liquidación de Deuda ($<span id="deudaMetaTotal">19,793.00</span>)</h4>
-        <div id="proyeccion-barras">
-            </div>
-
+        <div id="proyeccion-barras"></div>
     </div>
 
     <div class="card">
@@ -109,11 +75,25 @@
         <p>Rendimiento Promedio: <strong id="km-rendimiento">0.00</strong> km/L</p>
     </div>
 
+    <!-- GRÁFICAS -->
+    <div class="card">
+      <h2>📊 Gráficas</h2>
+      <div class="charts">
+        <div style="flex:1;">
+          <h3>Ingresos vs Gastos (últimos 14 días)</h3>
+          <canvas id="chartGanVsGas"></canvas>
+        </div>
+        <div style="flex:1;">
+          <h3>Km recorridos vs Gasto gasolina (últimos repostajes)</h3>
+          <canvas id="chartKmGas"></canvas>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script src="assets/js/app.js"></script>
   <script>
-    // Inicializa index
     window.addEventListener('load', () => {
       if (typeof onloadApp === 'function') onloadApp('index');
     });
