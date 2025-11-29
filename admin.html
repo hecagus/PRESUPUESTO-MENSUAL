@@ -1,172 +1,82 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin - Presupuesto</title>
-  <link rel="stylesheet" href="assets/css/style.css" />
-  <style>
-    .form-actions { display:flex; gap:10px; margin-top:15px; }
-    .debt-list { list-style:none; padding:0; margin-top:1rem; }
-    .debt-list li { padding:0.5rem; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; }
-    .debt-amount { font-weight:600; color:#e74c3c; }
-    .top-actions { display:flex; justify-content:flex-end; margin-bottom:20px; }
-    .admin-btn { padding:8px 15px; background-color:#3498db; color:white; border-radius:5px; }
-    .projection-card { border-left:5px solid #3498db; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administración – Uber Eats Tracker</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
 
-  <div class="container">
-    <div class="top-actions">
-        <button class="admin-btn" onclick="location.href='index.html'">⟵ Ir al Resumen</button>
-    </div>
+<header class="header">
+    <h1>Administración de Datos</h1>
+    <a href="index.html" class="btn-admin">🏠 Regresar</a>
+</header>
 
-    <h1>Panel Admin</h1>
 
-    <div class="card projection-card">
-        <h2>🎯 Parámetros de Proyección</h2>
-        <button id="btnExportProjection" style="margin-bottom:15px; background-color:#2ecc71;">Exportar Proyección a CSV</button>
+<main class="container">
 
-        <fieldset style="border:1px solid #ccc; padding:10px; margin-bottom:15px;">
-            <legend style="font-weight:bold;">Parámetros de la Meta</legend>
+    <!-- ================= TURNO ================= -->
+    <section class="card">
+        <h2>Turno de Hoy</h2>
 
-            <label for="inputDiasRestantes">Días Restantes para la Meta:</label>
-            <input type="number" id="inputDiasRestantes" value="33" min="1" required style="width:100%; margin-bottom:10px;">
+        <button id="btnIniciar" class="btn">▶ Iniciar Turno</button>
+        <button id="btnFinalizar" class="btn btn-warning">■ Finalizar Turno</button>
 
-            <label for="inputDeudaMeta">Monto Total de Deuda a Liquidar (MXN):</label>
-            <input type="number" id="inputDeudaMeta" value="19793" min="0" required style="width:100%; margin-bottom:10px;">
-
-            <label for="inputGananciaHr">Ganancia por Hora (MXN):</label>
-            <input type="number" id="inputGananciaHr" value="101.56" step="0.01" min="1" required style="width:100%; margin-bottom:10px;">
-        </fieldset>
-
-        <fieldset style="border:1px solid #ccc; padding:10px; margin-bottom:15px;">
-            <legend style="font-weight:bold;">Gastos Fijos Diarios</legend>
-
-            <label for="gastoComidaDiario">Comida Fija (MXN):</label>
-            <input type="number" id="gastoComidaDiario" value="200" min="0" step="1" required style="width:100%; margin-bottom:10px;">
-
-            <label for="gastoMotoDiario">Pago Moto Diario (MXN/día):</label>
-            <input type="number" id="gastoMotoDiario" value="74.83" min="0" step="0.01" required style="width:100%; margin-bottom:10px;">
-
-            <label for="gastoDeudaOtroDiario">Otra Deuda Diaria (MXN/día):</label>
-            <input type="number" id="gastoDeudaOtroDiario" value="100" min="0" step="0.01" required style="width:100%; margin-bottom:10px;">
-
-            <p>⚠️ <strong>Gasolina Diaria (Variable):</strong> Se calcula con el promedio histórico de KM.</p>
-            <p>Gasto Fijo Diario (Sin Gasolina): <strong id="gastoFijoDiarioTotal">$0.00</strong></p>
-            <p>Gastos Diarios Totales (Proyectado): <strong id="gastoTotalProyeccion">$0.00</strong></p>
-        </fieldset>
-
-        <fieldset style="border:1px solid #2ecc71; padding:10px; margin-bottom:20px;">
-            <legend style="font-weight:bold; color:#2ecc71;">Simulador Rápido (Horas Hoy)</legend>
-            <label for="inputHorasTrabajadas">Horas a Trabajar Hoy (4-12):</label>
-            <input type="range" id="inputHorasTrabajadas" min="4" max="12" value="8" step="0.5" style="width:100%; margin:10px 0;">
-            <p>Horas seleccionadas: <strong id="horasSeleccionadas">8.0</strong> h</p>
-
-            <hr>
-
-            <p>Ganancia Neta Potencial por Día: <strong id="simuladorGananciaDiariaNeto">$0.00</strong></p>
-            <p>Pago Potencial a Deuda (en <strong id="diasRestantesSimulador">33</strong> días): <strong id="simuladorPagoDeuda">$0.00</strong></p>
-        </fieldset>
-    </div>
-
-    <!-- FORMULARIOS existentes (ingresos/gastos/deudas/km) -->
-    <div class="card">
-      <h2>Registrar Ingreso</h2>
-      <form id="formIngreso">
-        <label>Descripción</label>
-        <input type="text" id="ingresoDescripcion" placeholder="Descripción" required>
-        <label>Cantidad</label>
-        <input type="number" id="ingresoCantidad" placeholder="Cantidad" required>
-        <button type="submit">Guardar Ingreso</button>
-      </form>
-    </div>
-
-    <div class="card">
-      <h2>Registrar Gasto</h2>
-      <form id="formGasto">
-        <label>Descripción</label>
-        <input type="text" id="gastoDescripcion" placeholder="Descripción" required>
-        <label>Cantidad</label>
-        <input type="number" id="gastoCantidad" placeholder="Cantidad" required>
-        <label>Categoría</label>
-        <select id="gastoCategoria"></select>
-        <button type="submit">Guardar Gasto</button>
-      </form>
-    </div>
-
-    <div class="card">
-      <h2>Deudas y Abonos</h2>
-      <form id="formNuevaDeuda" style="margin-bottom:1.5rem; padding-bottom:1rem; border-bottom:1px dashed #ccc;">
-        <h3>Nueva Deuda</h3>
-        <label>Nombre/Descripción</label>
-        <input type="text" id="deudaNombre" placeholder="Nombre de la deuda" required>
-        <label>Monto Inicial</label>
-        <input type="number" id="deudaMonto" placeholder="Monto Total a pagar" required>
-        <button type="submit">Registrar Deuda</button>
-      </form>
-
-      <form id="formAbonoDeuda">
-        <h3>Registrar Abono</h3>
-        <label>Seleccionar Deuda</label>
-        <select id="selectDeuda" required><option value="">-- Seleccione una deuda --</option></select>
-        <label>Monto del Abono</label>
-        <input type="number" id="abonoMonto" placeholder="Cantidad a abonar" required>
-        <button type="submit">Guardar Abono</button>
-      </form>
-
-      <h3 style="margin-top:1.5rem;">Deudas Pendientes</h3>
-      <ul id="lista-deudas" class="debt-list"></ul>
-    </div>
-
-    <div class="card">
-      <h2>Registrar Kilometraje y/o Repostaje</h2>
-      <form id="formKmConsolidado">
-        <label>KM Inicial</label>
-        <input type="number" id="kmInicialConsolidado" placeholder="KM Inicial" required>
-        <label>KM Final</label>
-        <input type="number" id="kmFinalConsolidado" placeholder="KM Final" required>
-        <p>Km recorridos: <strong id="kmRecorridosConsolidado">0</strong></p>
-
-        <fieldset style="border:none; padding:0; margin-top:10px;">
-            <legend style="font-weight:bold; margin-bottom:5px;">Detalles de Repostaje (Opcional)</legend>
-            <label>Litros cargados</label>
-            <input type="number" id="litrosConsolidado" placeholder="Litros" step="0.01">
-            <label>Costo total</label>
-            <input type="number" id="costoTotalConsolidado" placeholder="Costo total de la carga" step="0.01">
-            <p>Precio por km: <strong id="precioKmConsolidado">0.00</strong></p>
-        </fieldset>
-
-        <div class="form-actions">
-          <button type="button" id="btnGuardarKmDiario">Guardar KM Diario</button>
-          <button type="submit" id="btnGuardarRepostaje">Guardar Repostaje</button>
+        <div class="turno-info">
+            <p><strong>Inicio:</strong> <span id="turnoInicio">—</span></p>
+            <p><strong>Fin:</strong> <span id="turnoFin">—</span></p>
+            <p><strong>Horas trabajadas:</strong> <span id="turnoHoras">0</span></p>
         </div>
-      </form>
-    </div>
 
-    <div class="card">
-      <h2>Exportar / Importar Datos</h2>
-      <button id="btnExport">Exportar</button>
-      <textarea id="json-area" placeholder='Pega JSON para importar' style="min-height:120px;width:100%;margin-top:8px;"></textarea>
-      <button id="btnImport">Importar</button>
-    </div>
+        <h3>Datos del Turno</h3>
 
-    <div class="card">
-      <h2>Movimientos (últimos)</h2>
-      <table id="tabla-todos" class="tabla-listado"></table>
-    </div>
+        <label>Ganancia del día (MXN):</label>
+        <input type="number" id="gananciaDia" placeholder="Ej: 550">
 
-    <div class="top-actions">
-        <button class="admin-btn" onclick="location.href='index.html'">⟵ Ir al Resumen</button>
-    </div>
-  </div>
+        <label>Kilómetros recorridos:</label>
+        <input type="number" id="kmDia" placeholder="Ej: 45">
 
-  <script src="assets/js/app.js"></script>
-  <script>
-    window.addEventListener('load', () => {
-      if (typeof onloadApp === 'function') onloadApp('admin');
-    });
-  </script>
+        <label>Precio por litro (gasolina):</label>
+        <input type="number" id="gasPrecio" placeholder="Ej: 25.00">
+
+        <label>Rendimiento de la moto (km/L):</label>
+        <input type="number" id="kmPorLitro" placeholder="Ej: 35">
+
+        <button id="btnGuardarTurno" class="btn btn-success">💾 Guardar Turno</button>
+    </section>
+
+
+
+    <!-- ================= PARÁMETROS ================= -->
+    <section class="card">
+        <h2>Parámetros de Proyección</h2>
+
+        <label>Deuda total a liquidar (MXN):</label>
+        <input type="number" id="metaDeuda">
+
+        <label>Gasto fijo diario (MXN):</label>
+        <input type="number" id="gastoFijo">
+
+        <button id="btnGuardarParametros" class="btn btn-success">💾 Guardar Parámetros</button>
+    </section>
+
+
+
+    <!-- ================= HERRAMIENTAS ================= -->
+    <section class="card">
+        <h2>Herramientas</h2>
+
+        <button id="btnBorrarTodo" class="btn btn-danger">
+            🗑 Borrar todo (reset total)
+        </button>
+    </section>
+
+</main>
+
+
+<script src="app.js"></script>
+
 </body>
 </html>
