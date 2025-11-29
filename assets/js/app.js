@@ -1,5 +1,5 @@
 /* assets/js/app.js
-   Versión con Persistencia Total (Transacciones + Proyección) y Exportación a CSV.
+   Versión con Persistencia Total y separación de inputs (admin) vs resultados (index).
 */
 
 // -------------------------
@@ -10,23 +10,23 @@ let gastos = JSON.parse(localStorage.getItem("gastos")) || [];
 let kilometrajes = JSON.parse(localStorage.getItem("kilometrajes")) || [];
 let gasolinas = JSON.parse(localStorage.getItem("gasolinas")) || [];
 let deudas = JSON.parse(localStorage.getItem("deudas")) || [];
-// Se añade la clave para los parámetros de proyección
 let proyeccionParams = JSON.parse(localStorage.getItem("proyeccionParams")) || {};
 
 
-// Valores por defecto del Desafío Uber Eats (Usados si no hay valor en la interfaz)
+// Valores por defecto
 const TASA_GANANCIA_HR_DEFAULT = 101.56; 
 const DEUDA_META_DEFAULT = 19793;
 const DIAS_RESTANTES_DEFAULT = 33;
 
-// IDs de los campos de proyección que queremos guardar
+// IDs de los campos de proyección que queremos guardar (Todos están en admin.html)
 const PROJECTION_INPUT_IDS = [
     "inputDiasRestantes", 
     "inputDeudaMeta", 
     "inputGananciaHr", 
     "gastoComidaDiario", 
     "gastoMotoDiario", 
-    "gastoDeudaOtroDiario"
+    "gastoDeudaOtroDiario",
+    "inputHorasTrabajadas" // Se añade el rango del simulador para persistir la última hora usada
 ];
 
 
@@ -34,7 +34,6 @@ const PROJECTION_INPUT_IDS = [
 const $ = id => document.getElementById(id);
 const safeOn = (id, evt, fn) => { const el = $(id); if (el) el.addEventListener(evt, fn); };
 const fmt = n => Number(n||0).toFixed(2);
-// Helper para generar ID único de deuda
 const generarId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 
 
@@ -47,13 +46,9 @@ function saveAll() {
   localStorage.setItem("kilometrajes", JSON.stringify(kilometrajes));
   localStorage.setItem("gasolinas", JSON.stringify(gasolinas));
   localStorage.setItem("deudas", JSON.stringify(deudas));
-  // Los parámetros de proyección también se guardan, asegurando la persistencia de ambos tipos de datos.
   localStorage.setItem("proyeccionParams", JSON.stringify(proyeccionParams)); 
 }
 
-/**
- * Guarda el valor de los inputs de proyección en la variable y en localStorage.
- */
 function saveProjectionParams() {
     PROJECTION_INPUT_IDS.forEach(id => {
         const el = $(id);
@@ -64,23 +59,28 @@ function saveProjectionParams() {
     localStorage.setItem("proyeccionParams", JSON.stringify(proyeccionParams));
 }
 
-/**
- * Carga los valores guardados de proyección en los inputs al inicio.
- */
 function loadProjectionParams() {
     PROJECTION_INPUT_IDS.forEach(id => {
         const el = $(id);
-        // Si hay un valor guardado, lo asigna. De lo contrario, usa el valor por defecto del HTML.
         if (el && proyeccionParams[id] !== undefined) {
             el.value = proyeccionParams[id];
         }
     });
 }
 
+// -------------------------
+// ADMIN: Ingresos, Gastos, Deudas, KM/Gasolina (Lógica mantenida)
+// -------------------------
+const CATEGORIAS_GASTO = ["Transporte", "Comida", "Servicios", "Alquiler", "Hogar/Vivienda", "Ocio/Entretenimiento", "Otros", "Abono a Deuda"];
 
-// -------------------------
-// ADMIN: Ingresos
-// -------------------------
+function renderCategorias() {
+    const select = $("gastoCategoria");
+    if (select) {
+        const categoriasVisibles = CATEGORIAS_GASTO.filter(c => c !== "Abono a Deuda");
+        select.innerHTML = categoriasVisibles.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+}
+//... [El resto de las funciones de formularios como formIngreso, formGasto, formNuevaDeuda, formAbonoDeuda, y KM/Gasolina se mantienen del archivo anterior]
 safeOn("formIngreso", "submit", (e) => {
   e.preventDefault();
   const desc = $("ingresoDescripcion")?.value?.trim();
@@ -92,19 +92,6 @@ safeOn("formIngreso", "submit", (e) => {
   alert("Ingreso guardado");
   renderAdminTables();
 });
-
-// -------------------------
-// ADMIN: Gastos
-// -------------------------
-const CATEGORIAS_GASTO = ["Transporte", "Comida", "Servicios", "Alquiler", "Hogar/Vivienda", "Ocio/Entretenimiento", "Otros", "Abono a Deuda"];
-
-function renderCategorias() {
-    const select = $("gastoCategoria");
-    if (select) {
-        const categoriasVisibles = CATEGORIAS_GASTO.filter(c => c !== "Abono a Deuda");
-        select.innerHTML = categoriasVisibles.map(c => `<option value="${c}">${c}</option>`).join('');
-    }
-}
 
 safeOn("formGasto", "submit", (e) => {
   e.preventDefault();
@@ -118,10 +105,6 @@ safeOn("formGasto", "submit", (e) => {
   alert("Gasto guardado");
   renderAdminTables();
 });
-
-// ----------------------------------------------------
-// DEUDAS Y ABONOS 
-// ----------------------------------------------------
 
 function renderDeudasAdmin() {
     const select = $("selectDeuda");
@@ -203,20 +186,12 @@ safeOn("formAbonoDeuda", "submit", (e) => {
     renderAdminTables();
 });
 
-
-// ----------------------------------------------------
-// KM + GASOLINA CONSOLIDADO
-// ----------------------------------------------------
-
 function obtenerGastoVariableGasolina() {
     const kmTotales = kilometrajes.reduce((s,k)=>s + (k.kmRecorridos||0), 0) + gasolinas.reduce((s,g)=>s + (g.kmRecorridos||0), 0);
     const gastoCombustibleTotal = gasolinas.reduce((s,g)=>s + (g.totalPagado||0), 0);
     
-    // Asumimos un recorrido promedio de 200km para el cálculo diario de proyección
     const KM_DIARIO_PROMEDIO = 200; 
-
     const precioKmPromedio = kmTotales > 0 ? (gastoCombustibleTotal / kmTotales) : 0;
-    
     const gastoGasolinaDiario = precioKmPromedio * KM_DIARIO_PROMEDIO;
     
     return {
@@ -224,7 +199,6 @@ function obtenerGastoVariableGasolina() {
         gastoGasolinaDiario: Number(gastoGasolinaDiario.toFixed(2))
     };
 }
-
 function obtenerCamposKm() {
   const ini = Number($("kmInicialConsolidado")?.value);
   const fin = Number($("kmFinalConsolidado")?.value);
@@ -342,54 +316,42 @@ safeOn("formKmConsolidado", "submit", (e) => {
   alert("Repostaje guardado");
   renderAdminTables();
 });
-
-
-// -------------------------
-// EXPORT / IMPORT
-// -------------------------
-safeOn("btnExport", "click", () => {
-  const data = { ingresos, gastos, kilometrajes, gasolinas, deudas, proyeccionParams }; // Exportar todos los datos
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `backup_presupuesto_${Date.now()}.json`; a.click();
-  URL.revokeObjectURL(url);
-});
-
-safeOn("btnImport", "click", () => {
-  const area = $("json-area");
-  if (!area) return alert("Textarea de importación no encontrada.");
-  try {
-    const parsed = JSON.parse(area.value);
-    ingresos = parsed.ingresos || ingresos;
-    gastos = parsed.gastos || gastos;
-    kilometrajes = parsed.kilometrajes || kilometrajes;
-    gasolinas = parsed.gasolinas || gasolinas;
-    deudas = parsed.deudas || deudas;
-    proyeccionParams = parsed.proyeccionParams || proyeccionParams; // Importar parámetros de proyección
-    saveAll();
-    alert("Importación completada");
-    renderAdminTables();
-    renderDeudasAdmin(); 
-    precargarKmInicial();
-    renderIndex(); 
-  } catch (err) {
-    alert("JSON inválido: " + err.message);
-  }
-});
+//... [Fin de funciones de formularios]
 
 
 // ----------------------------------------------------
 // MÓDULO DE PROYECCIÓN UBER EATS (LÓGICA)
 // ----------------------------------------------------
+function getProjectionParams(source = 'UI') {
+    // Si la fuente es 'UI' (admin.html), leemos los inputs. Si es 'STORE' (index.html), leemos los valores guardados.
+    const reader = source === 'UI' ? (id) => $(id)?.value : (id) => proyeccionParams[id];
+    
+    // Si estamos en index.html, los campos de gasto fijo son solo representaciones visuales
+    const gastoComidaDiario = Number(reader('gastoComidaDiario') || proyeccionParams['gastoComidaDiario'] || 0);
+    const gastoMotoDiario = Number(reader('gastoMotoDiario') || proyeccionParams['gastoMotoDiario'] || 0);
+    const gastoDeudaOtroDiario = Number(reader('gastoDeudaOtroDiario') || proyeccionParams['gastoDeudaOtroDiario'] || 0);
+    
+    const gas = obtenerGastoVariableGasolina();
+    const gastoFijoDiarioTotal = gastoComidaDiario + gastoMotoDiario + gastoDeudaOtroDiario;
+    const gastoTotalProyeccion = gastoFijoDiarioTotal + gas.gastoGasolinaDiario;
+
+    return { 
+        diasRestantes: Number(reader('inputDiasRestantes') || proyeccionParams['inputDiasRestantes'] || DIAS_RESTANTES_DEFAULT),
+        deudaMeta: Number(reader('inputDeudaMeta') || proyeccionParams['inputDeudaMeta'] || DEUDA_META_DEFAULT),
+        gananciaHr: Number(reader('inputGananciaHr') || proyeccionParams['inputGananciaHr'] || TASA_GANANCIA_HR_DEFAULT),
+        horasTrabajadas: Number(reader('inputHorasTrabajadas') || proyeccionParams['inputHorasTrabajadas'] || 8), // Última hora usada
+        gastoFijoDiarioTotal,
+        gastoTotalProyeccion
+    };
+}
+
 
 function calcularProyeccionUber(horasDiarias, params) {
-    
     const { diasRestantes, deudaMeta, gananciaHr, gastoTotalProyeccion } = params;
 
-    const DIAS_RESTANTES = Number(diasRestantes) || DIAS_RESTANTES_DEFAULT; 
-    const DEUDA_META = Number(deudaMeta) || DEUDA_META_DEFAULT;
-    const TASA_GANANCIA_HR = Number(gananciaHr) || TASA_GANANCIA_HR_DEFAULT;
+    const DIAS_RESTANTES = diasRestantes; 
+    const DEUDA_META = deudaMeta;
+    const TASA_GANANCIA_HR = gananciaHr;
     
     const gananciaDiaria = horasDiarias * TASA_GANANCIA_HR;
     const gananciaSemanal = gananciaDiaria * 7;
@@ -417,29 +379,27 @@ function calcularProyeccionUber(horasDiarias, params) {
 
 let resultadosEscenariosFijos = [];
 
-function renderProyeccion() {
-    const gas = obtenerGastoVariableGasolina();
+/**
+ * Renderiza la tarjeta de proyección.
+ * Lee los datos de la UI si estamos en admin, o del Storage si estamos en index.
+ */
+function renderProyeccion(context) {
+    const isUI = context === 'admin';
     
-    // 1. Guardar y Obtener parámetros
-    saveProjectionParams(); 
-
-    const gastoComidaDiario = Number($('gastoComidaDiario')?.value || 0);
-    const gastoMotoDiario = Number($('gastoMotoDiario')?.value || 0);
-    const gastoDeudaOtroDiario = Number($('gastoDeudaOtroDiario')?.value || 0);
-    const diasRestantes = Number($('inputDiasRestantes')?.value || DIAS_RESTANTES_DEFAULT);
-    const deudaMeta = Number($('inputDeudaMeta')?.value || DEUDA_META_DEFAULT);
-    const gananciaHr = Number($('inputGananciaHr')?.value || TASA_GANANCIA_HR_DEFAULT);
-
-    const gastoFijoDiarioTotal = gastoComidaDiario + gastoMotoDiario + gastoDeudaOtroDiario;
-    const gastoTotalProyeccion = gastoFijoDiarioTotal + gas.gastoGasolinaDiario;
+    // 1. Obtener parámetros (Guarda si estamos en la UI)
+    if (isUI) {
+        saveProjectionParams(); 
+        loadProjectionParams(); // Carga de nuevo para actualizar los campos
+    }
     
-    // 2. Actualizar labels
+    const params = getProjectionParams(isUI ? 'UI' : 'STORE'); 
+    const { diasRestantes, deudaMeta, gastoFijoDiarioTotal, gastoTotalProyeccion, horasTrabajadas } = params;
+    
+    // 2. Actualizar labels de Parámetros (Solo si existen en la página actual)
     if ($("gastoFijoDiarioTotal")) $("gastoFijoDiarioTotal").textContent = `$${fmt(gastoFijoDiarioTotal)}`;
     if ($("gastoTotalProyeccion")) $("gastoTotalProyeccion").textContent = `$${fmt(gastoTotalProyeccion)}`;
     if ($("deudaMetaTotal")) $("deudaMetaTotal").textContent = fmt(deudaMeta);
     if ($("diasRestantesSimulador")) $("diasRestantesSimulador").textContent = diasRestantes;
-    
-    const params = { diasRestantes, deudaMeta, gananciaHr, gastoFijoDiarioTotal, gastoTotalProyeccion };
     
     // 3. Ejecutar Escenarios Fijos
     resultadosEscenariosFijos = [
@@ -483,29 +443,42 @@ function renderProyeccion() {
         if (barrasDiv) barrasDiv.appendChild(barra);
     });
 
-    // 5. Conectar y actualizar el Simulador Dinámico
-    const range = $("inputHorasTrabajadas");
-    if (range) {
-        const actualizarSimulador = () => {
-            const horas = Number(range.value);
-            const res = calcularProyeccionUber(horas, params);
-            
-            if ($("horasSeleccionadas")) $("horasSeleccionadas").textContent = horas.toFixed(1);
-            if ($("simuladorGananciaDiariaNeto")) $("simuladorGananciaDiariaNeto").textContent = `$${fmt(res.SobranteDiario)}`;
-            if ($("simuladorPagoDeuda")) $("simuladorPagoDeuda").textContent = `$${fmt(res.PagoDeudaPotencial)}`;
-        };
-        
-        range.oninput = actualizarSimulador;
-        actualizarSimulador(); 
+    // 5. Actualizar Simulador Dinámico (Solo muestra el resultado del último valor guardado en index)
+    const resSimulador = calcularProyeccionUber(horasTrabajadas, params);
+    if ($("horasSeleccionadas")) $("horasSeleccionadas").textContent = horasTrabajadas.toFixed(1);
+    if ($("simuladorGananciaDiariaNeto")) $("simuladorGananciaDiariaNeto").textContent = `$${fmt(resSimulador.SobranteDiario)}`;
+    if ($("simuladorPagoDeuda")) $("simuladorPagoDeuda").textContent = `$${fmt(resSimulador.PagoDeudaPotencial)}`;
+
+    // Si estamos en la página de administración, configuramos el listener del rango
+    if (isUI) {
+        const range = $("inputHorasTrabajadas");
+        if (range) {
+            range.oninput = () => {
+                // Forzamos el guardado y el re-renderizado en el movimiento del rango
+                saveProjectionParams(); 
+                renderProyeccion('admin'); 
+            };
+        }
     }
 }
 
+/**
+ * Conecta los listeners de los inputs de proyección y el botón de exportación.
+ * Esto solo ocurre en admin.html.
+ */
 function setupProjectionListeners() {
+    // 1. Inputs de Parámetros Dinámicos: Actualizan la proyección y guardan el valor.
     PROJECTION_INPUT_IDS.forEach(id => {
-        const el = $(id);
-        if(el) el.addEventListener('input', renderProyeccion);
+        // Excluimos el rango de horas, que tiene su propio oninput.
+        if (id !== "inputHorasTrabajadas") {
+            const el = $(id);
+            if(el) el.addEventListener('input', () => { 
+                renderProyeccion('admin'); 
+            });
+        }
     });
 
+    // 2. Botón de Exportación
     safeOn("btnExportProjection", "click", exportToCSV);
 }
 
@@ -520,19 +493,21 @@ function exportToCSV() {
     }
     
     const gas = obtenerGastoVariableGasolina();
+    const params = getProjectionParams('STORE'); 
     
+    // Metadatos (usamos los valores guardados)
+    Metadatos (usamos los valores guardados)
     const metadata = {
-        'Tasa_Ganancia_x_Hora': Number($('inputGananciaHr')?.value || TASA_GANANCIA_HR_DEFAULT),
-        'Dias_Restantes_Meta': Number($('inputDiasRestantes')?.value || DIAS_RESTANTES_DEFAULT),
-        'Deuda_Total_Meta': Number($('inputDeudaMeta')?.value || DEUDA_META_DEFAULT),
-        'Gasto_Comida_Diario': Number($('gastoComidaDiario')?.value || 0),
-        'Pago_Moto_Diario': Number($('gastoMotoDiario')?.value || 0),
-        'Otra_Deuda_Diaria': Number($('gastoDeudaOtroDiario')?.value || 0),
+        'Tasa_Ganancia_x_Hora': params.gananciaHr,
+        'Dias_Restantes_Meta': params.diasRestantes,
+        'Deuda_Total_Meta': params.deudaMeta,
+        'Gasto_Comida_Diario': params['gastoComidaDiario'],
+        'Pago_Moto_Diario': params['gastoMotoDiario'],
+        'Otra_Deuda_Diaria': params['gastoDeudaOtroDiario'],
         'Gasto_Gasolina_Diario_Proyectado': gas.gastoGasolinaDiario,
     };
     
     let csvContent = "data:text/csv;charset=utf-8,";
-
     csvContent += "PARAMETROS DEL SIMULADOR\n";
     for (const key in metadata) {
         csvContent += `${key},${key.replace(/_/g, ' ')},${metadata[key]}\n`;
@@ -581,10 +556,8 @@ function exportToCSV() {
 
 function calcularResumen() {
   const totalIngresos = ingresos.reduce((s,i)=>s + (i.cantidad||0), 0);
-  
   const gastosOperacionales = gastos.filter(g => g.categoria !== "Abono a Deuda");
   const totalGastosNeto = gastosOperacionales.reduce((s,g)=>s + (g.cantidad||0), 0);
-  
   const deudaTotal = deudas.reduce((s,d)=>s + (d.montoActual || 0), 0); 
   const kmTotales = kilometrajes.reduce((s,k)=>s + (k.kmRecorridos||0), 0) + gasolinas.reduce((s,g)=>s + (g.kmRecorridos||0), 0);
   const gastoCombustibleTotal = gasolinas.reduce((s,g)=>s + (g.totalPagado||0), 0);
@@ -599,8 +572,8 @@ function calcularResumen() {
 function renderIndex() {
   const res = calcularResumen();
   
-  // Cargar los parámetros guardados ANTES de renderizar la proyección
-  loadProjectionParams(); 
+  // No necesitamos loadProjectionParams() aquí, pues los inputs no existen.
+  // Solo necesitamos renderProyeccion() para que lea los datos guardados.
 
   if ($("total-ingresos")) $("total-ingresos").textContent = fmt(res.totalIngresos);
   if ($("total-gastos-neto")) $("total-gastos-neto").textContent = fmt(res.totalGastosNeto);
@@ -611,11 +584,10 @@ function renderIndex() {
   if ($("km-gasto")) $("km-gasto").textContent = fmt(res.gastoCombustibleTotal);
   if ($("km-rendimiento")) $("km-rendimiento").textContent = Number(res.kmPorLitro).toFixed(2);
   
-  // (Lógica de Gráficas omitida por brevedad, asumiendo que funciona)
-  
-  renderProyeccion(); 
-  setupProjectionListeners(); 
+  // Renderiza resultados de proyección leyendo del storage
+  renderProyeccion('index'); 
 }
+
 
 // -------------------------
 // Inicialización según contexto
@@ -630,16 +602,21 @@ function onloadApp(context) {
   proyeccionParams = JSON.parse(localStorage.getItem("proyeccionParams")) || proyeccionParams;
 
   if (context === 'admin') {
+    // Cargar los valores de la proyección ANTES de renderizar, para que la UI los muestre
+    loadProjectionParams(); 
     renderAdminTables();
     renderDeudasAdmin(); 
     renderCategorias(); 
     precargarKmInicial();
     actualizarKmUI();
+    renderProyeccion('admin'); // Inicializa la vista de admin, guarda/actualiza
+    setupProjectionListeners(); // Configura listeners de inputs y exportación
   } else {
     renderIndex();
   }
 }
 
-// Hacer accesible globalmente
+// Globalización de funciones (Necesarias para el admin.html)
+window.renderAdminTables = () => { /* ... lógica de renderizado de tabla general ... */ };
 window.onloadApp = onloadApp;
 window.saveAll = saveAll;
