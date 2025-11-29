@@ -1,5 +1,6 @@
 /* assets/js/app.js
    Versión con Persistencia Total y separación de inputs (admin) vs resultados (index).
+   *** Corregido: Funciones de Exportar/Importar JSON añadidas y conectadas. ***
 */
 
 // -------------------------
@@ -26,7 +27,7 @@ const PROJECTION_INPUT_IDS = [
     "gastoComidaDiario", 
     "gastoMotoDiario", 
     "gastoDeudaOtroDiario",
-    "inputHorasTrabajadas" // Se añade el rango del simulador para persistir la última hora usada
+    "inputHorasTrabajadas" 
 ];
 
 
@@ -68,9 +69,9 @@ function loadProjectionParams() {
     });
 }
 
-// -------------------------
+// ----------------------------------------------------
 // ADMIN: Ingresos, Gastos, Deudas, KM/Gasolina (Lógica mantenida)
-// -------------------------
+// ----------------------------------------------------
 const CATEGORIAS_GASTO = ["Transporte", "Comida", "Servicios", "Alquiler", "Hogar/Vivienda", "Ocio/Entretenimiento", "Otros", "Abono a Deuda"];
 
 function renderCategorias() {
@@ -80,7 +81,7 @@ function renderCategorias() {
         select.innerHTML = categoriasVisibles.map(c => `<option value="${c}">${c}</option>`).join('');
     }
 }
-//... [El resto de las funciones de formularios como formIngreso, formGasto, formNuevaDeuda, formAbonoDeuda, y KM/Gasolina se mantienen del archivo anterior]
+
 safeOn("formIngreso", "submit", (e) => {
   e.preventDefault();
   const desc = $("ingresoDescripcion")?.value?.trim();
@@ -190,6 +191,7 @@ function obtenerGastoVariableGasolina() {
     const kmTotales = kilometrajes.reduce((s,k)=>s + (k.kmRecorridos||0), 0) + gasolinas.reduce((s,g)=>s + (g.kmRecorridos||0), 0);
     const gastoCombustibleTotal = gasolinas.reduce((s,g)=>s + (g.totalPagado||0), 0);
     
+    // Este valor es un supuesto base para la proyección, si no hay historial
     const KM_DIARIO_PROMEDIO = 200; 
     const precioKmPromedio = kmTotales > 0 ? (gastoCombustibleTotal / kmTotales) : 0;
     const gastoGasolinaDiario = precioKmPromedio * KM_DIARIO_PROMEDIO;
@@ -208,7 +210,7 @@ function obtenerCamposKm() {
   const precioKm = (kmRec > 0 && totalPagado > 0) ? (totalPagado / kmRec) : 0;
   
   if (!Number.isFinite(ini) || !Number.isFinite(fin) || fin <= ini) {
-    alert("KM Inicial y KM Final son inválidos.");
+    // No alert, solo retorna false ya que se llama en varios eventos
     return false;
   }
   return { ini, fin, lt, totalPagado, kmRec, precioKm };
@@ -257,7 +259,7 @@ function limpiarKmFinal() {
 
 safeOn("btnGuardarKmDiario", "click", () => {
   const data = obtenerCamposKm();
-  if (!data) return;
+  if (!data) return alert("KM Inicial y KM Final son inválidos.");
 
   kilometrajes.push({ 
     kmInicial: data.ini, 
@@ -281,7 +283,7 @@ safeOn("btnGuardarKmDiario", "click", () => {
 safeOn("formKmConsolidado", "submit", (e) => {
   e.preventDefault();
   const data = obtenerCamposKm();
-  if (!data) return;
+  if (!data) return alert("KM Inicial y KM Final son inválidos.");
   
   if (!Number.isFinite(data.lt) || data.lt <= 0 || !Number.isFinite(data.totalPagado) || data.totalPagado <= 0) {
     return alert("Para Repostaje, debes completar Litros cargados y Costo total válidos.");
@@ -316,17 +318,14 @@ safeOn("formKmConsolidado", "submit", (e) => {
   alert("Repostaje guardado");
   renderAdminTables();
 });
-//... [Fin de funciones de formularios]
 
 
 // ----------------------------------------------------
 // MÓDULO DE PROYECCIÓN UBER EATS (LÓGICA)
 // ----------------------------------------------------
 function getProjectionParams(source = 'UI') {
-    // Si la fuente es 'UI' (admin.html), leemos los inputs. Si es 'STORE' (index.html), leemos los valores guardados.
     const reader = source === 'UI' ? (id) => $(id)?.value : (id) => proyeccionParams[id];
     
-    // Si estamos en index.html, los campos de gasto fijo son solo representaciones visuales
     const gastoComidaDiario = Number(reader('gastoComidaDiario') || proyeccionParams['gastoComidaDiario'] || 0);
     const gastoMotoDiario = Number(reader('gastoMotoDiario') || proyeccionParams['gastoMotoDiario'] || 0);
     const gastoDeudaOtroDiario = Number(reader('gastoDeudaOtroDiario') || proyeccionParams['gastoDeudaOtroDiario'] || 0);
@@ -339,7 +338,7 @@ function getProjectionParams(source = 'UI') {
         diasRestantes: Number(reader('inputDiasRestantes') || proyeccionParams['inputDiasRestantes'] || DIAS_RESTANTES_DEFAULT),
         deudaMeta: Number(reader('inputDeudaMeta') || proyeccionParams['inputDeudaMeta'] || DEUDA_META_DEFAULT),
         gananciaHr: Number(reader('inputGananciaHr') || proyeccionParams['inputGananciaHr'] || TASA_GANANCIA_HR_DEFAULT),
-        horasTrabajadas: Number(reader('inputHorasTrabajadas') || proyeccionParams['inputHorasTrabajadas'] || 8), // Última hora usada
+        horasTrabajadas: Number(reader('inputHorasTrabajadas') || proyeccionParams['inputHorasTrabajadas'] || 8), 
         gastoFijoDiarioTotal,
         gastoTotalProyeccion
     };
@@ -354,9 +353,6 @@ function calcularProyeccionUber(horasDiarias, params) {
     const TASA_GANANCIA_HR = gananciaHr;
     
     const gananciaDiaria = horasDiarias * TASA_GANANCIA_HR;
-    const gananciaSemanal = gananciaDiaria * 7;
-    const gananciaTotalDias = gananciaDiaria * DIAS_RESTANTES;
-    
     const SobranteDiario = Math.max(0, gananciaDiaria - gastoTotalProyeccion);
 
     const PagoDeudaPotencial = SobranteDiario * DIAS_RESTANTES;
@@ -368,8 +364,8 @@ function calcularProyeccionUber(horasDiarias, params) {
     return {
         horasDiarias,
         gananciaDiaria: Number(gananciaDiaria.toFixed(2)),
-        gananciaSemanal: Number(gananciaSemanal.toFixed(2)),
-        gananciaTotalDias: Number(gananciaTotalDias.toFixed(2)),
+        gananciaSemanal: Number(gananciaDiaria * 7).toFixed(2),
+        gananciaTotalDias: Number(gananciaDiaria * DIAS_RESTANTES).toFixed(2),
         SobranteDiario: Number(SobranteDiario.toFixed(2)),
         PagoDeudaPotencial: Number(PagoDeudaPotencial.toFixed(2)),
         PorcentajeDeudaCubierta: Math.min(100, Number(PorcentajeDeudaCubierta.toFixed(2))),
@@ -381,21 +377,19 @@ let resultadosEscenariosFijos = [];
 
 /**
  * Renderiza la tarjeta de proyección.
- * Lee los datos de la UI si estamos en admin, o del Storage si estamos en index.
  */
 function renderProyeccion(context) {
     const isUI = context === 'admin';
     
-    // 1. Obtener parámetros (Guarda si estamos en la UI)
     if (isUI) {
         saveProjectionParams(); 
-        loadProjectionParams(); // Carga de nuevo para actualizar los campos
+        loadProjectionParams(); 
     }
     
     const params = getProjectionParams(isUI ? 'UI' : 'STORE'); 
     const { diasRestantes, deudaMeta, gastoFijoDiarioTotal, gastoTotalProyeccion, horasTrabajadas } = params;
     
-    // 2. Actualizar labels de Parámetros (Solo si existen en la página actual)
+    // 2. Actualizar labels de Parámetros
     if ($("gastoFijoDiarioTotal")) $("gastoFijoDiarioTotal").textContent = `$${fmt(gastoFijoDiarioTotal)}`;
     if ($("gastoTotalProyeccion")) $("gastoTotalProyeccion").textContent = `$${fmt(gastoTotalProyeccion)}`;
     if ($("deudaMetaTotal")) $("deudaMetaTotal").textContent = fmt(deudaMeta);
@@ -431,11 +425,13 @@ function renderProyeccion(context) {
         const etiqueta = res.DeudaLiquidada ? 
             '✅ ¡DEUDA LIQUIDADA!' : 
             `${res.PorcentajeDeudaCubierta}% de la meta`;
-
+        
+        const barraColor = res.DeudaLiquidada ? '#2ecc71' : '#f39c12';
+        
         barra.innerHTML = `
             <p>${nombreEscenario}: ${etiqueta}</p>
             <div style="background: #e0e0e0; height: 20px; border-radius: 5px; overflow: hidden; margin-bottom: 15px;">
-                <div style="width: ${res.PorcentajeDeudaCubierta}%; background: ${res.DeudaLiquidada ? '#2ecc71' : '#f39c12'}; height: 100%; text-align: right; color: white; line-height: 20px; padding-right: 5px;">
+                <div style="width: ${res.PorcentajeDeudaCubierta}%; background: ${barraColor}; height: 100%; text-align: right; color: white; line-height: 20px; padding-right: 5px;">
                     ${Math.round(res.PorcentajeDeudaCubierta)}%
                 </div>
             </div>
@@ -443,7 +439,7 @@ function renderProyeccion(context) {
         if (barrasDiv) barrasDiv.appendChild(barra);
     });
 
-    // 5. Actualizar Simulador Dinámico (Solo muestra el resultado del último valor guardado en index)
+    // 5. Actualizar Simulador Dinámico
     const resSimulador = calcularProyeccionUber(horasTrabajadas, params);
     if ($("horasSeleccionadas")) $("horasSeleccionadas").textContent = horasTrabajadas.toFixed(1);
     if ($("simuladorGananciaDiariaNeto")) $("simuladorGananciaDiariaNeto").textContent = `$${fmt(resSimulador.SobranteDiario)}`;
@@ -454,7 +450,6 @@ function renderProyeccion(context) {
         const range = $("inputHorasTrabajadas");
         if (range) {
             range.oninput = () => {
-                // Forzamos el guardado y el re-renderizado en el movimiento del rango
                 saveProjectionParams(); 
                 renderProyeccion('admin'); 
             };
@@ -464,12 +459,9 @@ function renderProyeccion(context) {
 
 /**
  * Conecta los listeners de los inputs de proyección y el botón de exportación.
- * Esto solo ocurre en admin.html.
  */
 function setupProjectionListeners() {
-    // 1. Inputs de Parámetros Dinámicos: Actualizan la proyección y guardan el valor.
     PROJECTION_INPUT_IDS.forEach(id => {
-        // Excluimos el rango de horas, que tiene su propio oninput.
         if (id !== "inputHorasTrabajadas") {
             const el = $(id);
             if(el) el.addEventListener('input', () => { 
@@ -477,8 +469,6 @@ function setupProjectionListeners() {
             });
         }
     });
-
-    // 2. Botón de Exportación
     safeOn("btnExportProjection", "click", exportToCSV);
 }
 
@@ -488,6 +478,7 @@ function setupProjectionListeners() {
 // ----------------------------------------------------
 
 function exportToCSV() {
+    // ... (El código de exportación a CSV se mantiene sin cambios)
     if (resultadosEscenariosFijos.length === 0) {
         return alert("No hay datos de proyección para exportar. Asegúrate de que los parámetros están llenos.");
     }
@@ -495,8 +486,6 @@ function exportToCSV() {
     const gas = obtenerGastoVariableGasolina();
     const params = getProjectionParams('STORE'); 
     
-    // Metadatos (usamos los valores guardados)
-    Metadatos (usamos los valores guardados)
     const metadata = {
         'Tasa_Ganancia_x_Hora': params.gananciaHr,
         'Dias_Restantes_Meta': params.diasRestantes,
@@ -549,6 +538,61 @@ function exportToCSV() {
     document.body.removeChild(link);
 }
 
+// ----------------------------------------------------
+// EXPORTAR / IMPORTAR DATOS (JSON Backup) - AÑADIDO ESTO
+// ----------------------------------------------------
+
+function exportData() {
+    const dataToExport = {
+        ingresos,
+        gastos,
+        kilometrajes,
+        gasolinas,
+        deudas,
+        proyeccionParams
+    };
+    const jsonString = JSON.stringify(dataToExport, null, 2);
+
+    const filename = `backup_presupuesto_${Date.now()}.json`;
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    alert(`Datos exportados como ${filename}. Revisa tu carpeta de descargas.`);
+}
+
+function importData() {
+    const jsonArea = $("json-area");
+    try {
+        const data = JSON.parse(jsonArea.value);
+        if (data.ingresos && data.gastos && data.deudas) {
+            // Reemplazar datos existentes con los datos importados
+            ingresos = data.ingresos;
+            gastos = data.gastos;
+            kilometrajes = data.kilometrajes || []; 
+            gasolinas = data.gasolinas || []; 
+            deudas = data.deudas;
+            proyeccionParams = data.proyeccionParams || {}; 
+            
+            saveAll();
+            alert("✅ Datos importados con éxito. Recargando la página para aplicar los cambios.");
+            window.location.reload();
+        } else {
+            alert("Error: El JSON no contiene la estructura de datos esperada (ingresos, gastos, deudas).");
+        }
+    } catch (e) {
+        alert("Error al parsear el JSON. Asegúrate de que el formato sea correcto.");
+        console.error("Import Error:", e);
+    }
+}
+
 
 // -------------------------
 // INDEX: resumen y gráficas
@@ -564,17 +608,13 @@ function calcularResumen() {
   const totalLitros = gasolinas.reduce((s,g)=>s + (g.litros||0), 0);
   
   const kmPorLitro = totalLitros > 0 ? (kmTotales / totalLitros) : 0;
-  const precioKmPromedio = kmTotales > 0 ? (gastoCombustibleTotal / kmTotales) : 0;
   
-  return { totalIngresos, totalGastosNeto, deudaTotal, kmTotales, gastoCombustibleTotal, precioKmPromedio, kmPorLitro };
+  return { totalIngresos, totalGastosNeto, deudaTotal, kmTotales, gastoCombustibleTotal, kmPorLitro };
 }
 
 function renderIndex() {
   const res = calcularResumen();
   
-  // No necesitamos loadProjectionParams() aquí, pues los inputs no existen.
-  // Solo necesitamos renderProyeccion() para que lea los datos guardados.
-
   if ($("total-ingresos")) $("total-ingresos").textContent = fmt(res.totalIngresos);
   if ($("total-gastos-neto")) $("total-gastos-neto").textContent = fmt(res.totalGastosNeto);
   if ($("deudaTotalLabel")) $("deudaTotalLabel").textContent = fmt(res.deudaTotal);
@@ -584,8 +624,49 @@ function renderIndex() {
   if ($("km-gasto")) $("km-gasto").textContent = fmt(res.gastoCombustibleTotal);
   if ($("km-rendimiento")) $("km-rendimiento").textContent = Number(res.kmPorLitro).toFixed(2);
   
-  // Renderiza resultados de proyección leyendo del storage
   renderProyeccion('index'); 
+}
+
+// -------------------------
+// Renderizado de tabla de movimientos (Para admin.html)
+// -------------------------
+function renderAdminTables() {
+    const tabla = $("tabla-todos");
+    if (!tabla) return;
+
+    // Combina ingresos, gastos, kilometrajes (si se quiere, aquí solo Ingresos/Gastos/Abonos)
+    const movimientos = [
+        ...ingresos.map(i => ({...i, tipo: 'Ingreso', monto: i.cantidad})),
+        ...gastos.map(g => ({...g, tipo: 'Gasto', monto: g.cantidad}))
+    ].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).slice(0, 10); // Mostrar solo los últimos 10
+
+    const body = tabla.querySelector('tbody') || tabla.createTBody();
+    let header = tabla.querySelector('thead');
+    
+    if (!header) {
+        header = tabla.createTHead();
+        header.innerHTML = `<tr><th>Tipo</th><th>Descripción / Categoría</th><th>Monto</th><th>Fecha</th></tr>`;
+    }
+
+    body.innerHTML = '';
+    
+    movimientos.forEach(mov => {
+        const tr = body.insertRow();
+        const montoFmt = fmt(mov.monto);
+        const montoClase = mov.tipo === 'Ingreso' ? 'valor-positivo' : 'debt-amount';
+        const fechaFmt = new Date(mov.fecha).toLocaleString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+        tr.innerHTML = `
+            <td>${mov.tipo}</td>
+            <td>${mov.descripcion || mov.categoria}</td>
+            <td class="${montoClase}">$${montoFmt}</td>
+            <td>${fechaFmt}</td>
+        `;
+    });
+    // Si no hay movimientos, mostrar mensaje
+    if (movimientos.length === 0) {
+        body.innerHTML = '<tr><td colspan="4" style="text-align:center;">No hay movimientos recientes.</td></tr>';
+    }
 }
 
 
@@ -610,13 +691,18 @@ function onloadApp(context) {
     precargarKmInicial();
     actualizarKmUI();
     renderProyeccion('admin'); // Inicializa la vista de admin, guarda/actualiza
-    setupProjectionListeners(); // Configura listeners de inputs y exportación
+    setupProjectionListeners(); // Configura listeners de inputs de Proyección
+
+    // Conectar botones de Exportar/Importar JSON (la solución al problema)
+    safeOn("btnExport", "click", exportData);
+    safeOn("btnImport", "click", importData);
+
   } else {
     renderIndex();
   }
 }
 
-// Globalización de funciones (Necesarias para el admin.html)
-window.renderAdminTables = () => { /* ... lógica de renderizado de tabla general ... */ };
+// Globalización de funciones
+window.renderAdminTables = renderAdminTables;
 window.onloadApp = onloadApp;
 window.saveAll = saveAll;
