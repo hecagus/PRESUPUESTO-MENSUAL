@@ -3,78 +3,179 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administración – Uber Eats Tracker</title>
+    <title>Panel Admin</title>
     <link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
 
 <header class="header">
-    <h1>Administración de Datos</h1>
+    <h1>Panel Administración</h1>
     <a href="index.html" class="btn-admin">🏠 Regresar</a>
 </header>
 
-
 <main class="container">
 
-    <!-- ================= TURNO ================= -->
+
+    <!-- ================== REGISTRAR INGRESO ================== -->
     <section class="card">
-        <h2>Turno de Hoy</h2>
+        <h2>Registrar Ingreso</h2>
 
-        <button id="btnIniciar" class="btn">▶ Iniciar Turno</button>
-        <button id="btnFinalizar" class="btn btn-warning">■ Finalizar Turno</button>
+        <label>Descripción</label>
+        <input id="ingresoDescripcion" type="text" placeholder="Descripción">
 
-        <div class="turno-info">
-            <p><strong>Inicio:</strong> <span id="turnoInicio">—</span></p>
-            <p><strong>Fin:</strong> <span id="turnoFin">—</span></p>
-            <p><strong>Horas trabajadas:</strong> <span id="turnoHoras">0</span></p>
-        </div>
+        <label>Cantidad</label>
+        <input id="ingresoCantidad" type="number" placeholder="Cantidad">
 
-        <h3>Datos del Turno</h3>
-
-        <label>Ganancia del día (MXN):</label>
-        <input type="number" id="gananciaDia" placeholder="Ej: 550">
-
-        <label>Kilómetros recorridos:</label>
-        <input type="number" id="kmDia" placeholder="Ej: 45">
-
-        <label>Precio por litro (gasolina):</label>
-        <input type="number" id="gasPrecio" placeholder="Ej: 25.00">
-
-        <label>Rendimiento de la moto (km/L):</label>
-        <input type="number" id="kmPorLitro" placeholder="Ej: 35">
-
-        <button id="btnGuardarTurno" class="btn btn-success">💾 Guardar Turno</button>
+        <button id="btnGuardarIngreso" class="btn btn-success">Guardar Ingreso</button>
     </section>
 
 
 
-    <!-- ================= PARÁMETROS ================= -->
+    <!-- ================== REGISTRAR GASTO ================== -->
     <section class="card">
-        <h2>Parámetros de Proyección</h2>
+        <h2>Registrar Gasto</h2>
 
-        <label>Deuda total a liquidar (MXN):</label>
-        <input type="number" id="metaDeuda">
+        <label>Descripción</label>
+        <input id="gastoDescripcion" type="text" placeholder="Descripción">
 
-        <label>Gasto fijo diario (MXN):</label>
-        <input type="number" id="gastoFijo">
+        <label>Cantidad</label>
+        <input id="gastoCantidad" type="number" placeholder="Cantidad">
 
-        <button id="btnGuardarParametros" class="btn btn-success">💾 Guardar Parámetros</button>
+        <label>Categoría</label>
+        <select id="gastoCategoria">
+            <option>Transporte</option>
+            <option>Comida</option>
+            <option>Uber</option>
+            <option>Casa</option>
+            <option>Otros</option>
+        </select>
+
+        <button id="btnGuardarGasto" class="btn btn-danger">Guardar Gasto</button>
     </section>
 
 
 
-    <!-- ================= HERRAMIENTAS ================= -->
+    <!-- ================== DEUDAS Y ABONOS ================== -->
     <section class="card">
-        <h2>Herramientas</h2>
+        <h2>Deudas y Abonos</h2>
 
-        <button id="btnBorrarTodo" class="btn btn-danger">
-            🗑 Borrar todo (reset total)
-        </button>
+        <h3>Nueva Deuda</h3>
+        <label>Nombre/Descripción</label>
+        <input id="deudaNombre" type="text" placeholder="Nombre de la deuda">
+
+        <label>Monto Inicial</label>
+        <input id="deudaMonto" type="number" placeholder="Monto Total a pagar">
+
+        <button id="btnRegistrarDeuda" class="btn btn-success">Registrar Deuda</button>
+
+
+        <h3>Registrar Abono</h3>
+        <label>Seleccionar Deuda</label>
+        <select id="abonoSeleccionar"></select>
+
+        <label>Monto del Abono</label>
+        <input id="abonoMonto" type="number" placeholder="Cantidad a abonar">
+
+        <button id="btnRegistrarAbono" class="btn btn-warning">Guardar Abono</button>
+
+        <h3>Deudas Pendientes</h3>
+        <ul id="listaDeudas"></ul>
     </section>
+
+
+
+    <!-- ================== KM / GASOLINA ================== -->
+    <section class="card">
+        <h2>Registrar Kilometraje y/o Repostaje</h2>
+
+        <label>KM Inicial</label>
+        <input id="kmInicial" type="number">
+
+        <label>KM Final</label>
+        <input id="kmFinal" type="number" placeholder="KM Final">
+
+        <p>Kilómetros recorridos: <strong id="kmRecorridos">0</strong></p>
+
+        <h3>Detalles de Repostaje (Opcional)</h3>
+        <label>Litros cargados</label>
+        <input id="litrosGas" type="number">
+
+        <label>Costo total</label>
+        <input id="costoGas" type="number">
+
+        <p>Precio por km: <strong id="precioKm">0.00</strong></p>
+
+        <button id="btnGuardarKm" class="btn btn-success">Guardar KM Diario</button>
+        <button id="btnGuardarGas" class="btn btn-warning">Guardar Repostaje</button>
+    </section>
+
+
+
+    <!-- ================== EXPORTAR / IMPORTAR ================== -->
+    <section class="card">
+        <h2>Exportar / Importar Datos</h2>
+
+        <button id="btnExportar" class="btn">Exportar</button>
+
+        <textarea id="importJson" placeholder="Pega JSON para importar"></textarea>
+        <button id="btnImportar" class="btn btn-success">Importar</button>
+    </section>
+
+
+
+    <!-- ================== MOVIMIENTOS RECIENTES ================== -->
+    <section class="card">
+        <h2>Movimientos (últimos)</h2>
+
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Descripción / Categoría</th>
+                    <th>Monto</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody id="tablaMovimientos"></tbody>
+        </table>
+    </section>
+
+
+
+
+
+
+    <!-- ================== ⚡ PROYECCIÓN REAL (ACTUALIZADA) ================== -->
+    <section class="card">
+        <h2>Proyección REAL basada en tus datos</h2>
+
+        <label>Deuda Total (MXN)</label>
+        <input id="proyDeudaTotal" type="number">
+
+        <label>Gasto fijo diario (MXN)</label>
+        <input id="proyGastoFijo" type="number">
+
+        <button id="btnGuardarProyeccion" class="btn btn-success">Guardar Parámetros</button>
+
+        <hr>
+
+        <h3>Resultados con datos reales</h3>
+
+        <p>Días trabajados registrados: <strong id="proyDiasTrabajados">0</strong></p>
+        <p>Promedio de horas/día: <strong id="proyHorasPromedio">0</strong></p>
+        <p>Promedio de ganancia/día: <strong id="proyGananciaPromedio">0</strong></p>
+        <p>Promedio de km/día: <strong id="proyKmPromedio">0</strong></p>
+        <p>Promedio de gasolina/día: <strong id="proyGasolinaPromedio">0</strong></p>
+
+        <h3>Proyección</h3>
+        <p>Días estimados para liquidar deuda: <strong id="proyDiasEstimados">0</strong></p>
+        <p>Ganancia neta diaria real: <strong id="proyGananciaNetaReal">$0</strong></p>
+    </section>
+
+
+
 
 </main>
-
 
 <script src="app.js"></script>
 
