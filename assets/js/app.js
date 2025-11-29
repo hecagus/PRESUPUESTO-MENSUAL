@@ -572,8 +572,8 @@ function importData() {
     const jsonArea = $("json-area");
     try {
         const data = JSON.parse(jsonArea.value);
+        
         if (data.ingresos && data.gastos && data.deudas) {
-            // Reemplazar datos existentes con los datos importados
             ingresos = data.ingresos;
             gastos = data.gastos;
             kilometrajes = data.kilometrajes || []; 
@@ -587,9 +587,10 @@ function importData() {
         } else {
             alert("Error: El JSON no contiene la estructura de datos esperada (ingresos, gastos, deudas).");
         }
-    } catch (e) {
-        alert("Error al parsear el JSON. Asegúrate de que el formato sea correcto.");
-        console.error("Import Error:", e);
+
+    } catch (err) {
+        alert("❌ Error al leer el JSON. Verifica que el formato sea válido.");
+        console.error("Import Error:", err);
     }
 }
 
