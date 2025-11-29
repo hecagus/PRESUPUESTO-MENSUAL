@@ -1,102 +1,119 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Presupuesto Personal</title>
-  <link rel="stylesheet" href="assets/css/style.css" />
-  <style>
-    .balance-card { background-color: #2ecc71; color: white; }
-    .projection-results-card { border-left: 5px solid #3498db; }
-    .top-actions { display:flex; justify-content:flex-end; margin-bottom:20px; }
-    .admin-btn { padding:8px 15px; background:#3498db; color:white; border-radius:5px; }
-    .tabla-listado th, .tabla-listado td { border:1px solid #ddd; padding:8px; text-align:left; }
-    .valor-positivo { font-weight:bold; color:#27ae60; }
-    .charts { display:flex; gap:1rem; flex-wrap:wrap; }
-    .charts canvas { background:#fff; padding:0.5rem; border-radius:8px; box-shadow:0 1px 6px rgba(0,0,0,0.06); width:100%; max-width:600px; }
-  </style>
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Resultados – Uber Eats Tracker</title>
+
+    <!-- Estilos -->
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
-  <div class="container">
-    <div class="top-actions">
-        <button class="admin-btn" onclick="location.href='admin.html'">Administrar Datos ⟶</button>
-    </div>
 
-    <h1>📊 Resumen Financiero</h1>
+<header class="header">
+    <h1>Resultados de Trabajo y Proyección</h1>
+    <a href="admin.html" class="btn-admin">⚙ Administrar Parámetros</a>
+</header>
 
-    <!-- BOTONES DE TURNO -->
-    <div class="card" style="text-align:center;">
-      <button id="btnIniciarTurno" onclick="iniciarTurno()" class="button" style="background:#27ae60;">
-        ▶ Iniciar Turno
-      </button>
+<main class="container">
 
-      <button id="btnFinalizarTurno" onclick="finalizarTurno()" class="button" style="background:#c0392b; display:none;">
-        ■ Finalizar Turno
-      </button>
-    </div>
+    <!-- ==== ESTADÍSTICAS DE HOY ==== -->
+    <section class="card">
+        <h2>Resumen del Día</h2>
 
-    <div class="card balance-card">
-        <p>💰 Balance (Ingresos - Gasto Operacional)</p>
-        <h2 id="balance">$0.00</h2>
-    </div>
+        <div class="stats-grid">
+            <div class="stat">
+                <label>Horas Trabajadas Hoy:</label>
+                <span id="resHoras">0</span>
+            </div>
 
-    <div class="card projection-results-card">
-        <h2>📈 Resultados de Proyección de Deuda (Basado en datos reales)</h2>
+            <div class="stat">
+                <label>Ganancia Bruta Hoy:</label>
+                <span id="resGananciaBruta">$0</span>
+            </div>
 
-        <h3>Simulador Rápido</h3>
-        <p>Ganancia Neta Potencial por Día: <strong id="simuladorGananciaDiariaNeto">$0.00</strong></p>
-        <p>Pago Potencial a Deuda (en <strong id="diasRestantesSimulador">33</strong> días): <strong id="simuladorPagoDeuda">$0.00</strong></p>
+            <div class="stat">
+                <label>Gasto Total Hoy:</label>
+                <span id="resGastos">$0</span>
+            </div>
 
-        <h3>Escenarios de Meta (Pagos Potenciales)</h3>
-        <table id="tabla-proyeccion" class="tabla-listado">
+            <div class="stat">
+                <label>Ganancia Neta Hoy:</label>
+                <span id="resNeta">$0</span>
+            </div>
+        </div>
+    </section>
+
+
+
+    <!-- ==== PROYECCIÓN REAL ==== -->
+    <section class="card">
+        <h2>Proyección Real de Pago de Deuda</h2>
+
+        <p class="small">Basado en tus últimos días trabajados</p>
+
+        <div class="projection">
+            <label>Deuda actual:</label>
+            <span id="proyDeuda">$0</span>
+        </div>
+
+        <div class="projection">
+            <label>Promedio Horas/Día:</label>
+            <span id="proyHoras">0 h</span>
+        </div>
+
+        <div class="projection">
+            <label>Promedio Ganancia Neta/Día:</label>
+            <span id="proyNeta">$0</span>
+        </div>
+
+        <div class="projection">
+            <label>Días necesarios para liquidar:</label>
+            <span id="proyDias">0 días</span>
+        </div>
+    </section>
+
+
+
+    <!-- ==== HISTORIAL DE TURNOS ==== -->
+    <section class="card">
+        <h2>Historial de Turnos</h2>
+        <table class="tabla">
             <thead>
-                <tr><th>Escenario</th><th>Ganancia (Total)</th><th>Pago Deuda (Potencial)</th></tr>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Horas</th>
+                    <th>Ganancia</th>
+                    <th>Gastos</th>
+                    <th>Neta</th>
+                </tr>
             </thead>
-            <tbody></tbody>
+            <tbody id="tablaTurnos"></tbody>
         </table>
+    </section>
 
-        <h4>Progreso de Liquidación de Deuda ($<span id="deudaMetaTotal">19,793.00</span>)</h4>
-        <div id="proyeccion-barras"></div>
-    </div>
 
-    <div class="card">
-      <h2>💸 Ingresos y Gastos</h2>
-      <p>Total Ingresos: <strong id="total-ingresos">$0.00</strong></p>
-      <p>Total Gastos Operacionales: <strong id="total-gastos-neto">$0.00</strong></p>
-      <p>Total Deuda Pendiente: <strong id="deudaTotalLabel">$0.00</strong></p>
-    </div>
 
-    <div class="card">
-        <h2>🚗 Datos de Kilometraje</h2>
-        <p>KM Recorridos Totales: <strong id="km-recorridos">0.00</strong> km</p>
-        <p>Gasto Total Combustible: <strong id="km-gasto">$0.00</strong></p>
-        <p>Rendimiento Promedio: <strong id="km-rendimiento">0.00</strong> km/L</p>
-    </div>
+    <!-- ==== GRÁFICA GANANCIAS VS GASTOS ==== -->
+    <section class="card">
+        <h2>Gráfica: Ganancias vs Gastos</h2>
+        <canvas id="graficaGanancias"></canvas>
+    </section>
 
-    <!-- GRÁFICAS -->
-    <div class="card">
-      <h2>📊 Gráficas</h2>
-      <div class="charts">
-        <div style="flex:1;">
-          <h3>Ingresos vs Gastos (últimos 14 días)</h3>
-          <canvas id="chartGanVsGas"></canvas>
-        </div>
-        <div style="flex:1;">
-          <h3>Km recorridos vs Gasto gasolina (últimos repostajes)</h3>
-          <canvas id="chartKmGas"></canvas>
-        </div>
-      </div>
-    </div>
+    <!-- ==== GRÁFICA KM VS GASOLINA ==== -->
+    <section class="card">
+        <h2>Gráfica: KM Recorridos vs Gasolina</h2>
+        <canvas id="graficaKm"></canvas>
+    </section>
 
-  </div>
+</main>
 
-  <script src="assets/js/app.js"></script>
-  <script>
-    window.addEventListener('load', () => {
-      if (typeof onloadApp === 'function') onloadApp('index');
-    });
-  </script>
+
+<script src="app.js"></script>
+
 </body>
-</html>
+  </html>
