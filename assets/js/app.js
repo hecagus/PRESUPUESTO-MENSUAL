@@ -546,30 +546,33 @@ function finalizarTurno() {
 // Inicializar y UI fija
 // ======================
 document.addEventListener("DOMContentLoaded", () => {
-  cargarPanelData();
-  actualizarUIturno();
+    cargarPanelData();
+    actualizarUIturno();
+    renderMovimientos();
+    renderDeudas();
+    renderResumenIndex();
+    renderTablaTurnos();
+    renderCharts();
 
-  // Poner KM inicial automático si existe último KM final
-  if (panelData.parametros && panelData.parametros.ultimoKMfinal) {
-    const inputIni = $("kmInicial");
-    if (inputIni) inputIni.value = panelData.parametros.ultimoKMfinal;
-  }
+    // 🔥 CALCULA Y PINTA AUTOMÁTICAMENTE LOS PARÁMETROS
+    calcularDeudaTotalAuto();
+    calcularGastoFijoAuto();
 
-  // Marcar inputs de proyección como solo lectura y gris
-  const inpDeuda = $("proyDeudaTotal");
-  const inpGasto = $("proyGastoFijo");
-  if (inpDeuda) { inpDeuda.readOnly = true; inpDeuda.style.background = "#eee"; }
-  if (inpGasto) { inpGasto.readOnly = true; inpGasto.style.background = "#eee"; }
+    // 🔒 BLOQUEA INPUTS
+    const inpDeuda = document.getElementById("proyDeudaTotal");
+    const inpGasto = document.getElementById("proyGastoFijo");
 
-  renderMovimientos();
-  renderDeudas();
-  renderResumenIndex();
-  renderTablaTurnos();
-  renderCharts();
+    if (inpDeuda) {
+        inpDeuda.readOnly = true;
+        inpDeuda.style.background = "#eee";
+        inpDeuda.value = panelData.parametros?.deudaTotal?.toFixed(2) || "0.00";
+    }
 
-  // parámetros automáticos al cargar admin.html
-  calcularDeudaTotalAuto();
-  calcularGastoFijoAuto();
+    if (inpGasto) {
+        inpGasto.readOnly = true;
+        inpGasto.style.background = "#eee";
+        inpGasto.value = panelData.parametros?.gastoFijo?.toFixed(2) || "0.00";
+    }
 });
 
 // ======================
