@@ -59,6 +59,71 @@ const fmtMoney = n => Number(n || 0).toLocaleString("es-MX", {
 const nowISO = () => new Date().toISOString();
 const nowLocal = () => new Date().toLocaleString("es-MX");
 
+// -----------------------------
+// NUEVAS FUNCIONES (INTEGRADAS)
+// -----------------------------
+
+// A) calcularDeudaTotalAuto: suma de (monto - abonado), guarda y pinta input readonly
+function calcularDeudaTotalAuto() {
+  const deudas = panelData.deudas || [];
+
+  const total = deudas.reduce((s, d) => {
+    const pendiente = (Number(d.monto) || 0) - (Number(d.abonado) || 0);
+    return s + pendiente;
+  }, 0);
+
+  panelData.parametros = panelData.parametros || {};
+  panelData.parametros.deudaTotal = total;
+  guardarPanelData();
+
+  const inp = document.getElementById("proyDeudaTotal");
+  if (inp) {
+    inp.value = total.toFixed(2);
+    inp.readOnly = true;
+    inp.style.background = "#eee";
+  }
+}
+
+// B) calcularGastoFijoAuto: encuentra el último abono (por fecha) y aplica la fórmula
+function calcularGastoFijoAuto() {
+  panelData.parametros = panelData.parametros || {};
+
+  const comidaDiaria = 200;
+
+  const kmArr = panelData.kmDiarios || [];
+  const kmProm = kmArr.length
+    ? kmArr.reduce((s, k) => s + (Number(k.recorrido) || 0), 0) / kmArr.length
+    : 0;
+
+  // buscar el último abono en panelData.gastos con categoria "Abono a Deuda"
+  let ultimoAbono = 0;
+  let ultimaFecha = null;
+
+  (panelData.gastos || []).forEach(g => {
+    if ((g.categoria || "") === "Abono a Deuda") {
+      const fecha = g.fechaISO || g.fechaLocal;
+      if (!fecha) return;
+      const t = new Date(fecha).getTime();
+      if (!ultimaFecha || t > ultimaFecha) {
+        ultimaFecha = t;
+        ultimoAbono = Number(g.cantidad) || 0;
+      }
+    }
+  });
+
+  const gastoFijo = (ultimoAbono / 6) + comidaDiaria + (kmProm * 0.6);
+
+  panelData.parametros.gastoFijo = gastoFijo;
+  guardarPanelData();
+
+  const inp = document.getElementById("proyGastoFijo");
+  if (inp) {
+    inp.value = gastoFijo.toFixed(2);
+    inp.readOnly = true;
+    inp.style.background = "#eee";
+  }
+}
+
 // ======================
 // Movimientos
 // ======================
@@ -166,6 +231,11 @@ function setupGastoListeners() {
     $("gastoDescripcion").value = "";
     $("gastoCantidad").value = "";
 
+    // Si es gasto de comida, recalcular gasto fijo
+    if (cat === "Comida") {
+      calcularGastoFijoAuto();
+    }
+
     alert("Gasto registrado.");
     renderResumenIndex();
   });
@@ -222,6 +292,10 @@ $("btnRegistrarDeuda")?.addEventListener("click", () => {
   guardarPanelData();
   renderDeudas();
 
+  // recalcular automáticamente
+  calcularDeudaTotalAuto();
+  calcularGastoFijoAuto();
+
   $("deudaNombre").value = "";
   $("deudaMonto").value = "";
 
@@ -250,6 +324,10 @@ $("btnRegistrarAbono")?.addEventListener("click", () => {
   pushMovimiento("Gasto", `Abono a ${panelData.deudas[idx].nombre}`, monto);
   guardarPanelData();
   renderDeudas();
+
+  // recalcular automáticamente (al registrar abono)
+  calcularDeudaTotalAuto();
+  calcularGastoFijoAuto();
 
   $("abonoMonto").value = "";
   alert("Abono guardado.");
@@ -285,6 +363,9 @@ function setupKmAndGasListeners() {
     });
 
     guardarPanelData();
+
+    // recalcular gasto fijo al guardar KM
+    calcularGastoFijoAuto();
 
     $("kmInicial").value = "";
     $("kmFinal").value = "";
@@ -366,6 +447,10 @@ $("btnImportar")?.addEventListener("click", () => {
     renderMovimientos();
     renderDeudas();
     renderResumenIndex();
+
+    // recalcular parámetros automáticos después de la importación
+    calcularDeudaTotalAuto();
+    calcularGastoFijoAuto();
 
     alert("Importación correcta ✔");
 
@@ -456,9 +541,17 @@ function finalizarTurno() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  $("btnIniciarTurno")?.addEventListener("click", iniciarTurno);
-  $("btnFinalizarTurno")?.addEventListener("click", finalizarTurno);
+  cargarPanelData();
   actualizarUIturno();
+  renderMovimientos();
+  renderDeudas();
+  renderResumenIndex();
+  renderTablaTurnos();
+  renderCharts();
+
+  // recalcular y pintar parámetros automáticos al cargar admin.html
+  calcularDeudaTotalAuto();
+  calcularGastoFijoAuto();
 });
 
 // ======================
@@ -696,4 +789,8 @@ document.addEventListener("DOMContentLoaded", () => {
   renderResumenIndex();
   renderTablaTurnos();
   renderCharts();
+
+  // recalcular y pintar parámetros automáticos al cargar admin.html
+  calcularDeudaTotalAuto();
+  calcularGastoFijoAuto();
 });
