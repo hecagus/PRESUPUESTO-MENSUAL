@@ -545,8 +545,19 @@ function finalizarTurno() {
 // ======================
 // Inicializar y UI fija
 // ======================
-document.addEventListener("DOMContentLoaded", () => {
+
+
+// ======================
+// Resumen del día (ARREGLADO)
+// ======================
+function calcularResudocument.addEventListener("DOMContentLoaded", () => {
     cargarPanelData();
+
+    // 🛠️ Crear parámetros si no existen (ESTO ES LO QUE FALTABA)
+    panelData.parametros = panelData.parametros || {};
+    if (panelData.parametros.deudaTotal === undefined) panelData.parametros.deudaTotal = 0;
+    if (panelData.parametros.gastoFijo === undefined) panelData.parametros.gastoFijo = 0;
+
     actualizarUIturno();
     renderMovimientos();
     renderDeudas();
@@ -554,31 +565,27 @@ document.addEventListener("DOMContentLoaded", () => {
     renderTablaTurnos();
     renderCharts();
 
-    // 🔥 CALCULA Y PINTA AUTOMÁTICAMENTE LOS PARÁMETROS
+    // 🔥 CALCULAR AUTOMÁTICO
     calcularDeudaTotalAuto();
     calcularGastoFijoAuto();
 
-    // 🔒 BLOQUEA INPUTS
+    // 🔒 BLOQUEAR Y PINTAR INPUTS
     const inpDeuda = document.getElementById("proyDeudaTotal");
     const inpGasto = document.getElementById("proyGastoFijo");
 
     if (inpDeuda) {
         inpDeuda.readOnly = true;
         inpDeuda.style.background = "#eee";
-        inpDeuda.value = panelData.parametros?.deudaTotal?.toFixed(2) || "0.00";
+        inpDeuda.value = Number(panelData.parametros.deudaTotal).toFixed(2);
     }
 
     if (inpGasto) {
         inpGasto.readOnly = true;
         inpGasto.style.background = "#eee";
-        inpGasto.value = panelData.parametros?.gastoFijo?.toFixed(2) || "0.00";
+        inpGasto.value = Number(panelData.parametros.gastoFijo).toFixed(2);
     }
 });
-
-// ======================
-// Resumen del día (ARREGLADO)
-// ======================
-function calcularResumenDatos() {
+menDatos() {
   const hoy = new Date().toISOString().slice(0, 10);
 
   const turnosHoy = (panelData.turnos || []).filter(t => (t.inicio || "").slice(0, 10) === hoy);
