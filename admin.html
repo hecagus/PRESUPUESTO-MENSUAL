@@ -12,6 +12,22 @@
     <h1>Panel Administración</h1>
     <a href="index.html" class="btn-admin">🏠 Regresar</a>
 </header>
+    <!-- ================== TURNOS ================== -->
+<section class="card" style="text-align:center;">
+    <h2>Turno de Trabajo</h2>
+
+    <button id="btnIniciarTurno" class="btn btn-success">
+        ▶ Iniciar Turno
+    </button>
+
+    <button id="btnFinalizarTurno" class="btn btn-danger" style="display:none;">
+        ■ Finalizar Turno
+    </button>
+
+    <p id="turnoEstado" style="margin-top:10px; font-weight:bold;">
+        Estado: <span id="turnoTexto">Sin turno activo</span>
+    </p>
+</section>
 
 <main class="container">
 
