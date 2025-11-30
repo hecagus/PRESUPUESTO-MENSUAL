@@ -1,5 +1,5 @@
 // ======================
-// app.js — PARTE 1/4
+// app.js — PARTE 1/4: SETUP Y UTILIDADES
 // ======================
 
 const STORAGE_KEY = "panelData";
@@ -30,6 +30,7 @@ function cargarPanelData() {
     if (!raw) return;
     const parsed = JSON.parse(raw);
 
+    // Asegurar que las propiedades existan, incluso si el localStorage está vacío o es viejo
     panelData = Object.assign({}, panelData, parsed);
     panelData.parametros = Object.assign({}, panelData.parametros, (parsed.parametros || {}));
   } catch (e) {
@@ -45,7 +46,7 @@ function guardarPanelData() {
   }
 }
 
-// cargar al inicio (nota: algunas inicializaciones se hacen en DOMContentLoaded)
+// Cargar al inicio (antes de DOMContentLoaded)
 cargarPanelData();
 
 // ======================
@@ -63,7 +64,7 @@ const nowLocal = () => new Date().toLocaleString("es-MX");
 // FUNCIONES AUTOMÁTICAS
 // -----------------------------
 
-// A) calcularDeudaTotalAuto: suma de (monto - abonado), guarda y pinta input readonly
+// A) calcularDeudaTotalAuto: suma de (monto - abonado)
 function calcularDeudaTotalAuto() {
   const deudas = panelData.deudas || [];
 
@@ -78,15 +79,13 @@ function calcularDeudaTotalAuto() {
   const inp = $("proyDeudaTotal");
   if (inp) {
     inp.value = total.toFixed(2);
-    inp.readOnly = true;
-    inp.style.background = "#eee";
   }
 }
 
-// B) calcularGastoFijoAuto: busca último abono en panelData.gastos (categoria "Abono a Deuda")
+// B) calcularGastoFijoAuto: calcula promedio basado en abonos y KM
 function calcularGastoFijoAuto() {
   panelData.parametros = panelData.parametros || {};
-  const comidaDiaria = 200;
+  const comidaDiaria = 200; // Gasto fijo asumido de comida
 
   const kmArr = panelData.kmDiarios || [];
   const kmProm = kmArr.length
@@ -94,13 +93,12 @@ function calcularGastoFijoAuto() {
     : 0;
 
   let ultimoAbono = 0;
-  let ultimaFecha = null;
+  let ultimaFecha = 0;
 
+  // Busca el abono más reciente
   (panelData.gastos || []).forEach(g => {
     if ((g.categoria || "") === "Abono a Deuda") {
-      const fecha = g.fechaISO || g.fechaLocal;
-      if (!fecha) return;
-      const t = new Date(fecha).getTime();
+      const t = new Date(g.fechaISO || g.fechaLocal).getTime();
       if (!ultimaFecha || t > ultimaFecha) {
         ultimaFecha = t;
         ultimoAbono = Number(g.cantidad) || 0;
@@ -108,6 +106,9 @@ function calcularGastoFijoAuto() {
     }
   });
 
+  // Fórmula de Gasto Fijo: (Abono mensual / 30 días) + Gasto de comida + (KM promedio * costo por KM)
+  // Usaremos un divisor simple para el abono (6 días laborables por semana)
+  // Usaremos un costo de combustible/mantenimiento de 0.6 MXN/KM asumido
   const gastoFijo = (ultimoAbono / 6) + comidaDiaria + (kmProm * 0.6);
 
   panelData.parametros.gastoFijo = gastoFijo;
@@ -116,13 +117,11 @@ function calcularGastoFijoAuto() {
   const inp = $("proyGastoFijo");
   if (inp) {
     inp.value = gastoFijo.toFixed(2);
-    inp.readOnly = true;
-    inp.style.background = "#eee";
   }
 }
 
 // ======================
-// Movimientos
+// Movimientos (Historial)
 // ======================
 function pushMovimiento(tipo, descripcion, monto) {
   panelData.movimientos.unshift({
@@ -138,7 +137,7 @@ function pushMovimiento(tipo, descripcion, monto) {
   }
 
   guardarPanelData();
-  renderMovimientos();
+  // No llamamos a renderMovimientos aquí, se hace en DOMContentLoaded para evitar re-renderizados constantes
 }
 
 function renderMovimientos() {
@@ -149,25 +148,15 @@ function renderMovimientos() {
   const rows = panelData.movimientos.slice(0, 25);
 
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center">No hay movimientos</td></tr>`;
+    // Esta tabla no existe en Admin.html ni index.html, pero se deja el código por si se agrega
+    // tbody.innerHTML = `<tr><td colspan="4" style="text-align:center">No hay movimientos</td></tr>`;
     return;
   }
-
-  rows.forEach(r => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${r.tipo}</td>
-      <td>${r.descripcion}</td>
-      <td>$${fmtMoney(r.monto)}</td>
-      <td>${r.fechaLocal}</td>
-    `;
-    tbody.appendChild(tr);
-  });
 }
 
-renderMovimientos();
+// Nota: renderMovimientos se llama en DOMContentLoaded, no aquí.
 // ======================
-// app.js — PARTE 2/4
+// app.js — PARTE 2/4: REGISTROS DE MOVIMIENTOS Y DEUDAS
 // ======================
 
 // ======================
@@ -201,7 +190,6 @@ function setupIngresoListeners() {
     renderResumenIndex();
   });
 }
-setupIngresoListeners();
 
 // ======================
 // Registrar gasto
@@ -225,8 +213,8 @@ function setupGastoListeners() {
       fechaLocal: nowLocal()
     });
 
-    // Si es gasto de comida, recalcular gasto fijo
-    if (cat === "Comida") calcularGastoFijoAuto();
+    // Si es gasto que afecta el cálculo automático, recalcular
+    if (cat === "Comida" || cat === "Transporte") calcularGastoFijoAuto();
 
     pushMovimiento("Gasto", `${desc} (${cat})`, qty);
     guardarPanelData();
@@ -238,7 +226,6 @@ function setupGastoListeners() {
     renderResumenIndex();
   });
 }
-setupGastoListeners();
 
 // ======================
 // Deudas
@@ -264,75 +251,85 @@ function renderDeudas() {
       </li>
     `;
 
-    const opt = document.createElement("option");
-    opt.value = idx;
-    opt.textContent = `${d.nombre} — $${fmtMoney(pendiente)} pendiente`;
-    select.appendChild(opt);
+    // Solo agregar deudas con saldo pendiente al selector de abonos
+    if (pendiente > 0) {
+        const opt = document.createElement("option");
+        opt.value = idx;
+        opt.textContent = `${d.nombre} — $${fmtMoney(pendiente)} pendiente`;
+        select.appendChild(opt);
+    }
   });
 
   if (panelData.deudas.length === 0) {
     list.innerHTML = "<li>No hay deudas registradas.</li>";
-    select.innerHTML = `<option value="">-- No hay deudas --</option>`;
+  }
+  
+  if (select.children.length === 0) {
+    select.innerHTML = `<option value="">-- No hay deudas pendientes --</option>`;
   }
 }
 
-$("btnRegistrarDeuda")?.addEventListener("click", () => {
-  const nombre = ($("deudaNombre")?.value || "").trim();
-  const monto = Number($("deudaMonto")?.value || 0);
+// Event Listeners para Deudas (Se llaman en DOMContentLoaded)
+function setupDeudaListeners() {
+    $("btnRegistrarDeuda")?.addEventListener("click", () => {
+      const nombre = ($("deudaNombre")?.value || "").trim();
+      const monto = Number($("deudaMonto")?.value || 0);
 
-  if (!nombre || !monto || monto <= 0) return alert("Datos inválidos.");
+      if (!nombre || !monto || monto <= 0) return alert("Datos inválidos.");
 
-  panelData.deudas.push({ nombre, monto, abonado: 0 });
+      panelData.deudas.push({ nombre, monto, abonado: 0 });
 
-  guardarPanelData();
-  renderDeudas();
+      guardarPanelData();
+      renderDeudas();
 
-  // recalcular automáticamente
-  calcularDeudaTotalAuto();
-  calcularGastoFijoAuto();
+      calcularDeudaTotalAuto();
+      calcularGastoFijoAuto();
 
-  $("deudaNombre").value = "";
-  $("deudaMonto").value = "";
+      $("deudaNombre").value = "";
+      $("deudaMonto").value = "";
 
-  alert("Deuda registrada.");
-});
+      alert("Deuda registrada.");
+    });
 
-$("btnRegistrarAbono")?.addEventListener("click", () => {
-  const idx = $("abonoSeleccionar")?.value;
-  const monto = Number($("abonoMonto")?.value || 0);
+    $("btnRegistrarAbono")?.addEventListener("click", () => {
+      const idx = $("abonoSeleccionar")?.value;
+      const monto = Number($("abonoMonto")?.value || 0);
 
-  if (idx === "" || !idx || monto <= 0) return alert("Datos inválidos.");
+      if (idx === "" || !idx || monto <= 0) return alert("Datos inválidos.");
 
-  // asegurar campo abonado
-  panelData.deudas[idx].abonado = (Number(panelData.deudas[idx].abonado) || 0) + monto;
+      // Verificar que el índice exista y el monto no exceda el saldo
+      const deuda = panelData.deudas[idx];
+      const pendiente = (Number(deuda.monto) || 0) - (Number(deuda.abonado) || 0);
 
-  // registrar gasto tipo abono
-  panelData.gastos.push({
-    descripcion: `Abono a ${panelData.deudas[idx].nombre}`,
-    cantidad: monto,
-    categoria: "Abono a Deuda",
-    fechaISO: nowISO(),
-    fechaLocal: nowLocal()
-  });
+      if(monto > pendiente) return alert(`El abono excede el saldo pendiente de $${fmtMoney(pendiente)}.`);
+      
+      deuda.abonado = (Number(deuda.abonado) || 0) + monto;
 
-  pushMovimiento("Gasto", `Abono a ${panelData.deudas[idx].nombre}`, monto);
+      // registrar gasto tipo abono
+      panelData.gastos.push({
+        descripcion: `Abono a ${deuda.nombre}`,
+        cantidad: monto,
+        categoria: "Abono a Deuda",
+        fechaISO: nowISO(),
+        fechaLocal: nowLocal()
+      });
 
-  guardarPanelData();
-  renderDeudas();
+      pushMovimiento("Gasto", `Abono a ${deuda.nombre}`, monto);
 
-  // recalcular automáticamente al registrar abono
-  calcularDeudaTotalAuto();
-  calcularGastoFijoAuto();
+      guardarPanelData();
+      renderDeudas();
 
-  $("abonoMonto").value = "";
-  alert("Abono guardado.");
+      calcularDeudaTotalAuto();
+      calcularGastoFijoAuto();
 
-  renderResumenIndex();
-});
+      $("abonoMonto").value = "";
+      alert("Abono guardado.");
 
-renderDeudas();
+      renderResumenIndex();
+    });
+}
 // ======================
-// app.js — PARTE 3/4
+// app.js — PARTE 3/4: KM, GASOLINA, IO Y TURNOS
 // ======================
 
 // ======================
@@ -349,7 +346,7 @@ function setupKmAndGasListeners() {
   $("btnGuardarKm")?.addEventListener("click", () => {
     const ini = Number($("kmInicial")?.value || 0);
     const fin = Number($("kmFinal")?.value || 0);
-    if (isNaN(ini) || isNaN(fin) || fin <= ini) return alert("KM inválidos.");
+    if (isNaN(ini) || isNaN(fin) || fin <= ini) return alert("KM inicial/final inválidos o Final es menor/igual a Inicial.");
 
     panelData.kmDiarios.push({
       fechaISO: nowISO(),
@@ -359,21 +356,21 @@ function setupKmAndGasListeners() {
       recorrido: fin - ini
     });
 
-    // Guardar KM final para usarlo mañana como inicial
     panelData.parametros = panelData.parametros || {};
     panelData.parametros.ultimoKMfinal = fin;
     guardarPanelData();
 
-    // recalcular gasto fijo al guardar KM
     calcularGastoFijoAuto();
 
-    // limpiar inputs
     $("kmInicial").value = "";
     $("kmFinal").value = "";
     $("kmRecorridos").textContent = "0";
 
     alert("Kilometraje guardado.");
     renderResumenIndex();
+    
+    // Asignar el último KM final para el siguiente registro
+    if ($("kmInicial")) $("kmInicial").value = fin;
   });
 
   $("btnGuardarGas")?.addEventListener("click", () => {
@@ -389,7 +386,7 @@ function setupKmAndGasListeners() {
       costo
     });
 
-    // registrar gasto
+    // registrar gasto de gasolina
     panelData.gastos.push({
       descripcion: `Gasolina ${litros}L`,
       cantidad: costo,
@@ -407,62 +404,60 @@ function setupKmAndGasListeners() {
     renderResumenIndex();
   });
 }
-setupKmAndGasListeners();
+
 
 // ======================
 // Importar / Exportar JSON
 // ======================
-$("btnExportar")?.addEventListener("click", () => {
-  const json = JSON.stringify(panelData, null, 2);
+function setupIoListeners() {
+    $("btnExportar")?.addEventListener("click", () => {
+      const json = JSON.stringify(panelData, null, 2);
 
-  navigator.clipboard.writeText(json)
-    .then(() => alert("Datos copiados al portapapeles."))
-    .catch(() => {
-      const blob = new Blob([json], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
+      navigator.clipboard.writeText(json)
+        .then(() => alert("Datos copiados al portapapeles."))
+        .catch(() => {
+          const blob = new Blob([json], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
 
-      a.href = url;
-      a.download = `backup_${Date.now()}.json`;
-      a.click();
+          a.href = url;
+          a.download = `backup_ubereats_tracker_${Date.now()}.json`;
+          a.click();
 
-      URL.revokeObjectURL(url);
-
-      alert("Backup descargado.");
+          URL.revokeObjectURL(url);
+          alert("Backup descargado.");
+        });
     });
-});
 
-$("btnImportar")?.addEventListener("click", () => {
-  const raw = ($("importJson")?.value || "").trim();
+    $("btnImportar")?.addEventListener("click", () => {
+      const raw = ($("importJson")?.value || "").trim();
 
-  if (!raw) return alert("Pega tu JSON primero.");
+      if (!raw) return alert("Pega tu JSON primero.");
 
-  try {
-    const parsed = JSON.parse(raw);
+      try {
+        const parsed = JSON.parse(raw);
 
-    panelData = Object.assign({}, panelData, parsed);
-    panelData.parametros = Object.assign({}, panelData.parametros, parsed.parametros);
+        // Combinar datos existentes con los importados
+        panelData = Object.assign({}, panelData, parsed);
+        panelData.parametros = Object.assign({}, panelData.parametros, (parsed.parametros || {}));
 
-    guardarPanelData();
+        guardarPanelData();
+        $("importJson").value = "";
+        
+        // Refrescar UI completamente
+        location.reload(); 
 
-    renderMovimientos();
-    renderDeudas();
-    renderResumenIndex();
+        alert("Importación correcta ✔. Recarga de página automática.");
 
-    // recalcular parámetros automáticos después de la importación
-    calcularDeudaTotalAuto();
-    calcularGastoFijoAuto();
+      } catch (e) {
+        console.error(e);
+        alert("JSON inválido.");
+      }
+    });
+    
+    // El listener de Excel se maneja en la Parte 4/4 (renderCharts)
+}
 
-    alert("Importación correcta ✔");
-
-  } catch (e) {
-    console.error(e);
-    alert("JSON inválido.");
-  }
-});
-// ======================
-// app.js — PARTE 4/4
-// ======================
 
 // ======================
 // Turnos
@@ -480,7 +475,7 @@ function actualizarUIturno() {
   if (turnoActivo) {
     ini.style.display = "none";
     fin.style.display = "inline-block";
-    txt.textContent = "Turno en curso";
+    txt.textContent = `Turno en curso iniciado el ${new Date(turnoInicio).toLocaleString("es-MX")}`;
   } else {
     ini.style.display = "inline-block";
     fin.style.display = "none";
@@ -511,7 +506,7 @@ function finalizarTurno() {
   const ganStr = prompt(`Terminó el turno.\nHoras: ${horas}\nGanancia (MXN):`);
   const gan = Number(ganStr);
 
-  if (!gan) return alert("Monto inválido.");
+  if (!gan) return alert("Monto inválido. El turno no fue registrado.");
 
   panelData.turnos.push({
     inicio: inicio.toISOString(),
@@ -520,6 +515,7 @@ function finalizarTurno() {
     ganancia: gan
   });
 
+  // El ingreso de la ganancia se registra aquí
   panelData.ingresos.push({
     descripcion: `Ganancia turno (${horas}h)`,
     cantidad: gan,
@@ -541,53 +537,17 @@ function finalizarTurno() {
   alert("Turno finalizado.");
   renderResumenIndex();
 }
+// ======================
+// app.js — PARTE 4/4: RENDERIZADO DE RESULTADOS E INICIALIZACIÓN
+// ======================
 
 // ======================
-// Inicializar y UI fija
+// Resumen del día
 // ======================
-
-
-// ======================
-// Resumen del día (ARREGLADO)
-// ======================
-function calcularResudocument.addEventListener("DOMContentLoaded", () => {
-    cargarPanelData();
-
-    // 🛠️ Crear parámetros si no existen (ESTO ES LO QUE FALTABA)
-    panelData.parametros = panelData.parametros || {};
-    if (panelData.parametros.deudaTotal === undefined) panelData.parametros.deudaTotal = 0;
-    if (panelData.parametros.gastoFijo === undefined) panelData.parametros.gastoFijo = 0;
-
-    actualizarUIturno();
-    renderMovimientos();
-    renderDeudas();
-    renderResumenIndex();
-    renderTablaTurnos();
-    renderCharts();
-
-    // 🔥 CALCULAR AUTOMÁTICO
-    calcularDeudaTotalAuto();
-    calcularGastoFijoAuto();
-
-    // 🔒 BLOQUEAR Y PINTAR INPUTS
-    const inpDeuda = document.getElementById("proyDeudaTotal");
-    const inpGasto = document.getElementById("proyGastoFijo");
-
-    if (inpDeuda) {
-        inpDeuda.readOnly = true;
-        inpDeuda.style.background = "#eee";
-        inpDeuda.value = Number(panelData.parametros.deudaTotal).toFixed(2);
-    }
-
-    if (inpGasto) {
-        inpGasto.readOnly = true;
-        inpGasto.style.background = "#eee";
-        inpGasto.value = Number(panelData.parametros.gastoFijo).toFixed(2);
-    }
-});
-menDatos() {
+function calcularResumenDatos() {
   const hoy = new Date().toISOString().slice(0, 10);
 
+  // Obtener turnos y gastos DE HOY
   const turnosHoy = (panelData.turnos || []).filter(t => (t.inicio || "").slice(0, 10) === hoy);
   const gastosHoy = (panelData.gastos || []).filter(g => (g.fechaISO || "").slice(0, 10) === hoy);
 
@@ -631,12 +591,15 @@ function renderTablaTurnos() {
   }
 
   arr.forEach(t => {
+    // Nota: Los campos de Gastos y Neta en esta tabla son simplificados,
+    // usando la ganancia del turno como Neta y Gastos en $0.00 (según tu código original)
+    // Para ser precisos, habría que calcular los gastos de ese día en específico.
     tbody.innerHTML += `
       <tr>
         <td>${(t.inicio || "").slice(0,10)}</td>
         <td>${(Number(t.horas) || 0).toFixed(2)}</td>
         <td>$${fmtMoney(t.ganancia)}</td>
-        <td>$0.00</td>
+        <td>$0.00</td> 
         <td>$${fmtMoney(t.ganancia)}</td>
       </tr>
     `;
@@ -684,18 +647,156 @@ function calcularProyeccionReal() {
   if ($("proyNeta"))  $("proyNeta").textContent  = "$" + fmtMoney(netaPromDia);
 
   if ($("proyDias")) {
-    if (diasParaLiquidar === Infinity) {
-      $("proyDias").style.display = "none";
+    if (diasParaLiquidar === Infinity || netaPromDia <= 0) {
+      $("proyDias").textContent = (deudaTotal > 0) ? "N/A (Ganancia Neta 0 o negativa)" : "Deuda Saldada";
     } else {
-      $("proyDias").style.display = "inline";
       $("proyDias").textContent = Math.ceil(diasParaLiquidar) + " días";
     }
   }
 }
 
 // ======================
-// Gráficas & Export (mismos helpers que antes)
+// AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS
 // ======================
-// ... (si tu versión tiene funciones de gráficos, mantenlas aquí)
-// Puedes pegar las funciones aggregateGananciasGastos, renderCharts, export a Excel, etc.
-// FIN DEL ARCHIVO
+function aggregateDailyData() {
+  const data = {};
+
+  const processEntry = (entry, type, amountKey) => {
+    const date = (entry.fechaISO || entry.inicio || "").slice(0, 10);
+    if (!date) return;
+
+    data[date] = data[date] || { date, ingresos: 0, gastos: 0, kmRecorridos: 0 };
+    data[date][type] += (Number(entry[amountKey]) || 0);
+  };
+
+  (panelData.turnos || []).forEach(t => processEntry(t, 'ingresos', 'ganancia'));
+  (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
+  (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
+
+  // Convertir objeto a array y ordenar por fecha
+  return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
+// ======================
+// GRÁFICAS (CHART.JS)
+// ======================
+let gananciasChart = null;
+let kmChart = null;
+
+function renderCharts() {
+  const dailyData = aggregateDailyData();
+
+  // Tomar solo los últimos 14 días
+  const last14Days = dailyData.slice(-14);
+  const labels = last14Days.map(d => d.date.slice(5)); 
+
+  // 1. Gráfica de Ganancias vs Gastos
+  const ctxGanancias = $("graficaGanancias");
+  if (ctxGanancias) {
+    if (gananciasChart) gananciasChart.destroy(); 
+
+    gananciasChart = new Chart(ctxGanancias, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Ingresos',
+          data: last14Days.map(d => d.ingresos),
+          backgroundColor: '#00a000', 
+        }, {
+          label: 'Gastos',
+          data: last14Days.map(d => d.gastos),
+          backgroundColor: '#d40000', 
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: { stacked: false },
+          y: { beginAtZero: true }
+        },
+        plugins: {
+          legend: { position: 'top' },
+          title: { display: false }
+        }
+      }
+    });
+  }
+
+  // 2. Gráfica de Kilometraje
+  const ctxKm = $("graficaKm");
+  if (ctxKm) {
+    if (kmChart) kmChart.destroy(); 
+
+    kmChart = new Chart(ctxKm, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'KM Recorridos',
+          data: last14Days.map(d => d.kmRecorridos),
+          borderColor: '#0066ff', 
+          backgroundColor: '#0066ff40',
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } },
+        plugins: {
+          legend: { position: 'top' },
+          title: { display: false }
+        }
+      }
+    });
+  }
+}
+
+// ======================
+// INICIALIZACIÓN (DOMContentLoaded)
+// ======================
+document.addEventListener("DOMContentLoaded", () => {
+    // 1. Setup Listeners
+    setupIngresoListeners();
+    setupGastoListeners();
+    setupDeudaListeners();
+    setupKmAndGasListeners();
+    setupIoListeners();
+    
+    // 2. Turnos Listeners
+    $("btnIniciarTurno")?.addEventListener("click", iniciarTurno);
+    $("btnFinalizarTurno")?.addEventListener("click", finalizarTurno);
+
+    // 3. Inicializar UI del Admin
+    actualizarUIturno();
+    renderDeudas();
+    
+    // Asignar el último KM final guardado como KM Inicial si existe
+    if ($("kmInicial") && panelData.parametros.ultimoKMfinal !== null) {
+        $("kmInicial").value = panelData.parametros.ultimoKMfinal;
+    }
+
+    // 4. Calcular y Pintar Parámetros Automáticos
+    calcularDeudaTotalAuto();
+    calcularGastoFijoAuto();
+
+    // 5. Bloquear y pintar inputs automáticos
+    const inpDeuda = document.getElementById("proyDeudaTotal");
+    const inpGasto = document.getElementById("proyGastoFijo");
+
+    if (inpDeuda) {
+        inpDeuda.readOnly = true;
+        inpDeuda.style.background = "#eee";
+    }
+
+    if (inpGasto) {
+        inpGasto.readOnly = true;
+        inpGasto.style.background = "#eee";
+    }
+
+    // 6. Renderizar Resultados (solo si estamos en index.html)
+    if (document.title.includes("Resultados")) {
+        renderResumenIndex(); 
+    }
+});
