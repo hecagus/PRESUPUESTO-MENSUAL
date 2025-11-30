@@ -3,117 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Resultados – Uber Eats Tracker</title>
+    <title>Resultados – Uber Eats Tracker</title>
 
-    <!-- Estilos -->
     <link rel="stylesheet" href="styles.css">
-
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
 
 <header class="header">
-    <h1>Resultados de Trabajo y Proyección</h1>
-    <a href="admin.html" class="btn-admin">⚙ Administrar Parámetros</a>
+    <h1>Resultados de Trabajo</h1>
+    <a href="admin.html" class="btn-admin">⚙ Administración</a>
 </header>
 
 <main class="container">
 
-    <!-- ==== ESTADÍSTICAS DE HOY ==== -->
+    <!-- ======== RESUMEN DEL DÍA ======== -->
     <section class="card">
         <h2>Resumen del Día</h2>
 
         <div class="stats-grid">
             <div class="stat">
-                <label>Horas Trabajadas Hoy:</label>
+                <label>Horas:</label>
                 <span id="resHoras">0</span>
             </div>
 
             <div class="stat">
-                <label>Ganancia Bruta Hoy:</label>
+                <label>Ganancia Bruta:</label>
                 <span id="resGananciaBruta">$0</span>
             </div>
 
             <div class="stat">
-                <label>Gasto Total Hoy:</label>
+                <label>Gastos:</label>
                 <span id="resGastos">$0</span>
             </div>
 
             <div class="stat">
-                <label>Ganancia Neta Hoy:</label>
+                <label>Neta:</label>
                 <span id="resNeta">$0</span>
             </div>
         </div>
     </section>
 
-
-
-    <!-- ==== PROYECCIÓN REAL ==== -->
+    <!-- ======== PROYECCIÓN REAL ======== -->
     <section class="card">
-        <h2>Proyección Real de Pago de Deuda</h2>
+        <h2>Proyección Real</h2>
 
-        <p class="small">Basado en tus últimos días trabajados</p>
+        <p>Basado en tus últimos días trabajados.</p>
 
-        <div class="projection">
-            <label>Deuda actual:</label>
-            <span id="proyDeuda">$0</span>
-        </div>
-
-        <div class="projection">
-            <label>Promedio Horas/Día:</label>
-            <span id="proyHoras">0 h</span>
-        </div>
-
-        <div class="projection">
-            <label>Promedio Ganancia Neta/Día:</label>
-            <span id="proyNeta">$0</span>
-        </div>
-
-        <div class="projection">
-            <label>Días necesarios para liquidar:</label>
-            <span id="proyDias">0 días</span>
-        </div>
+        <div class="projection"><label>Deuda total:</label> <span id="proyDeuda">$0</span></div>
+        <div class="projection"><label>Promedio horas/día:</label> <span id="proyHoras">0 h</span></div>
+        <div class="projection"><label>Promedio ganancia neta/día:</label> <span id="proyNeta">$0</span></div>
+        <div class="projection"><label>Días estimados:</label> <span id="proyDias">0 días</span></div>
     </section>
 
-
-
-    <!-- ==== HISTORIAL DE TURNOS ==== -->
+    <!-- ======== HISTORIAL DE TURNOS ======== -->
     <section class="card">
         <h2>Historial de Turnos</h2>
+
         <table class="tabla">
             <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Horas</th>
-                    <th>Ganancia</th>
-                    <th>Gastos</th>
-                    <th>Neta</th>
-                </tr>
+            <tr>
+                <th>Fecha</th>
+                <th>Horas</th>
+                <th>Ganancia</th>
+                <th>Gastos</th>
+                <th>Neta</th>
+            </tr>
             </thead>
+
             <tbody id="tablaTurnos"></tbody>
         </table>
     </section>
 
-
-
-    <!-- ==== GRÁFICA GANANCIAS VS GASTOS ==== -->
+    <!-- ======== GRÁFICAS ======== -->
     <section class="card">
-        <h2>Gráfica: Ganancias vs Gastos</h2>
+        <h2>Ganancias vs Gastos (Últimos 14 días)</h2>
         <canvas id="graficaGanancias"></canvas>
     </section>
 
-    <!-- ==== GRÁFICA KM VS GASOLINA ==== -->
     <section class="card">
-        <h2>Gráfica: KM Recorridos vs Gasolina</h2>
+        <h2>Gasolina</h2>
         <canvas id="graficaKm"></canvas>
     </section>
 
 </main>
 
-
 <script src="app.js"></script>
 
 </body>
-  </html>
+</html>
