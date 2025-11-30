@@ -538,6 +538,7 @@ function finalizarTurno() {
   renderResumenIndex();
 }
 // ======================
+// ======================
 // app.js — PARTE 4/4: RENDERIZADO DE RESULTADOS E INICIALIZACIÓN
 // ======================
 
@@ -559,6 +560,123 @@ function calcularResumenDatos() {
 }
 
 // ======================
+// AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS
+// ======================
+function aggregateDailyData() {
+  const data = {};
+
+  const processEntry = (entry, type, amountKey) => {
+    const date = (entry.fechaISO || entry.inicio || "").slice(0, 10);
+    if (!date) return;
+
+    data[date] = data[date] || { date, ingresos: 0, gastos: 0, kmRecorridos: 0 };
+    data[date][type] += (Number(entry[amountKey]) || 0);
+  };
+
+  (panelData.turnos || []).forEach(t => processEntry(t, 'ingresos', 'ganancia'));
+  (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
+  (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
+
+  // Convertir objeto a array y ordenar por fecha
+  return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
+// ======================
+// CÁLCULO DE MÉTRICAS MENSUALES DE KM (NUEVA FUNCIÓN)
+// ======================
+function aggregateKmMensual() {
+    const dataMensual = {};
+
+    // 1. Agrupar KM por mes
+    (panelData.kmDiarios || []).forEach(k => {
+        const date = new Date(k.fechaISO);
+        // Formato YYYY-MM para la clave
+        const mesKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        
+        dataMensual[mesKey] = dataMensual[mesKey] || { kmRecorridos: 0, costoGasolina: 0 };
+        dataMensual[mesKey].kmRecorridos += (Number(k.recorrido) || 0);
+    });
+
+    // 2. Sumar el costo de la gasolina por mes
+    (panelData.gastos || []).forEach(g => {
+        // Asumiendo que todos los gastos de gasolina se registran bajo "Transporte"
+        if (g.categoria === "Transporte" && g.descripcion.includes("Gasolina")) { 
+            const date = new Date(g.fechaISO);
+            const mesKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            
+            dataMensual[mesKey] = dataMensual[mesKey] || { kmRecorridos: 0, costoGasolina: 0 };
+            dataMensual[mesKey].costoGasolina += (Number(g.cantidad) || 0);
+        }
+    });
+
+    // 3. Calcular métricas finales y formatear
+    const resultado = Object.entries(dataMensual).map(([mesKey, data]) => {
+        const [year, month] = mesKey.split('-');
+        // Formatear el nombre del mes
+        const dateString = new Date(year, month - 1, 1).toLocaleString('es-MX', { year: 'numeric', month: 'long' });
+        
+        const costoPorKm = data.kmRecorridos > 0 
+            ? data.costoGasolina / data.kmRecorridos 
+            : 0;
+
+        return {
+            mes: dateString.charAt(0).toUpperCase() + dateString.slice(1),
+            kmRecorridos: data.kmRecorridos,
+            costoGasolina: data.costoGasolina,
+            costoPorKm: costoPorKm
+        };
+    }).sort((a, b) => {
+      // Ordenar por año-mes descendente (más reciente primero)
+      const keyA = a.mes.split(' ')[1] + new Date(a.mes).getMonth();
+      const keyB = b.mes.split(' ')[1] + new Date(b.mes).getMonth();
+      return keyB.localeCompare(keyA);
+    });
+
+    return resultado;
+}
+
+
+// ======================
+// RENDERIZADO DE TABLA DE KM MENSUAL (NUEVA FUNCIÓN)
+// ======================
+function renderTablaKmMensual() {
+    const tablaContainer = $("tablaKmMensual"); 
+    if (!tablaContainer) return;
+
+    const datosMensuales = aggregateKmMensual();
+    
+    let html = `
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>Mes</th>
+                    <th>KM Recorridos</th>
+                    <th>Costo Gasolina</th>
+                    <th>Costo por KM</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+    if (datosMensuales.length === 0) {
+        html += `<tr><td colspan="4" style="text-align:center">No hay datos de KM/Gasolina.</td></tr>`;
+    } else {
+        datosMensuales.forEach(d => {
+            html += `
+                <tr>
+                    <td>${d.mes}</td>
+                    <td>${d.kmRecorridos.toFixed(0)} KM</td>
+                    <td>$${fmtMoney(d.costoGasolina)}</td>
+                    <td>$${d.costoPorKm.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+    }
+
+    html += `</tbody></table>`;
+    tablaContainer.innerHTML = html;
+}
+
+// ======================
 // Render resumen index
 // ======================
 function renderResumenIndex() {
@@ -570,6 +688,7 @@ function renderResumenIndex() {
   if ($("resNeta")) $("resNeta").textContent = "$" + fmtMoney(r.ganHoy - r.gastHoy);
 
   renderTablaTurnos();
+  renderTablaKmMensual(); // <<< LLAMADA INTEGRADA
   renderCharts();
   calcularProyeccionReal();
 }
@@ -653,28 +772,6 @@ function calcularProyeccionReal() {
       $("proyDias").textContent = Math.ceil(diasParaLiquidar) + " días";
     }
   }
-}
-
-// ======================
-// AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS
-// ======================
-function aggregateDailyData() {
-  const data = {};
-
-  const processEntry = (entry, type, amountKey) => {
-    const date = (entry.fechaISO || entry.inicio || "").slice(0, 10);
-    if (!date) return;
-
-    data[date] = data[date] || { date, ingresos: 0, gastos: 0, kmRecorridos: 0 };
-    data[date][type] += (Number(entry[amountKey]) || 0);
-  };
-
-  (panelData.turnos || []).forEach(t => processEntry(t, 'ingresos', 'ganancia'));
-  (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
-  (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
-
-  // Convertir objeto a array y ordenar por fecha
-  return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
 }
 
 // ======================
@@ -800,3 +897,4 @@ document.addEventListener("DOMContentLoaded", () => {
         renderResumenIndex(); 
     }
 });
+          
