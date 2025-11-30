@@ -17,7 +17,6 @@
 
 <main class="container">
 
-    <!-- ================= INGRESOS ================= -->
     <section class="card">
         <h2>Registrar Ingreso</h2>
         <label>Descripción:</label>
@@ -29,7 +28,6 @@
         <button id="btnGuardarIngreso" class="btn-primary">Guardar Ingreso</button>
     </section>
 
-    <!-- ================= GASTOS ================= -->
     <section class="card">
         <h2>Registrar Gasto</h2>
 
@@ -50,7 +48,6 @@
         <button id="btnGuardarGasto" class="btn-primary">Guardar Gasto</button>
     </section>
 
-    <!-- ================= TURNOS ================= -->
     <section class="card">
         <h2>Turnos de Trabajo</h2>
         <p id="turnoTexto" class="turno-texto"></p>
@@ -59,7 +56,6 @@
         <button id="btnFinalizarTurno" class="btn-danger" style="display:none;">Finalizar Turno</button>
     </section>
 
-    <!-- ================= DEUDAS ================= -->
     <section class="card">
         <h2>Deudas</h2>
 
@@ -86,7 +82,6 @@
         <ul id="listaDeudas" class="list"></ul>
     </section>
 
-    <!-- ================= KM Y GASOLINA ================= -->
     <section class="card">
         <h2>Kilometraje</h2>
 
@@ -113,24 +108,23 @@
         <button id="btnGuardarGas" class="btn-primary">Guardar Gasolina</button>
     </section>
 
-    <!-- ================= PARÁMETROS DE PROYECCIÓN ================= -->
     <section class="card">
-        <h2>Parámetros de Proyección</h2>
+        <h2>Parámetros de Proyección (Automático)</h2>
 
         <label>Deuda total (MXN):</label>
-        <input type="number" id="proyDeudaTotal">
+        <input type="number" id="proyDeudaTotal" readonly style="background:#eee;">
 
         <label>Gasto fijo diario (MXN):</label>
-        <input type="number" id="proyGastoFijo">
-
-        <button id="btnGuardarProyeccion" class="btn-primary">Guardar</button>
+        <input type="number" id="proyGastoFijo" readonly style="background:#eee;">
+        
+        <button id="btnGuardarProyeccion" class="btn-primary" style="display:none;">Guardar</button> 
+        <p style="font-size: 0.9em; color: #555;">* Estos campos se calculan automáticamente en base a tus registros de Deudas, Comida y KM.</p>
     </section>
 
-    <!-- ================= IMPORTAR / EXPORTAR ================= -->
     <section class="card">
         <h2>Importar / Exportar Datos</h2>
 
-        <button id="btnExportar" class="btn-secondary">Exportar JSON</button>
+        <button id="btnExportar" class="btn-secondary">Exportar JSON (Copiar)</button>
 
         <button id="btnExportarExcel" class="btn-success">Exportar EXCEL (.xlsx)</button>
 
