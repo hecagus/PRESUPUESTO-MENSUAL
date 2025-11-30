@@ -1,52 +1,182 @@
-/* =========================
-   RESET Y BASE
-========================= */
-* {margin:0;padding:0;box-sizing:border-box;font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;}
-body {background:#f5f6fa;color:#333;font-size:16px;line-height:1.5;}
-h1,h2,h3,h4,h5,h6 {margin-bottom:0.5rem;color:#2f3640;}
-p {margin-bottom:1rem;}
-a {text-decoration:none;color:#2980b9;}
-button {cursor:pointer;border:none;outline:none;}
-input,select,textarea {padding:0.5rem;border:1px solid #ccc;border-radius:4px;width:100%;}
+/* ======================================================
+   ESTILOS GENERALES
+====================================================== */
 
-/* =========================
-   CONTENEDORES Y SECCIONES
-========================= */
-.container {max-width:1200px;margin:2rem auto;padding:0 1rem;}
-.card {background:#fff;padding:1rem 1.5rem;margin-bottom:1rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
-.resumen{display:flex;flex-wrap:wrap;gap:1rem;}
-.resumen .card{flex:1;min-width:180px;text-align:center;}
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #f4f4f4;
+    color: #222;
+}
 
-/* =========================
+h1, h2, h3 {
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.container {
+    width: 95%;
+    max-width: 900px;
+    margin: auto;
+    padding-bottom: 50px;
+}
+
+/* ======================================================
+   HEADER
+====================================================== */
+
+.header {
+    background: #1e293b;
+    color: white;
+    padding: 15px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.btn-admin {
+    display: inline-block;
+    padding: 8px 12px;
+    background: #0ea5e9;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    margin-top: 10px;
+}
+
+/* ======================================================
+   CARDS
+====================================================== */
+
+.card {
+    background: white;
+    padding: 18px;
+    margin-top: 15px;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+}
+
+/* ======================================================
+   FORMULARIOS
+====================================================== */
+
+label {
+    display: block;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+input, select, textarea {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    background: #fafafa;
+}
+
+textarea {
+    height: 100px;
+    resize: vertical;
+}
+
+/* ======================================================
    BOTONES
-========================= */
-.button,button{padding:0.5rem 1rem;border-radius:6px;background:#2980b9;color:#fff;font-weight:600;transition:0.3s;}
-.button:hover,button:hover{background:#3498db;}
-.button-small{padding:0.25rem 0.5rem;font-size:0.85rem;}
-.button-small.secondary{background:#e84118;color:#fff;}
-.button-small.secondary:hover{background:#c23616;}
+====================================================== */
 
-/* =========================
+.btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    margin-top: 12px;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: bold;
+    background: #475569;
+    color: white;
+}
+
+.btn-success {
+    background: #16a34a !important;
+}
+
+.btn-danger {
+    background: #dc2626 !important;
+}
+
+.btn-warning {
+    background: #f59e0b !important;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+/* ======================================================
+   LISTA DE DEUDAS
+====================================================== */
+
+#listaDeudas {
+    list-style: none;
+    padding: 0;
+}
+
+#listaDeudas li {
+    padding: 8px;
+    background: #f1f5f9;
+    margin-bottom: 6px;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* ======================================================
    TABLAS
-========================= */
-table {width:100%;border-collapse:collapse;margin-bottom:1rem;}
-th,td {padding:0.75rem;text-align:left;border-bottom:1px solid #eee;}
-th {background:#f0f0f0;font-weight:600;}
-.valor-positivo{color:green;font-weight:600;}
-.valor-negativo{color:red;font-weight:600;}
-.debt-amount{color:#e74c3c;font-weight:600;}
+====================================================== */
 
-/* =========================
-   GRÁFICAS
-========================= */
-.canvas-container { width:100%; max-width:700px; }
-canvas{width:100% !important;height:300px !important;margin-bottom:1rem;}
+.tabla, table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
 
-/* =========================
+.tabla th, table th {
+    background: #1e293b;
+    color: white;
+    padding: 10px;
+}
+
+.tabla td, table td {
+    background: #f8fafc;
+    padding: 8px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+}
+
+/* ======================================================
    RESPONSIVE
-========================= */
-@media(max-width:768px){
-  .resumen{flex-direction:column;}
-  .charts { flex-direction: column; }
-  .charts canvas { max-width:100%; }
+====================================================== */
+
+@media (max-width: 600px) {
+    .card {
+        padding: 14px;
+    }
+
+    input, select, textarea {
+        font-size: 14px;
+        padding: 8px;
+    }
+
+    .btn {
+        padding: 10px;
+        font-size: 15px;
+    }
+
+    table th, table td {
+        font-size: 14px;
+    }
 }
