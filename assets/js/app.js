@@ -382,3 +382,79 @@ function calcularProyeccionReal() {
 }
 
 calcularProyeccionReal();
+// ======================================================
+// SISTEMA DE TURNOS (COMPATIBLE CON TU ADMIN.HTML ACTUAL)
+// ======================================================
+
+let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || false;
+let turnoInicio = localStorage.getItem("turnoInicio") || null;
+
+function actualizarUIturno() {
+    const btnIni = document.getElementById("btnIniciarTurno");
+    const btnFin = document.getElementById("btnFinalizarTurno");
+    const txt = document.getElementById("turnoTexto");
+
+    if (!btnIni || !btnFin || !txt) return;
+
+    if (turnoActivo) {
+        btnIni.style.display = "none";
+        btnFin.style.display = "inline-block";
+        txt.textContent = "Turno en curso";
+    } else {
+        btnIni.style.display = "inline-block";
+        btnFin.style.display = "none";
+        txt.textContent = "Sin turno activo";
+    }
+}
+
+function iniciarTurno() {
+    if (turnoActivo) return alert("Ya hay un turno en curso.");
+
+    turnoActivo = true;
+    turnoInicio = new Date().toISOString();
+
+    localStorage.setItem("turnoActivo", true);
+    localStorage.setItem("turnoInicio", turnoInicio);
+
+    actualizarUIturno();
+}
+
+function finalizarTurno() {
+    if (!turnoActivo) return alert("No hay turno activo.");
+
+    const inicio = new Date(turnoInicio);
+    const fin = new Date();
+    const horas = ((fin - inicio) / 1000 / 60 / 60).toFixed(2);
+
+    const gan = Number(prompt(`Terminó el turno.\nHoras trabajadas: ${horas}\nIngresa la GANANCIA del turno:`));
+    if (!gan) return alert("Ganancia inválida.");
+
+    data.turnos.push({
+        inicio: inicio.toISOString(),
+        fin: fin.toISOString(),
+        horas: Number(horas),
+        ganancia: gan
+    });
+
+    agregarMovimiento("Ingreso", `Ganancia turno (${horas}h)`, gan);
+
+    turnoActivo = false;
+    turnoInicio = null;
+
+    localStorage.setItem("turnoActivo", false);
+    localStorage.removeItem("turnoInicio");
+
+    guardarDatos();
+    actualizarUIturno();
+}
+
+// listeners
+document.addEventListener("DOMContentLoaded", () => {
+    const ini = document.getElementById("btnIniciarTurno");
+    const fin = document.getElementById("btnFinalizarTurno");
+
+    if (ini) ini.onclick = iniciarTurno;
+    if (fin) fin.onclick = finalizarTurno;
+
+    actualizarUIturno();
+});
