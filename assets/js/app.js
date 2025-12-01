@@ -407,55 +407,65 @@ function setupKmAndGasListeners() {
 
 
 // ======================
+// // ======================
 // Importar / Exportar JSON
 // ======================
 function setupIoListeners() {
-    $("btnExportar")?.addEventListener("click", () => {
-      const json = JSON.stringify(panelData, null, 2);
+    // CORRECCIÓN: Usar los IDs del admin.html que coinciden con los botones
+    const btnExportar = $("btnExportar"); // El ID es 'btnExportar'
+    const btnImportar = $("btnImportar"); // El ID es 'btnImportar'
+    const textarea = $("importJson"); // El ID del textarea
 
-      navigator.clipboard.writeText(json)
-        .then(() => alert("Datos copiados al portapapeles."))
-        .catch(() => {
-          const blob = new Blob([json], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-
-          a.href = url;
-          a.download = `backup_ubereats_tracker_${Date.now()}.json`;
-          a.click();
-
-          URL.revokeObjectURL(url);
-          alert("Backup descargado.");
-        });
-    });
-
-    $("btnImportar")?.addEventListener("click", () => {
-      const raw = ($("importJson")?.value || "").trim();
-
-      if (!raw) return alert("Pega tu JSON primero.");
-
-      try {
-        const parsed = JSON.parse(raw);
-
-        // Combinar datos existentes con los importados
-        panelData = Object.assign({}, panelData, parsed);
-        panelData.parametros = Object.assign({}, panelData.parametros, (parsed.parametros || {}));
-
-        guardarPanelData();
-        $("importJson").value = "";
-        
-        // Refrescar UI completamente
-        location.reload(); 
-
-        alert("Importación correcta ✔. Recarga de página automática.");
-
-      } catch (e) {
-        console.error(e);
-        alert("JSON inválido.");
-      }
-    });
+    if (btnExportar) {
+        btnExportar.addEventListener("click", () => {
+          const json = JSON.stringify(panelData, null, 2);
     
-    // El listener de Excel se maneja en la Parte 4/4 (renderCharts)
+          navigator.clipboard.writeText(json)
+            .then(() => alert("Datos copiados al portapapeles."))
+            .catch(() => {
+              const blob = new Blob([json], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+    
+              a.href = url;
+              a.download = `backup_ubereats_tracker_${Date.now()}.json`;
+              a.click();
+    
+              URL.revokeObjectURL(url);
+              alert("Backup descargado.");
+            });
+        });
+    }
+
+    if (btnImportar) {
+        btnImportar.addEventListener("click", () => {
+          const raw = (textarea?.value || "").trim();
+    
+          if (!raw) return alert("Pega tu JSON primero.");
+    
+          try {
+            const parsed = JSON.parse(raw);
+    
+            // Combinar datos existentes con los importados
+            panelData = Object.assign({}, panelData, parsed);
+            panelData.parametros = Object.assign({}, panelData.parametros, (parsed.parametros || {}));
+    
+            guardarPanelData();
+            textarea.value = "";
+            
+            // Refrescar UI completamente
+            location.reload(); 
+    
+            alert("Importación correcta ✔. Recarga de página automática.");
+    
+          } catch (e) {
+            console.error(e);
+            alert("JSON inválido.");
+          }
+        });
+    }
+
+    // El botón Exportar Excel (btnExportarExcel) no tiene funcionalidad implementada, es correcto que no haga nada.
 }
 
 
