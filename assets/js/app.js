@@ -896,5 +896,37 @@ document.addEventListener("DOMContentLoaded", () => {
     if (document.title.includes("Resultados")) {
         renderResumenIndex(); 
     }
+  // app.js — PARTE 4/4 (aggregateDailyData)
+function aggregateDailyData() {
+  const data = {};
+
+  const processEntry = (entry, type, amountKey) => {
+    
+    // CAMBIO CLAVE: Usar la fecha Local para agrupar
+    // La fecha Local está en formato "DD/MM/YYYY, HH:MM..."
+    const rawDate = entry.fechaLocal || ""; 
+    if (!rawDate) return;
+
+    // Extraer solo la fecha: "DD/MM/YYYY"
+    const localDate = rawDate.split(',')[0].trim();
+    
+    // Convertir a formato "YYYY-MM-DD" para ordenar correctamente
+    const parts = localDate.split('/');
+    if (parts.length !== 3) return;
+    const dateKey = `${parts[2]}-${parts[1]}-${parts[0]}`; 
+
+    data[dateKey] = data[dateKey] || { date: dateKey, ingresos: 0, gastos: 0, kmRecorridos: 0 };
+    data[dateKey][type] += (Number(entry[amountKey]) || 0);
+  };
+  
+  // ... el resto de la función (sin cambios)
+  (panelData.ingresos || []).forEach(t => processEntry(t, 'ingresos', 'cantidad'));
+  (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
+  // ... etc.
+
+  // Convertir objeto a array y ordenar por fecha (dateKey YYYY-MM-DD)
+  return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+  
 });
           
