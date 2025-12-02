@@ -65,6 +65,19 @@
 
         <label>Monto total:</label>
         <input type="number" id="deudaMonto">
+        
+        <hr>
+        <h4>Compromiso de pago (para cálculo fijo)</h4>
+
+        <label>Monto programado (Ej. 449):</label>
+        <input type="number" id="deudaPagoProgramado">
+
+        <label>Periodicidad:</label>
+        <select id="deudaPeriodicidad">
+            <option value="Semanal">Semanal</option>
+            <option value="Quincenal">Quincenal</option>
+            <option value="Mensual">Mensual</option>
+        </select>
 
         <button id="btnRegistrarDeuda" class="btn-primary">Guardar Deuda</button>
 
@@ -114,11 +127,22 @@
         <label>Deuda total (MXN):</label>
         <input type="number" id="proyDeudaTotal" readonly style="background:#eee;">
 
-        <label>Gasto fijo diario (MXN):</label>
+        <label>Gasto fijo diario (calculado):</label>
         <input type="number" id="proyGastoFijo" readonly style="background:#eee;">
         
-        <button id="btnGuardarProyeccion" class="btn-primary" style="display:none;">Guardar</button> 
-        <p style="font-size: 0.9em; color: #555;">* Estos campos se calculan automáticamente en base a tus registros de Deudas, Comida y KM.</p>
+        <hr>
+        
+        <h3>Ajustes de Gastos Fijos</h3>
+        
+        <label>Costo asumido de Comida Diaria (MXN):</label>
+        <input type="number" id="paramComidaDiaria">
+        
+        <label>Costo de Mantenimiento/Combustible por KM (MXN):</label>
+        <input type="number" id="paramCostoPorKm">
+
+        <button id="btnGuardarParametros" class="btn-primary">Guardar Ajustes</button>
+
+        <p style="font-size: 0.9em; color: #555;">* Los gastos totales se calculan automáticamente en base a tus registros de Deudas, Comida y KM, usando estos ajustes.</p>
     </section>
 
     <section class="card">
