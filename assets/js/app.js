@@ -505,7 +505,45 @@ function setupKmAndGasListeners() {
   });
 }
 // ======================
-// Importar / Exportar JSON y Guardar Parámetros
+
+    
+    // NUEVO: Guardar Parámetros de Proyección Manuales
+    $("btnGuardarParametros")?.addEventListener("click", () => {
+        // Los valores de Comida y KM se usan como FALLBACK, 
+        // pero se permite al usuario ajustar los valores en caso de que aún no haya datos suficientes.
+        const comida = Number($("paramComidaDiaria")?.value || 0);
+        const kmCost = Number($("paramCostoPorKm")?.value || 0);
+        
+        if (comida < 0 || kmCost < 0) return alert("Los costos no pueden ser negativos.");
+
+        panelData.parametros.costoComidaDiari// a = comida;
+        panelData.parametros.costoMantenimientoPorKm = kmCost;
+        
+        guardarPanelData();
+        // Recalcular el gasto fijo con los nuevos valores (aunque la mayoría son automáticos)
+        calcularGastoFijoAuto(); 
+        alert("Ajustes de parámetros guardados.");
+    });
+}
+
+
+// ======================
+// Turnos
+// ======================
+let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || false;
+let turnoInicio = localStorage.getItem("turnoInicio") || null;
+
+function actualizarUIturno() {
+  const ini = $("btnIniciarTurno");
+  const fin = $("btnFinalizarTurno");
+  const txt = $("turnoTexto");
+
+  if (!ini || !fin || !txt) return;
+
+  if (turnoActivo) {
+    ini.style.display = "none";
+    fin.style.display = "inline-block";
+    txt.textContent = `Turno en curso iniciado el ${new Date(turnoInicio).toLoImportar / Exportar JSON y Guardar Parámetros
 // ======================
 function setupIoListeners() {
     $("btnExportar")?.addEventListener("click", () => {
@@ -551,45 +589,7 @@ function setupIoListeners() {
         console.error(e);
         alert("JSON inválido.");
       }
-    });
-    
-    // NUEVO: Guardar Parámetros de Proyección Manuales
-    $("btnGuardarParametros")?.addEventListener("click", () => {
-        // Los valores de Comida y KM se usan como FALLBACK, 
-        // pero se permite al usuario ajustar los valores en caso de que aún no haya datos suficientes.
-        const comida = Number($("paramComidaDiaria")?.value || 0);
-        const kmCost = Number($("paramCostoPorKm")?.value || 0);
-        
-        if (comida < 0 || kmCost < 0) return alert("Los costos no pueden ser negativos.");
-
-        panelData.parametros.costoComidaDiaria = comida;
-        panelData.parametros.costoMantenimientoPorKm = kmCost;
-        
-        guardarPanelData();
-        // Recalcular el gasto fijo con los nuevos valores (aunque la mayoría son automáticos)
-        calcularGastoFijoAuto(); 
-        alert("Ajustes de parámetros guardados.");
-    });
-}
-
-
-// ======================
-// Turnos
-// ======================
-let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || false;
-let turnoInicio = localStorage.getItem("turnoInicio") || null;
-
-function actualizarUIturno() {
-  const ini = $("btnIniciarTurno");
-  const fin = $("btnFinalizarTurno");
-  const txt = $("turnoTexto");
-
-  if (!ini || !fin || !txt) return;
-
-  if (turnoActivo) {
-    ini.style.display = "none";
-    fin.style.display = "inline-block";
-    txt.textContent = `Turno en curso iniciado el ${new Date(turnoInicio).toLocaleString("es-MX")}`;
+    });caleString("es-MX")}`;
   } else {
     ini.style.display = "inline-block";
     fin.style.display = "none";
