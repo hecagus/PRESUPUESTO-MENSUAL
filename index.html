@@ -3,138 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Resultados – Uber Eats Tracker</title>
+    <title>Resultados – Uber Eats Tracker</title>
 
     <link rel="stylesheet" href="assets/css/style.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
 
 <header class="header">
     <h1>Panel de Resultados</h1>
-    <a href="admin.html" class="btn-admin">⬅ Ir al Administrador</a>
+    <a href="admin.html" class="btn-admin">⚙ Ir al Administrador</a>
 </header>
 
 <main class="container">
 
     <section class="card">
-        <h2>Registrar Ingreso</h2>
-        <label>Descripción:</label>
-        <input type="text" id="ingresoDescripcion">
+        <h2>Resumen del Día</h2>
 
-        <label>Monto:</label>
-        <input type="number" id="ingresoCantidad">
+        <div class="stats-grid">
+            <div class="stat">
+                <label>Horas:</label>
+                <span id="resHoras">0</span>
+            </div>
 
-        <button id="btnGuardarIngreso" class="btn-primary">Guardar Ingreso</button>
-    </section>
+            <div class="stat">
+                <label>Ganancia Bruta:</label>
+                <span id="resGananciaBruta">$0</span>
+            </div>
 
-    <section class="card">
-        <h2>Registrar Gasto</h2>
+            <div class="stat">
+                <label>Gastos:</label>
+                <span id="resGastos">$0</span>
+            </div>
 
-        <label>Descripción:</label>
-        <input type="text" id="gastoDescripcion">
-
-        <label>Monto:</label>
-        <input type="number" id="gastoCantidad">
-
-        <label>Categoría:</label>
-        <select id="gastoCategoria">
-            <option value="Comida">Comida</option>
-            <option value="Transporte">Transporte</option>
-            <option value="Mantenimiento">Mantenimiento</option>
-            <option value="Otros">Otros</option>
-        </select>
-
-        <button id="btnGuardarGasto" class="btn-primary">Guardar Gasto</button>
-    </section>
-
-    <section class="card">
-        <h2>Turnos de Trabajo</h2>
-        <p id="turnoTexto" class="turno-texto"></p>
-
-        <button id="btnIniciarTurno" class="btn-success">Iniciar Turno</button>
-        <button id="btnFinalizarTurno" class="btn-danger" style="display:none;">Finalizar Turno</button>
-    </section>
-
-    <section class="card">
-        <h2>Deudas</h2>
-
-        <div id="deudaPaso1" style="display:block;">
-            <h3>Registrar deuda (Paso 1 de 4)</h3>
-            <label>Nombre de la deuda:</label>
-            <input type="text" id="deudaNombre" placeholder="Ej: Tarjeta de Crédito">
-            <button id="btnPaso1" class="btn-primary">Siguiente</button>
+            <div class="stat">
+                <label>Neta:</label>
+                <span id="resNeta">$0</span>
+            </div>
         </div>
+    </section>
+    
+    <section class="card">
+        <h2>Proyección Real</h2>
 
-        <div id="deudaPaso2" style="display:none;">
-            <h3>Registrar deuda (Paso 2 de 4)</h3>
-            <label>Monto total de la deuda (MXN):</label>
-            <input type="number" id="deudaMonto" placeholder="Ej: 15000">
-            <button id="btnPaso2" class="btn-primary">Siguiente</button>
-        </div>
+        <p>Basado en tus promedios y deudas.</p>
 
-        <div id="deudaPaso3" style="display:none;">
-            <h3>Registrar deuda (Paso 3 de 4)</h3>
-            <label>Monto programado de abono (MXN):</label>
-            <input type="number" id="deudaAbonoProgramado" placeholder="Ej: 449 (0 si no tienes un abono fijo)">
-            <button id="btnPaso3" class="btn-primary">Siguiente</button>
-        </div>
-
-        <div id="deudaPaso4" style="display:none;">
-            <h3>Registrar deuda (Paso 4 de 4)</h3>
-            <label>Periodicidad:</label>
-            <select id="deudaPeriodicidad">
-                <option value="Semanal">Semanal</option>
-                <option value="Quincenal">Quincenal</option>
-                <option value="Mensual">Mensual</option>
-                <option value="Único">Único</option>
-            </select>
-            <button id="btnRegistrarDeuda" class="btn-success">Guardar Deuda</button>
-        </div>
-        
-        <hr>
-
-        <h3>Registrar abono</h3>
-        <label>Selecciona Deuda:</label>
-        <select id="abonoSeleccionar"></select>
-
-        <label>Monto Abonado:</label>
-        <input type="number" id="abonoMonto">
-
-        <button id="btnRegistrarAbono" class="btn-primary">Registrar Abono</button>
-
-        <ul id="listaDeudas" class="list"></ul>
+        <div class="projection"><label>Deuda total pendiente:</label> <span id="proyDeuda">$0</span></div>
+        <div class="projection"><label>Promedio horas/día:</label> <span id="proyHoras">0 h</span></div>
+        <div class="projection"><label>Promedio ganancia neta/día:</label> <span id="proyNeta">$0</span></div>
+        <div class="projection"><label>Días para liquidar deuda:</label> <span id="proyDias">0 días</span></div>
     </section>
 
     <section class="card">
-        <h2>Kilometraje</h2>
+        <h2>Historial de Turnos</h2>
 
-        <label>KM Inicial:</label>
-        <input type="number" id="kmInicial">
+        <table class="tabla">
+            <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Horas</th>
+                <th>Ganancia Bruta</th>
+                <th>Gastos del Día</th>
+                <th>Ganancia Neta</th>
+            </tr>
+            </thead>
 
-        <label>KM Final:</label>
-        <input type="number" id="kmFinal">
-
-        <p>KM recorridos: <span id="kmRecorridos">0</span></p>
-
-        <button id="btnGuardarKm" class="btn-primary">Guardar KM</button>
+            <tbody id="tablaTurnos"></tbody>
+        </table>
+    </section>
+    
+    <section class="card">
+        <h2>Métricas Mensuales de Vehículo (Gasolina/KM)</h2>
+        <div id="tablaKmMensual">
+            </div>
     </section>
 
     <section class="card">
-        <h2>Registro de Gasolina</h2>
-
-        <label>Litros:</label>
-        <input type="number" id="litrosGas">
-
-        <label>Costo total:</label>
-        <input type="number" id="costoGas">
-
-        <button id="btnGuardarGas" class="btn-primary">Guardar Gasolina</button>
+        <h2>Ganancias vs Gastos (Últimos 14 días)</h2>
+        <canvas id="graficaGanancias"></canvas>
     </section>
 
     <section class="card">
-        <h2>Parámetros de Proyección (Automático)</h2>
+        <h2>Kilometraje Diario (Últimos 14 días)</h2>
+        <canvas id="graficaKm"></canvas>
+    </section>
+    
+    <section class="card">
+        <h2>Ajustes de Gastos Fijos (Para Proyección)</h2>
 
         <label>Deuda total (MXN):</label>
         <input type="number" id="proyDeudaTotal" readonly style="background:#eee;">
@@ -144,7 +101,7 @@
         
         <hr>
         
-        <h3>Ajustes de Gastos Fijos</h3>
+        <h3>Ajustes Manuales</h3>
         
         <label>Costo asumido de Comida Diaria (MXN):</label>
         <input type="number" id="paramComidaDiaria">
@@ -154,9 +111,9 @@
 
         <button id="btnGuardarParametros" class="btn-primary">Guardar Ajustes</button>
 
-        <p style="font-size: 0.9em; color: #555;">* Los gastos totales se calculan automáticamente en base a tus registros de Deudas, Comida y KM, usando estos ajustes.</p>
+        <p style="font-size: 0.9em; color: #555;">* Estos ajustes son usados en la fórmula para calcular el "Gasto fijo diario (calculado)".</p>
     </section>
-
+    
     <section class="card">
         <h2>Importar / Exportar Datos</h2>
 
