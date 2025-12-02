@@ -1,5 +1,5 @@
 // ======================
-// app.js — PARTE 1/5: SETUP Y UTILIDADES
+// app.js — PARTE 1/5: SETUP Y UTILIDADES & CÁLCULO DE GASTO FIJO
 // ======================
 
 const STORAGE_KEY = "panelData";
@@ -63,7 +63,7 @@ const nowISO = () => new Date().toISOString();
 const nowLocal = () => new Date().toLocaleString("es-MX");
 
 
-// --- NUEVAS UTILIDADES DE FECHA PARA FILTRADO LOCAL (CORRECCIÓN) ---
+// --- NUEVAS UTILIDADES DE FECHA PARA FILTRADO LOCAL ---
 
 /**
  * Obtiene la fecha actual en formato local (DD/MM/YYYY) para filtrar los registros de 'hoy'.
@@ -97,13 +97,16 @@ function getLocalDayFromISODate(isoDateString) {
 }
 
 // -----------------------------
-// FUNCIONES AUTOMÁTICAS (CÁLCULO DE GASTO FIJO)
+// FUNCIONES AUTOMÁTICAS (CÁLCULO DE GASTO FIJO Y DEUDA)
 // -----------------------------
 
 // A) calcula el costo promedio por KM basado en el total de KM y el total de Gasolina
 function calcularCostoPromedioPorKm() {
     const totalKMRecorridos = (panelData.kmDiarios || []).reduce((sum, entry) => sum + (Number(entry.recorrido) || 0), 0);
-    const totalCostoGasolina = (panelData.gasolina || []).reduce((sum, entry) => sum + (Number(entry.costo) || 0), 0);
+    // Filtrar solo gastos de gasolina bajo la categoría Transporte
+    const totalCostoGasolina = (panelData.gastos || [])
+        .filter(g => g.categoria === "Transporte" && g.descripcion.includes("Gasolina"))
+        .reduce((sum, entry) => sum + (Number(entry.cantidad) || 0), 0);
     
     // Obtener el valor configurable como fallback (el que se usará si no hay datos)
     const costoConfigurable = panelData.parametros.costoMantenimientoPorKm || 0.6;
@@ -174,8 +177,7 @@ function calcularGastoFijoAuto() {
   panelData.parametros.gastoFijo = gastoFijo;
   guardarPanelData();
 
-  // 6. ACTUALIZAR UI en admin.html (ahora se hace en DOMContentLoaded para que no haya race conditions)
-  // Se actualizan los valores en el DOM con el promedio/calculado
+  // 6. ACTUALIZAR UI en admin.html
   const inpGastoFijo = $("proyGastoFijo");
   if (inpGastoFijo) inpGastoFijo.value = gastoFijo.toFixed(2);
   
@@ -204,7 +206,7 @@ function calcularDeudaTotalAuto() {
   }
 }
 // ======================
-// Movimientos (Historial)
+// app.js — PARTE 2/5: MOVIMIENTOS, REGISTRAR INGRESO Y GASTO
 // ======================
 function pushMovimiento(tipo, descripcion, monto) {
   panelData.movimientos.unshift({
@@ -292,7 +294,8 @@ function setupGastoListeners() {
     });
 
     // Si es gasto que afecta el cálculo automático, recalcular
-    if (cat === "Comida" || cat === "Transporte" || cat === "Abono a Deuda") calcularGastoFijoAuto();
+    // NOTA: 'Transporte' incluye gasolina. 'Abono a Deuda' se manejará por separado
+    if (cat === "Comida" || cat === "Transporte") calcularGastoFijoAuto();
 
     pushMovimiento("Gasto", `${desc} (${cat})`, qty);
     guardarPanelData();
@@ -305,7 +308,7 @@ function setupGastoListeners() {
   });
 }
 // ======================
-// Deudas
+// app.js — PARTE 3/5: DEUDAS Y KM/GASOLINA
 // ======================
 function renderDeudas() {
   const list = $("listaDeudas");
@@ -505,50 +508,16 @@ function setupKmAndGasListeners() {
   });
 }
 // ======================
-
-    
-    // NUEVO: Guardar Parámetros de Proyección Manuales
-    $("btnGuardarParametros")?.addEventListener("click", () => {
-        // Los valores de Comida y KM se usan como FALLBACK, 
-        // pero se permite al usuario ajustar los valores en caso de que aún no haya datos suficientes.
-        const comida = Number($("paramComidaDiaria")?.value || 0);
-        const kmCost = Number($("paramCostoPorKm")?.value || 0);
-        
-        if (comida < 0 || kmCost < 0) return alert("Los costos no pueden ser negativos.");
-
-        panelData.parametros.costoComidaDiari// a = comida;
-        panelData.parametros.costoMantenimientoPorKm = kmCost;
-        
-        guardarPanelData();
-        // Recalcular el gasto fijo con los nuevos valores (aunque la mayoría son automáticos)
-        calcularGastoFijoAuto(); 
-        alert("Ajustes de parámetros guardados.");
-    });
-}
-
-
+// app.js — PARTE 4/5: IMPORTAR/EXPORTAR Y TURNOS (FIX)
 // ======================
-// Turnos
-// ======================
-let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || false;
-let turnoInicio = localStorage.getItem("turnoInicio") || null;
 
-function actualizarUIturno() {
-  const ini = $("btnIniciarTurno");
-  const fin = $("btnFinalizarTurno");
-  const txt = $("turnoTexto");
-
-  if (!ini || !fin || !txt) return;
-
-  if (turnoActivo) {
-    ini.style.display = "none";
-    fin.style.display = "inline-block";
-    txt.textContent = `Turno en curso iniciado el ${new Date(turnoInicio).toLoImportar / Exportar JSON y Guardar Parámetros
+// Importar / Exportar JSON y Guardar Parámetros (FUNCIÓN CORREGIDA)
 // ======================
 function setupIoListeners() {
     $("btnExportar")?.addEventListener("click", () => {
       const json = JSON.stringify(panelData, null, 2);
 
+      // Intenta usar el portapapeles (más rápido) o descarga un archivo
       navigator.clipboard.writeText(json)
         .then(() => alert("Datos copiados al portapapeles."))
         .catch(() => {
@@ -589,7 +558,91 @@ function setupIoListeners() {
         console.error(e);
         alert("JSON inválido.");
       }
-    });caleString("es-MX")}`;
+    });
+    
+    // NUEVO: Exportar a Excel (Requiere librería SheetJS en index.html)
+    $("btnExportarExcel")?.addEventListener("click", () => {
+      if (typeof XLSX === 'undefined') return alert("Error: La librería de Excel no está cargada. Asegúrate de incluir el script en index.html.");
+
+      const wb = XLSX.utils.book_new();
+
+      // HOJA 1: Movimientos
+      const movimientosWs = XLSX.utils.json_to_sheet(panelData.movimientos.map(m => ({
+          Fecha: m.fechaLocal.split(',')[0],
+          Hora: m.fechaLocal.split(',')[1].trim(),
+          Tipo: m.tipo,
+          Descripcion: m.descripcion,
+          Monto: m.monto
+      })));
+      XLSX.utils.book_append_sheet(wb, movimientosWs, "Movimientos");
+
+      // HOJA 2: Turnos
+      const turnosWs = XLSX.utils.json_to_sheet(panelData.turnos.map(t => ({
+          Inicio: getLocalDayFromISODate(t.inicio),
+          Fin: getLocalDayFromISODate(t.fin),
+          Horas: t.horas,
+          Ganancia: t.ganancia
+      })));
+      XLSX.utils.book_append_sheet(wb, turnosWs, "Turnos");
+
+      // HOJA 3: Gastos
+      const gastosWs = XLSX.utils.json_to_sheet(panelData.gastos.map(g => ({
+          Fecha: g.fechaLocal.split(',')[0],
+          Descripcion: g.descripcion,
+          Categoria: g.categoria,
+          Cantidad: g.cantidad
+      })));
+      XLSX.utils.book_append_sheet(wb, gastosWs, "Gastos");
+      
+      // HOJA 4: Deudas
+      const deudasWs = XLSX.utils.json_to_sheet(panelData.deudas.map(d => ({
+          Nombre: d.nombre,
+          MontoTotal: d.monto,
+          MontoAbonado: d.abonado,
+          Pendiente: (Number(d.monto) || 0) - (Number(d.abonado) || 0)
+      })));
+      XLSX.utils.book_append_sheet(wb, deudasWs, "Deudas");
+
+      // Exportar el archivo
+      XLSX.writeFile(wb, `reporte_ubereats_tracker_${Date.now()}.xlsx`);
+      alert("Reporte EXCEL (.xlsx) generado.");
+    });
+    
+    // Guardar Parámetros de Proyección Manuales
+    $("btnGuardarParametros")?.addEventListener("click", () => {
+        const comida = Number($("paramComidaDiaria")?.value || 0);
+        const kmCost = Number($("paramCostoPorKm")?.value || 0);
+        
+        if (comida < 0 || kmCost < 0) return alert("Los costos no pueden ser negativos.");
+
+        panelData.parametros.costoComidaDiaria = comida;
+        panelData.parametros.costoMantenimientoPorKm = kmCost;
+        
+        guardarPanelData();
+        // Recalcular el gasto fijo con los nuevos valores
+        calcularGastoFijoAuto(); 
+        alert("Ajustes de parámetros guardados.");
+    });
+}
+
+
+// ======================
+// Turnos
+// ======================
+let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || false;
+let turnoInicio = localStorage.getItem("turnoInicio") || null;
+
+function actualizarUIturno() {
+  const ini = $("btnIniciarTurno");
+  const fin = $("btnFinalizarTurno");
+  const txt = $("turnoTexto");
+
+  if (!ini || !fin || !txt) return;
+
+  if (turnoActivo) {
+    ini.style.display = "none";
+    fin.style.display = "inline-block";
+    txt.textContent = `Turno en curso iniciado el ${new Date(turnoInicio).toLocaleString("es-MX")}`;
   } else {
     ini.style.display = "inline-block";
     fin.style.display = "none";
@@ -620,7 +673,7 @@ function finalizarTurno() {
   const ganStr = prompt(`Terminó el turno.\nHoras: ${horas}\nGanancia (MXN):`);
   const gan = Number(ganStr);
 
-  if (!gan) return alert("Monto inválido. El turno no fue registrado.");
+  if (!gan || isNaN(gan)) return alert("Monto inválido. El turno no fue registrado.");
 
   panelData.turnos.push({
     inicio: inicio.toISOString(),
@@ -652,7 +705,9 @@ function finalizarTurno() {
   renderResumenIndex();
 }
 // ======================
-// app.js — PARTE 5/5: RENDERIZADO DE RESULTADOS E INICIALI/* Archivo: app.js (Reemplazar la función renderResumenIndex en la Parte 5) */
+// app.js — PARTE 5/5: RENDERIZADO, AGREGACIÓN Y INICIALIZACIÓN
+// ======================
+
 /**
  * Función que calcula y renderiza los resultados del resumen diario (HORAS, INGRESO, GASTO, NETA).
  * Utiliza getTodayLocalDateKey() y getLocalDayFromISODate() para asegurar que la data sea
@@ -685,7 +740,7 @@ function renderResumenIndex() {
     const resNeta = $('resNeta');
 
     if (resHoras) resHoras.textContent = totalHoras.toFixed(2);
-    // CORRECCIÓN: fmtMoney ya incluye el símbolo "$", quitamos el adicional.
+    // fmtMoney ya incluye el símbolo "$", solo se pasa el valor
     if (resGananciaBruta) resGananciaBruta.textContent = fmtMoney(totalIngresos);
     if (resGastos) resGastos.textContent = fmtMoney(totalGastos);
     if (resNeta) resNeta.textContent = fmtMoney(totalNeta);
@@ -697,14 +752,6 @@ function renderResumenIndex() {
     calcularProyeccionReal();
 }
 
-// ======================
-
-// ======================
-
-// ======================
-// AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS
-// ======================
-/* Archivo: app.js (Reemplazar la función aggregateDailyData en la Parte 5) */
 // ======================
 // AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS (CORREGIDO)
 // ======================
@@ -730,14 +777,11 @@ function aggregateDailyData() {
   };
     
   // 1. Procesar Gastos e Ingresos (que tienen fechaLocal)
-  // Nota: Los ingresos vienen del array 'turnos', pero el array 'ingresos' tiene la fecha local correcta.
   (panelData.ingresos || []).forEach(i => processEntry(i, 'ingresos', 'cantidad'));
   (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
   
   // 2. Procesar KM (que también tienen fechaLocal)
-  // Aunque los KM tienen fechaLocal, el código anterior solo usaba ISO. Usaremos fechaLocal.
   (panelData.kmDiarios || []).forEach(k => {
-      // Necesitamos una función similar para KM, ya que no se ajustan directamente al formato anterior
       const rawDate = k.fechaLocal || ""; 
       if (!rawDate) return;
 
@@ -773,7 +817,7 @@ function aggregateKmMensual() {
 
     // 2. Sumar el costo de la gasolina por mes
     (panelData.gastos || []).forEach(g => {
-        // Asumiendo que todos los gastos de gasolina se registran bajo "Transporte"
+        // Asumiendo que todos los gastos de gasolina se registran bajo "Transporte" y tienen "Gasolina" en la descripción
         if (g.categoria === "Transporte" && g.descripcion.includes("Gasolina")) { 
             const date = new Date(g.fechaISO);
             const mesKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -867,9 +911,7 @@ function renderTablaTurnos() {
   }
 
   arr.forEach(t => {
-    // Nota: Los campos de Gastos y Neta en esta tabla son simplificados,
-    // usando la ganancia del turno como Neta y Gastos en $0.00 (según tu código original)
-    // Para ser precisos, habría que calcular los gastos de ese día en específico.
+    // La tabla muestra la neta asumiendo que el gasto de ese día fue 0.00
     tbody.innerHTML += `
       <tr>
         <td>${(t.inicio || "").slice(0,10)}</td>
@@ -888,8 +930,6 @@ function renderTablaTurnos() {
 function calcularProyeccionReal() {
   const p = panelData.parametros || {};
   const deudaTotal = Number(p.deudaTotal || 0);
-  // gastoFijo se mantiene para mostrarse en admin, pero no se usa en la neta Promedio
-  // const gastoFijo  = Number(p.gastoFijo || 0);
 
   const turnos = panelData.turnos || [];
   const diasTrabajados = new Set(turnos.map(t => (t.inicio || "").slice(0,10))).size;
@@ -912,7 +952,7 @@ function calcularProyeccionReal() {
   const gastoPromDia = Object.values(gastosPorFecha).reduce((s,v)=>s+v,0) /
                         (Object.keys(gastosPorFecha).length || 1);
 
-  // CORRECCIÓN: Se elimina el "- gastoFijo" para evitar duplicidad de costos.
+  // Neta promedio diaria: Ganancia promedio - Gasto promedio (para evitar duplicar costos fijos)
   const netaPromDia = ganPromDia - gastoPromDia; 
 
   let diasParaLiquidar = Infinity;
