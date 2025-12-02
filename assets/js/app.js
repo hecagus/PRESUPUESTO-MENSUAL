@@ -272,6 +272,7 @@ function renderDeudas() {
     select.innerHTML = `<option value="">-- No hay deudas pendientes --</option>`;
   }
 }
+// app.js: Reemplaza completamente la función setupDeudaListeners()
 
 // Event Listeners para Deudas (Implementa el flujo de 6 pasos)
 function setupDeudaListeners() {
@@ -290,7 +291,8 @@ function setupDeudaListeners() {
 
     // Lógica de navegación entre pasos
     
-    // 2. Pantalla "Nombre" -> Siguiente
+    // 2. Pantalla "Nombre" -> Siguiente (btnPaso1)
+    // ESTA PARTE FUE CORREGIDA PARA ASEGURAR QUE EL EVENTO SE AÑADA
     $("btnPaso1")?.addEventListener("click", () => {
         const nombre = ($("deudaNombre")?.value || "").trim();
         if (!nombre) return alert("Ingresa el nombre de la deuda.");
@@ -299,7 +301,7 @@ function setupDeudaListeners() {
         $("deudaPaso2").style.display = "block";
     });
 
-    // 3. Pantalla "Monto" -> Siguiente
+    // 3. Pantalla "Monto" -> Siguiente (btnPaso2)
     $("btnPaso2")?.addEventListener("click", () => {
         const monto = Number($("deudaMonto")?.value || 0);
         if (!monto || monto <= 0) return alert("Ingresa un monto válido.");
@@ -308,7 +310,7 @@ function setupDeudaListeners() {
         $("deudaPaso3").style.display = "block";
     });
 
-    // 4. Pantalla "¿Cuánto abonas?" -> Siguiente
+    // 4. Pantalla "¿Cuánto abonas?" -> Siguiente (btnPaso3)
     $("btnPaso3")?.addEventListener("click", () => {
         const abono = Number($("deudaAbonoProgramado")?.value || 0);
         // Permitimos abono 0 (si no hay abono programado fijo)
@@ -318,7 +320,7 @@ function setupDeudaListeners() {
         $("deudaPaso4").style.display = "block";
     });
 
-    // 6. Finalmente, Guardar Deuda
+    // 6. Finalmente, Guardar Deuda (btnRegistrarDeuda)
     $("btnRegistrarDeuda")?.addEventListener("click", () => {
       const nombre = ($("deudaNombre")?.value || "").trim();
       const monto = Number($("deudaMonto")?.value || 0);
@@ -336,6 +338,58 @@ function setupDeudaListeners() {
           abonoProgramado, 
           periodicidad 
       });
+
+      guardarPanelData();
+      renderDeudas(); 
+      
+      calcularDeudaTotalAuto();
+      calcularGastoFijoAuto();
+
+      resetDeudaForm(); // Vuelve al inicio del proceso
+
+      alert("Deuda registrada.");
+    });
+
+    // Lógica de Abono (MANTENER)
+    $("btnRegistrarAbono")?.addEventListener("click", () => {
+      const idx = $("abonoSeleccionar")?.value;
+      const monto = Number($("abonoMonto")?.value || 0);
+
+      if (idx === "" || !idx || monto <= 0) return alert("Datos inválidos.");
+
+      // Verificar que el índice exista y el monto no exceda el saldo
+      const deuda = panelData.deudas[idx];
+      const pendiente = (Number(deuda.monto) || 0) - (Number(deuda.abonado) || 0);
+
+      if(monto > pendiente) return alert(`El abono excede el saldo pendiente de $${fmtMoney(pendiente)}.`);
+      
+      deuda.abonado = (Number(deuda.abonado) || 0) + monto;
+
+      // registrar gasto tipo abono
+      panelData.gastos.push({
+        descripcion: `Abono a ${deuda.nombre}`,
+        cantidad: monto,
+        categoria: "Abono a Deuda",
+        fechaISO: nowISO(),
+        fechaLocal: nowLocal()
+      });
+
+      pushMovimiento("Gasto", `Abono a ${deuda.nombre}`, monto);
+
+      guardarPanelData();
+      renderDeudas();
+
+      calcularDeudaTotalAuto();
+      calcularGastoFijoAuto();
+
+      $("abonoMonto").value = "";
+      alert("Abono guardado.");
+
+      renderResumenIndex();
+    });
+}
+
+
 
       guardarPanelData();
       renderDeudas(); 
