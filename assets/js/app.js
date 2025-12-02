@@ -1,4 +1,4 @@
-// ======================\
+de// ======================\
 // app.js — PARTE 1/5: SETUP Y UTILIDADES
 // ======================\
 
@@ -754,9 +754,121 @@ function calcularProyeccionReal() {
 }
 // ... (Otras funciones de renderizado, por ejemplo, renderKmMensual, renderGraficas, se omiten si no se modificaron) ...
 
-// ======================\
+// ======================\// ======================\
 // app.js — PARTE 5/5: INICIALIZACIÓN, I/O Y TUTORIAL
+// (Código Corregido: setupIoListeners)
 // ======================\
+
+// Función para Exportar / Importar (CORREGIDA: Implementación de Excel)
+function setupIoListeners() {
+    
+    // Lógica para Exportar JSON
+    $("btnExportar")?.addEventListener("click", () => {
+        const dataStr = JSON.stringify(panelData, null, 2);
+        navigator.clipboard.writeText(dataStr)
+            .then(() => alert("Datos copiados al portapapeles (JSON)."))
+            .catch(err => {
+                console.error('Error al copiar:', err);
+                alert("Error al copiar. Revisa la consola.");
+            });
+    });
+
+    // Lógica para Importar JSON
+    $("btnImportar")?.addEventListener("click", () => {
+        const jsonText = $("importJson").value.trim();
+        if (!jsonText) {
+            alert("Pega los datos JSON en el cuadro de texto para importar.");
+            return;
+        }
+
+        try {
+            const importedData = JSON.parse(jsonText);
+            
+            // Validación básica de la estructura
+            if (!importedData.ingresos || !importedData.gastos || !importedData.turnos) {
+                alert("Error: El archivo JSON parece no ser válido para esta aplicación. Debe contener al menos ingresos, gastos y turnos.");
+                return;
+            }
+            
+            // Sobreescribir con los nuevos datos
+            panelData = Object.assign({}, panelData, importedData);
+            
+            // Resetear el estado de turno activo por seguridad
+            localStorage.removeItem("turnoActivo"); 
+            
+            guardarPanelData();
+            alert("Datos importados exitosamente. Recargando la página.");
+            window.location.reload();
+
+        } catch (e) {
+            alert("Error al parsear el JSON. Asegúrate de que el formato sea correcto.");
+            console.error("Error de importación:", e);
+        }
+    });
+
+    // Lógica para Exportar EXCEL (.xlsx)
+    $("btnExportarExcel")?.addEventListener("click", () => {
+        
+        // La librería XLSX debe estar cargada en admin.html (ver script src)
+        if (typeof XLSX === 'undefined') {
+            alert("Error: La librería de Excel (SheetJS) no está cargada. Asegúrate de tener la etiqueta <script> en admin.html.");
+            return;
+        }
+        
+        // 1. Preparar las hojas de trabajo (Worksheets)
+        
+        // Ingresos
+        const ws_ingresos = XLSX.utils.json_to_sheet(panelData.ingresos.map(i => ({
+            Fecha_Hora: i.fechaLocal,
+            Descripción: i.descripcion,
+            Monto: Number(i.cantidad)
+        })));
+        
+        // Gastos
+        const ws_gastos = XLSX.utils.json_to_sheet(panelData.gastos.map(g => ({
+            Fecha_Hora: g.fechaLocal,
+            Descripción: g.descripcion,
+            Monto: Number(g.cantidad),
+            Categoría: g.categoria
+        })));
+        
+        // Turnos (incluyendo Ganancia Neta y Gastos del Día)
+        const ws_turnos = XLSX.utils.json_to_sheet(panelData.turnos.map(t => {
+            const gastosDia = getGastosDelDia(t.inicio); // Reutilizamos la utilidad
+            const neta = Number(t.ganancia) - gastosDia;
+            return {
+                Fecha: fmtDate(t.inicio),
+                Horas: Number(t.horas),
+                Ganancia_Bruta: Number(t.ganancia),
+                Gastos_Del_Dia: gastosDia,
+                Ganancia_Neta: neta
+            };
+        }));
+        
+        // Deudas
+        const ws_deudas = XLSX.utils.json_to_sheet(panelData.deudas.map(d => ({
+            Deuda: d.nombre,
+            Total: Number(d.monto),
+            Abonado: Number(d.abonado),
+            Pendiente: Number(d.monto) - Number(d.abonado),
+            Programado_y_Periodicidad: `${d.abonoProgramado || 0} ${d.periodicidad}`
+        })));
+
+        // 2. Crear el libro de trabajo (Workbook)
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws_turnos, "Turnos");
+        XLSX.utils.book_append_sheet(wb, ws_ingresos, "Ingresos");
+        XLSX.utils.book_append_sheet(wb, ws_gastos, "Gastos");
+        XLSX.utils.book_append_sheet(wb, ws_deudas, "Deudas");
+        
+        // 3. Exportar
+        XLSX.writeFile(wb, "Uber_Eats_Tracker_Data.xlsx");
+        alert("Archivo Excel exportado con éxito.");
+    });
+}
+
+// ... (El resto de la Parte 5/5, incluyendo mostrarTutorial y la inicialización, se mantiene igual)
+
 
 // Función para Exportar / Importar (se mantiene igual, omitida aquí por longitud)
 function setupIoListeners() {
