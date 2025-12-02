@@ -137,7 +137,6 @@ function pushMovimiento(tipo, descripcion, monto) {
   }
 
   guardarPanelData();
-  // No llamamos a renderMovimientos aquí, se hace en DOMContentLoaded para evitar re-renderizados constantes
 }
 
 function renderMovimientos() {
@@ -148,13 +147,10 @@ function renderMovimientos() {
   const rows = panelData.movimientos.slice(0, 25);
 
   if (rows.length === 0) {
-    // Esta tabla no existe en Admin.html ni index.html, pero se deja el código por si se agrega
-    // tbody.innerHTML = `<tr><td colspan="4" style="text-align:center">No hay movimientos</td></tr>`;
     return;
   }
 }
 
-// Nota: renderMovimientos se llama en DOMContentLoaded, no aquí.
 // ======================
 // app.js — PARTE 2/4: REGISTROS DE MOVIMIENTOS Y DEUDAS
 // ======================
@@ -511,8 +507,6 @@ function setupIoListeners() {
         alert("JSON inválido.");
       }
     });
-    
-    // El listener de Excel se maneja en la Parte 4/4 (renderCharts)
 }
 
 
@@ -595,7 +589,6 @@ function finalizarTurno() {
   renderResumenIndex();
 }
 // ======================
-// ======================
 // app.js — PARTE 4/4: RENDERIZADO DE RESULTADOS E INICIALIZACIÓN
 // ======================
 
@@ -617,29 +610,7 @@ function calcularResumenDatos() {
 }
 
 // ======================
-// AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS
-// ======================
-function aggregateDailyData() {
-  const data = {};
-
-  const processEntry = (entry, type, amountKey) => {
-    const date = (entry.fechaISO || entry.inicio || "").slice(0, 10);
-    if (!date) return;
-
-    data[date] = data[date] || { date, ingresos: 0, gastos: 0, kmRecorridos: 0 };
-    data[date][type] += (Number(entry[amountKey]) || 0);
-  };
-
-  (panelData.turnos || []).forEach(t => processEntry(t, 'ingresos', 'ganancia'));
-  (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
-  (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
-
-  // Convertir objeto a array y ordenar por fecha
-  return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
-}
-
-// ======================
-// CÁLCULO DE MÉTRICAS MENSUALES DE KM (NUEVA FUNCIÓN)
+// CÁLCULO DE MÉTRICAS MENSUALES DE KM
 // ======================
 function aggregateKmMensual() {
     const dataMensual = {};
@@ -656,7 +627,6 @@ function aggregateKmMensual() {
 
     // 2. Sumar el costo de la gasolina por mes
     (panelData.gastos || []).forEach(g => {
-        // Asumiendo que todos los gastos de gasolina se registran bajo "Transporte"
         if (g.categoria === "Transporte" && g.descripcion.includes("Gasolina")) { 
             const date = new Date(g.fechaISO);
             const mesKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -669,7 +639,6 @@ function aggregateKmMensual() {
     // 3. Calcular métricas finales y formatear
     const resultado = Object.entries(dataMensual).map(([mesKey, data]) => {
         const [year, month] = mesKey.split('-');
-        // Formatear el nombre del mes
         const dateString = new Date(year, month - 1, 1).toLocaleString('es-MX', { year: 'numeric', month: 'long' });
         
         const costoPorKm = data.kmRecorridos > 0 
@@ -683,7 +652,6 @@ function aggregateKmMensual() {
             costoPorKm: costoPorKm
         };
     }).sort((a, b) => {
-      // Ordenar por año-mes descendente (más reciente primero)
       const keyA = a.mes.split(' ')[1] + new Date(a.mes).getMonth();
       const keyB = b.mes.split(' ')[1] + new Date(b.mes).getMonth();
       return keyB.localeCompare(keyA);
@@ -694,7 +662,7 @@ function aggregateKmMensual() {
 
 
 // ======================
-// RENDERIZADO DE TABLA DE KM MENSUAL (NUEVA FUNCIÓN)
+// RENDERIZADO DE TABLA DE KM MENSUAL
 // ======================
 function renderTablaKmMensual() {
     const tablaContainer = $("tablaKmMensual"); 
@@ -745,7 +713,7 @@ function renderResumenIndex() {
   if ($("resNeta")) $("resNeta").textContent = "$" + fmtMoney(r.ganHoy - r.gastHoy);
 
   renderTablaTurnos();
-  renderTablaKmMensual(); // <<< LLAMADA INTEGRADA
+  renderTablaKmMensual();
   renderCharts();
   calcularProyeccionReal();
 }
@@ -767,9 +735,6 @@ function renderTablaTurnos() {
   }
 
   arr.forEach(t => {
-    // Nota: Los campos de Gastos y Neta en esta tabla son simplificados,
-    // usando la ganancia del turno como Neta y Gastos en $0.00 (según tu código original)
-    // Para ser precisos, habría que calcular los gastos de ese día en específico.
     tbody.innerHTML += `
       <tr>
         <td>${(t.inicio || "").slice(0,10)}</td>
@@ -953,44 +918,5 @@ document.addEventListener("DOMContentLoaded", () => {
     if (document.title.includes("Resultados")) {
         renderResumenIndex(); 
     }
-  // app.js — PARTE 4/4 (aggregateDailyData)
-function aggregateDailyData() {
-  const data = {};
-
-  const processEntry = (entry, type, amountKey) => {
-    
-    // CAMBIO CLAVE: Usar la fecha Local para agrupar
-    // La fecha Local está en formato "DD/MM/YYYY, HH:MM..."
-    const rawDate = entry.fechaLocal || ""; 
-    if (!rawDate) return;
-
-    // Extraer solo la fecha: "DD/MM/YYYY"
-    const localDate = rawDate.split(',')[0].trim();
-    
-    // Convertir a formato "YYYY-MM-DD" para ordenar correctamente
-    const parts = localDate.split('/');
-    if (parts.length !== 3) return;
-    const dateKey = `${parts[2]}-${parts[1]}-${parts[0]}`; 
-
-    data[dateKey] = data[dateKey] || { date: dateKey, ingresos: 0, gastos: 0, kmRecorridos: 0 };
-    data[dateKey][type] += (Number(entry[amountKey]) || 0);
-  };
-  
-  // Procesar todas las fuentes que pueden tener fechaLocal/fechaISO o inicio
-  (panelData.ingresos || []).forEach(t => processEntry(t, 'ingresos', 'cantidad'));
-  (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
-  (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
-  // Los turnos usan 'inicio' (fechaISO), se agrupan por ganancia
-  (panelData.turnos || []).forEach(t => {
-      // Usar la fecha ISO para turnos ya que tienen su propia lógica de fecha
-      const date = (t.inicio || "").slice(0, 10);
-      if (!date) return;
-      data[date] = data[date] || { date, ingresos: 0, gastos: 0, kmRecorridos: 0 };
-      data[date]['ingresos'] += (Number(t.ganancia) || 0);
-  });
-
-  // Convertir objeto a array y ordenar por fecha (dateKey YYYY-MM-DD)
-  return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
-}
   
 });
