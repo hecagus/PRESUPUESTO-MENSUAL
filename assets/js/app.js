@@ -1,11 +1,11 @@
 // ======================
-// app.js — PARTE 1/4: SETUP Y UTILIDADES
+// app.js — PARTE 1/5: SETUP Y UTILIDADES
 // ======================
 
 const STORAGE_KEY = "panelData";
 const $ = id => document.getElementById(id);
 
-// Estructura base
+// Estructura base (con nuevos parámetros)
 let panelData = {
   ingresos: [],
   gastos: [],
@@ -17,7 +17,9 @@ let panelData = {
   parametros: {
     deudaTotal: 0,
     gastoFijo: 0,
-    ultimoKMfinal: null
+    ultimoKMfinal: null,
+    costoComidaDiaria: 200, // Valor por defecto/fallback
+    costoMantenimientoPorKm: 0.6 // Valor por defecto/fallback
   }
 };
 
@@ -61,10 +63,96 @@ const nowISO = () => new Date().toISOString();
 const nowLocal = () => new Date().toLocaleString("es-MX");
 
 // -----------------------------
-// FUNCIONES AUTOMÁTICAS
+// FUNCIONES AUTOMÁTICAS (CÁLCULO DE GASTO FIJO)
 // -----------------------------
 
-// A) calcularDeudaTotalAuto: suma de (monto - abonado)
+// A) calcula el costo promedio por KM basado en el total de KM y el total de Gasolina
+function calcularCostoPromedioPorKm() {
+    const totalKMRecorridos = (panelData.kmDiarios || []).reduce((sum, entry) => sum + (Number(entry.recorrido) || 0), 0);
+    const totalCostoGasolina = (panelData.gasolina || []).reduce((sum, entry) => sum + (Number(entry.costo) || 0), 0);
+    
+    // Obtener el valor configurable como fallback (el que se usará si no hay datos)
+    const costoConfigurable = panelData.parametros.costoMantenimientoPorKm || 0.6;
+
+    // Si hay datos reales de KM y costo de gasolina, se usa el promedio real.
+    if (totalKMRecorridos > 0 && totalCostoGasolina > 0) {
+        return totalCostoGasolina / totalKMRecorridos;
+    }
+    
+    // Si no hay suficientes datos, se usa el valor configurable como fallback/estimación.
+    return costoConfigurable; 
+}
+
+// B) calcularGastoFijoAuto: calcula promedio basado en compromisos de deuda, promedio real de comida y KM
+function calcularGastoFijoAuto() {
+  panelData.parametros = panelData.parametros || {};
+
+  // 1. CÁLCULO DEL PROMEDIO DE GASTO DE COMIDA POR DÍA TRABAJADO
+  const turnos = panelData.turnos || [];
+  // Usa el número de días con al menos un turno para el promedio
+  const diasTrabajados = new Set(turnos.map(t => (t.inicio || "").slice(0,10))).size;
+
+  const gastosComida = (panelData.gastos || []).filter(g => g.categoria === "Comida");
+  const totalGastoComida = gastosComida.reduce((s, g) => s + (Number(g.cantidad) || 0), 0);
+  
+  // Si hay días trabajados, usamos el promedio real. Si no, usamos el valor configurable (fallback).
+  const comidaPromedioDiaria = diasTrabajados > 0
+    ? totalGastoComida / diasTrabajados
+    : panelData.parametros.costoComidaDiaria || 200; // <- FALLBACK
+
+  // Se actualiza el parámetro con el valor calculado para que el usuario sepa cuál se está usando
+  panelData.parametros.costoComidaDiaria = comidaPromedioDiaria;
+
+
+  // 2. CALCULAR COSTO PROMEDIO/KM CON DATA REAL
+  const costoPorKmCalculado = calcularCostoPromedioPorKm(); 
+  panelData.parametros.costoMantenimientoPorKm = costoPorKmCalculado; // Se guarda el valor calculado/fallback
+
+
+  // 3. CALCULAR KM PROMEDIO DIARIO
+  const kmArr = panelData.kmDiarios || [];
+  const kmProm = kmArr.length
+    ? kmArr.reduce((s, k) => s + (Number(k.recorrido) || 0), 0) / kmArr.length
+    : 0;
+
+  let gastoDiarioDeuda = 0;
+
+  // 4. Sumar el gasto diario programado de todas las deudas activas
+  (panelData.deudas || []).forEach(d => {
+    const pendiente = (Number(d.monto) || 0) - (Number(d.abonado) || 0);
+    const pago = Number(d.pagoProgramado) || 0;
+
+    if (pendiente > 0 && pago > 0) {
+      if (d.periodicidad === "Semanal") {
+        gastoDiarioDeuda += pago / 7;
+      } else if (d.periodicidad === "Quincenal") {
+        gastoDiarioDeuda += pago / 15;
+      } else if (d.periodicidad === "Mensual") {
+        gastoDiarioDeuda += pago / 30;
+      }
+    }
+  });
+
+  // 5. CALCULAR GASTO FIJO TOTAL
+  // Gasto Fijo: (Costo diario de Deudas) + (Comida promedio REAL/FALLBACK) + (KM promedio * costo por KM REAL/FALLBACK)
+  const gastoFijo = gastoDiarioDeuda + comidaPromedioDiaria + (kmProm * costoPorKmCalculado);
+
+  panelData.parametros.gastoFijo = gastoFijo;
+  guardarPanelData();
+
+  // 6. ACTUALIZAR UI en admin.html (ahora se hace en DOMContentLoaded para que no haya race conditions)
+  // Se actualizan los valores en el DOM con el promedio/calculado
+  const inpGastoFijo = $("proyGastoFijo");
+  if (inpGastoFijo) inpGastoFijo.value = gastoFijo.toFixed(2);
+  
+  const inpComida = $("paramComidaDiaria");
+  if (inpComida) inpComida.value = comidaPromedioDiaria.toFixed(2);
+  
+  const inpCostoKm = $("paramCostoPorKm");
+  if (inpCostoKm) inpCostoKm.value = costoPorKmCalculado.toFixed(2);
+}
+
+// C) calcularDeudaTotalAuto: suma de (monto - abonado)
 function calcularDeudaTotalAuto() {
   const deudas = panelData.deudas || [];
 
@@ -81,45 +169,6 @@ function calcularDeudaTotalAuto() {
     inp.value = total.toFixed(2);
   }
 }
-
-// B) calcularGastoFijoAuto: calcula promedio basado en abonos y KM
-function calcularGastoFijoAuto() {
-  panelData.parametros = panelData.parametros || {};
-  const comidaDiaria = 200; // Gasto fijo asumido de comida
-
-  const kmArr = panelData.kmDiarios || [];
-  const kmProm = kmArr.length
-    ? kmArr.reduce((s, k) => s + (Number(k.recorrido) || 0), 0) / kmArr.length
-    : 0;
-
-  let ultimoAbono = 0;
-  let ultimaFecha = 0;
-
-  // Busca el abono más reciente
-  (panelData.gastos || []).forEach(g => {
-    if ((g.categoria || "") === "Abono a Deuda") {
-      const t = new Date(g.fechaISO || g.fechaLocal).getTime();
-      if (!ultimaFecha || t > ultimaFecha) {
-        ultimaFecha = t;
-        ultimoAbono = Number(g.cantidad) || 0;
-      }
-    }
-  });
-
-  // Fórmula de Gasto Fijo: (Abono mensual / 30 días) + Gasto de comida + (KM promedio * costo por KM)
-  // Usaremos un divisor simple para el abono (6 días laborables por semana)
-  // Usaremos un costo de combustible/mantenimiento de 0.6 MXN/KM asumido
-  const gastoFijo = (ultimoAbono / 6) + comidaDiaria + (kmProm * 0.6);
-
-  panelData.parametros.gastoFijo = gastoFijo;
-  guardarPanelData();
-
-  const inp = $("proyGastoFijo");
-  if (inp) {
-    inp.value = gastoFijo.toFixed(2);
-  }
-}
-
 // ======================
 // Movimientos (Historial)
 // ======================
@@ -153,11 +202,6 @@ function renderMovimientos() {
     return;
   }
 }
-
-// Nota: renderMovimientos se llama en DOMContentLoaded, no aquí.
-// ======================
-// app.js — PARTE 2/4: REGISTROS DE MOVIMIENTOS Y DEUDAS
-// ======================
 
 // ======================
 // Registrar ingreso
@@ -214,7 +258,7 @@ function setupGastoListeners() {
     });
 
     // Si es gasto que afecta el cálculo automático, recalcular
-    if (cat === "Comida" || cat === "Transporte") calcularGastoFijoAuto();
+    if (cat === "Comida" || cat === "Transporte" || cat === "Abono a Deuda") calcularGastoFijoAuto();
 
     pushMovimiento("Gasto", `${desc} (${cat})`, qty);
     guardarPanelData();
@@ -226,7 +270,6 @@ function setupGastoListeners() {
     renderResumenIndex();
   });
 }
-
 // ======================
 // Deudas
 // ======================
@@ -241,6 +284,17 @@ function renderDeudas() {
 
   panelData.deudas.forEach((d, idx) => {
     const pendiente = (Number(d.monto) || 0) - (Number(d.abonado) || 0);
+    
+    // Calcular el costo diario para mostrarlo, si está programado
+    let pagoDiario = 0;
+    if (d.pagoProgramado > 0) {
+        if (d.periodicidad === "Semanal") pagoDiario = d.pagoProgramado / 7;
+        else if (d.periodicidad === "Quincenal") pagoDiario = d.pagoProgramado / 15;
+        else if (d.periodicidad === "Mensual") pagoDiario = d.pagoProgramado / 30;
+    }
+    const infoPago = d.pagoProgramado > 0 
+        ? `<br>Compromiso: $${fmtMoney(d.pagoProgramado)} (${d.periodicidad}) ≈ $${pagoDiario.toFixed(2)}/día`
+        : "";
 
     list.innerHTML += `
       <li>
@@ -248,6 +302,7 @@ function renderDeudas() {
         Total: $${fmtMoney(d.monto)}<br>
         Pagado: $${fmtMoney(d.abonado || 0)}<br>
         Pendiente: <strong>$${fmtMoney(pendiente)}</strong>
+        ${infoPago} 
       </li>
     `;
 
@@ -274,19 +329,32 @@ function setupDeudaListeners() {
     $("btnRegistrarDeuda")?.addEventListener("click", () => {
       const nombre = ($("deudaNombre")?.value || "").trim();
       const monto = Number($("deudaMonto")?.value || 0);
+      
+      // NUEVOS CAMPOS
+      const pagoProgramado = Number($("deudaPagoProgramado")?.value || 0);
+      const periodicidad = $("deudaPeriodicidad")?.value || "Mensual";
 
       if (!nombre || !monto || monto <= 0) return alert("Datos inválidos.");
 
-      panelData.deudas.push({ nombre, monto, abonado: 0 });
+      // Se registran los nuevos campos
+      panelData.deudas.push({ 
+          nombre, 
+          monto, 
+          abonado: 0,
+          pagoProgramado, 
+          periodicidad 
+      });
 
       guardarPanelData();
       renderDeudas();
 
       calcularDeudaTotalAuto();
-      calcularGastoFijoAuto();
+      // Recalcular el gasto fijo con la nueva lógica
+      calcularGastoFijoAuto(); 
 
       $("deudaNombre").value = "";
       $("deudaMonto").value = "";
+      $("deudaPagoProgramado").value = ""; // Limpiar nuevo campo
 
       alert("Deuda registrada.");
     });
@@ -328,10 +396,6 @@ function setupDeudaListeners() {
       renderResumenIndex();
     });
 }
-// ======================
-// app.js — PARTE 3/4: KM, GASOLINA, IO Y TURNOS
-// ======================
-
 // ======================
 // KM y Gasolina
 // ======================
@@ -398,6 +462,8 @@ function setupKmAndGasListeners() {
     pushMovimiento("Gasto", `Gasolina ${litros}L`, costo);
     guardarPanelData();
 
+    calcularGastoFijoAuto(); // Recalcular ya que cambia el promedio de costo por KM
+
     $("litrosGas").value = "";
     $("costoGas").value = "";
     alert("Repostaje guardado.");
@@ -407,65 +473,71 @@ function setupKmAndGasListeners() {
 
 
 // ======================
-// // ======================
-// Importar / Exportar JSON
+// Importar / Exportar JSON y Guardar Parámetros
 // ======================
 function setupIoListeners() {
-    // CORRECCIÓN: Usar los IDs del admin.html que coinciden con los botones
-    const btnExportar = $("btnExportar"); // El ID es 'btnExportar'
-    const btnImportar = $("btnImportar"); // El ID es 'btnImportar'
-    const textarea = $("importJson"); // El ID del textarea
+    $("btnExportar")?.addEventListener("click", () => {
+      const json = JSON.stringify(panelData, null, 2);
 
-    if (btnExportar) {
-        btnExportar.addEventListener("click", () => {
-          const json = JSON.stringify(panelData, null, 2);
-    
-          navigator.clipboard.writeText(json)
-            .then(() => alert("Datos copiados al portapapeles."))
-            .catch(() => {
-              const blob = new Blob([json], { type: "application/json" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-    
-              a.href = url;
-              a.download = `backup_ubereats_tracker_${Date.now()}.json`;
-              a.click();
-    
-              URL.revokeObjectURL(url);
-              alert("Backup descargado.");
-            });
+      navigator.clipboard.writeText(json)
+        .then(() => alert("Datos copiados al portapapeles."))
+        .catch(() => {
+          const blob = new Blob([json], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+
+          a.href = url;
+          a.download = `backup_ubereats_tracker_${Date.now()}.json`;
+          a.click();
+
+          URL.revokeObjectURL(url);
+          alert("Backup descargado.");
         });
-    }
+    });
 
-    if (btnImportar) {
-        btnImportar.addEventListener("click", () => {
-          const raw = (textarea?.value || "").trim();
-    
-          if (!raw) return alert("Pega tu JSON primero.");
-    
-          try {
-            const parsed = JSON.parse(raw);
-    
-            // Combinar datos existentes con los importados
-            panelData = Object.assign({}, panelData, parsed);
-            panelData.parametros = Object.assign({}, panelData.parametros, (parsed.parametros || {}));
-    
-            guardarPanelData();
-            textarea.value = "";
-            
-            // Refrescar UI completamente
-            location.reload(); 
-    
-            alert("Importación correcta ✔. Recarga de página automática.");
-    
-          } catch (e) {
-            console.error(e);
-            alert("JSON inválido.");
-          }
-        });
-    }
+    $("btnImportar")?.addEventListener("click", () => {
+      const raw = ($("importJson")?.value || "").trim();
 
-    // El botón Exportar Excel (btnExportarExcel) no tiene funcionalidad implementada, es correcto que no haga nada.
+      if (!raw) return alert("Pega tu JSON primero.");
+
+      try {
+        const parsed = JSON.parse(raw);
+
+        // Combinar datos existentes con los importados
+        panelData = Object.assign({}, panelData, parsed);
+        panelData.parametros = Object.assign({}, panelData.parametros, (parsed.parametros || {}));
+
+        guardarPanelData();
+        $("importJson").value = "";
+        
+        // Refrescar UI completamente
+        location.reload(); 
+
+        alert("Importación correcta ✔. Recarga de página automática.");
+
+      } catch (e) {
+        console.error(e);
+        alert("JSON inválido.");
+      }
+    });
+    
+    // NUEVO: Guardar Parámetros de Proyección Manuales
+    $("btnGuardarParametros")?.addEventListener("click", () => {
+        // Los valores de Comida y KM se usan como FALLBACK, 
+        // pero se permite al usuario ajustar los valores en caso de que aún no haya datos suficientes.
+        const comida = Number($("paramComidaDiaria")?.value || 0);
+        const kmCost = Number($("paramCostoPorKm")?.value || 0);
+        
+        if (comida < 0 || kmCost < 0) return alert("Los costos no pueden ser negativos.");
+
+        panelData.parametros.costoComidaDiaria = comida;
+        panelData.parametros.costoMantenimientoPorKm = kmCost;
+        
+        guardarPanelData();
+        // Recalcular el gasto fijo con los nuevos valores (aunque la mayoría son automáticos)
+        calcularGastoFijoAuto(); 
+        alert("Ajustes de parámetros guardados.");
+    });
 }
 
 
@@ -548,7 +620,7 @@ function finalizarTurno() {
   renderResumenIndex();
 }
 // ======================
-// app.js — PARTE 4/4: RENDERIZADO DE RESULTADOS E INICIALIZACIÓN
+// app.js — PARTE 5/5: RENDERIZADO DE RESULTADOS E INICIALIZACIÓN
 // ======================
 
 // ======================
@@ -575,6 +647,8 @@ function aggregateDailyData() {
   const data = {};
 
   const processEntry = (entry, type, amountKey) => {
+    
+    // Usar la fecha ISO para agrupar (más estable)
     const date = (entry.fechaISO || entry.inicio || "").slice(0, 10);
     if (!date) return;
 
@@ -591,7 +665,7 @@ function aggregateDailyData() {
 }
 
 // ======================
-// CÁLCULO DE MÉTRICAS MENSUALES DE KM (NUEVA FUNCIÓN)
+// CÁLCULO DE MÉTRICAS MENSUALES DE KM
 // ======================
 function aggregateKmMensual() {
     const dataMensual = {};
@@ -646,7 +720,7 @@ function aggregateKmMensual() {
 
 
 // ======================
-// RENDERIZADO DE TABLA DE KM MENSUAL (NUEVA FUNCIÓN)
+// RENDERIZADO DE TABLA DE KM MENSUAL
 // ======================
 function renderTablaKmMensual() {
     const tablaContainer = $("tablaKmMensual"); 
@@ -684,6 +758,7 @@ function renderTablaKmMensual() {
     html += `</tbody></table>`;
     tablaContainer.innerHTML = html;
 }
+
 // ======================
 // Render resumen index
 // ======================
@@ -696,7 +771,7 @@ function renderResumenIndex() {
   if ($("resNeta")) $("resNeta").textContent = "$" + fmtMoney(r.ganHoy - r.gastHoy);
 
   renderTablaTurnos();
-  renderTablaKmMensual(); // <<< LLAMADA INTEGRADA
+  renderTablaKmMensual(); 
   renderCharts();
   calcularProyeccionReal();
 }
@@ -739,7 +814,8 @@ function renderTablaTurnos() {
 function calcularProyeccionReal() {
   const p = panelData.parametros || {};
   const deudaTotal = Number(p.deudaTotal || 0);
-  const gastoFijo  = Number(p.gastoFijo || 0);
+  // gastoFijo se mantiene para mostrarse en admin, pero no se usa en la neta Promedio
+  // const gastoFijo  = Number(p.gastoFijo || 0);
 
   const turnos = panelData.turnos || [];
   const diasTrabajados = new Set(turnos.map(t => (t.inicio || "").slice(0,10))).size;
@@ -762,7 +838,8 @@ function calcularProyeccionReal() {
   const gastoPromDia = Object.values(gastosPorFecha).reduce((s,v)=>s+v,0) /
                         (Object.keys(gastosPorFecha).length || 1);
 
-  const netaPromDia = ganPromDia - gastoPromDia - gastoFijo;
+  // CORRECCIÓN: Se elimina el "- gastoFijo" para evitar duplicidad de costos.
+  const netaPromDia = ganPromDia - gastoPromDia; 
 
   let diasParaLiquidar = Infinity;
   if (netaPromDia > 0 && deudaTotal > 0) {
@@ -884,7 +961,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 4. Calcular y Pintar Parámetros Automáticos
     calcularDeudaTotalAuto();
-    calcularGastoFijoAuto();
+    // calcularGastoFijoAuto llenará los inputs paramComidaDiaria, paramCostoPorKm y proyGastoFijo
+    calcularGastoFijoAuto(); 
 
     // 5. Bloquear y pintar inputs automáticos
     const inpDeuda = document.getElementById("proyDeudaTotal");
@@ -899,41 +977,9 @@ document.addEventListener("DOMContentLoaded", () => {
         inpGasto.readOnly = true;
         inpGasto.style.background = "#eee";
     }
-
+    
     // 6. Renderizar Resultados (solo si estamos en index.html)
     if (document.title.includes("Resultados")) {
         renderResumenIndex(); 
     }
-  // app.js — PARTE 4/4 (aggregateDailyData)
-function aggregateDailyData() {
-  const data = {};
-
-  const processEntry = (entry, type, amountKey) => {
-    
-    // CAMBIO CLAVE: Usar la fecha Local para agrupar
-    // La fecha Local está en formato "DD/MM/YYYY, HH:MM..."
-    const rawDate = entry.fechaLocal || ""; 
-    if (!rawDate) return;
-
-    // Extraer solo la fecha: "DD/MM/YYYY"
-    const localDate = rawDate.split(',')[0].trim();
-    
-    // Convertir a formato "YYYY-MM-DD" para ordenar correctamente
-    const parts = localDate.split('/');
-    if (parts.length !== 3) return;
-    const dateKey = `${parts[2]}-${parts[1]}-${parts[0]}`; 
-
-    data[dateKey] = data[dateKey] || { date: dateKey, ingresos: 0, gastos: 0, kmRecorridos: 0 };
-    data[dateKey][type] += (Number(entry[amountKey]) || 0);
-  };
-  
-  // ... el resto de la función (sin cambios)
-  (panelData.ingresos || []).forEach(t => processEntry(t, 'ingresos', 'cantidad'));
-  (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
-  // ... etc.
-
-  // Convertir objeto a array y ordenar por fecha (dateKey YYYY-MM-DD)
-  return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
-}
-  
 });
