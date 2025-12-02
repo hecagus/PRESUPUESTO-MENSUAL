@@ -62,6 +62,40 @@ const fmtMoney = n => Number(n || 0).toLocaleString("es-MX", {
 const nowISO = () => new Date().toISOString();
 const nowLocal = () => new Date().toLocaleString("es-MX");
 
+
+// --- NUEVAS UTILIDADES DE FECHA PARA FILTRADO LOCAL (CORRECCIÓN) ---
+
+/**
+ * Obtiene la fecha actual en formato local (DD/MM/YYYY) para filtrar los registros de 'hoy'.
+ */
+function getTodayLocalDateKey() {
+    const today = new Date();
+    // Asegura el formato DD/MM/YYYY (ej: "02/12/2025")
+    const d = today.getDate().toString().padStart(2, '0');
+    const m = (today.getMonth() + 1).toString().padStart(2, '0'); 
+    const y = today.getFullYear();
+    // El formato debe coincidir con el inicio de panelData[x].fechaLocal
+    return `${d}/${m}/${y}`;
+}
+
+/**
+ * Convierte un string ISO (inicio/fin de turno) a la clave de fecha local (DD/MM/YYYY).
+ */
+function getLocalDayFromISODate(isoDateString) {
+    if (!isoDateString) return null;
+    try {
+        const date = new Date(isoDateString);
+        // Usamos 'es-ES' para forzar el formato DD/MM/YYYY
+        return date.toLocaleDateString('es-ES', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric' 
+        });
+    } catch (e) {
+        return null;
+    }
+}
+
 // -----------------------------
 // FUNCIONES AUTOMÁTICAS (CÁLCULO DE GASTO FIJO)
 // -----------------------------
@@ -470,8 +504,6 @@ function setupKmAndGasListeners() {
     renderResumenIndex();
   });
 }
-
-
 // ======================
 // Importar / Exportar JSON y Guardar Parámetros
 // ======================
@@ -624,22 +656,54 @@ function finalizarTurno() {
 // ======================
 
 // ======================
-// Resumen del día
+// Resumen del día (¡Función CORREGIDA!)
 // ======================
-function calcularResumenDatos() {
-  const hoy = new Date().toISOString().slice(0, 10);
 
-  // Obtener turnos y gastos DE HOY
-  const turnosHoy = (panelData.turnos || []).filter(t => (t.inicio || "").slice(0, 10) === hoy);
-  const gastosHoy = (panelData.gastos || []).filter(g => (g.fechaISO || "").slice(0, 10) === hoy);
+// Se elimina la antigua función calcularResumenDatos() que usaba ISO.
+// La lógica de cálculo y renderizado se mueve a renderResumenIndex() para usar la fecha local.
 
-  const horasHoy = turnosHoy.reduce((s, t) => s + (Number(t.horas) || 0), 0);
-  const ganHoy   = turnosHoy.reduce((s, t) => s + (Number(t.ganancia) || 0), 0);
-  const gastHoy  = gastosHoy.reduce((s, g) => s + (Number(g.cantidad) || 0), 0);
+/**
+ * Función que calcula y renderiza los resultados del resumen diario (HORAS, INGRESO, GASTO, NETA).
+ * Utiliza getTodayLocalDateKey() y getLocalDayFromISODate() para asegurar que la data sea
+ * agrupada por el día local actual (DD/MM/YYYY).
+ */
+function renderResumenIndex() {
+    // Obtiene la clave del día de hoy en formato local (e.g., "02/12/2025")
+    const todayKey = getTodayLocalDateKey(); 
 
-  return { horasHoy, ganHoy, gastHoy };
+    // 1. Filtrar los ingresos y gastos de HOY
+    // .startsWith(todayKey) funciona porque fechaLocal es "DD/MM/YYYY, HH:MM..."
+    const ingresosHoy = panelData.ingresos.filter(i => i.fechaLocal.startsWith(todayKey));
+    const gastosHoy = panelData.gastos.filter(g => g.fechaLocal.startsWith(todayKey));
+    
+    // 2. Filtrar turnos de HOY
+    // Se considera que un turno es "del día" si su hora de FINALIZACIÓN cae en la fecha local de hoy.
+    const turnosDelDia = panelData.turnos.filter(t => getLocalDayFromISODate(t.fin) === todayKey);
+
+    // 3. Sumar las métricas
+    const totalIngresos = ingresosHoy.reduce((sum, i) => sum + i.cantidad, 0);
+    const totalGastos = gastosHoy.reduce((sum, g) => sum + g.cantidad, 0);
+    const totalHoras = turnosDelDia.reduce((sum, t) => sum + t.horas, 0);
+
+    const totalNeta = totalIngresos - totalGastos;
+
+    // 4. Renderizar en index.html
+    const resHoras = $('resHoras');
+    const resGananciaBruta = $('resGananciaBruta');
+    const resGastos = $('resGastos');
+    const resNeta = $('resNeta');
+
+    if (resHoras) resHoras.textContent = totalHoras.toFixed(2);
+    if (resGananciaBruta) resGananciaBruta.textContent = "$" + fmtMoney(totalIngresos);
+    if (resGastos) resGastos.textContent = "$" + fmtMoney(totalGastos);
+    if (resNeta) resNeta.textContent = "$" + fmtMoney(totalNeta);
+
+    // Llamar a otras funciones de renderizado/cálculo
+    renderTablaTurnos();
+    renderTablaKmMensual(); 
+    renderCharts();
+    calcularProyeccionReal();
 }
-
 // ======================
 // AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS
 // ======================
@@ -648,7 +712,7 @@ function aggregateDailyData() {
 
   const processEntry = (entry, type, amountKey) => {
     
-    // Usar la fecha ISO para agrupar (más estable)
+    // Usar la fecha ISO para agrupar (más estable para gráficas históricas)
     const date = (entry.fechaISO || entry.inicio || "").slice(0, 10);
     if (!date) return;
 
@@ -757,23 +821,6 @@ function renderTablaKmMensual() {
 
     html += `</tbody></table>`;
     tablaContainer.innerHTML = html;
-}
-
-// ======================
-// Render resumen index
-// ======================
-function renderResumenIndex() {
-  const r = calcularResumenDatos();
-
-  if ($("resHoras")) $("resHoras").textContent = r.horasHoy.toFixed(2);
-  if ($("resGananciaBruta")) $("resGananciaBruta").textContent = "$" + fmtMoney(r.ganHoy);
-  if ($("resGastos")) $("resGastos").textContent = "$" + fmtMoney(r.gastHoy);
-  if ($("resNeta")) $("resNeta").textContent = "$" + fmtMoney(r.ganHoy - r.gastHoy);
-
-  renderTablaTurnos();
-  renderTablaKmMensual(); 
-  renderCharts();
-  calcularProyeccionReal();
 }
 
 // ======================
