@@ -6,7 +6,6 @@
     <title>Resultados – Uber Eats Tracker</title>
 
     <link rel="stylesheet" href="assets/css/style.css">
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script> 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
@@ -88,41 +87,6 @@
     <section class="card">
         <h2>Kilometraje Diario (Últimos 14 días)</h2>
         <canvas id="graficaKm"></canvas>
-    </section>
-    
-    <section class="card">
-        <h2>Ajustes de Gastos Fijos (Para Proyección)</h2>
-
-        <label>Deuda total (MXN):</label>
-        <input type="number" id="proyDeudaTotal" readonly style="background:#eee;">
-
-        <label>Gasto fijo diario (calculado):</label>
-        <input type="number" id="proyGastoFijo" readonly style="background:#eee;">
-        
-        <hr>
-        
-        <h3>Ajustes Manuales</h3>
-        
-        <label>Costo asumido de Comida Diaria (MXN):</label>
-        <input type="number" id="paramComidaDiaria">
-        
-        <label>Costo de Mantenimiento/Combustible por KM (MXN):</label>
-        <input type="number" id="paramCostoPorKm">
-
-        <button id="btnGuardarParametros" class="btn-primary">Guardar Ajustes</button>
-
-        <p style="font-size: 0.9em; color: #555;">* Estos ajustes son usados en la fórmula para calcular el "Gasto fijo diario (calculado)".</p>
-    </section>
-    
-    <section class="card">
-        <h2>Importar / Exportar Datos</h2>
-
-        <button id="btnExportar" class="btn-secondary">Exportar JSON (Copiar)</button>
-
-        <button id="btnExportarExcel" class="btn-success">Exportar EXCEL (.xlsx)</button>
-
-        <textarea id="importJson" placeholder="Pega tu JSON aquí"></textarea>
-        <button id="btnImportar" class="btn-warning">Importar JSON</button>
     </section>
 
 </main>
