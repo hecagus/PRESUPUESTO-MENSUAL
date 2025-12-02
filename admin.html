@@ -59,36 +59,39 @@
     <section class="card">
         <h2>Deudas</h2>
 
-        <h3>Registrar nueva deuda</h3>
-
-        <div id="deudaPaso1">
+        <div id="deudaPaso1" style="display:block;">
+            <h3>Registrar deuda (Paso 1 de 4)</h3>
             <label>Nombre de la deuda:</label>
-            <input type="text" id="deudaNombre">
-            <button id="btnPaso1" class="btn-secondary">Siguiente</button>
+            <input type="text" id="deudaNombre" placeholder="Ej: Tarjeta de Crédito">
+            <button id="btnPaso1" class="btn-primary">Siguiente</button>
         </div>
 
-        <div id="deudaPaso2" style="display: none;">
-            <label>Monto total:</label>
-            <input type="number" id="deudaMonto">
-            <button id="btnPaso2" class="btn-secondary">Siguiente</button>
+        <div id="deudaPaso2" style="display:none;">
+            <h3>Registrar deuda (Paso 2 de 4)</h3>
+            <label>Monto total de la deuda (MXN):</label>
+            <input type="number" id="deudaMonto" placeholder="Ej: 15000">
+            <button id="btnPaso2" class="btn-primary">Siguiente</button>
         </div>
 
-        <div id="deudaPaso3" style="display: none;">
-            <label>¿Cuánto abonas en cada pago?</label>
-            <input type="number" id="deudaAbonoProgramado">
-            <button id="btnPaso3" class="btn-secondary">Siguiente</button>
+        <div id="deudaPaso3" style="display:none;">
+            <h3>Registrar deuda (Paso 3 de 4)</h3>
+            <label>Monto programado de abono (MXN):</label>
+            <input type="number" id="deudaAbonoProgramado" placeholder="Ej: 449 (0 si no tienes un abono fijo)">
+            <button id="btnPaso3" class="btn-primary">Siguiente</button>
         </div>
 
-        <div id="deudaPaso4" style="display: none;">
-            <label>Cada cuánto tiempo:</label>
+        <div id="deudaPaso4" style="display:none;">
+            <h3>Registrar deuda (Paso 4 de 4)</h3>
+            <label>Periodicidad:</label>
             <select id="deudaPeriodicidad">
                 <option value="Semanal">Semanal</option>
                 <option value="Quincenal">Quincenal</option>
                 <option value="Mensual">Mensual</option>
+                <option value="Único">Único</option>
             </select>
-            <button id="btnRegistrarDeuda" class="btn-primary">Guardar Deuda</button>
+            <button id="btnRegistrarDeuda" class="btn-success">Guardar Deuda</button>
         </div>
-
+        
         <hr>
 
         <h3>Registrar abono</h3>
