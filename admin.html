@@ -19,10 +19,10 @@
 
     <section class="card">
         <h2>Registrar Ingreso</h2>
-        <label>Descripción:</label>
+        <label for="ingresoDescripcion">Descripción:</label>
         <input type="text" id="ingresoDescripcion">
 
-        <label>Monto:</label>
+        <label for="ingresoCantidad">Monto:</label>
         <input type="number" id="ingresoCantidad">
 
         <button id="btnGuardarIngreso" class="btn-primary">Guardar Ingreso</button>
@@ -31,13 +31,13 @@
     <section class="card">
         <h2>Registrar Gasto</h2>
 
-        <label>Descripción:</label>
+        <label for="gastoDescripcion">Descripción:</label>
         <input type="text" id="gastoDescripcion">
 
-        <label>Monto:</label>
+        <label for="gastoCantidad">Monto:</label>
         <input type="number" id="gastoCantidad">
 
-        <label>Categoría:</label>
+        <label for="gastoCategoria">Categoría:</label>
         <select id="gastoCategoria">
             <option value="Comida">Comida</option>
             <option value="Transporte">Transporte</option>
@@ -61,28 +61,28 @@
 
         <div id="deudaPaso1" style="display:block;">
             <h3>Registrar deuda (Paso 1 de 4)</h3>
-            <label>Nombre de la deuda:</label>
+            <label for="deudaNombre">Nombre de la deuda:</label>
             <input type="text" id="deudaNombre" placeholder="Ej: Tarjeta de Crédito">
             <button id="btnPaso1" class="btn-primary">Siguiente</button>
         </div>
 
         <div id="deudaPaso2" style="display:none;">
             <h3>Registrar deuda (Paso 2 de 4)</h3>
-            <label>Monto total de la deuda (MXN):</label>
+            <label for="deudaMonto">Monto total de la deuda (MXN):</label>
             <input type="number" id="deudaMonto" placeholder="Ej: 15000">
             <button id="btnPaso2" class="btn-primary">Siguiente</button>
         </div>
 
         <div id="deudaPaso3" style="display:none;">
             <h3>Registrar deuda (Paso 3 de 4)</h3>
-            <label>Monto programado de abono (MXN):</label>
+            <label for="deudaAbonoProgramado">Monto programado de abono (MXN):</label>
             <input type="number" id="deudaAbonoProgramado" placeholder="Ej: 449 (0 si no tienes un abono fijo)">
             <button id="btnPaso3" class="btn-primary">Siguiente</button>
         </div>
 
         <div id="deudaPaso4" style="display:none;">
             <h3>Registrar deuda (Paso 4 de 4)</h3>
-            <label>Periodicidad:</label>
+            <label for="deudaPeriodicidad">Periodicidad:</label>
             <select id="deudaPeriodicidad">
                 <option value="Semanal">Semanal</option>
                 <option value="Quincenal">Quincenal</option>
@@ -95,10 +95,10 @@
         <hr>
 
         <h3>Registrar abono</h3>
-        <label>Selecciona Deuda:</label>
+        <label for="abonoSeleccionar">Selecciona Deuda:</label>
         <select id="abonoSeleccionar"></select>
 
-        <label>Monto Abonado:</label>
+        <label for="abonoMonto">Monto Abonado:</label>
         <input type="number" id="abonoMonto">
 
         <button id="btnRegistrarAbono" class="btn-primary">Registrar Abono</button>
@@ -109,10 +109,10 @@
     <section class="card">
         <h2>Kilometraje</h2>
 
-        <label>KM Inicial:</label>
+        <label for="kmInicial">KM Inicial:</label>
         <input type="number" id="kmInicial">
 
-        <label>KM Final:</label>
+        <label for="kmFinal">KM Final:</label>
         <input type="number" id="kmFinal">
 
         <p>KM recorridos: <span id="kmRecorridos">0</span></p>
@@ -123,10 +123,10 @@
     <section class="card">
         <h2>Registro de Gasolina</h2>
 
-        <label>Litros:</label>
+        <label for="litrosGas">Litros:</label>
         <input type="number" id="litrosGas">
 
-        <label>Costo total:</label>
+        <label for="costoGas">Costo total:</label>
         <input type="number" id="costoGas">
 
         <button id="btnGuardarGas" class="btn-primary">Guardar Gasolina</button>
@@ -136,20 +136,20 @@
     <section class="card">
         <h2>Ajustes de Gastos Fijos (Para Proyección)</h2>
 
-        <label>Deuda total (MXN):</label>
+        <label for="proyDeudaTotal">Deuda total (MXN):</label>
         <input type="number" id="proyDeudaTotal" readonly style="background:#eee;">
 
-        <label>Gasto fijo diario (calculado):</label>
+        <label for="proyGastoFijo">Gasto fijo diario (calculado):</label>
         <input type="number" id="proyGastoFijo" readonly style="background:#eee;">
         
         <hr>
         
         <h3>Ajustes Manuales</h3>
         
-        <label>Costo asumido de Comida Diaria (MXN):</label>
+        <label for="paramComidaDiaria">Costo asumido de Comida Diaria (MXN):</label>
         <input type="number" id="paramComidaDiaria">
         
-        <label>Costo de Mantenimiento/Combustible por KM (MXN):</label>
+        <label for="paramCostoPorKm">Costo de Mantenimiento/Combustible por KM (MXN):</label>
         <input type="number" id="paramCostoPorKm">
 
         <button id="btnGuardarParametros" class="btn-primary">Guardar Ajustes</button>
