@@ -1027,8 +1027,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // El título de Index.html debe contener "Resultados"
     if (document.title.includes("Resultados")) {
         renderResumenIndex(); 
+  // ... (últimas líneas de código)
+
+    // 6. Renderizar Resultados (solo si estamos en index.html)
+    if (document.title.includes("Resultados")) {
+        renderResumenIndex(); 
     }
   
-});
-// FALTA ESTA LLAVE
-// }
+}); // FIN DEL ARCHIVO
