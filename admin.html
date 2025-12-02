@@ -12,7 +12,7 @@
 
 <header class="header">
     <h1>Panel Administrativo</h1>
-    <a href="index.html" class="btn-admin">⬅ Volver a Resultados</a> 
+    <a href="index.html" class="btn-admin">⬅ Volver a Resultados</a>
 </header>
 
 <main class="container">
@@ -132,18 +132,31 @@
         <button id="btnGuardarGas" class="btn-primary">Guardar Gasolina</button>
     </section>
 
+    
     <section class="card">
-        <h2>Parámetros de Proyección (Automático)</h2>
+        <h2>Ajustes de Gastos Fijos (Para Proyección)</h2>
 
         <label>Deuda total (MXN):</label>
         <input type="number" id="proyDeudaTotal" readonly style="background:#eee;">
 
-        <label>Gasto fijo diario (MXN):</label>
+        <label>Gasto fijo diario (calculado):</label>
         <input type="number" id="proyGastoFijo" readonly style="background:#eee;">
         
-        <p style="font-size: 0.9em; color: #555;">* Estos campos se calculan automáticamente en base a tus registros y ajustes en la página de Resultados.</p>
-    </section>
+        <hr>
+        
+        <h3>Ajustes Manuales</h3>
+        
+        <label>Costo asumido de Comida Diaria (MXN):</label>
+        <input type="number" id="paramComidaDiaria">
+        
+        <label>Costo de Mantenimiento/Combustible por KM (MXN):</label>
+        <input type="number" id="paramCostoPorKm">
 
+        <button id="btnGuardarParametros" class="btn-primary">Guardar Ajustes</button>
+
+        <p style="font-size: 0.9em; color: #555;">* Estos ajustes son usados en la fórmula para calcular el "Gasto fijo diario (calculado)".</p>
+    </section>
+    
     <section class="card">
         <h2>Importar / Exportar Datos</h2>
 
@@ -158,6 +171,7 @@
 </main>
 
 <script src="assets/js/app.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script> 
 
 </body>
 </html>
