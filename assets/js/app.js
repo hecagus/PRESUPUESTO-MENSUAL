@@ -652,16 +652,7 @@ function finalizarTurno() {
   renderResumenIndex();
 }
 // ======================
-// app.js — PARTE 5/5: RENDERIZADO DE RESULTADOS E INICIALIZACIÓN
-// ======================
-
-// ======================
-// Resumen del día (¡Función CORREGIDA!)
-// ======================
-
-// Se elimina la antigua función calcularResumenDatos() que usaba ISO.
-// La lógica de cálculo y renderizado se mueve a renderResumenIndex() para usar la fecha local.
-
+// app.js — PARTE 5/5: RENDERIZADO DE RESULTADOS E INICIALI/* Archivo: app.js (Reemplazar la función renderResumenIndex en la Parte 5) */
 /**
  * Función que calcula y renderiza los resultados del resumen diario (HORAS, INGRESO, GASTO, NETA).
  * Utiliza getTodayLocalDateKey() y getLocalDayFromISODate() para asegurar que la data sea
@@ -694,9 +685,10 @@ function renderResumenIndex() {
     const resNeta = $('resNeta');
 
     if (resHoras) resHoras.textContent = totalHoras.toFixed(2);
-    if (resGananciaBruta) resGananciaBruta.textContent = "$" + fmtMoney(totalIngresos);
-    if (resGastos) resGastos.textContent = "$" + fmtMoney(totalGastos);
-    if (resNeta) resNeta.textContent = "$" + fmtMoney(totalNeta);
+    // CORRECCIÓN: fmtMoney ya incluye el símbolo "$", quitamos el adicional.
+    if (resGananciaBruta) resGananciaBruta.textContent = fmtMoney(totalIngresos);
+    if (resGastos) resGastos.textContent = fmtMoney(totalGastos);
+    if (resNeta) resNeta.textContent = fmtMoney(totalNeta);
 
     // Llamar a otras funciones de renderizado/cálculo
     renderTablaTurnos();
@@ -704,29 +696,64 @@ function renderResumenIndex() {
     renderCharts();
     calcularProyeccionReal();
 }
+
+// ======================
+
+// ======================
+
 // ======================
 // AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS
+// ======================
+/* Archivo: app.js (Reemplazar la función aggregateDailyData en la Parte 5) */
+// ======================
+// AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS (CORREGIDO)
 // ======================
 function aggregateDailyData() {
   const data = {};
 
   const processEntry = (entry, type, amountKey) => {
     
-    // Usar la fecha ISO para agrupar (más estable para gráficas históricas)
-    const date = (entry.fechaISO || entry.inicio || "").slice(0, 10);
-    if (!date) return;
+    // CORRECCIÓN CLAVE: Usar la fecha Local para agrupar y luego formatearla a ISO (YYYY-MM-DD)
+    const rawDate = entry.fechaLocal || ""; 
+    if (!rawDate) return;
 
-    data[date] = data[date] || { date, ingresos: 0, gastos: 0, kmRecorridos: 0 };
-    data[date][type] += (Number(entry[amountKey]) || 0);
+    // Extraer solo la fecha: "DD/MM/YYYY"
+    const localDate = rawDate.split(',')[0].trim();
+    
+    // Convertir a formato "YYYY-MM-DD" para ordenar correctamente en el objeto de datos
+    const parts = localDate.split('/');
+    if (parts.length !== 3) return;
+    const dateKey = `${parts[2]}-${parts[1]}-${parts[0]}`; 
+
+    data[dateKey] = data[dateKey] || { date: dateKey, ingresos: 0, gastos: 0, kmRecorridos: 0 };
+    data[dateKey][type] += (Number(entry[amountKey]) || 0);
   };
-
-  (panelData.turnos || []).forEach(t => processEntry(t, 'ingresos', 'ganancia'));
+    
+  // 1. Procesar Gastos e Ingresos (que tienen fechaLocal)
+  // Nota: Los ingresos vienen del array 'turnos', pero el array 'ingresos' tiene la fecha local correcta.
+  (panelData.ingresos || []).forEach(i => processEntry(i, 'ingresos', 'cantidad'));
   (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
-  (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
+  
+  // 2. Procesar KM (que también tienen fechaLocal)
+  // Aunque los KM tienen fechaLocal, el código anterior solo usaba ISO. Usaremos fechaLocal.
+  (panelData.kmDiarios || []).forEach(k => {
+      // Necesitamos una función similar para KM, ya que no se ajustan directamente al formato anterior
+      const rawDate = k.fechaLocal || ""; 
+      if (!rawDate) return;
 
-  // Convertir objeto a array y ordenar por fecha
-  return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
+      const localDate = rawDate.split(',')[0].trim();
+      const parts = localDate.split('/');
+      if (parts.length !== 3) return;
+      const dateKey = `${parts[2]}-${parts[1]}-${parts[0]}`; 
+
+      data[dateKey] = data[dateKey] || { date: dateKey, ingresos: 0, gastos: 0, kmRecorridos: 0 };
+      data[dateKey]['kmRecorridos'] += (Number(k.recorrido) || 0);
+  });
+  
+  // Convertir objeto a array y ordenar por fecha (el dateKey YYYY-MM-DD es ordenable)
+  return Object.values(data).sort((a, b) => a.date.localeCompare(b.date));
 }
+
 
 // ======================
 // CÁLCULO DE MÉTRICAS MENSUALES DE KM
