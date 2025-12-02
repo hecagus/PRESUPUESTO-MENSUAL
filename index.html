@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administración – Uber Eats Tracker</title>
+    <title>Panel de Resultados – Uber Eats Tracker</title>
 
     <link rel="stylesheet" href="assets/css/style.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script> 
@@ -12,8 +12,8 @@
 <body>
 
 <header class="header">
-    <h1>Panel Administrativo</h1>
-    <a href="index.html" class="btn-admin">⬅ Volver al Panel</a>
+    <h1>Panel de Resultados</h1>
+    <a href="admin.html" class="btn-admin">⬅ Ir al Administrador</a>
 </header>
 
 <main class="container">
@@ -60,28 +60,39 @@
     <section class="card">
         <h2>Deudas</h2>
 
-        <h3>Registrar deuda</h3>
-        <label>Nombre:</label>
-        <input type="text" id="deudaNombre">
+        <div id="deudaPaso1" style="display:block;">
+            <h3>Registrar deuda (Paso 1 de 4)</h3>
+            <label>Nombre de la deuda:</label>
+            <input type="text" id="deudaNombre" placeholder="Ej: Tarjeta de Crédito">
+            <button id="btnPaso1" class="btn-primary">Siguiente</button>
+        </div>
 
-        <label>Monto total:</label>
-        <input type="number" id="deudaMonto">
+        <div id="deudaPaso2" style="display:none;">
+            <h3>Registrar deuda (Paso 2 de 4)</h3>
+            <label>Monto total de la deuda (MXN):</label>
+            <input type="number" id="deudaMonto" placeholder="Ej: 15000">
+            <button id="btnPaso2" class="btn-primary">Siguiente</button>
+        </div>
+
+        <div id="deudaPaso3" style="display:none;">
+            <h3>Registrar deuda (Paso 3 de 4)</h3>
+            <label>Monto programado de abono (MXN):</label>
+            <input type="number" id="deudaAbonoProgramado" placeholder="Ej: 449 (0 si no tienes un abono fijo)">
+            <button id="btnPaso3" class="btn-primary">Siguiente</button>
+        </div>
+
+        <div id="deudaPaso4" style="display:none;">
+            <h3>Registrar deuda (Paso 4 de 4)</h3>
+            <label>Periodicidad:</label>
+            <select id="deudaPeriodicidad">
+                <option value="Semanal">Semanal</option>
+                <option value="Quincenal">Quincenal</option>
+                <option value="Mensual">Mensual</option>
+                <option value="Único">Único</option>
+            </select>
+            <button id="btnRegistrarDeuda" class="btn-success">Guardar Deuda</button>
+        </div>
         
-        <hr>
-        <h4>Compromiso de pago (para cálculo fijo)</h4>
-
-        <label>Monto programado (Ej. 449):</label>
-        <input type="number" id="deudaPagoProgramado">
-
-        <label>Periodicidad:</label>
-        <select id="deudaPeriodicidad">
-            <option value="Semanal">Semanal</option>
-            <option value="Quincenal">Quincenal</option>
-            <option value="Mensual">Mensual</option>
-        </select>
-
-        <button id="btnRegistrarDeuda" class="btn-primary">Guardar Deuda</button>
-
         <hr>
 
         <h3>Registrar abono</h3>
