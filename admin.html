@@ -6,6 +6,7 @@
     <title>Administración – Uber Eats Tracker</title>
 
 <link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script> 
 </head>
 
 <body>
@@ -43,7 +44,7 @@
             <option value="Transporte">Transporte</option>
             <option value="Mantenimiento">Mantenimiento</option>
             <option value="Otros">Otros</option>
-        </select>
+            </select>
 
         <button id="btnGuardarGasto" class="btn-primary">Guardar Gasto</button>
     </section>
@@ -65,21 +66,18 @@
             <input type="text" id="deudaNombre" placeholder="Ej: Tarjeta de Crédito">
             <button id="btnPaso1" class="btn-primary">Siguiente</button>
         </div>
-
         <div id="deudaPaso2" style="display:none;">
             <h3>Registrar deuda (Paso 2 de 4)</h3>
             <label for="deudaMonto">Monto total de la deuda (MXN):</label>
             <input type="number" id="deudaMonto" placeholder="Ej: 15000">
             <button id="btnPaso2" class="btn-primary">Siguiente</button>
         </div>
-
         <div id="deudaPaso3" style="display:none;">
             <h3>Registrar deuda (Paso 3 de 4)</h3>
             <label for="deudaAbonoProgramado">Monto programado de abono (MXN):</label>
             <input type="number" id="deudaAbonoProgramado" placeholder="Ej: 449 (0 si no tienes un abono fijo)">
             <button id="btnPaso3" class="btn-primary">Siguiente</button>
         </div>
-
         <div id="deudaPaso4" style="display:none;">
             <h3>Registrar deuda (Paso 4 de 4)</h3>
             <label for="deudaPeriodicidad">Periodicidad:</label>
@@ -144,7 +142,7 @@
         
         <hr>
         
-        <h3>Ajustes Manuales</h3>
+        <h3>Ajustes Manuales (Usados como valor inicial o de respaldo)</h3>
         
         <label for="paramComidaDiaria">Costo asumido de Comida Diaria (MXN):</label>
         <input type="number" id="paramComidaDiaria">
@@ -154,7 +152,7 @@
 
         <button id="btnGuardarParametros" class="btn-primary">Guardar Ajustes</button>
 
-        <p style="font-size: 0.9em; color: #555;">* Estos ajustes son usados en la fórmula para calcular el "Gasto fijo diario (calculado)".</p>
+        <p style="font-size: 0.9em; color: #555;">* El sistema usa el promedio de tus gastos de Comida y el Costo por KM real una vez que tienes suficiente historial. Estos ajustes sirven como valores iniciales o de respaldo.</p>
     </section>
     
     <section class="card">
@@ -171,7 +169,6 @@
 </main>
 
 <script src="assets/js/app.js"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script> 
 
 </body>
 </html>
