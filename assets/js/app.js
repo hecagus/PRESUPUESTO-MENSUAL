@@ -595,6 +595,99 @@ function renderTablaTurnos() {
 
 
 // Proyección Real (CORREGIDA: Evita Doble Conteo)
+// Función de renderizado de Métricas Mensuales de Vehículo
+function renderKmMensual() {
+    const div = document.getElementById("tablaKmMensual");
+    if (!div) return;
+
+    const kmArr = panelData.kmDiarios || [];
+    const gasArr = panelData.gasolina || [];
+
+    // Calcular promedios mensuales
+    const KM_TOTAL = kmArr.reduce((s, k) => s + (Number(k.recorrido) || 0), 0);
+    const GAS_TOTAL = gasArr.reduce((s, g) => s + (Number(g.litros) || 0), 0);
+    const COSTO_GAS_TOTAL = gasArr.reduce((s, g) => s + (Number(g.costo) || 0), 0);
+
+    const kmPromedioDia = kmArr.length ? KM_TOTAL / kmArr.length : 0;
+    const costoPromedioLitro = GAS_TOTAL ? COSTO_GAS_TOTAL / GAS_TOTAL : 0;
+    
+    // Rendimiento (KM por Litro)
+    const rendimientoKmL = GAS_TOTAL ? KM_TOTAL / GAS_TOTAL : 0; 
+    
+    // Costo por KM (Cuánto te cuesta recorrer 1 KM en gasolina)
+    const costoRealPorKm = rendimientoKmL > 0 ? costoPromedioLitro / rendimientoKmL : 0;
+
+    div.innerHTML = `
+        <ul class="list" style="list-style: none; padding: 0;">
+            <li><strong>KM Promedio Diario:</strong> ${kmPromedioDia.toFixed(2)} KM</li>
+            <li><strong>KM Total Registrado:</strong> ${KM_TOTAL.toFixed(2)} KM</li>
+            <li><strong>Costo Promedio por Litro:</strong> $${fmtMoney(costoPromedioLitro)}</li>
+            <li><strong>Rendimiento Real:</strong> ${rendimientoKmL.toFixed(2)} KM/L</li>
+            <li><strong>Costo Real por KM (solo combustible):</strong> $${costoRealPorKm.toFixed(3)}</li>
+        </ul>
+    `;
+}
+// Utilidad: Agrega datos diarios de los últimos 'dias'
+function aggregateDailyData(dias = 14) {
+    const data = {};
+    const hoy = new Date();
+    
+    // Inicializar los últimos 'dias' en el objeto de datos
+    for (let i = 0; i < dias; i++) {
+        const d = new Date(hoy);
+        d.setDate(hoy.getDate() - i);
+        const dateKey = d.toISOString().slice(0, 10);
+        data[dateKey] = { date: dateKey, ingresos: 0, gastos: 0, kmRecorridos: 0, fechaLocal: fmtDate(d) };
+    }
+
+    const processEntry = (entry, type, amountKey) => {
+        const dateKey = (entry.fechaISO || "").slice(0, 10);
+        if (data[dateKey]) {
+            data[dateKey][type] += (Number(entry[amountKey]) || 0);
+        }
+    };
+    
+    // 1. Ingresos y Gastos
+    (panelData.ingresos || []).forEach(i => processEntry(i, 'ingresos', 'cantidad'));
+    (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
+    
+    // 2. Kilometraje
+    (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
+
+    // Devolver un array ordenado por fecha
+    return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+// Utilidad: Agrega datos diarios de los últimos 'dias'
+function aggregateDailyData(dias = 14) {
+    const data = {};
+    const hoy = new Date();
+    
+    // Inicializar los últimos 'dias' en el objeto de datos
+    for (let i = 0; i < dias; i++) {
+        const d = new Date(hoy);
+        d.setDate(hoy.getDate() - i);
+        const dateKey = d.toISOString().slice(0, 10);
+        data[dateKey] = { date: dateKey, ingresos: 0, gastos: 0, kmRecorridos: 0, fechaLocal: fmtDate(d) };
+    }
+
+    const processEntry = (entry, type, amountKey) => {
+        const dateKey = (entry.fechaISO || "").slice(0, 10);
+        if (data[dateKey]) {
+            data[dateKey][type] += (Number(entry[amountKey]) || 0);
+        }
+    };
+    
+    // 1. Ingresos y Gastos
+    (panelData.ingresos || []).forEach(i => processEntry(i, 'ingresos', 'cantidad'));
+    (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
+    
+    // 2. Kilometraje
+    (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
+
+    // Devolver un array ordenado por fecha
+    return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
 function calcularProyeccionReal() {
     const p = panelData.parametros || {};
     const deudaTotal = Number(p.deudaTotal || 0);
@@ -755,5 +848,13 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // 7. Mostrar Tutorial si es la primera vez (solo en index.html)
     mostrarTutorial();
+  // Dentro de renderResumenIndex()
+// ...
+// Recalcular métricas
+renderKmMensual(); // ¡Añadir o asegurar!
+renderGraficas();   // ¡Añadir o asegurar!
+calcularProyeccionReal();
+// ...
+  
     
 });
