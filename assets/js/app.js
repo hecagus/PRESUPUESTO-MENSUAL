@@ -1,5 +1,5 @@
 // ======================
-// app.js — PARTE 1/5: SETUP Y UTILIDADES
+// app.js: CÓDIGO CONSOLIDADO Y CORREGIDO
 // ======================
 
 const STORAGE_KEY = "panelData";
@@ -159,10 +159,6 @@ function renderMovimientos() {
     return;
   }
 }
-
-// ======================
-// app.js — PARTE 2/5: REGISTROS DE MOVIMIENTOS Y DEUDAS
-// ======================
 
 // ======================
 // Registrar ingreso
@@ -390,10 +386,6 @@ function setupDeudaListeners() {
       renderResumenIndex();
     });
 }
-
-// ======================
-// app.js — PARTE 3/5: KM, GASOLINA, IO Y TURNOS
-// ======================
 
 // ======================
 // KM y Gasolina
@@ -656,7 +648,7 @@ function finalizarTurno() {
 }
 
 // ======================
-// app.js — PARTE 4/5: RENDERIZADO DE RESULTADOS
+// RENDERIZADO DE RESULTADOS
 // ======================
 
 // ======================
@@ -1007,7 +999,7 @@ document.addEventListener("DOMContentLoaded", () => {
     calcularDeudaTotalAuto();
     calcularGastoFijoAuto();
     
-    // 5. Cargar parámetros manuales en Index.html
+    // 5. Cargar parámetros manuales en Index.html (si aplica)
     if (document.title.includes("Resultados")) { 
         if ($("paramComidaDiaria")) $("paramComidaDiaria").value = panelData.parametros.comidaDiaria.toFixed(2);
         if ($("paramCostoPorKm")) $("paramCostoPorKm").value = panelData.parametros.costoPorKm.toFixed(2);
@@ -1032,6 +1024,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // El título de Index.html debe contener "Resultados"
     if (document.title.includes("Resultados")) {
         renderResumenIndex(); 
-    } // <--- ¡Asegúrate de que este sea el cierre correcto del `if`!
+    }
   
-}); // <--- ¡Este es el cierre correcto del `document.addEventListener`!
+});
