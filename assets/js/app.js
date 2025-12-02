@@ -1,5 +1,5 @@
 // ======================
-// app.js — PARTE 1/4: SETUP Y UTILIDADES
+// app.js — PARTE 1/5: SETUP Y UTILIDADES
 // ======================
 
 const STORAGE_KEY = "panelData";
@@ -18,8 +18,8 @@ let panelData = {
     deudaTotal: 0,
     gastoFijo: 0,
     ultimoKMfinal: null,
-    comidaDiaria: 200, // NUEVO: Valor por defecto
-    costoPorKm: 0.6    // NUEVO: Valor por defecto
+    comidaDiaria: 200, 
+    costoPorKm: 0.6    
   }
 };
 
@@ -38,8 +38,8 @@ function cargarPanelData() {
         deudaTotal: 0,
         gastoFijo: 0,
         ultimoKMfinal: null,
-        comidaDiaria: 200, // Asegurar valor por defecto
-        costoPorKm: 0.6    // Asegurar valor por defecto
+        comidaDiaria: 200, 
+        costoPorKm: 0.6    
     }, panelData.parametros, (parsed.parametros || {}));
   } catch (e) {
     console.error("Error al cargar panelData:", e);
@@ -160,7 +160,7 @@ function renderMovimientos() {
   }
 }
 // ======================
-// app.js — PARTE 2/4: REGISTROS DE MOVIMIENTOS Y DEUDAS
+// app.js — PARTE 2/5: REGISTROS DE MOVIMIENTOS Y DEUDAS
 // ======================
 
 // ======================
@@ -388,9 +388,9 @@ function setupDeudaListeners() {
 
       renderResumenIndex();
     });
-                                    }
+}
 // ======================
-// app.js — PARTE 3/4: KM, GASOLINA, IO Y TURNOS
+// app.js — PARTE 3/5: KM, GASOLINA, IO Y TURNOS
 // ======================
 
 // ======================
@@ -495,7 +495,9 @@ function setupParametrosListeners() {
 function exportToExcel() {
   const data = panelData;
   if (!data) return alert("No hay datos para exportar.");
-  if (typeof XLSX === 'undefined') return alert("Error: La librería XLSX no está cargada.");
+  
+  // Verifica si la librería XLSX está disponible (se carga en index.html)
+  if (typeof XLSX === 'undefined') return alert("Error: La librería XLSX no está cargada. Asegúrate de estar en la página de Resultados (index.html) y de que la librería está enlazada en tu HTML.");
 
   const wb = XLSX.utils.book_new();
 
@@ -543,7 +545,7 @@ function setupIoListeners() {
         });
     });
 
-    $("btnExportarExcel")?.addEventListener("click", exportToExcel); // LISTENER DE EXCEL
+    $("btnExportarExcel")?.addEventListener("click", exportToExcel); 
 
     $("btnImportar")?.addEventListener("click", () => {
       const raw = ($("importJson")?.value || "").trim();
@@ -650,7 +652,7 @@ function finalizarTurno() {
   renderResumenIndex();
 }
 // ======================
-// app.js — PARTE 4/4: RENDERIZADO DE RESULTADOS E INICIALIZACIÓN
+// app.js — PARTE 4/5: RENDERIZADO DE RESULTADOS
 // ======================
 
 // ======================
@@ -671,7 +673,7 @@ function calcularResumenDatos() {
 }
 
 // ======================
-// AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS (REINCORPORADA)
+// AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS
 // ======================
 function aggregateDailyData() {
   const data = {};
@@ -712,14 +714,6 @@ function aggregateDailyData() {
 // ======================
 // CÁLCULO DE MÉTRICAS MENSUALES DE KM
 // ======================
-function aggregateKmMensual() {
-    const dataMensual = {};
-
-    // 1. Agrupar KM por mes
-    (panelData.kmDiarios || []).forEach(k => {
-// ... (rest of Part 4 - aggregateKmMensual, renderTablaKmMensual, renderResumenIndex, renderTablaTurnos)
-  // ... (Continuación de Parte 4/4)
-
 function aggregateKmMensual() {
     const dataMensual = {};
 
@@ -825,7 +819,6 @@ function renderResumenIndex() {
   renderCharts();
   calcularProyeccionReal();
 }
-
 // ======================
 // Tabla Turnos
 // ======================
@@ -990,7 +983,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupDeudaListeners();
     setupKmAndGasListeners();
     setupIoListeners();
-    setupParametrosListeners(); // <-- NUEVO LISTENER
+    setupParametrosListeners(); 
     
     // 2. Turnos Listeners
     $("btnIniciarTurno")?.addEventListener("click", iniciarTurno);
@@ -1031,9 +1024,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 7. Renderizar Resultados (solo si estamos en index.html)
+    // El título de Index.html debe contener "Resultados"
     if (document.title.includes("Resultados")) {
         renderResumenIndex(); 
     }
   
 });
-      
+// FALTA ESTA LLAVE
+// }
