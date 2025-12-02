@@ -1,5 +1,5 @@
 // ======================
-// app.js — PARTE 1/5: SETUP Y UTILIDADES
+// app.js — PARTE 1/4: SETUP Y UTILIDADES
 // ======================
 
 const STORAGE_KEY = "panelData";
@@ -153,8 +153,10 @@ function renderMovimientos() {
     return;
   }
 }
+
+// Nota: renderMovimientos se llama en DOMContentLoaded, no aquí.
 // ======================
-// app.js — PARTE 2/5: REGISTROS DE MOVIMIENTOS Y DEUDAS (Lógica de 6 Pasos)
+// app.js — PARTE 2/4: REGISTROS DE MOVIMIENTOS Y DEUDAS
 // ======================
 
 // ======================
@@ -226,7 +228,7 @@ function setupGastoListeners() {
 }
 
 // ======================
-// Deudas (Corregido para 6 Pasos)
+// Deudas
 // ======================
 function renderDeudas() {
   const list = $("listaDeudas");
@@ -239,19 +241,16 @@ function renderDeudas() {
 
   panelData.deudas.forEach((d, idx) => {
     const pendiente = (Number(d.monto) || 0) - (Number(d.abonado) || 0);
+    const programado = Number(d.abonoProgramado || 0);
+    const periodicidad = d.periodicidad || "";
 
-    // Muestra los nuevos campos programados si existen
-    const abonoInfo = (d.abonoProgramado && d.periodicidad) 
-        ? `<br><small>Abono programado: $${fmtMoney(d.abonoProgramado)} (${d.periodicidad})</small>` 
-        : '';
-        
     list.innerHTML += `
       <li>
         <strong>${d.nombre}</strong><br>
         Total: $${fmtMoney(d.monto)}<br>
         Pagado: $${fmtMoney(d.abonado || 0)}<br>
+        Programado: $${fmtMoney(programado)} ${periodicidad}<br>
         Pendiente: <strong>$${fmtMoney(pendiente)}</strong>
-        ${abonoInfo}
       </li>
     `;
 
@@ -272,17 +271,16 @@ function renderDeudas() {
     select.innerHTML = `<option value="">-- No hay deudas pendientes --</option>`;
   }
 }
-// app.js: Reemplaza completamente la función setupDeudaListeners()
 
-// Event Listeners para Deudas (Implementa el flujo de 6 pasos)
+// Event Listeners para Deudas (Implementa el flujo de 4 pasos)
 function setupDeudaListeners() {
     
     // Función para resetear el formulario y volver al Paso 1
     function resetDeudaForm() {
         $("deudaNombre").value = "";
         $("deudaMonto").value = "";
-        $("deudaAbonoProgramado").value = "";
-        $("deudaPeriodicidad").value = "Semanal";
+        $("deudaAbonoProgramado").value = ""; 
+        $("deudaPeriodicidad").value = "Semanal"; 
         $("deudaPaso1").style.display = "block";
         $("deudaPaso2").style.display = "none";
         $("deudaPaso3").style.display = "none";
@@ -291,36 +289,35 @@ function setupDeudaListeners() {
 
     // Lógica de navegación entre pasos
     
-    // 2. Pantalla "Nombre" -> Siguiente (btnPaso1)
-    // ESTA PARTE FUE CORREGIDA PARA ASEGURAR QUE EL EVENTO SE AÑADA
+    // 1. Pantalla "Nombre" -> Siguiente (btnPaso1)
     $("btnPaso1")?.addEventListener("click", () => {
         const nombre = ($("deudaNombre")?.value || "").trim();
         if (!nombre) return alert("Ingresa el nombre de la deuda.");
         $("deudaPaso1").style.display = "none";
-        // 3. Pantalla "Monto"
+        // 2. Pantalla "Monto"
         $("deudaPaso2").style.display = "block";
     });
 
-    // 3. Pantalla "Monto" -> Siguiente (btnPaso2)
+    // 2. Pantalla "Monto" -> Siguiente (btnPaso2)
     $("btnPaso2")?.addEventListener("click", () => {
         const monto = Number($("deudaMonto")?.value || 0);
         if (!monto || monto <= 0) return alert("Ingresa un monto válido.");
         $("deudaPaso2").style.display = "none";
-        // 4. Pantalla "¿Cuánto abonas?"
+        // 3. Pantalla "¿Cuánto abonas?"
         $("deudaPaso3").style.display = "block";
     });
 
-    // 4. Pantalla "¿Cuánto abonas?" -> Siguiente (btnPaso3)
+    // 3. Pantalla "¿Cuánto abonas?" -> Siguiente (btnPaso3)
     $("btnPaso3")?.addEventListener("click", () => {
         const abono = Number($("deudaAbonoProgramado")?.value || 0);
         // Permitimos abono 0 (si no hay abono programado fijo)
         if (isNaN(abono) || abono < 0) return alert("Ingresa un abono válido (0 si no está definido).");
         $("deudaPaso3").style.display = "none";
-        // 5. Pantalla "Cada cuánto tiempo"
+        // 4. Pantalla "Cada cuánto tiempo"
         $("deudaPaso4").style.display = "block";
     });
 
-    // 6. Finalmente, Guardar Deuda (btnRegistrarDeuda)
+    // 4. Finalmente, Guardar Deuda (btnRegistrarDeuda)
     $("btnRegistrarDeuda")?.addEventListener("click", () => {
       const nombre = ($("deudaNombre")?.value || "").trim();
       const monto = Number($("deudaMonto")?.value || 0);
@@ -388,60 +385,8 @@ function setupDeudaListeners() {
       renderResumenIndex();
     });
 }
-
-
-
-      guardarPanelData();
-      renderDeudas(); 
-      
-      calcularDeudaTotalAuto();
-      calcularGastoFijoAuto();
-
-      resetDeudaForm(); // Vuelve al inicio del proceso
-
-      alert("Deuda registrada.");
-    });
-
-    // Lógica de Abono (NO CAMBIA)
-    $("btnRegistrarAbono")?.addEventListener("click", () => {
-      const idx = $("abonoSeleccionar")?.value;
-      const monto = Number($("abonoMonto")?.value || 0);
-
-      if (idx === "" || !idx || monto <= 0) return alert("Datos inválidos.");
-
-      // Verificar que el índice exista y el monto no exceda el saldo
-      const deuda = panelData.deudas[idx];
-      const pendiente = (Number(deuda.monto) || 0) - (Number(deuda.abonado) || 0);
-
-      if(monto > pendiente) return alert(`El abono excede el saldo pendiente de $${fmtMoney(pendiente)}.`);
-      
-      deuda.abonado = (Number(deuda.abonado) || 0) + monto;
-
-      // registrar gasto tipo abono
-      panelData.gastos.push({
-        descripcion: `Abono a ${deuda.nombre}`,
-        cantidad: monto,
-        categoria: "Abono a Deuda",
-        fechaISO: nowISO(),
-        fechaLocal: nowLocal()
-      });
-
-      pushMovimiento("Gasto", `Abono a ${deuda.nombre}`, monto);
-
-      guardarPanelData();
-      renderDeudas();
-
-      calcularDeudaTotalAuto();
-      calcularGastoFijoAuto();
-
-      $("abonoMonto").value = "";
-      alert("Abono guardado.");
-
-      renderResumenIndex();
-    });
-}
 // ======================
-// app.js — PARTE 3/5: KM, GASOLINA, IO Y TURNOS
+// app.js — PARTE 3/4: KM, GASOLINA, IO Y TURNOS
 // ======================
 
 // ======================
@@ -567,7 +512,7 @@ function setupIoListeners() {
       }
     });
     
-    // El listener de Excel se maneja en la Parte 4/5 (aggregateDailyData)
+    // El listener de Excel se maneja en la Parte 4/4 (renderCharts)
 }
 
 
@@ -650,19 +595,19 @@ function finalizarTurno() {
   renderResumenIndex();
 }
 // ======================
-// app.js — PARTE 4/5: RENDERIZADO DE RESULTADOS Y CÁLCULOS
+// ======================
+// app.js — PARTE 4/4: RENDERIZADO DE RESULTADOS E INICIALIZACIÓN
 // ======================
 
 // ======================
 // Resumen del día
 // ======================
 function calcularResumenDatos() {
-  // Nota: Usa la fecha Local para calcular el día actual
-  const hoyLocal = new Date().toLocaleString("es-MX").split(',')[0].trim();
+  const hoy = new Date().toISOString().slice(0, 10);
 
-  // Obtener turnos y gastos DE HOY (usando fechaLocal)
-  const turnosHoy = (panelData.turnos || []).filter(t => (t.fin || t.inicio || "").slice(0, 10) === new Date().toISOString().slice(0, 10));
-  const gastosHoy = (panelData.gastos || []).filter(g => (g.fechaLocal || "").split(',')[0].trim() === hoyLocal);
+  // Obtener turnos y gastos DE HOY
+  const turnosHoy = (panelData.turnos || []).filter(t => (t.inicio || "").slice(0, 10) === hoy);
+  const gastosHoy = (panelData.gastos || []).filter(g => (g.fechaISO || "").slice(0, 10) === hoy);
 
   const horasHoy = turnosHoy.reduce((s, t) => s + (Number(t.horas) || 0), 0);
   const ganHoy   = turnosHoy.reduce((s, t) => s + (Number(t.ganancia) || 0), 0);
@@ -672,39 +617,29 @@ function calcularResumenDatos() {
 }
 
 // ======================
-// AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS (Usa fechaLocal para consistencia)
+// AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS
 // ======================
 function aggregateDailyData() {
   const data = {};
 
-  const processEntry = (entry, type, amountKey, dateSource) => {
-    
-    // CAMBIO CLAVE: Usar la fecha Local para agrupar
-    const rawDate = entry[dateSource] || ""; 
-    if (!rawDate) return;
+  const processEntry = (entry, type, amountKey) => {
+    const date = (entry.fechaISO || entry.inicio || "").slice(0, 10);
+    if (!date) return;
 
-    // Extraer solo la fecha: "DD/MM/YYYY"
-    const localDate = rawDate.split(',')[0].trim();
-    
-    // Convertir a formato "YYYY-MM-DD" para ordenar correctamente
-    const parts = localDate.split('/');
-    if (parts.length !== 3) return;
-    const dateKey = `${parts[2]}-${parts[1]}-${parts[0]}`; 
-
-    data[dateKey] = data[dateKey] || { date: dateKey, ingresos: 0, gastos: 0, kmRecorridos: 0 };
-    data[dateKey][type] += (Number(entry[amountKey]) || 0);
+    data[date] = data[date] || { date, ingresos: 0, gastos: 0, kmRecorridos: 0 };
+    data[date][type] += (Number(entry[amountKey]) || 0);
   };
 
-  (panelData.ingresos || []).forEach(t => processEntry(t, 'ingresos', 'cantidad', 'fechaLocal'));
-  (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad', 'fechaLocal'));
-  (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido', 'fechaLocal'));
+  (panelData.turnos || []).forEach(t => processEntry(t, 'ingresos', 'ganancia'));
+  (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
+  (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
 
-  // Convertir objeto a array y ordenar por fecha (dateKey YYYY-MM-DD)
+  // Convertir objeto a array y ordenar por fecha
   return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
 }
 
 // ======================
-// CÁLCULO DE MÉTRICAS MENSUALES DE KM
+// CÁLCULO DE MÉTRICAS MENSUALES DE KM (NUEVA FUNCIÓN)
 // ======================
 function aggregateKmMensual() {
     const dataMensual = {};
@@ -759,7 +694,7 @@ function aggregateKmMensual() {
 
 
 // ======================
-// RENDERIZADO DE TABLA DE KM MENSUAL
+// RENDERIZADO DE TABLA DE KM MENSUAL (NUEVA FUNCIÓN)
 // ======================
 function renderTablaKmMensual() {
     const tablaContainer = $("tablaKmMensual"); 
@@ -810,7 +745,7 @@ function renderResumenIndex() {
   if ($("resNeta")) $("resNeta").textContent = "$" + fmtMoney(r.ganHoy - r.gastHoy);
 
   renderTablaTurnos();
-  renderTablaKmMensual();
+  renderTablaKmMensual(); // <<< LLAMADA INTEGRADA
   renderCharts();
   calcularProyeccionReal();
 }
@@ -832,8 +767,9 @@ function renderTablaTurnos() {
   }
 
   arr.forEach(t => {
-    // Para ser precisos, se debería calcular los gastos de ese día en específico, 
-    // pero por simplicidad se mantiene el gasto en $0.00 como en tu código original.
+    // Nota: Los campos de Gastos y Neta en esta tabla son simplificados,
+    // usando la ganancia del turno como Neta y Gastos en $0.00 (según tu código original)
+    // Para ser precisos, habría que calcular los gastos de ese día en específico.
     tbody.innerHTML += `
       <tr>
         <td>${(t.inicio || "").slice(0,10)}</td>
@@ -894,9 +830,6 @@ function calcularProyeccionReal() {
     }
   }
 }
-// ======================
-// app.js — PARTE 5/5: GRÁFICAS E INICIALIZACIÓN
-// ======================
 
 // ======================
 // GRÁFICAS (CHART.JS)
@@ -1020,5 +953,44 @@ document.addEventListener("DOMContentLoaded", () => {
     if (document.title.includes("Resultados")) {
         renderResumenIndex(); 
     }
+  // app.js — PARTE 4/4 (aggregateDailyData)
+function aggregateDailyData() {
+  const data = {};
+
+  const processEntry = (entry, type, amountKey) => {
+    
+    // CAMBIO CLAVE: Usar la fecha Local para agrupar
+    // La fecha Local está en formato "DD/MM/YYYY, HH:MM..."
+    const rawDate = entry.fechaLocal || ""; 
+    if (!rawDate) return;
+
+    // Extraer solo la fecha: "DD/MM/YYYY"
+    const localDate = rawDate.split(',')[0].trim();
+    
+    // Convertir a formato "YYYY-MM-DD" para ordenar correctamente
+    const parts = localDate.split('/');
+    if (parts.length !== 3) return;
+    const dateKey = `${parts[2]}-${parts[1]}-${parts[0]}`; 
+
+    data[dateKey] = data[dateKey] || { date: dateKey, ingresos: 0, gastos: 0, kmRecorridos: 0 };
+    data[dateKey][type] += (Number(entry[amountKey]) || 0);
+  };
+  
+  // Procesar todas las fuentes que pueden tener fechaLocal/fechaISO o inicio
+  (panelData.ingresos || []).forEach(t => processEntry(t, 'ingresos', 'cantidad'));
+  (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
+  (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
+  // Los turnos usan 'inicio' (fechaISO), se agrupan por ganancia
+  (panelData.turnos || []).forEach(t => {
+      // Usar la fecha ISO para turnos ya que tienen su propia lógica de fecha
+      const date = (t.inicio || "").slice(0, 10);
+      if (!date) return;
+      data[date] = data[date] || { date, ingresos: 0, gastos: 0, kmRecorridos: 0 };
+      data[date]['ingresos'] += (Number(t.ganancia) || 0);
+  });
+
+  // Convertir objeto a array y ordenar por fecha (dateKey YYYY-MM-DD)
+  return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
+}
   
 });
