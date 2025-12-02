@@ -17,7 +17,9 @@ let panelData = {
   parametros: {
     deudaTotal: 0,
     gastoFijo: 0,
-    ultimoKMfinal: null
+    ultimoKMfinal: null,
+    comidaDiaria: 200, // NUEVO: Valor por defecto
+    costoPorKm: 0.6    // NUEVO: Valor por defecto
   }
 };
 
@@ -32,7 +34,13 @@ function cargarPanelData() {
 
     // Asegurar que las propiedades existan, incluso si el localStorage está vacío o es viejo
     panelData = Object.assign({}, panelData, parsed);
-    panelData.parametros = Object.assign({}, panelData.parametros, (parsed.parametros || {}));
+    panelData.parametros = Object.assign({
+        deudaTotal: 0,
+        gastoFijo: 0,
+        ultimoKMfinal: null,
+        comidaDiaria: 200, // Asegurar valor por defecto
+        costoPorKm: 0.6    // Asegurar valor por defecto
+    }, panelData.parametros, (parsed.parametros || {}));
   } catch (e) {
     console.error("Error al cargar panelData:", e);
   }
@@ -85,7 +93,9 @@ function calcularDeudaTotalAuto() {
 // B) calcularGastoFijoAuto: calcula promedio basado en abonos y KM
 function calcularGastoFijoAuto() {
   panelData.parametros = panelData.parametros || {};
-  const comidaDiaria = 200; // Gasto fijo asumido de comida
+  
+  // USAR VALORES DE PARAMETROS
+  const comidaDiaria = Number(panelData.parametros.comidaDiaria) || 200; 
 
   const kmArr = panelData.kmDiarios || [];
   const kmProm = kmArr.length
@@ -106,10 +116,9 @@ function calcularGastoFijoAuto() {
     }
   });
 
-  // Fórmula de Gasto Fijo: (Abono mensual / 30 días) + Gasto de comida + (KM promedio * costo por KM)
-  // Usaremos un divisor simple para el abono (6 días laborables por semana)
-  // Usaremos un costo de combustible/mantenimiento de 0.6 MXN/KM asumido
-  const gastoFijo = (ultimoAbono / 6) + comidaDiaria + (kmProm * 0.6);
+  // Fórmula de Gasto Fijo: (Abono mensual / 6 días) + Gasto de comida + (KM promedio * costo por KM)
+  const costoPorKm = Number(panelData.parametros.costoPorKm) || 0.6; 
+  const gastoFijo = (ultimoAbono / 6) + comidaDiaria + (kmProm * costoPorKm);
 
   panelData.parametros.gastoFijo = gastoFijo;
   guardarPanelData();
@@ -150,7 +159,6 @@ function renderMovimientos() {
     return;
   }
 }
-
 // ======================
 // app.js — PARTE 2/4: REGISTROS DE MOVIMIENTOS Y DEUDAS
 // ======================
@@ -380,7 +388,7 @@ function setupDeudaListeners() {
 
       renderResumenIndex();
     });
-}
+                                    }
 // ======================
 // app.js — PARTE 3/4: KM, GASOLINA, IO Y TURNOS
 // ======================
@@ -460,6 +468,59 @@ function setupKmAndGasListeners() {
 
 
 // ======================
+// Ajustes de Parámetros
+// ======================
+function setupParametrosListeners() {
+    $("btnGuardarParametros")?.addEventListener("click", () => {
+        const comida = Number($("paramComidaDiaria")?.value || 0);
+        const costoKm = Number($("paramCostoPorKm")?.value || 0);
+
+        if (isNaN(comida) || isNaN(costoKm) || comida < 0 || costoKm < 0) {
+            return alert("Ingresa valores válidos para los parámetros (Comida/Costo por KM).");
+        }
+
+        panelData.parametros.comidaDiaria = comida;
+        panelData.parametros.costoPorKm = costoKm;
+        
+        guardarPanelData();
+        calcularGastoFijoAuto(); // Recalcular gasto fijo con los nuevos parámetros
+
+        alert("Parámetros actualizados.");
+    });
+}
+
+// ======================
+// Exportar a Excel
+// ======================
+function exportToExcel() {
+  const data = panelData;
+  if (!data) return alert("No hay datos para exportar.");
+  if (typeof XLSX === 'undefined') return alert("Error: La librería XLSX no está cargada.");
+
+  const wb = XLSX.utils.book_new();
+
+  // Función auxiliar para agregar hoja
+  const addSheet = (name, arr) => {
+      if (!arr || arr.length === 0) return;
+      const ws = XLSX.utils.json_to_sheet(arr);
+      XLSX.utils.book_append_sheet(wb, ws, name);
+  };
+
+  // Agregar hojas
+  addSheet("Ingresos", data.ingresos);
+  addSheet("Gastos", data.gastos);
+  addSheet("Turnos", data.turnos);
+  addSheet("KM Diarios", data.kmDiarios);
+  addSheet("Gasolina", data.gasolina);
+  addSheet("Deudas", data.deudas);
+  addSheet("Movimientos", data.movimientos);
+
+  // Exportar
+  XLSX.writeFile(wb, `datos_ubereats_tracker_${Date.now()}.xlsx`);
+  alert("Exportación a Excel completada.");
+}
+
+// ======================
 // Importar / Exportar JSON
 // ======================
 function setupIoListeners() {
@@ -481,6 +542,8 @@ function setupIoListeners() {
           alert("Backup descargado.");
         });
     });
+
+    $("btnExportarExcel")?.addEventListener("click", exportToExcel); // LISTENER DE EXCEL
 
     $("btnImportar")?.addEventListener("click", () => {
       const raw = ($("importJson")?.value || "").trim();
@@ -508,8 +571,6 @@ function setupIoListeners() {
       }
     });
 }
-
-
 // ======================
 // Turnos
 // ======================
@@ -610,8 +671,55 @@ function calcularResumenDatos() {
 }
 
 // ======================
+// AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS (REINCORPORADA)
+// ======================
+function aggregateDailyData() {
+  const data = {};
+
+  const processEntry = (entry, type, amountKey) => {
+    
+    // Usar la fecha ISO para la clave principal, y la fecha Local para calcular si la ISO no está disponible
+    const date = (entry.fechaISO || entry.inicio || "").slice(0, 10);
+    if (!date) {
+        // Fallback usando fecha Local (requiere conversión)
+        const rawDate = entry.fechaLocal || "";
+        if (!rawDate) return;
+        const localDate = rawDate.split(',')[0].trim();
+        const parts = localDate.split('/');
+        if (parts.length !== 3) return;
+        const dateKey = `${parts[2]}-${parts[1]}-${parts[0]}`; 
+        
+        data[dateKey] = data[dateKey] || { date: dateKey, ingresos: 0, gastos: 0, kmRecorridos: 0 };
+        data[dateKey][type] += (Number(entry[amountKey]) || 0);
+        return;
+    }
+
+    data[date] = data[date] || { date, ingresos: 0, gastos: 0, kmRecorridos: 0 };
+    data[date][type] += (Number(entry[amountKey]) || 0);
+  };
+  
+  // Procesar todas las fuentes
+  (panelData.ingresos || []).forEach(t => processEntry(t, 'ingresos', 'cantidad'));
+  (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
+  (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
+  (panelData.turnos || []).forEach(t => processEntry(t, 'ingresos', 'ganancia'));
+
+
+  // Convertir objeto a array y ordenar por fecha
+  return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
+// ======================
 // CÁLCULO DE MÉTRICAS MENSUALES DE KM
 // ======================
+function aggregateKmMensual() {
+    const dataMensual = {};
+
+    // 1. Agrupar KM por mes
+    (panelData.kmDiarios || []).forEach(k => {
+// ... (rest of Part 4 - aggregateKmMensual, renderTablaKmMensual, renderResumenIndex, renderTablaTurnos)
+  // ... (Continuación de Parte 4/4)
+
 function aggregateKmMensual() {
     const dataMensual = {};
 
@@ -882,6 +990,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupDeudaListeners();
     setupKmAndGasListeners();
     setupIoListeners();
+    setupParametrosListeners(); // <-- NUEVO LISTENER
     
     // 2. Turnos Listeners
     $("btnIniciarTurno")?.addEventListener("click", iniciarTurno);
@@ -899,8 +1008,15 @@ document.addEventListener("DOMContentLoaded", () => {
     // 4. Calcular y Pintar Parámetros Automáticos
     calcularDeudaTotalAuto();
     calcularGastoFijoAuto();
+    
+    // 5. Cargar parámetros manuales en Index.html
+    if (document.title.includes("Resultados")) { 
+        if ($("paramComidaDiaria")) $("paramComidaDiaria").value = panelData.parametros.comidaDiaria.toFixed(2);
+        if ($("paramCostoPorKm")) $("paramCostoPorKm").value = panelData.parametros.costoPorKm.toFixed(2);
+    }
 
-    // 5. Bloquear y pintar inputs automáticos
+
+    // 6. Bloquear y pintar inputs automáticos
     const inpDeuda = document.getElementById("proyDeudaTotal");
     const inpGasto = document.getElementById("proyGastoFijo");
 
@@ -914,9 +1030,10 @@ document.addEventListener("DOMContentLoaded", () => {
         inpGasto.style.background = "#eee";
     }
 
-    // 6. Renderizar Resultados (solo si estamos en index.html)
+    // 7. Renderizar Resultados (solo si estamos en index.html)
     if (document.title.includes("Resultados")) {
         renderResumenIndex(); 
     }
   
 });
+      
