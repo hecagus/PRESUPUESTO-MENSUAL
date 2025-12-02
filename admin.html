@@ -5,16 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Administración – Uber Eats Tracker</title>
 
-    <link rel="stylesheet" href="assets/css/style.css">
-    
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="assets/css/style.css">
 </head>
 
 <body>
-<script src="assets/js/app.js"></script>
-</body>
-</html>
 
+<header class="header">
+    <h1>Panel Administrativo</h1>
+    <a href="index.html" class="btn-admin">⬅ Volver al Panel</a>
+</header>
 
 <main class="container">
 
@@ -60,27 +59,35 @@
     <section class="card">
         <h2>Deudas</h2>
 
-        <h3>Registrar deuda</h3>
-        <label>Nombre:</label>
-        <input type="text" id="deudaNombre">
+        <h3>Registrar nueva deuda</h3>
 
-        <label>Monto total:</label>
-        <input type="number" id="deudaMonto">
-        
-        <hr>
-        <h4>Compromiso de pago (para cálculo fijo)</h4>
+        <div id="deudaPaso1">
+            <label>Nombre de la deuda:</label>
+            <input type="text" id="deudaNombre">
+            <button id="btnPaso1" class="btn-secondary">Siguiente</button>
+        </div>
 
-        <label>Monto programado (Ej. 449):</label>
-        <input type="number" id="deudaPagoProgramado">
+        <div id="deudaPaso2" style="display: none;">
+            <label>Monto total:</label>
+            <input type="number" id="deudaMonto">
+            <button id="btnPaso2" class="btn-secondary">Siguiente</button>
+        </div>
 
-        <label>Periodicidad:</label>
-        <select id="deudaPeriodicidad">
-            <option value="Semanal">Semanal</option>
-            <option value="Quincenal">Quincenal</option>
-            <option value="Mensual">Mensual</option>
-        </select>
+        <div id="deudaPaso3" style="display: none;">
+            <label>¿Cuánto abonas en cada pago?</label>
+            <input type="number" id="deudaAbonoProgramado">
+            <button id="btnPaso3" class="btn-secondary">Siguiente</button>
+        </div>
 
-        <button id="btnRegistrarDeuda" class="btn-primary">Guardar Deuda</button>
+        <div id="deudaPaso4" style="display: none;">
+            <label>Cada cuánto tiempo:</label>
+            <select id="deudaPeriodicidad">
+                <option value="Semanal">Semanal</option>
+                <option value="Quincenal">Quincenal</option>
+                <option value="Mensual">Mensual</option>
+            </select>
+            <button id="btnRegistrarDeuda" class="btn-primary">Guardar Deuda</button>
+        </div>
 
         <hr>
 
@@ -128,22 +135,11 @@
         <label>Deuda total (MXN):</label>
         <input type="number" id="proyDeudaTotal" readonly style="background:#eee;">
 
-        <label>Gasto fijo diario (calculado):</label>
+        <label>Gasto fijo diario (MXN):</label>
         <input type="number" id="proyGastoFijo" readonly style="background:#eee;">
         
-        <hr>
-        
-        <h3>Ajustes de Gastos Fijos</h3>
-        
-        <label>Costo asumido de Comida Diaria (MXN):</label>
-        <input type="number" id="paramComidaDiaria">
-        
-        <label>Costo de Mantenimiento/Combustible por KM (MXN):</label>
-        <input type="number" id="paramCostoPorKm">
-
-        <button id="btnGuardarParametros" class="btn-primary">Guardar Ajustes</button>
-
-        <p style="font-size: 0.9em; color: #555;">* Los gastos totales se calculan automáticamente en base a tus registros de Deudas, Comida y KM, usando estos ajustes.</p>
+        <button id="btnGuardarProyeccion" class="btn-primary" style="display:none;">Guardar</button> 
+        <p style="font-size: 0.9em; color: #555;">* Estos campos se calculan automáticamente en base a tus registros de Deudas, Comida y KM.</p>
     </section>
 
     <section class="card">
