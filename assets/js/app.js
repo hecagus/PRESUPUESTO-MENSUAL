@@ -325,7 +325,7 @@ function setupDeudaListeners() {
 
       renderResumenIndex();
     });
-}
+          }
 // ======================
 // app.js — PARTE 3/5: KM, GASOLINA, IO Y TURNOS
 // ======================
@@ -576,20 +576,59 @@ function finalizarTurno() {
 // ======================
 
 // ======================
-// Resumen del día
+// Resumen del día (CORREGIDA para sumar Turnos + Ingresos Manuales)
 // ======================
 function calcularResumenDatos() {
   const hoy = new Date().toISOString().slice(0, 10);
+  const hoyLocal = new Date().toLocaleString("es-MX").split(',')[0].trim(); // Formato DD/MM/YYYY
 
-  // Obtener turnos y gastos DE HOY
+  // 1. Obtener turnos, ingresos y gastos DE HOY
   const turnosHoy = (panelData.turnos || []).filter(t => (t.inicio || "").slice(0, 10) === hoy);
   const gastosHoy = (panelData.gastos || []).filter(g => (g.fechaISO || "").slice(0, 10) === hoy);
+  const ingresosHoy = (panelData.ingresos || []).filter(i => (i.fechaLocal || "").split(',')[0].trim() === hoyLocal);
+
 
   const horasHoy = turnosHoy.reduce((s, t) => s + (Number(t.horas) || 0), 0);
-  const ganHoy   = turnosHoy.reduce((s, t) => s + (Number(t.ganancia) || 0), 0);
   const gastHoy  = gastosHoy.reduce((s, g) => s + (Number(g.cantidad) || 0), 0);
+  
+  // 2. Calcular la Ganancia Bruta Total, evitando duplicidad
+  let ganHoy = 0;
+  const turnoDescriptions = new Set(turnosHoy.map(t => `Ganancia turno (${t.horas}h)`)); // No es perfecto, pero es una buena aproximación de las descripciones generadas automáticamente.
 
-  return { horasHoy, ganHoy, gastHoy };
+  ingresosHoy.forEach(i => {
+    // Si la descripción NO es una ganancia de turno (que ya se cuenta en turnosHoy), la sumamos.
+    // Ojo: Si usáramos turnos.map(t=>t.ganancia) para sumar directamente, los ingresos duplicados
+    // podrían ser un problema. La forma más segura es sumar todos los ingresos y restar los gastos.
+    
+    // Sumamos todos los ingresos registrados hoy. La duplicidad se resuelve más abajo
+    ganHoy += (Number(i.cantidad) || 0);
+  });
+
+  // El sistema registra la ganancia del turno 2 veces: en turnos[] y en ingresos[].
+  // Para evitar la doble suma: Sumamos todos los turnos Y SÓLO los ingresos que NO son de turno.
+  // **REVERTIR LOGICA A COMO ESTABA, PERO USANDO TODOS LOS INGRESOS**
+  // La forma más limpia es:
+  // a) Sumar TODAS las ganancias de los turnos (que es lo que se hace en la línea 552 original)
+  // b) Sumar SÓLO los ingresos que NO son ganancias de turno.
+
+  // 2.1 Ganancia de Turnos (Ingresos "Principales")
+  const gananciaTurnos = turnosHoy.reduce((s, t) => s + (Number(t.ganancia) || 0), 0);
+  
+  // 2.2 Ganancia de Ingresos Manuales ("Secundarios" como propinas o bonos)
+  const gananciaManual = ingresosHoy.reduce((s, i) => {
+    // Si la descripción contiene 'Ganancia turno', es duplicado, no se suma.
+    if (i.descripcion.includes("Ganancia turno")) {
+      return s;
+    }
+    return s + (Number(i.cantidad) || 0);
+  }, 0);
+
+  ganHoy = gananciaTurnos + gananciaManual;
+  // FIN DE LA CORRECCIÓN
+
+  const resNeta = ganHoy - gastHoy;
+
+  return { horasHoy, ganHoy, gastHoy, resNeta };
 }
 
 // ======================
@@ -617,9 +656,16 @@ function aggregateDailyData() {
     data[dateKey][type] += (Number(entry[amountKey]) || 0);
   };
   
-  // Procesar las entradas (Se usa el ingreso del turno, no todos los ingresos)
-  (panelData.turnos || []).forEach(t => processEntry(t, 'ingresos', 'ganancia'));
+  // Procesar Ingresos: Sumar todos los ingresos del día (turnos y manuales)
+  (panelData.ingresos || []).forEach(i => {
+    // Usamos el campo 'cantidad' para los Ingresos
+    processEntry(i, 'ingresos', 'cantidad');
+  });
+
+  // Procesar Gastos
   (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
+  
+  // Procesar KM
   (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
 
   // Convertir objeto a array y ordenar por fecha (dateKey YYYY-MM-DD)
@@ -731,8 +777,8 @@ function renderResumenIndex() {
   if ($("resHoras")) $("resHoras").textContent = r.horasHoy.toFixed(2);
   if ($("resGananciaBruta")) $("resGananciaBruta").textContent = "$" + fmtMoney(r.ganHoy);
   if ($("resGastos")) $("resGastos").textContent = "$" + fmtMoney(r.gastHoy);
-  if ($("resNeta")) $("resNeta").textContent = "$" + fmtMoney(r.ganHoy - r.gastHoy);
-
+  if ($("resNeta")) $("resNeta").textContent = "$" + fmtMoney(r.resNeta); // Usar resNeta
+  
   renderTablaTurnos();
   renderTablaKmMensual();
   renderCharts();
