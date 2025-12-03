@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resultados – Uber Eats Tracker</title>
-
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="assets/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
@@ -19,73 +18,60 @@
 <main class="container">
 
     <section class="card" id="cardResumen"> 
-        <h2>Resumen del Día</h2>
-
+        <h2>Resumen del Día (Hoy)</h2>
         <div class="stats-grid">
             <div class="stat">
-                <label>Horas:</label>
+                <label>Horas</label>
                 <span id="resHoras">0</span>
             </div>
-
             <div class="stat">
-                <label>Ganancia Bruta:</label>
-                <span id="resGananciaBruta">$0</span>
+                <label>Ganancia</label>
+                <span id="resGananciaBruta">$0.00</span>
             </div>
-
             <div class="stat">
-                <label>Gastos:</label>
-                <span id="resGastos">$0</span>
+                <label>Gastos</label>
+                <span id="resGastos">$0.00</span>
             </div>
-
             <div class="stat">
-                <label>Neta:</label>
-                <span id="resNeta">$0</span>
+                <label>Neta</label>
+                <span id="resNeta">$0.00</span>
             </div>
         </div>
     </section>
     
     <section class="card">
         <h2>Proyección Real</h2>
-
-        <p>Basado en tus promedios y deudas.</p>
-
-        <div class="projection"><label>Deuda total pendiente:</label> <span id="proyDeuda">$0</span></div>
-        <div class="projection"><label>Promedio horas/día:</label> <span id="proyHoras">0 h</span></div>
-        <div class="projection"><label>Promedio ganancia neta/día:</label> <span id="proyNeta">$0</span></div>
-        <div class="projection"><label>Días para liquidar deuda:</label> <span id="proyDias">0 días</span></div>
+        <div class="projection"><label>Deuda total:</label> <span id="proyDeuda">$0</span></div>
+        <div class="projection"><label>Neta diaria prom:</label> <span id="proyNeta">$0</span></div>
+        <div class="projection"><label>Tiempo libre de deudas:</label> <span id="proyDias">Calculando...</span></div>
     </section>
 
     <section class="card">
-        <h2>Historial de Turnos</h2>
-
+        <h2>Últimos Turnos</h2>
         <table class="tabla">
             <thead>
             <tr>
                 <th>Fecha</th>
                 <th>Horas</th>
-                <th>Ganancia Bruta</th>
-                <th>Gastos del Día</th>
-                <th>Ganancia Neta</th>
+                <th>Ganancia</th>
             </tr>
             </thead>
-
             <tbody id="tablaTurnos"></tbody>
         </table>
     </section>
     
     <section class="card">
-        <h2>Métricas Mensuales de Vehículo (Gasolina/KM)</h2>
-        <div id="tablaKmMensual">
-            </div>
+        <h2>Control Gasolina / KM</h2>
+        <div id="tablaKmMensual"></div>
     </section>
 
     <section class="card">
-        <h2>Ganancias vs Gastos (Últimos 14 días)</h2>
+        <h2>Balance (14 días)</h2>
         <canvas id="graficaGanancias"></canvas>
     </section>
 
     <section class="card">
-        <h2>Kilometraje Diario (Últimos 14 días)</h2>
+        <h2>Rendimiento KM</h2>
         <canvas id="graficaKm"></canvas>
     </section>
 
@@ -93,8 +79,8 @@
 
 <div id="tutorialOverlay"></div>
 <div id="tutorialModal" class="modal-center">
-    <h3 id="tutorialTitle">¡Bienvenido!</h3>
-    <p id="tutorialText">Te guiaré rápidamente por las funciones clave de la aplicación. Haz clic en 'Iniciar'.</p>
+    <h3 id="tutorialTitle">Bienvenido</h3>
+    <p id="tutorialText">Iniciando...</p>
     <button id="tutorialNextBtn">Iniciar</button>
 </div>
 
