@@ -229,5 +229,79 @@ textarea {
     left: 50%;
     transform: translate(-50%, -50%);
 }
-   
+   /* ===========================
+   ESTILOS DEL TUTORIAL (CORRECCIÓN)
+=========================== */
+
+/* Overlay Oscuro */
+#tutorialOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    display: none; 
+    opacity: 0;
+    transition: opacity 0.3s;
 }
+
+/* Modal del Tutorial */
+#tutorialModal {
+    position: absolute; /* Debe ser absoluto para poder moverlo junto al target */
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 350px;
+    z-index: 1001;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+/* Clases de Posicionamiento */
+
+/* Posición central por defecto (Paso 1) */
+.modal-center {
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%);
+}
+
+/* Posición para elementos en la parte superior derecha */
+.modal-top-right {
+    transform: translate(-100%, 0); /* Mueve la modal a la izquierda para que su borde derecho esté cerca del target */
+}
+
+/* Posición para elementos en la parte inferior izquierda */
+.modal-bottom-left {
+    transform: translate(0, 0); /* Posiciona la esquina superior izquierda de la modal */
+}
+
+/* Efecto de Resaltado del Elemento Target */
+.tutorial-highlight {
+    z-index: 1005; /* Asegura que el elemento resaltado esté por encima del overlay */
+    position: relative; /* Necesario para que z-index funcione */
+    box-shadow: 0 0 0 5px rgba(255, 255, 0, 0.8), 0 0 20px rgba(255, 255, 0, 0.8);
+    transition: box-shadow 0.3s;
+}
+
+/* Ajuste para pantallas pequeñas */
+@media (max-width: 600px) {
+    #tutorialModal {
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        width: 85%;
+        max-width: none;
+    }
+    .modal-top-right, .modal-bottom-left {
+        /* Fuerza a que siempre esté centrado en móviles */
+        transform: translate(-50%, -50%) !important;
+    }
+}
+   
+
