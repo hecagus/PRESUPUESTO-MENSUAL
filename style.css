@@ -1,35 +1,234 @@
-/* ... (Secciones anteriores de estilo general, cards, etc.) ... */
+/* ===========================
+   1. VARIABLES Y RESET
+=========================== */
+:root {
+    --primary: #000000;       /* Uber Black */
+    --secondary: #06C167;     /* Uber Green */
+    --accent: #2d2d2d;
+    --bg: #f3f3f3;
+    --text: #333;
+    --white: #fff;
+    --danger: #dc3545;
+    --warning: #ffc107;
+    --success: #28a745;
+    --shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
 
-/* Estilos de Botones, Tablas y Stats se mantienen */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
 
-@media (max-width: 600px) {
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    /* Regla existente para input/select/textarea */
-    input, select, textarea {
-        padding: 15px; 
-    }
-    
-    /* Regla existente para header */
-    .header h1 {
-        font-size: 20px;
-    }
-
-    /* Regla existente para header button */
-    .header .btn-admin {
-        padding: 8px 15px;
-        font-size: 14px;
-    }
-} /* FIX 2: Llave de cierre para @media (max-width: 600px) */
-
+body {
+    background-color: var(--bg);
+    color: var(--text);
+    padding-bottom: 40px;
+}
 
 /* ===========================
-   ESTILOS DEL TUTORIAL (CONSOLIDADO - FIX 2)
+   2. LAYOUT Y COMPONENTES
 =========================== */
+.header {
+    background-color: var(--primary);
+    color: var(--white);
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
 
-/* Overlay Oscuro */
+.header h1 {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 0 15px;
+}
+
+.card {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+}
+
+.card h2 {
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+    color: var(--primary);
+    border-bottom: 2px solid var(--secondary);
+    padding-bottom: 8px;
+    display: inline-block;
+}
+
+.card h3 {
+    font-size: 1rem;
+    margin: 15px 0 10px;
+    color: #555;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+}
+
+.stat {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #eee;
+}
+
+.stat label {
+    display: block;
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.stat span {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--primary);
+}
+
+/* ===========================
+   3. FORMULARIOS Y BOTONES
+=========================== */
+label {
+    display: block;
+    margin: 10px 0 5px;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+input, select, textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px; /* Evita zoom en iOS */
+    margin-bottom: 10px;
+    background: #fafafa;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--secondary);
+    background: #fff;
+}
+
+button {
+    cursor: pointer;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: transform 0.1s, opacity 0.2s;
+    width: 100%;
+    margin-top: 10px;
+    font-size: 1rem;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+.btn-admin {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    text-decoration: none;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    transition: background 0.3s;
+}
+
+.btn-admin:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+.btn-primary { background-color: var(--primary); color: white; }
+.btn-secondary { background-color: #6c757d; color: white; }
+.btn-success { background-color: var(--secondary); color: white; }
+.btn-danger { background-color: var(--danger); color: white; }
+.btn-warning { background-color: var(--warning); color: #000; }
+
+/* Tablas y Listas */
+.tabla {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 0.9rem;
+}
+
+.tabla th, .tabla td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.tabla th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.list {
+    list-style: none;
+    margin-top: 15px;
+}
+
+.list li {
+    background: #fff;
+    border-bottom: 1px solid #eee;
+    padding: 10px 0;
+}
+
+.projection {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px dashed #eee;
+}
+
+/* ===========================
+   4. MEDIA QUERIES
+=========================== */
+@media (max-width: 600px) {
+    .stats-grid {
+        grid-template-columns: 1fr 1fr; /* 2 columnas en móvil se ve mejor que 1 */
+    }
+    
+    input, select, textarea {
+        padding: 12px; 
+    }
+    
+    .header h1 {
+        font-size: 18px;
+    }
+
+    .header .btn-admin {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+}
+
+/* ===========================
+   5. TUTORIAL (MODALS)
+=========================== */
 #tutorialOverlay {
     position: fixed;
     top: 0;
@@ -43,7 +242,6 @@
     transition: opacity 0.3s;
 }
 
-/* Modal del Tutorial */
 #tutorialModal {
     position: absolute; 
     background: white;
@@ -55,11 +253,9 @@
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     display: none;
     opacity: 0;
-    /* transition de opacidad y transform */
     transition: opacity 0.3s, transform 0.3s; 
 }
 
-/* Clases de Posicionamiento */
 .modal-center {
     top: 50% !important;
     left: 50% !important;
@@ -74,23 +270,21 @@
     transform: translate(0, 0); 
 }
 
-/* Efecto de Resaltado del Elemento Target */
 .tutorial-highlight {
     z-index: 1005 !important; 
     position: relative !important; 
-    box-shadow: 0 0 0 5px rgba(255, 255, 0, 0.8), 0 0 20px rgba(255, 255, 0, 0.8);
+    box-shadow: 0 0 0 5px rgba(6, 193, 103, 0.8), 0 0 20px rgba(0, 0, 0, 0.5); /* Color Uber Green */
     transition: box-shadow 0.3s;
-    border-radius: 10px; 
+    border-radius: 8px; 
+    background-color: white; /* Asegura legibilidad */
 }
 
-/* Ajuste para pantallas pequeñas */
 @media (max-width: 600px) {
     #tutorialModal {
         width: 85%;
-        max-width: none;
+        position: fixed; /* Mejor fijo en móvil */
     }
     
-    /* Forzar centro en todas las clases de posición en móvil */
     .modal-center,
     .modal-top-right, 
     .modal-bottom-left {
