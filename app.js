@@ -610,17 +610,23 @@ function finalizarTurno() {
 }
 
 // ======================
+// ======================
 // 7. RENDERIZADO (INDEX)
 // ======================
 function calcularResumenDatos() {
   // Obtenemos fecha ISO local YYYY-MM-DD
   const hoy = getLocalISODate().slice(0, 10);
 
-  const turnosHoy = (panelData.turnos || []).filter(t => (t.inicio || "").startsWith(hoy));
+  // Filtramos todos los ingresos y gastos del día
+  const ingresosHoy = (panelData.ingresos || []).filter(i => (i.fechaISO || "").startsWith(hoy));
   const gastosHoy = (panelData.gastos || []).filter(g => (g.fechaISO || "").startsWith(hoy));
+  
+  // Para las horas, seguimos usando los turnos
+  const turnosHoy = (panelData.turnos || []).filter(t => (t.inicio || "").startsWith(hoy));
 
   const horasHoy = turnosHoy.reduce((s, t) => s + (Number(t.horas) || 0), 0);
-  const ganHoy   = turnosHoy.reduce((s, t) => s + (Number(t.ganancia) || 0), 0);
+  // Sumamos *todos* los ingresos registrados para el total de la ganancia bruta del día
+  const ganHoy   = ingresosHoy.reduce((s, i) => s + (Number(i.cantidad) || 0), 0);
   const gastHoy  = gastosHoy.reduce((s, g) => s + (Number(g.cantidad) || 0), 0);
 
   return { horasHoy, ganHoy, gastHoy };
@@ -638,8 +644,8 @@ function aggregateDailyData() {
     data[dia][type] += (Number(entry[keyMonto]) || 0);
   };
   
-  // Se usan 'turnos' para ingresos y 'gastos' para gastos
-  (panelData.turnos || []).forEach(t => process(t, 'ingresos', 'ganancia'));
+  // Usar el array de ingresos general para agregar datos diarios
+  (panelData.ingresos || []).forEach(i => process(i, 'ingresos', 'cantidad'));
   (panelData.gastos || []).forEach(g => process(g, 'gastos', 'cantidad'));
   (panelData.kmDiarios || []).forEach(k => process(k, 'km', 'recorrido'));
 
@@ -757,8 +763,8 @@ function renderProyecciones() {
     if ($("proyDeuda")) $("proyDeuda").textContent = `$${fmtMoney(p.deudaTotal)}`;
     
     // Calcular promedio neto diario real
-    const totalGan = panelData.turnos.reduce((s,t) => s + (t.ganancia||0), 0);
-    const diasTrabajados = new Set(panelData.turnos.map(t => t.inicio.slice(0,10))).size || 1;
+    const totalGan = panelData.ingresos.reduce((s,i) => s + (i.cantidad||0), 0);
+    const diasTrabajados = new Set(panelData.ingresos.map(i => i.fechaISO.slice(0,10))).size || 1;
     const promIngreso = totalGan / diasTrabajados;
     
     // Estimación neta (Ingreso - Gasto Fijo)
@@ -798,8 +804,7 @@ const tutorialSteps = [
     { title: "Bienvenido", text: "Te daré un tour rápido.", targetId: null },
     { title: "Resumen", text: "Aquí verás tu balance del día actual.", targetId: "cardResumen" },
     { title: "Administración", text: "Registra aquí ingresos, gastos y turnos. Click para ir al panel.", targetId: "adminButton", action: () => location.href = "admin.html" },
-    { title: "Turnos", text: "Inicia y finaliza tu jornada aquí.", targetId: "cardTurnos" },
-    // El target de Deudas ahora es el contenedor principal del wizard en admin.html
+    { title: "Turnos", text: "Inicia y finaliza tu jornada aquí.", targetId: "cardTurnos" }, 
     { title: "Deudas", text: "Controla lo que debes, registra tus pagos y da de alta nuevas deudas por pasos.", targetId: "deudaWizardContainer" }, 
     { title: "Respaldo", text: "Descarga tus datos en Excel frecuentemente.", targetId: "btnExportarExcel" }
 ];
@@ -899,7 +904,7 @@ document.addEventListener("DOMContentLoaded", () => {
     actualizarUIturno();
     renderDeudas();
     
-    // Iniciar vista del wizard de deudas (AHORA FUNCIONARÁ)
+    // Iniciar vista del wizard de deudas
     updateDeudaWizardUI(); 
 
     // Cargar parámetros en UI
