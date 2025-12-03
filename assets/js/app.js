@@ -2,7 +2,7 @@ const STORAGE_KEY = "panelData";
 const $ = id => document.getElementById(id);
 const TUTORIAL_COMPLETADO_KEY = "tutorialCompleto";
 
-// Declaración ÚNICA de variables globales para las gráficas (FIX 1)
+// Declaración ÚNICA de variables globales para las gráficas (FIX 1: Eliminada duplicidad)
 let gananciasChart = null;
 let kmChart = null;
 
@@ -460,12 +460,11 @@ function finalizarTurno() {
   const ganStr = prompt(`Terminó el turno.\nHoras: ${horas}h\nIngresa Ganancia Bruta (MXN):`);
   
   // FIX 7: Validación robusta para null, empty, NaN y negativo
-  if (ganStr === null || ganStr.trim() === "" || isNaN(Number(ganStr)) || Number(ganStr) < 0) {
+  const gan = Number(ganStr);
+  if (ganStr === null || ganStr.trim() === "" || isNaN(gan) || gan < 0) {
       return alert("Monto inválido o no ingresado. El turno no fue registrado.");
   }
   
-  const gan = Number(ganStr);
-
   panelData.turnos.push({
     inicio: inicio.toISOString(),
     fin: fin.toISOString(),
@@ -515,7 +514,8 @@ function aggregateDailyData() {
   const data = {};
 
   const processEntry = (entry, type, amountKey) => {
-    let isoDateStr = entry.fechaISO || entry.inicio; // FIX 4: Usa inicio/fechaISO
+    // FIX 4: Usa inicio/fechaISO como fuente de verdad.
+    let isoDateStr = entry.fechaISO || entry.inicio; 
 
     if (!isoDateStr) {
       // Intenta inferir de fechaLocal si falta ISO, aunque no es ideal
@@ -563,6 +563,7 @@ function aggregateKmMensual() {
 
     const resultado = Object.entries(dataMensual).map(([mesKey, data]) => {
         const [year, month] = mesKey.split('-');
+        // Generar cadena localizada SOLO para mostrar
         const dateString = new Date(year, month - 1, 1).toLocaleString('es-MX', { year: 'numeric', month: 'long' });
         
         const costoPorKm = data.kmRecorridos > 0 
@@ -844,7 +845,7 @@ function resolveTarget(step) {
 
     // Si el target es el adminButton y estamos en index, funciona bien.
     // Si el target es un botón en admin.html, buscamos el padre .card para resaltarlo mejor.
-    if (document.title.includes("Administración") && element && element.tagName === 'BUTTON') {
+    if (document.title.includes("Administración") && element && element.tagName === 'BUTTON' && element.closest(".card")) {
         return element.closest(".card");
     }
     
@@ -872,6 +873,7 @@ function renderTutorialStep() {
     });
     
     // FIX 8: Mostrar la modal invisiblemente primero para obtener medidas correctas
+    // Se asegura que la modal tenga dimensiones antes de calcular offsetWidth/posicionamiento
     modal.style.visibility = 'hidden';
     modal.style.display = 'block';
     
@@ -891,15 +893,23 @@ function renderTutorialStep() {
         
         const rect = targetElement.getBoundingClientRect();
         
+        // Calcular posición
+        let modalLeft, modalTop;
+        const modalWidth = modal.offsetWidth;
+
         if (step.positionClass === 'modal-top-right') {
             // Posicionar a la derecha superior del target
-            modal.style.top = `${rect.top + window.scrollY + 10}px`;
-            modal.style.left = `${rect.right + window.scrollX - modal.offsetWidth}px`;
+            modalTop = rect.top + window.scrollY + 10;
+            modalLeft = rect.right + window.scrollX - modalWidth;
         } else if (step.positionClass === 'modal-bottom-left') {
             // Posicionar a la izquierda inferior del target
-            modal.style.top = `${rect.bottom + window.scrollY + 10}px`;
-            modal.style.left = `${rect.left + window.scrollX}px`;
+            modalTop = rect.bottom + window.scrollY + 10;
+            modalLeft = rect.left + window.scrollX;
         }
+        
+        modal.style.top = `${modalTop}px`;
+        modal.style.left = `${modalLeft}px`;
+        modal.style.transform = ''; // Reset transform si no está centrado
         
         targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
@@ -924,7 +934,7 @@ function nextTutorialStep() {
     const step = tutorialSteps[currentStep];
     
     // Si el paso actual no tiene target en esta página, saltarlo (Ej. paso 1 en admin)
-    if (document.title.includes("Administración") && currentStep === 1) {
+    if (document.title.includes("Administración") && currentStep < 3) {
         currentStep = 3; // Salta al Registro de Turnos
     }
     
