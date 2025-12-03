@@ -1,6 +1,6 @@
-de// ======================\
+// ======================
 // app.js — PARTE 1/5: SETUP Y UTILIDADES
-// ======================\
+// ======================
 
 const STORAGE_KEY = "panelData";
 const $ = id => document.getElementById(id);
@@ -17,32 +17,22 @@ let panelData = {
   parametros: {
     deudaTotal: 0,
     gastoFijo: 0,
-    ultimoKMfinal: null,
-    // Nuevos parámetros manuales de Ajustes (Valores por defecto)
-    comidaDiaria: 200, 
-    costoPorKm: 0.6
+    ultimoKMfinal: null
   }
 };
 
-// ======================\
+// ======================
 // Cargar / Guardar
-// ======================\
+// ======================
 function cargarPanelData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
 
+    // Asegurar que las propiedades existan, incluso si el localStorage está vacío o es viejo
     panelData = Object.assign({}, panelData, parsed);
-    // Asegurar que los parámetros manuales existan, incluso en datos viejos
-    panelData.parametros = Object.assign({
-        deudaTotal: 0,
-        gastoFijo: 0,
-        ultimoKMfinal: null,
-        comidaDiaria: 200, 
-        costoPorKm: 0.6
-    }, (parsed.parametros || {}));
-
+    panelData.parametros = Object.assign({}, panelData.parametros, (parsed.parametros || {}));
   } catch (e) {
     console.error("Error al cargar panelData:", e);
   }
@@ -59,860 +49,871 @@ function guardarPanelData() {
 // Cargar al inicio (antes de DOMContentLoaded)
 cargarPanelData();
 
-// ======================\
+// ======================
 // Utilidades
-// ======================\
-const fmtMoney = n => Number(n || 0).toFixed(2);
-const fmtDate = (iso) => new Date(iso).toLocaleDateString('es-MX', {
-    day: '2-digit', month: '2-digit', year: 'numeric'
+// ======================
+const fmtMoney = n => Number(n || 0).toLocaleString("es-MX", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
 });
 
-// UTILIDAD: Calcular Promedio de Gasto por Categoría (para Comida)
-function getPromedioGastoCategoria(categoria, dias=30) {
-    const haceXDias = new Date();
-    haceXDias.setDate(haceXDias.getDate() - dias);
+const nowISO = () => new Date().toISOString();
+const nowLocal = () => new Date().toLocaleString("es-MX");
 
-    const gastosRelevantes = (panelData.gastos || []).filter(g => 
-        g.categoria === categoria && new Date(g.fechaISO) >= haceXDias
-    );
+// -----------------------------
+// FUNCIONES AUTOMÁTICAS
+// -----------------------------
 
-    const gastosPorFecha = {};
-    gastosRelevantes.forEach(g => {
-        const key = (g.fechaISO || "").slice(0, 10);
-        gastosPorFecha[key] = (gastosPorFecha[key] || 0) + Number(g.cantidad || 0);
-    });
+// A) calcularDeudaTotalAuto: suma de (monto - abonado)
+function calcularDeudaTotalAuto() {
+  const deudas = panelData.deudas || [];
 
-    const numDiasConGasto = Object.keys(gastosPorFecha).length;
-    
-    if (numDiasConGasto === 0) return 0;
+  const total = deudas.reduce((s, d) => {
+    return s + ((Number(d.monto) || 0) - (Number(d.abonado) || 0));
+  }, 0);
 
-    const totalGastado = Object.values(gastosPorFecha).reduce((s, v) => s + v, 0);
+  panelData.parametros = panelData.parametros || {};
+  panelData.parametros.deudaTotal = total;
+  guardarPanelData();
 
-    return totalGastado / numDiasConGasto;
+  const inp = $("proyDeudaTotal");
+  if (inp) {
+    inp.value = total.toFixed(2);
+  }
 }
 
-// UTILIDAD: Obtener Gastos de un Día Específico (para renderTablaTurnos)
-function getGastosDelDia(dateStringISO) {
-    // Extrae la parte de la fecha (YYYY-MM-DD)
-    const dia = dateStringISO.slice(0, 10);
-    
-    // Suma todos los gastos que coincidan con esa fecha
-    return (panelData.gastos || [])
-        .filter(g => (g.fechaISO || "").slice(0, 10) === dia)
-        .reduce((s, g) => s + (Number(g.cantidad) || 0), 0);
+// B) calcularGastoFijoAuto: calcula promedio basado en abonos y KM
+function calcularGastoFijoAuto() {
+  panelData.parametros = panelData.parametros || {};
+  const comidaDiaria = 200; // Gasto fijo asumido de comida
+
+  const kmArr = panelData.kmDiarios || [];
+  const kmProm = kmArr.length
+    ? kmArr.reduce((s, k) => s + (Number(k.recorrido) || 0), 0) / kmArr.length
+    : 0;
+
+  let ultimoAbono = 0;
+  let ultimaFecha = 0;
+
+  // Busca el abono más reciente
+  (panelData.gastos || []).forEach(g => {
+    if ((g.categoria || "") === "Abono a Deuda") {
+      const t = new Date(g.fechaISO || g.fechaLocal).getTime();
+      if (!ultimaFecha || t > ultimaFecha) {
+        ultimaFecha = t;
+        ultimoAbono = Number(g.cantidad) || 0;
+      }
+    }
+  });
+
+  // Fórmula de Gasto Fijo: (Abono mensual / 6 días) + Gasto de comida + (KM promedio * costo por KM)
+  // Usaremos un divisor simple para el abono (6 días laborables por semana)
+  // Usaremos un costo de combustible/mantenimiento de 0.6 MXN/KM asumido
+  const gastoFijo = (ultimoAbono / 6) + comidaDiaria + (kmProm * 0.6);
+
+  panelData.parametros.gastoFijo = gastoFijo;
+  guardarPanelData();
+
+  const inp = $("proyGastoFijo");
+  if (inp) {
+    inp.value = gastoFijo.toFixed(2);
+  }
 }
 
-// ======================\
-// app.js — PARTE 2/5: LISTENERS Y MANEJADORES DE FORMULARIOS
-// ======================\
+// ======================
+// Movimientos (Historial)
+// ======================
+function pushMovimiento(tipo, descripcion, monto) {
+  panelData.movimientos.unshift({
+    tipo,
+    descripcion,
+    monto: Number(monto),
+    fechaISO: nowISO(),
+    fechaLocal: nowLocal()
+  });
 
-// Manejador genérico para guardar un movimiento (Ingreso/Gasto)
-function guardarMovimiento(tipo, descripcionId, cantidadId, categoriaId) {
-    const descripcion = $(descripcionId).value.trim();
-    const cantidad = Number($(cantidadId).value);
-    const categoria = categoriaId ? $(categoriaId).value : 'Ingreso';
+  if (panelData.movimientos.length > 300) {
+    panelData.movimientos.length = 300;
+  }
 
-    if (!descripcion || isNaN(cantidad) || cantidad <= 0) {
-        alert("Por favor, introduce una descripción y un monto válido.");
-        return;
-    }
-
-    const fechaISO = new Date().toISOString();
-    const fechaLocal = new Date().toLocaleTimeString('es-MX', {
-        day: 'numeric', month: 'numeric', year: 'numeric',
-        hour: '2-digit', minute: '2-digit', second: '2-digit'
-    });
-
-    const nuevoMovimiento = {
-        descripcion,
-        cantidad,
-        categoria,
-        fechaISO,
-        fechaLocal
-    };
-
-    if (tipo === 'ingreso') {
-        panelData.ingresos.push(nuevoMovimiento);
-    } else {
-        panelData.gastos.push(nuevoMovimiento);
-    }
-    
-    // Si es un gasto, necesitamos actualizar la proyección (puede afectar el promedio de comida)
-    if (tipo === 'gasto') {
-        calcularGastoFijoAuto();
-    }
-
-    panelData.movimientos.push(nuevoMovimiento);
-    guardarPanelData();
-    
-    // Limpiar campos
-    $(descripcionId).value = "";
-    $(cantidadId).value = "";
-
-    // Actualizar todas las vistas que dependen de estos datos
-    renderResumenIndex();
-    calcularProyeccionReal(); 
-
-    alert(`${tipo === 'ingreso' ? 'Ingreso' : 'Gasto'} guardado: $${fmtMoney(cantidad)}.`);
+  guardarPanelData();
+  // No llamamos a renderMovimientos aquí, se hace en DOMContentLoaded para evitar re-renderizados constantes
 }
 
+function renderMovimientos() {
+  const tbody = $("tablaMovimientos");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+  const rows = panelData.movimientos.slice(0, 25);
+
+  if (rows.length === 0) {
+    // Esta tabla no existe en Admin.html ni index.html, pero se deja el código por si se agrega
+    // tbody.innerHTML = `<tr><td colspan="4" style="text-align:center">No hay movimientos</td></tr>`;
+    return;
+  }
+}
+// ======================
+// app.js — PARTE 2/5: REGISTROS DE MOVIMIENTOS Y DEUDAS
+// ======================
+
+// ======================
+// Registrar ingreso
+// ======================
 function setupIngresoListeners() {
-    $("btnGuardarIngreso")?.addEventListener("click", () => {
-        guardarMovimiento('ingreso', 'ingresoDescripcion', 'ingresoCantidad');
+  const btn = $("btnGuardarIngreso");
+  if (!btn) return;
+
+  btn.addEventListener("click", () => {
+    const desc = ($("ingresoDescripcion")?.value || "").trim();
+    const qty = Number($("ingresoCantidad")?.value || 0);
+
+    if (!desc || !qty || qty <= 0)
+      return alert("Completa correctamente los datos del ingreso.");
+
+    panelData.ingresos.push({
+      descripcion: desc,
+      cantidad: qty,
+      fechaISO: nowISO(),
+      fechaLocal: nowLocal()
     });
+
+    pushMovimiento("Ingreso", desc, qty);
+    guardarPanelData();
+
+    $("ingresoDescripcion").value = "";
+    $("ingresoCantidad").value = "";
+
+    alert("Ingreso registrado.");
+    renderResumenIndex();
+  });
 }
 
+// ======================
+// Registrar gasto
+// ======================
 function setupGastoListeners() {
-    $("btnGuardarGasto")?.addEventListener("click", () => {
-        guardarMovimiento('gasto', 'gastoDescripcion', 'gastoCantidad', 'gastoCategoria');
+  const btn = $("btnGuardarGasto");
+  if (!btn) return;
+
+  btn.addEventListener("click", () => {
+    const desc = ($("gastoDescripcion")?.value || "").trim();
+    const qty = Number($("gastoCantidad")?.value || 0);
+    const cat = $("gastoCategoria")?.value || "Otros";
+
+    if (!desc || !qty || qty <= 0) return alert("Datos de gasto inválidos.");
+
+    panelData.gastos.push({
+      descripcion: desc,
+      cantidad: qty,
+      categoria: cat,
+      fechaISO: nowISO(),
+      fechaLocal: nowLocal()
     });
+
+    // Si es gasto que afecta el cálculo automático, recalcular
+    if (cat === "Comida" || cat === "Transporte") calcularGastoFijoAuto();
+
+    pushMovimiento("Gasto", `${desc} (${cat})`, qty);
+    guardarPanelData();
+
+    $("gastoDescripcion").value = "";
+    $("gastoCantidad").value = "";
+
+    alert("Gasto registrado.");
+    renderResumenIndex();
+  });
 }
 
-function setupKmAndGasListeners() {
-    // ------------------ KM ------------------
-    $("btnGuardarKm")?.addEventListener("click", () => {
-        const kmInicial = Number($("kmInicial").value);
-        const kmFinal = Number($("kmFinal").value);
+// ======================
+// Deudas
+// ======================
+function renderDeudas() {
+  const list = $("listaDeudas");
+  const select = $("abonoSeleccionar");
 
-        if (isNaN(kmInicial) || isNaN(kmFinal) || kmFinal <= kmInicial) {
-            alert("Por favor, introduce valores válidos donde KM Final sea mayor que KM Inicial.");
-            return;
-        }
+  if (!list || !select) return;
 
-        const recorrido = kmFinal - kmInicial;
-        const fechaISO = new Date().toISOString();
+  list.innerHTML = "";
+  select.innerHTML = "";
 
-        panelData.kmDiarios.push({ kmInicial, kmFinal, recorrido, fechaISO });
-        panelData.parametros.ultimoKMfinal = kmFinal; 
-        
-        guardarPanelData();
-        
-        // Actualizar UI
-        $("kmRecorridos").textContent = recorrido;
-        $("kmInicial").value = kmFinal; // Sugerir el final como inicio para el siguiente
-        $("kmFinal").value = "";
-        
-        // Recalcular métricas
-        // Las siguientes llamadas son esenciales para actualizar las proyecciones y tablas
-        renderKmMensual();
-        calcularGastoFijoAuto(); 
-        calcularProyeccionReal();
-        alert(`KM recorridos guardados: ${recorrido} KM.`);
+  panelData.deudas.forEach((d, idx) => {
+    const pendiente = (Number(d.monto) || 0) - (Number(d.abonado) || 0);
+
+    list.innerHTML += `
+      <li>
+        <strong>${d.nombre}</strong><br>
+        Total: $${fmtMoney(d.monto)}<br>
+        Pagado: $${fmtMoney(d.abonado || 0)}<br>
+        Pendiente: <strong>$${fmtMoney(pendiente)}</strong>
+      </li>
+    `;
+
+    // Solo agregar deudas con saldo pendiente al selector de abonos
+    if (pendiente > 0) {
+        const opt = document.createElement("option");
+        opt.value = idx;
+        opt.textContent = `${d.nombre} — $${fmtMoney(pendiente)} pendiente`;
+        select.appendChild(opt);
+    }
+  });
+
+  if (panelData.deudas.length === 0) {
+    list.innerHTML = "<li>No hay deudas registradas.</li>";
+  }
+  
+  if (select.children.length === 0) {
+    select.innerHTML = `<option value="">-- No hay deudas pendientes --</option>`;
+  }
+}
+
+// Event Listeners para Deudas (Se llaman en DOMContentLoaded)
+function setupDeudaListeners() {
+    $("btnRegistrarDeuda")?.addEventListener("click", () => {
+      const nombre = ($("deudaNombre")?.value || "").trim();
+      const monto = Number($("deudaMonto")?.value || 0);
+
+      if (!nombre || !monto || monto <= 0) return alert("Datos inválidos.");
+
+      panelData.deudas.push({ nombre, monto, abonado: 0 });
+
+      guardarPanelData();
+      renderDeudas();
+
+      calcularDeudaTotalAuto();
+      calcularGastoFijoAuto();
+
+      $("deudaNombre").value = "";
+      $("deudaMonto").value = "";
+
+      alert("Deuda registrada.");
     });
-    
-    $("kmInicial")?.addEventListener("input", actualizarKmRecorridos);
-    $("kmFinal")?.addEventListener("input", actualizarKmRecorridos);
 
-    function actualizarKmRecorridos() {
-        const kmInicial = Number($("kmInicial").value);
-        const kmFinal = Number($("kmFinal").value);
-        if (!isNaN(kmInicial) && !isNaN(kmFinal) && kmFinal > kmInicial) {
-            $("kmRecorridos").textContent = (kmFinal - kmInicial).toFixed(2);
-        } else {
-            $("kmRecorridos").textContent = "0";
-        }
+    $("btnRegistrarAbono")?.addEventListener("click", () => {
+      const idx = $("abonoSeleccionar")?.value;
+      const monto = Number($("abonoMonto")?.value || 0);
+
+      if (idx === "" || !idx || monto <= 0) return alert("Datos inválidos.");
+
+      // Verificar que el índice exista y el monto no exceda el saldo
+      const deuda = panelData.deudas[idx];
+      const pendiente = (Number(deuda.monto) || 0) - (Number(deuda.abonado) || 0);
+
+      if(monto > pendiente) return alert(`El abono excede el saldo pendiente de $${fmtMoney(pendiente)}.`);
+      
+      deuda.abonado = (Number(deuda.abonado) || 0) + monto;
+
+      // registrar gasto tipo abono
+      panelData.gastos.push({
+        descripcion: `Abono a ${deuda.nombre}`,
+        cantidad: monto,
+        categoria: "Abono a Deuda",
+        fechaISO: nowISO(),
+        fechaLocal: nowLocal()
+      });
+
+      pushMovimiento("Gasto", `Abono a ${deuda.nombre}`, monto);
+
+      guardarPanelData();
+      renderDeudas();
+
+      calcularDeudaTotalAuto();
+      calcularGastoFijoAuto();
+
+      $("abonoMonto").value = "";
+      alert("Abono guardado.");
+
+      renderResumenIndex();
+    });
+}
+// ======================
+// app.js — PARTE 3/5: KM, GASOLINA, IO Y TURNOS
+// ======================
+
+// ======================
+// KM y Gasolina
+// ======================
+function setupKmAndGasListeners() {
+  $("kmFinal")?.addEventListener("input", () => {
+    const ini = Number($("kmInicial")?.value || 0);
+    const fin = Number($("kmFinal")?.value || 0);
+    const rec = fin > ini ? fin - ini : 0;
+    if ($("kmRecorridos")) $("kmRecorridos").textContent = rec;
+  });
+
+  $("btnGuardarKm")?.addEventListener("click", () => {
+    const ini = Number($("kmInicial")?.value || 0);
+    const fin = Number($("kmFinal")?.value || 0);
+    if (isNaN(ini) || isNaN(fin) || fin <= ini) return alert("KM inicial/final inválidos o Final es menor/igual a Inicial.");
+
+    panelData.kmDiarios.push({
+      fechaISO: nowISO(),
+      fechaLocal: nowLocal(),
+      kmInicial: ini,
+      kmFinal: fin,
+      recorrido: fin - ini
+    });
+
+    panelData.parametros = panelData.parametros || {};
+    panelData.parametros.ultimoKMfinal = fin;
+    guardarPanelData();
+
+    calcularGastoFijoAuto();
+
+    $("kmInicial").value = "";
+    $("kmFinal").value = "";
+    $("kmRecorridos").textContent = "0";
+
+    alert("Kilometraje guardado.");
+    renderResumenIndex();
+    
+    // Asignar el último KM final para el siguiente registro
+    if ($("kmInicial")) $("kmInicial").value = fin;
+  });
+
+  $("btnGuardarGas")?.addEventListener("click", () => {
+    const litros = Number($("litrosGas")?.value || 0);
+    const costo = Number($("costoGas")?.value || 0);
+
+    if (!litros || !costo) return alert("Datos inválidos.");
+
+    panelData.gasolina.push({
+      fechaISO: nowISO(),
+      fechaLocal: nowLocal(),
+      litros,
+      costo
+    });
+
+    // registrar gasto de gasolina
+    panelData.gastos.push({
+      descripcion: `Gasolina ${litros}L`,
+      cantidad: costo,
+      categoria: "Transporte",
+      fechaISO: nowISO(),
+      fechaLocal: nowLocal()
+    });
+
+    pushMovimiento("Gasto", `Gasolina ${litros}L`, costo);
+    guardarPanelData();
+
+    $("litrosGas").value = "";
+    $("costoGas").value = "";
+    alert("Repostaje guardado.");
+    renderResumenIndex();
+  });
+}
+
+
+// ======================
+// Exportar a Excel (NUEVA FUNCIONALIDAD)
+// ======================
+function exportToExcel() {
+    if (typeof XLSX === 'undefined') {
+        return alert("Error: La librería SheetJS (XLSX) no está cargada. Asegúrate de incluir el script en admin.html.");
     }
 
-
-    // ------------------ GASOLINA ------------------
-    $("btnGuardarGas")?.addEventListener("click", () => {
-        const litros = Number($("litrosGas").value);
-        const costo = Number($("costoGas").value);
-
-        if (isNaN(litros) || isNaN(costo) || litros <= 0 || costo <= 0) {
-            alert("Por favor, introduce valores válidos para Litros y Costo.");
-            return;
-        }
-
-        const fechaISO = new Date().toISOString();
-        panelData.gasolina.push({ litros, costo, fechaISO });
-        guardarPanelData();
-        
-        $("litrosGas").value = "";
-        $("costoGas").value = "";
-
-        // Recalcular métricas
-        renderKmMensual();
-        calcularGastoFijoAuto(); 
-        calcularProyeccionReal();
-        alert(`Registro de gasolina guardado: ${litros} L por $${fmtMoney(costo)}.`);
-    });
-}
-
-
-// ------------------ AJUSTES MANUALES ------------------
-function setupParametrosListeners() {
-    const p = panelData.parametros;
+    const { ingresos, gastos, kmDiarios, gasolina, deudas, movimientos, turnos } = panelData;
+    const dataForSheet = {
+        Ingresos: ingresos.map(i => ({ Fecha: i.fechaLocal, Descripción: i.descripcion, Cantidad: i.cantidad })),
+        Gastos: gastos.map(g => ({ Fecha: g.fechaLocal, Categoría: g.categoria, Descripción: g.descripcion, Cantidad: g.cantidad })),
+        KmDiarios: kmDiarios.map(k => ({ Fecha: k.fechaLocal, 'KM Inicial': k.kmInicial, 'KM Final': k.kmFinal, Recorrido: k.recorrido })),
+        Gasolina: gasolina.map(g => ({ Fecha: g.fechaLocal, Litros: g.litros, Costo: g.costo })),
+        Deudas: deudas.map(d => ({ Nombre: d.nombre, Monto: d.monto, Abonado: d.abonado, Pendiente: d.monto - d.abonado })),
+        Movimientos: movimientos.map(m => ({ Fecha: m.fechaLocal, Tipo: m.tipo, Descripción: m.descripcion, Monto: m.monto })),
+        Turnos: turnos.map(t => ({ Inicio: new Date(t.inicio).toLocaleString("es-MX"), Fin: new Date(t.fin).toLocaleString("es-MX"), Horas: t.horas, Ganancia: t.ganancia })),
+    };
     
-    // Cargar valores guardados en los inputs (para admin.html)
-    if ($("paramComidaDiaria")) $("paramComidaDiaria").value = p.comidaDiaria;
-    if ($("paramCostoPorKm")) $("paramCostoPorKm").value = p.costoPorKm;
+    // Crear un nuevo libro de trabajo (workbook)
+    const wb = XLSX.utils.book_new();
 
-    $("btnGuardarParametros")?.addEventListener("click", () => {
-        const comida = Number($("paramComidaDiaria").value);
-        const costoKm = Number($("paramCostoPorKm").value);
+    // Agregar cada hoja de datos
+    Object.keys(dataForSheet).forEach(sheetName => {
+        const ws = XLSX.utils.json_to_sheet(dataForSheet[sheetName]);
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    });
 
-        if (isNaN(comida) || comida < 0 || isNaN(costoKm) || costoKm < 0) {
-            alert("Asegúrate de que los valores de ajuste sean números positivos.");
-            return;
-        }
+    // Escribir y descargar el archivo
+    const fileName = `backup_ubereats_tracker_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    alert(`Archivo ${fileName} generado correctamente.`);
+}
 
-        panelData.parametros.comidaDiaria = comida;
-        panelData.parametros.costoPorKm = costoKm;
-        
+
+// ======================
+// Importar / Exportar JSON
+// ======================
+function setupIoListeners() {
+    $("btnExportar")?.addEventListener("click", () => {
+      const json = JSON.stringify(panelData, null, 2);
+
+      navigator.clipboard.writeText(json)
+        .then(() => alert("Datos copiados al portapapeles."))
+        .catch(() => {
+          const blob = new Blob([json], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+
+          a.href = url;
+          a.download = `backup_ubereats_tracker_${Date.now()}.json`;
+          a.click();
+
+          URL.revokeObjectURL(url);
+          alert("Backup descargado.");
+        });
+    });
+    
+    // Listener para Exportar EXCEL
+    $("btnExportarExcel")?.addEventListener("click", exportToExcel); 
+
+    $("btnImportar")?.addEventListener("click", () => {
+      const raw = ($("importJson")?.value || "").trim();
+
+      if (!raw) return alert("Pega tu JSON primero.");
+
+      try {
+        const parsed = JSON.parse(raw);
+
+        // Combinar datos existentes con los importados
+        panelData = Object.assign({}, panelData, parsed);
+        panelData.parametros = Object.assign({}, panelData.parametros, (parsed.parametros || {}));
+
         guardarPanelData();
+        $("importJson").value = "";
         
-        // Recalcular la proyección
-        calcularGastoFijoAuto();
-        calcularProyeccionReal();
-        alert("Ajustes de proyección guardados exitosamente.");
+        // Refrescar UI completamente
+        location.reload(); 
+
+        alert("Importación correcta ✔. Recarga de página automática.");
+
+      } catch (e) {
+        console.error(e);
+        alert("JSON inválido.");
+      }
     });
 }
 
-// ======================\
-// app.js — PARTE 3/5: TURNOS Y CÁLCULOS AUTOMÁTICOS
-// ======================\
 
-let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo") || "null");
+// ======================
+// Turnos
+// ======================
+let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || false;
+let turnoInicio = localStorage.getItem("turnoInicio") || null;
 
 function actualizarUIturno() {
-    const btnIniciar = $("btnIniciarTurno");
-    const btnFinalizar = $("btnFinalizarTurno");
-    const texto = $("turnoTexto");
+  const ini = $("btnIniciarTurno");
+  const fin = $("btnFinalizarTurno");
+  const txt = $("turnoTexto");
 
-    if (!btnIniciar || !btnFinalizar || !texto) return;
+  if (!ini || !fin || !txt) return;
 
-    if (turnoActivo) {
-        btnIniciar.style.display = 'none';
-        btnFinalizar.style.display = 'block';
-        const horaInicio = new Date(turnoActivo.inicio).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-        texto.textContent = `Turno en curso iniciado a las ${horaInicio}.`;
-    } else {
-        btnIniciar.style.display = 'block';
-        btnFinalizar.style.display = 'none';
-        texto.textContent = "Inicia un turno cuando empieces a trabajar.";
-    }
+  if (turnoActivo) {
+    ini.style.display = "none";
+    fin.style.display = "inline-block";
+    txt.textContent = `Turno en curso iniciado el ${new Date(turnoInicio).toLocaleString("es-MX")}`;
+  } else {
+    ini.style.display = "inline-block";
+    fin.style.display = "none";
+    txt.textContent = "Sin turno activo";
+  }
 }
 
 function iniciarTurno() {
-    if (turnoActivo) return;
+  if (turnoActivo) return alert("Ya tienes un turno activo.");
 
-    const fechaISO = new Date().toISOString();
-    turnoActivo = {
-        inicio: fechaISO,
-        ganancia: 0,
-        ingresos: []
-    };
-    localStorage.setItem("turnoActivo", JSON.stringify(turnoActivo));
-    actualizarUIturno();
-    alert("Turno iniciado.");
+  turnoActivo = true;
+  turnoInicio = nowISO();
+
+  localStorage.setItem("turnoActivo", true);
+  localStorage.setItem("turnoInicio", turnoInicio);
+
+  actualizarUIturno();
+  alert("Turno iniciado.");
 }
 
 function finalizarTurno() {
-    if (!turnoActivo) return;
+  if (!turnoActivo) return alert("No hay turno activo.");
 
-    const fin = new Date().toISOString();
-    const inicioDate = new Date(turnoActivo.inicio);
-    const finDate = new Date(fin);
-    const msDiff = finDate - inicioDate;
-    const horas = msDiff / (1000 * 60 * 60);
+  const inicio = new Date(turnoInicio);
+  const fin = new Date();
+  const horas = Number(((fin - inicio) / 3600000).toFixed(2));
 
-    // Sumar todos los ingresos registrados desde el inicio del turno
-    const totalGanancia = panelData.ingresos
-        .filter(i => i.fechaISO >= turnoActivo.inicio && i.fechaISO <= fin)
-        .reduce((sum, i) => sum + Number(i.cantidad), 0);
-    
-    // Crear el registro del turno
-    const nuevoTurno = {
-        inicio: turnoActivo.inicio,
-        fin: fin,
-        horas: horas.toFixed(2),
-        ganancia: totalGanancia.toFixed(2)
-    };
-    
-    panelData.turnos.push(nuevoTurno);
-    
-    // Limpiar el estado
-    turnoActivo = null;
-    localStorage.removeItem("turnoActivo");
-    guardarPanelData();
-    
-    actualizarUIturno();
-    
-    // Forzar renderizado
-    renderResumenIndex();
-    calcularProyeccionReal();
-    renderTablaTurnos();
+  const ganStr = prompt(`Terminó el turno.\nHoras: ${horas}\nGanancia (MXN):`);
+  const gan = Number(ganStr);
 
-    alert(`Turno finalizado. Horas trabajadas: ${nuevoTurno.horas}h. Ganancia Bruta: $${nuevoTurno.ganancia}.`);
+  if (!gan) return alert("Monto inválido. El turno no fue registrado.");
+
+  panelData.turnos.push({
+    inicio: inicio.toISOString(),
+    fin: fin.toISOString(),
+    horas,
+    ganancia: gan
+  });
+
+  // El ingreso de la ganancia se registra aquí
+  panelData.ingresos.push({
+    descripcion: `Ganancia turno (${horas}h)`,
+    cantidad: gan,
+    fechaISO: nowISO(),
+    fechaLocal: nowLocal()
+  });
+
+  pushMovimiento("Ingreso", `Ganancia turno (${horas}h)`, gan);
+
+  turnoActivo = false;
+  turnoInicio = null;
+
+  localStorage.setItem("turnoActivo", false);
+  localStorage.removeItem("turnoInicio");
+
+  guardarPanelData();
+  actualizarUIturno();
+
+  alert("Turno finalizado.");
+  renderResumenIndex();
+}
+// ======================
+// app.js — PARTE 4/5: RENDERIZADO DE RESULTADOS
+// ======================
+
+// ======================
+// Resumen del día
+// ======================
+function calcularResumenDatos() {
+  const hoy = new Date().toISOString().slice(0, 10);
+
+  // Obtener turnos y gastos DE HOY
+  const turnosHoy = (panelData.turnos || []).filter(t => (t.inicio || "").slice(0, 10) === hoy);
+  const gastosHoy = (panelData.gastos || []).filter(g => (g.fechaISO || "").slice(0, 10) === hoy);
+
+  const horasHoy = turnosHoy.reduce((s, t) => s + (Number(t.horas) || 0), 0);
+  const ganHoy   = turnosHoy.reduce((s, t) => s + (Number(t.ganancia) || 0), 0);
+  const gastHoy  = gastosHoy.reduce((s, g) => s + (Number(g.cantidad) || 0), 0);
+
+  return { horasHoy, ganHoy, gastHoy };
 }
 
-// ------------------ DEUDAS ------------------
-function setupDeudaListeners() {
-    // ... (Lógica de los 4 pasos para registrar deuda, se mantiene igual, omitida aquí por longitud) ...
+// ======================
+// AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS
+// ======================
+function aggregateDailyData() {
+  const data = {};
 
-    // Manejador de Abono
-    $("btnRegistrarAbono")?.addEventListener("click", () => {
-        const index = $("abonoSeleccionar").value;
-        const monto = Number($("abonoMonto").value);
+  const processEntry = (entry, type, amountKey) => {
+    
+    // CAMBIO CLAVE: Usar la fecha Local para agrupar
+    // La fecha Local está en formato "DD/MM/YYYY, HH:MM..."
+    const rawDate = entry.fechaLocal || ""; 
+    if (!rawDate) return;
 
-        if (index === "" || isNaN(monto) || monto <= 0) {
-            alert("Selecciona una deuda y un monto de abono válido.");
-            return;
-        }
+    // Extraer solo la fecha: "DD/MM/YYYY"
+    const localDate = rawDate.split(',')[0].trim();
+    
+    // Convertir a formato "YYYY-MM-DD" para ordenar correctamente
+    const parts = localDate.split('/');
+    if (parts.length !== 3) return;
+    const dateKey = `${parts[2]}-${parts[1]}-${parts[0]}`; 
 
-        const deuda = panelData.deudas[index];
-        const abonadoActual = Number(deuda.abonado) || 0;
-        const nuevoAbonado = abonadoActual + monto;
+    data[dateKey] = data[dateKey] || { date: dateKey, ingresos: 0, gastos: 0, kmRecorridos: 0 };
+    data[dateKey][type] += (Number(entry[amountKey]) || 0);
+  };
+  
+  // Procesar las entradas (Se usa el ingreso del turno, no todos los ingresos)
+  (panelData.turnos || []).forEach(t => processEntry(t, 'ingresos', 'ganancia'));
+  (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
+  (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
+
+  // Convertir objeto a array y ordenar por fecha (dateKey YYYY-MM-DD)
+  return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
+// ======================
+// CÁLCULO DE MÉTRICAS MENSUALES DE KM
+// ======================
+function aggregateKmMensual() {
+    const dataMensual = {};
+
+    // 1. Agrupar KM por mes
+    (panelData.kmDiarios || []).forEach(k => {
+        const date = new Date(k.fechaISO);
+        // Formato YYYY-MM para la clave
+        const mesKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         
-        if (nuevoAbonado > Number(deuda.monto)) {
-            alert("El abono excede el monto total de la deuda. Ajusta el monto.");
-            return;
-        }
-
-        deuda.abonado = nuevoAbonado;
-
-        // Registrar el abono como un gasto para el historial
-        const fechaISO = new Date().toISOString();
-        const fechaLocal = new Date().toLocaleTimeString('es-MX', {
-            day: 'numeric', month: 'numeric', year: 'numeric',
-            hour: '2-digit', minute: '2-digit', second: '2-digit'
-        });
-        panelData.gastos.push({
-            descripcion: `Abono a ${deuda.nombre}`,
-            cantidad: monto,
-            categoria: 'Abono a Deuda',
-            fechaISO,
-            fechaLocal
-        });
-
-        guardarPanelData();
-        renderDeudas();
-        calcularDeudaTotalAuto(); // Recalcula la deuda total pendiente
-        calcularProyeccionReal(); 
-
-        $("abonoMonto").value = "";
-        alert(`Abono de $${fmtMoney(monto)} registrado a ${deuda.nombre}.`);
+        dataMensual[mesKey] = dataMensual[mesKey] || { kmRecorridos: 0, costoGasolina: 0 };
+        dataMensual[mesKey].kmRecorridos += (Number(k.recorrido) || 0);
     });
-}
 
-
-// ------------------ CÁLCULOS AUTOMÁTICOS ------------------
-
-function calcularDeudaTotalAuto() {
-    let totalPendiente = 0;
-
-    (panelData.deudas || []).forEach(d => {
-        const pendiente = (Number(d.monto) || 0) - (Number(d.abonado) || 0);
-        if (pendiente > 0) {
-            totalPendiente += pendiente;
-        }
-    });
-
-    panelData.parametros.deudaTotal = totalPendiente;
-    guardarPanelData();
-
-    const inp = $("proyDeudaTotal");
-    if (inp) {
-        inp.value = totalPendiente.toFixed(2);
-    }
-}
-
-
-// B) calcularGastoFijoAuto (LÓGICA OPTIMIZADA)
-function calcularGastoFijoAuto() {
-    panelData.parametros = panelData.parametros || {};
-
-    // 1. Cargar parámetros manuales
-    const comidaDiariaManual = Number(panelData.parametros.comidaDiaria) || 200; 
-    const costoPorKm = Number(panelData.parametros.costoPorKm) || 0.6; 
-
-    // 2. Calcular promedio de KM
-    const kmArr = panelData.kmDiarios || [];
-    const kmProm = kmArr.length
-        ? kmArr.reduce((s, k) => s + (Number(k.recorrido) || 0), 0) / kmArr.length
-        : 0;
-        
-    // 3. Obtener el Gasto de Comida Diario: Promedio de los últimos 30 días registrados.
-    const promedioComidaRegistrada = getPromedioGastoCategoria("Comida", 30); 
-    
-    // Usar el promedio de los gastos reales. Si es 0 (no hay historial), usar el valor manual asumido.
-    const gastoComidaDiario = promedioComidaRegistrada > 0 ? promedioComidaRegistrada : comidaDiariaManual;
-
-
-    // 4. Calcular el Abono Diario Promedio de Deudas ACTIVAS (PROGRAMADO)
-    let abonoDiarioPromedio = 0;
-
-    (panelData.deudas || []).forEach(d => {
-        const pendiente = (Number(d.monto) || 0) - (Number(d.abonado) || 0);
-        const abonoProgramado = Number(d.abonoProgramado || 0);
-        const periodicidad = d.periodicidad || "";
-        
-        // Solo si hay saldo pendiente y un abono programado fijo
-        if (pendiente > 0 && abonoProgramado > 0) {
-            let dias = 30; // Base: Mensual
-            if (periodicidad === "Semanal") dias = 7;
-            if (periodicidad === "Quincenal") dias = 15;
+    // 2. Sumar el costo de la gasolina por mes
+    (panelData.gastos || []).forEach(g => {
+        // Asumiendo que todos los gastos de gasolina se registran bajo "Transporte"
+        // y tienen la descripción "Gasolina" (o similar)
+        if (g.categoria === "Transporte" && g.descripcion.includes("Gasolina")) { 
+            const date = new Date(g.fechaISO);
+            const mesKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             
-            abonoDiarioPromedio += (abonoProgramado / dias);
+            dataMensual[mesKey] = dataMensual[mesKey] || { kmRecorridos: 0, costoGasolina: 0 };
+            dataMensual[mesKey].costoGasolina += (Number(g.cantidad) || 0);
         }
     });
 
-    // 5. Fórmula Gasto Fijo DIARIO (Total del Gasto Programado y Asumido)
-    const gastoFijo = abonoDiarioPromedio + gastoComidaDiario + (kmProm * costoPorKm);
+    // 3. Calcular métricas finales y formatear
+    const resultado = Object.entries(dataMensual).map(([mesKey, data]) => {
+        const [year, month] = mesKey.split('-');
+        // Formatear el nombre del mes
+        const dateString = new Date(year, month - 1, 1).toLocaleString('es-MX', { year: 'numeric', month: 'long' });
+        
+        const costoPorKm = data.kmRecorridos > 0 
+            ? data.costoGasolina / data.kmRecorridos 
+            : 0;
 
-    panelData.parametros.gastoFijo = gastoFijo;
-    guardarPanelData();
+        return {
+            mes: dateString.charAt(0).toUpperCase() + dateString.slice(1),
+            kmRecorridos: data.kmRecorridos,
+            costoGasolina: data.costoGasolina,
+            costoPorKm: costoPorKm
+        };
+    }).sort((a, b) => {
+      // Ordenar por año-mes descendente (más reciente primero)
+      const keyA = new Date(a.mes).getTime();
+      const keyB = new Date(b.mes).getTime();
+      return keyB - keyA;
+    });
 
-    const inp = $("proyGastoFijo");
-    if (inp) {
-        inp.value = gastoFijo.toFixed(2);
-    }
+    return resultado;
 }
 
-// ======================\
-// app.js — PARTE 4/5: FUNCIONES DE RENDERIZADO Y PROYECCIÓN
-// ======================\
 
-// Función de resumen diario (solo para index.html)
+// ======================
+// RENDERIZADO DE TABLA DE KM MENSUAL
+// ======================
+function renderTablaKmMensual() {
+    const tablaContainer = $("tablaKmMensual"); 
+    if (!tablaContainer) return;
+
+    const datosMensuales = aggregateKmMensual();
+    
+    let html = `
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>Mes</th>
+                    <th>KM Recorridos</th>
+                    <th>Costo Gasolina</th>
+                    <th>Costo por KM</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+    if (datosMensuales.length === 0) {
+        html += `<tr><td colspan="4" style="text-align:center">No hay datos de KM/Gasolina.</td></tr>`;
+    } else {
+        datosMensuales.forEach(d => {
+            html += `
+                <tr>
+                    <td>${d.mes}</td>
+                    <td>${d.kmRecorridos.toFixed(0)} KM</td>
+                    <td>$${fmtMoney(d.costoGasolina)}</td>
+                    <td>$${d.costoPorKm.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+    }
+
+    html += `</tbody></table>`;
+    tablaContainer.innerHTML = html;
+}
+
+// ======================
+// Render resumen index
+// ======================
 function renderResumenIndex() {
-    const hoyISO = new Date().toISOString().slice(0, 10);
+  const r = calcularResumenDatos();
 
-    const ingresosHoy = (panelData.ingresos || [])
-        .filter(i => i.fechaISO.slice(0, 10) === hoyISO)
-        .reduce((s, i) => s + Number(i.cantidad), 0);
+  if ($("resHoras")) $("resHoras").textContent = r.horasHoy.toFixed(2);
+  if ($("resGananciaBruta")) $("resGananciaBruta").textContent = "$" + fmtMoney(r.ganHoy);
+  if ($("resGastos")) $("resGastos").textContent = "$" + fmtMoney(r.gastHoy);
+  if ($("resNeta")) $("resNeta").textContent = "$" + fmtMoney(r.ganHoy - r.gastHoy);
 
-    // NOTA: Los gastos de hoy son todos, incluyendo abonos y gasolina
-    const gastosHoy = (panelData.gastos || []) 
-        .filter(g => g.fechaISO.slice(0, 10) === hoyISO)
-        .reduce((s, g) => s + Number(g.cantidad), 0);
-
-    const netaHoy = ingresosHoy - gastosHoy;
-
-    if ($("resHoras")) $("resHoras").textContent = (panelData.turnos.slice(-1)[0]?.horas || 0);
-    if ($("resGananciaBruta")) $("resGananciaBruta").textContent = "$" + fmtMoney(ingresosHoy);
-    if ($("resGastos")) $("resGastos").textContent = "$" + fmtMoney(gastosHoy);
-    if ($("resNeta")) $("resNeta").textContent = "$" + fmtMoney(netaHoy);
-
-    // Renderizar tablas y gráficas
-    renderTablaTurnos();
-    renderKmMensual();
-    calcularProyeccionReal(); 
-    // renderGraficas(); // Asumiendo que esta función está definida aparte
+  renderTablaTurnos();
+  renderTablaKmMensual();
+  renderCharts();
+  calcularProyeccionReal();
 }
 
-
-// Función de renderizado de Deudas (CORREGIDA: Solo muestra deudas pendientes)
-function renderDeudas() {
-    const list = $("listaDeudas");
-    const select = $("abonoSeleccionar");
-
-    if (!list || !select) return;
-
-    list.innerHTML = "";
-    select.innerHTML = "";
-
-    // 1. Filtrar solo deudas con saldo pendiente
-    const deudasPendientes = panelData.deudas.filter(d => {
-        const pendiente = (Number(d.monto) || 0) - (Number(d.abonado) || 0);
-        return pendiente > 0;
-    });
-
-    deudasPendientes.forEach(d => {
-        // Obtenemos el índice original para registrar el abono correctamente
-        const originalIndex = panelData.deudas.findIndex(original => original.nombre === d.nombre && original.monto === d.monto);
-
-        const pendiente = (Number(d.monto) || 0) - (Number(d.abonado) || 0);
-        const programado = Number(d.abonoProgramado || 0);
-        const periodicidad = d.periodicidad || "";
-
-        list.innerHTML += `
-            <li>
-                <strong>${d.nombre}</strong><br>
-                Total: $${fmtMoney(d.monto)}<br>
-                Pagado: $${fmtMoney(d.abonado || 0)}<br>
-                Programado: $${fmtMoney(programado)} ${periodicidad}<br>
-                Pendiente: <strong>$${fmtMoney(pendiente)}</strong>
-            </li>
-        `;
-
-        // Llenar el <select> para abonar
-        if (pendiente > 0) {
-            const opt = document.createElement("option");
-            opt.value = originalIndex; 
-            opt.textContent = `${d.nombre} — $${fmtMoney(pendiente)} pendiente`;
-            select.appendChild(opt);
-        }
-    });
-
-    if (deudasPendientes.length === 0) {
-        list.innerHTML = "<li style='color: green; font-weight: bold;'>¡Felicidades, has liquidado todas tus deudas pendientes!</li>";
-    }
-    
-    // Deshabilitar abono si no hay deudas pendientes
-    const hasPendingDebt = select.children.length > 0;
-    select.disabled = !hasPendingDebt;
-    $("abonoMonto").disabled = !hasPendingDebt;
-    $("btnRegistrarAbono").disabled = !hasPendingDebt;
-    if (!hasPendingDebt) {
-        select.innerHTML = `<option value="">-- No hay deudas pendientes --</option>`;
-    }
-}
-
-
-// Tabla Turnos (CORREGIDA: muestra Gastos del Día usando getGastosDelDia)
+// ======================
+// Tabla Turnos
+// ======================
 function renderTablaTurnos() {
-    const tbody = $("tablaTurnos");
-    if (!tbody) return;
+  const tbody = $("tablaTurnos");
+  if (!tbody) return;
 
-    tbody.innerHTML = "";
+  tbody.innerHTML = "";
 
-    const arr = [...(panelData.turnos || [])].reverse();
+  const arr = [...(panelData.turnos || [])].reverse();
 
-    if (arr.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center">No hay turnos registrados.</td></tr>`;
-        return;
-    }
+  if (arr.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center">No hay turnos</td></tr>`;
+    return;
+  }
 
-    arr.forEach(t => {
-        const fechaTurno = fmtDate(t.inicio);
-        
-        // **LÍNEA CLAVE: Obtenemos todos los gastos de ese día**
-        const gastosDelDia = getGastosDelDia(t.inicio);
-        const neta = (Number(t.ganancia) || 0) - gastosDelDia;
+  // Se debe calcular el gasto y la ganancia neta por día/turno
+  const gastosPorFecha = {};
+  (panelData.gastos || []).forEach(g => {
+    const key = (g.fechaISO || "").slice(0, 10);
+    gastosPorFecha[key] = (gastosPorFecha[key] || 0) + Number(g.cantidad || 0);
+  });
+  
+  arr.forEach(t => {
+    const fecha = (t.inicio || "").slice(0, 10);
+    const gastosDia = gastosPorFecha[fecha] || 0;
+    const neta = (Number(t.ganancia) || 0) - gastosDia; // Aquí se resta el gasto total del día
 
-        tbody.innerHTML += `
-            <tr>
-                <td>${fechaTurno}</td>
-                <td>${(Number(t.horas) || 0).toFixed(2)}</td>
-                <td>$${fmtMoney(t.ganancia)}</td>
-                <td>$${fmtMoney(gastosDelDia)}</td> 
-                <td>$${fmtMoney(neta)}</td>
-            </tr>
-        `;
-    });
-}
-
-
-// Proyección Real (CORREGIDA: Evita Doble Conteo)
-// Función de renderizado de Métricas Mensuales de Vehículo
-function renderKmMensual() {
-    const div = document.getElementById("tablaKmMensual");
-    if (!div) return;
-
-    const kmArr = panelData.kmDiarios || [];
-    const gasArr = panelData.gasolina || [];
-
-    // Calcular promedios mensuales
-    const KM_TOTAL = kmArr.reduce((s, k) => s + (Number(k.recorrido) || 0), 0);
-    const GAS_TOTAL = gasArr.reduce((s, g) => s + (Number(g.litros) || 0), 0);
-    const COSTO_GAS_TOTAL = gasArr.reduce((s, g) => s + (Number(g.costo) || 0), 0);
-
-    const kmPromedioDia = kmArr.length ? KM_TOTAL / kmArr.length : 0;
-    const costoPromedioLitro = GAS_TOTAL ? COSTO_GAS_TOTAL / GAS_TOTAL : 0;
-    
-    // Rendimiento (KM por Litro)
-    const rendimientoKmL = GAS_TOTAL ? KM_TOTAL / GAS_TOTAL : 0; 
-    
-    // Costo por KM (Cuánto te cuesta recorrer 1 KM en gasolina)
-    const costoRealPorKm = rendimientoKmL > 0 ? costoPromedioLitro / rendimientoKmL : 0;
-
-    div.innerHTML = `
-        <ul class="list" style="list-style: none; padding: 0;">
-            <li><strong>KM Promedio Diario:</strong> ${kmPromedioDia.toFixed(2)} KM</li>
-            <li><strong>KM Total Registrado:</strong> ${KM_TOTAL.toFixed(2)} KM</li>
-            <li><strong>Costo Promedio por Litro:</strong> $${fmtMoney(costoPromedioLitro)}</li>
-            <li><strong>Rendimiento Real:</strong> ${rendimientoKmL.toFixed(2)} KM/L</li>
-            <li><strong>Costo Real por KM (solo combustible):</strong> $${costoRealPorKm.toFixed(3)}</li>
-        </ul>
+    tbody.innerHTML += `
+      <tr>
+        <td>${fecha}</td>
+        <td>${(Number(t.horas) || 0).toFixed(2)}</td>
+        <td>$${fmtMoney(t.ganancia)}</td>
+        <td>$${fmtMoney(gastosDia)}</td> 
+        <td>$${fmtMoney(neta)}</td>
+      </tr>
     `;
+  });
 }
-// Utilidad: Agrega datos diarios de los últimos 'dias'
-function aggregateDailyData(dias = 14) {
-    const data = {};
-    const hoy = new Date();
-    
-    // Inicializar los últimos 'dias' en el objeto de datos
-    for (let i = 0; i < dias; i++) {
-        const d = new Date(hoy);
-        d.setDate(hoy.getDate() - i);
-        const dateKey = d.toISOString().slice(0, 10);
-        data[dateKey] = { date: dateKey, ingresos: 0, gastos: 0, kmRecorridos: 0, fechaLocal: fmtDate(d) };
-    }
+// ======================
+// app.js — PARTE 5/5: PROYECCIÓN, GRÁFICAS E INICIALIZACIÓN
+// ======================
 
-    const processEntry = (entry, type, amountKey) => {
-        const dateKey = (entry.fechaISO || "").slice(0, 10);
-        if (data[dateKey]) {
-            data[dateKey][type] += (Number(entry[amountKey]) || 0);
-        }
-    };
-    
-    // 1. Ingresos y Gastos
-    (panelData.ingresos || []).forEach(i => processEntry(i, 'ingresos', 'cantidad'));
-    (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
-    
-    // 2. Kilometraje
-    (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
-
-    // Devolver un array ordenado por fecha
-    return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
-}
-// Utilidad: Agrega datos diarios de los últimos 'dias'
-function aggregateDailyData(dias = 14) {
-    const data = {};
-    const hoy = new Date();
-    
-    // Inicializar los últimos 'dias' en el objeto de datos
-    for (let i = 0; i < dias; i++) {
-        const d = new Date(hoy);
-        d.setDate(hoy.getDate() - i);
-        const dateKey = d.toISOString().slice(0, 10);
-        data[dateKey] = { date: dateKey, ingresos: 0, gastos: 0, kmRecorridos: 0, fechaLocal: fmtDate(d) };
-    }
-
-    const processEntry = (entry, type, amountKey) => {
-        const dateKey = (entry.fechaISO || "").slice(0, 10);
-        if (data[dateKey]) {
-            data[dateKey][type] += (Number(entry[amountKey]) || 0);
-        }
-    };
-    
-    // 1. Ingresos y Gastos
-    (panelData.ingresos || []).forEach(i => processEntry(i, 'ingresos', 'cantidad'));
-    (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
-    
-    // 2. Kilometraje
-    (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
-
-    // Devolver un array ordenado por fecha
-    return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
-}
-
+// ======================
+// Proyección Real
+// ======================
 function calcularProyeccionReal() {
-    const p = panelData.parametros || {};
-    const deudaTotal = Number(p.deudaTotal || 0);
-    const gastoFijo  = Number(p.gastoFijo || 0); 
-    
-    const turnos = panelData.turnos || [];
-    const diasTrabajados = new Set(turnos.map(t => (t.inicio || "").slice(0,10))).size;
+  const p = panelData.parametros || {};
+  const deudaTotal = Number(p.deudaTotal || 0);
+  const gastoFijo  = Number(p.gastoFijo || 0);
 
-    const totalHoras = turnos.reduce((s,t)=>s+ (Number(t.horas)||0),0);
-    const totalGan     = turnos.reduce((s,t)=>s+ (Number(t.ganancia)||0),0);
+  const turnos = panelData.turnos || [];
+  const diasTrabajados = new Set(turnos.map(t => (t.inicio || "").slice(0,10))).size;
 
-    const horasPromDia = diasTrabajados ? totalHoras / diasTrabajados : 0;
-    const ganPromDia   = diasTrabajados ? totalGan / diasTrabajados : 0;
-    
-    // 1. CALCULAR GASTO OPERATIVO PROMEDIO (Gastos No-Fijos/Otros)
-    const gastos = panelData.gastos || [];
-    
-    // Filtramos para EXCLUIR los gastos que ya están considerados en el Gasto Fijo Calculado:
-    // Abono a Deuda, Comida, Transporte y Mantenimiento.
-    const gastosOperativos = gastos.filter(g => 
-        g.categoria !== "Abono a Deuda" && 
-        g.categoria !== "Comida" &&
-        g.categoria !== "Transporte" &&
-        g.categoria !== "Mantenimiento" 
-    ); 
+  const totalHoras = turnos.reduce((s,t)=>s+ (Number(t.horas)||0),0);
+  const totalGan    = turnos.reduce((s,t)=>s+ (Number(t.ganancia)||0),0);
 
-    const gastosPorFecha = {};
+  const horasPromDia = diasTrabajados ? totalHoras / diasTrabajados : 0;
+  const ganPromDia   = diasTrabajados ? totalGan / diasTrabajados : 0;
 
-    gastosOperativos.forEach(g=>{
-        const key = (g.fechaISO || "").slice(0,10);
-        if (!key) return;
-        gastosPorFecha[key] = (gastosPorFecha[key] || 0) + Number(g.cantidad || 0);
-    });
+  const gastos = panelData.gastos || [];
+  const gastosPorFecha = {};
 
-    const numDiasConGastoOperativo = Object.keys(gastosPorFecha).length;
-    const gastoPromDiaOperativo = numDiasConGastoOperativo > 0 
-                                  ? Object.values(gastosPorFecha).reduce((s,v)=>s+v,0) / numDiasConGastoOperativo 
-                                  : 0;
+  gastos.forEach(g=>{
+    const key = (g.fechaISO || "").slice(0,10);
+    if (!key) return;
+    gastosPorFecha[key] = (gastosPorFecha[key] || 0) + Number(g.cantidad || 0);
+  });
 
-    // 2. CÁLCULO DE LA NETA PROMEDIO
-    // Neta Promedio = Ganancia Bruta Promedio - Gasto Fijo Calculado - Gasto Operativo (Otros gastos)
-    const netaPromDia = ganPromDia - gastoFijo - gastoPromDiaOperativo;
+  const gastoPromDia = Object.values(gastosPorFecha).reduce((s,v)=>s+v,0) /
+                        (Object.keys(gastosPorFecha).length || 1);
 
-    let diasParaLiquidar = Infinity;
-    if (netaPromDia > 0 && deudaTotal > 0) {
-        diasParaLiquidar = deudaTotal / netaPromDia;
+  const netaPromDia = ganPromDia - gastoPromDia - gastoFijo;
+
+  let diasParaLiquidar = Infinity;
+  if (netaPromDia > 0 && deudaTotal > 0) {
+    diasParaLiquidar = deudaTotal / netaPromDia;
+  }
+
+  if ($("proyDeuda")) $("proyDeuda").textContent = "$" + fmtMoney(deudaTotal);
+  if ($("proyHoras")) $("proyHoras").textContent = horasPromDia.toFixed(2) + " h";
+  if ($("proyNeta"))  $("proyNeta").textContent  = "$" + fmtMoney(netaPromDia);
+
+  if ($("proyDias")) {
+    if (diasParaLiquidar === Infinity || netaPromDia <= 0) {
+      $("proyDias").textContent = (deudaTotal > 0) ? "N/A (Ganancia Neta 0 o negativa)" : "Deuda Saldada";
+    } else {
+      $("proyDias").textContent = Math.ceil(diasParaLiquidar) + " días";
     }
-
-    // 3. Renderizar resultados
-    if ($("proyDeuda")) $("proyDeuda").textContent = "$" + fmtMoney(deudaTotal);
-    if ($("proyHoras")) $("proyHoras").textContent = horasPromDia.toFixed(2) + " h";
-    
-    if ($("proyNeta"))  $("proyNeta").textContent  = "$" + fmtMoney(netaPromDia);
-
-    if ($("proyDias")) {
-        if (deudaTotal <= 0) {
-            $("proyDias").textContent = "Deuda Saldada";
-        } else if (netaPromDia <= 0) {
-            $("proyDias").textContent = "N/A (Ganancia Neta 0 o negativa)";
-        } else {
-            $("proyDias").textContent = Math.ceil(diasParaLiquidar) + " días";
-        }
-    }
+  }
 }
-// ... (Otras funciones de renderizado, por ejemplo, renderKmMensual, renderGraficas, se omiten si no se modificaron) ...
 
-// ======================\// ======================\
-// app.js — PARTE 5/5: INICIALIZACIÓN, I/O Y TUTORIAL
-// (Código Corregido: setupIoListeners)
-// ======================\
+// ======================
+// GRÁFICAS (CHART.JS)
+// ======================
+let gananciasChart = null;
+let kmChart = null;
 
-// Función para Exportar / Importar (CORREGIDA: Implementación de Excel)
-function setupIoListeners() {
-    
-    // Lógica para Exportar JSON
-    $("btnExportar")?.addEventListener("click", () => {
-        const dataStr = JSON.stringify(panelData, null, 2);
-        navigator.clipboard.writeText(dataStr)
-            .then(() => alert("Datos copiados al portapapeles (JSON)."))
-            .catch(err => {
-                console.error('Error al copiar:', err);
-                alert("Error al copiar. Revisa la consola.");
-            });
+function renderCharts() {
+  const dailyData = aggregateDailyData();
+
+  // Tomar solo los últimos 14 días
+  const last14Days = dailyData.slice(-14);
+  const labels = last14Days.map(d => {
+      // Formatear de YYYY-MM-DD a MM/DD para la etiqueta
+      const [y, m, d_] = d.date.split('-');
+      return `${m}/${d_}`; 
+  }); 
+
+  // 1. Gráfica de Ganancias vs Gastos
+  const ctxGanancias = $("graficaGanancias");
+  if (ctxGanancias) {
+    if (gananciasChart) gananciasChart.destroy(); 
+
+    gananciasChart = new Chart(ctxGanancias, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Ingresos',
+          data: last14Days.map(d => d.ingresos),
+          backgroundColor: '#00a000', 
+        }, {
+          label: 'Gastos',
+          data: last14Days.map(d => d.gastos),
+          backgroundColor: '#d40000', 
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: { stacked: false },
+          y: { beginAtZero: true }
+        },
+        plugins: {
+          legend: { position: 'top' },
+          title: { display: false }
+        }
+      }
     });
+  }
 
-    // Lógica para Importar JSON
-    $("btnImportar")?.addEventListener("click", () => {
-        const jsonText = $("importJson").value.trim();
-        if (!jsonText) {
-            alert("Pega los datos JSON en el cuadro de texto para importar.");
-            return;
+  // 2. Gráfica de Kilometraje
+  const ctxKm = $("graficaKm");
+  if (ctxKm) {
+    if (kmChart) kmChart.destroy(); 
+
+    kmChart = new Chart(ctxKm, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'KM Recorridos',
+          data: last14Days.map(d => d.kmRecorridos),
+          borderColor: '#0066ff', 
+          backgroundColor: '#0066ff40',
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } },
+        plugins: {
+          legend: { position: 'top' },
+          title: { display: false }
         }
-
-        try {
-            const importedData = JSON.parse(jsonText);
-            
-            // Validación básica de la estructura
-            if (!importedData.ingresos || !importedData.gastos || !importedData.turnos) {
-                alert("Error: El archivo JSON parece no ser válido para esta aplicación. Debe contener al menos ingresos, gastos y turnos.");
-                return;
-            }
-            
-            // Sobreescribir con los nuevos datos
-            panelData = Object.assign({}, panelData, importedData);
-            
-            // Resetear el estado de turno activo por seguridad
-            localStorage.removeItem("turnoActivo"); 
-            
-            guardarPanelData();
-            alert("Datos importados exitosamente. Recargando la página.");
-            window.location.reload();
-
-        } catch (e) {
-            alert("Error al parsear el JSON. Asegúrate de que el formato sea correcto.");
-            console.error("Error de importación:", e);
-        }
+      }
     });
-
-    // Lógica para Exportar EXCEL (.xlsx)
-    $("btnExportarExcel")?.addEventListener("click", () => {
-        
-        // La librería XLSX debe estar cargada en admin.html (ver script src)
-        if (typeof XLSX === 'undefined') {
-            alert("Error: La librería de Excel (SheetJS) no está cargada. Asegúrate de tener la etiqueta <script> en admin.html.");
-            return;
-        }
-        
-        // 1. Preparar las hojas de trabajo (Worksheets)
-        
-        // Ingresos
-        const ws_ingresos = XLSX.utils.json_to_sheet(panelData.ingresos.map(i => ({
-            Fecha_Hora: i.fechaLocal,
-            Descripción: i.descripcion,
-            Monto: Number(i.cantidad)
-        })));
-        
-        // Gastos
-        const ws_gastos = XLSX.utils.json_to_sheet(panelData.gastos.map(g => ({
-            Fecha_Hora: g.fechaLocal,
-            Descripción: g.descripcion,
-            Monto: Number(g.cantidad),
-            Categoría: g.categoria
-        })));
-        
-        // Turnos (incluyendo Ganancia Neta y Gastos del Día)
-        const ws_turnos = XLSX.utils.json_to_sheet(panelData.turnos.map(t => {
-            const gastosDia = getGastosDelDia(t.inicio); // Reutilizamos la utilidad
-            const neta = Number(t.ganancia) - gastosDia;
-            return {
-                Fecha: fmtDate(t.inicio),
-                Horas: Number(t.horas),
-                Ganancia_Bruta: Number(t.ganancia),
-                Gastos_Del_Dia: gastosDia,
-                Ganancia_Neta: neta
-            };
-        }));
-        
-        // Deudas
-        const ws_deudas = XLSX.utils.json_to_sheet(panelData.deudas.map(d => ({
-            Deuda: d.nombre,
-            Total: Number(d.monto),
-            Abonado: Number(d.abonado),
-            Pendiente: Number(d.monto) - Number(d.abonado),
-            Programado_y_Periodicidad: `${d.abonoProgramado || 0} ${d.periodicidad}`
-        })));
-
-        // 2. Crear el libro de trabajo (Workbook)
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws_turnos, "Turnos");
-        XLSX.utils.book_append_sheet(wb, ws_ingresos, "Ingresos");
-        XLSX.utils.book_append_sheet(wb, ws_gastos, "Gastos");
-        XLSX.utils.book_append_sheet(wb, ws_deudas, "Deudas");
-        
-        // 3. Exportar
-        XLSX.writeFile(wb, "Uber_Eats_Tracker_Data.xlsx");
-        alert("Archivo Excel exportado con éxito.");
-    });
+  }
 }
 
-// ... (El resto de la Parte 5/5, incluyendo mostrarTutorial y la inicialización, se mantiene igual)
-
-
-// Función para Exportar / Importar (se mantiene igual, omitida aquí por longitud)
-function setupIoListeners() {
-    // ... (Lógica de exportar JSON, exportar Excel, importar JSON) ...
-}
-
-
-// TUTORIAL (Sección de bienvenida)
-function mostrarTutorial() {
-    // Solo si estamos en la página de resultados (index.html) y no hay turnos registrados
-    if (!document.title.includes("Resultados") || panelData.turnos.length > 0) {
-        return;
-    }
-    
-    const main = document.querySelector('main.container');
-    if (!main) return;
-
-    // Utilizamos una tarjeta fija en la parte superior para el tutorial
-    const tutorialHTML = `
-        <section class="card" id="tutorialCard" style="border: 3px solid #0066ff; background: #f0f8ff;">
-            <h2>Primeros Pasos (Tutorial Rápido) 🚀</h2>
-            <ol>
-                <li>⚙ **Ve al Administrador:** Haz clic en el botón **"⚙ Ir al Administrador"** en la esquina superior.</li>
-                <li>📝 **Registra Parámetros Fijos:** En el Administrador, ve a la sección **"Ajustes de Gastos Fijos"** para:
-                    <ul>
-                        <li>**Deudas:** Registra cualquier deuda pendiente con su periodicidad.</li>
-                        <li>**Ajustes Manuales:** Define el **"Costo por KM"** y el **"Costo asumido de Comida"** (base inicial).</li>
-                    </ul>
-                </li>
-                <li>▶️ **¡Empieza a Trabajar!** En el Administrador, haz clic en **"Iniciar Turno"** y al terminar, en **"Finalizar Turno"** para registrar tus ganancias y horas.</li>
-            </ol>
-            <p style="font-style: italic;">A medida que registres KM y gastos de Comida, las proyecciones se harán más precisas automáticamente, reemplazando los valores manuales.</p>
-            <button class="btn-primary" onclick="document.getElementById('tutorialCard').remove()">Entendido, ¡Empezar!</button>
-        </section>
-    `;
-    
-    // Insertar antes del primer elemento del main (Resumen del Día)
-    main.insertAdjacentHTML('afterbegin', tutorialHTML);
-}
-
-
-// ======================\
+// ======================
 // INICIALIZACIÓN (DOMContentLoaded)
-// ======================\
+// ======================
 document.addEventListener("DOMContentLoaded", () => {
     // 1. Setup Listeners
     setupIngresoListeners();
@@ -920,7 +921,6 @@ document.addEventListener("DOMContentLoaded", () => {
     setupDeudaListeners();
     setupKmAndGasListeners();
     setupIoListeners();
-    setupParametrosListeners(); // NUEVO: Listeners para ajustes manuales
     
     // 2. Turnos Listeners
     $("btnIniciarTurno")?.addEventListener("click", iniciarTurno);
@@ -957,16 +957,4 @@ document.addEventListener("DOMContentLoaded", () => {
     if (document.title.includes("Resultados")) {
         renderResumenIndex(); 
     }
-    
-    // 7. Mostrar Tutorial si es la primera vez (solo en index.html)
-    mostrarTutorial();
-  // Dentro de renderResumenIndex()
-// ...
-// Recalcular métricas
-renderKmMensual(); // ¡Añadir o asegurar!
-renderGraficas();   // ¡Añadir o asegurar!
-calcularProyeccionReal();
-// ...
-  
-    
 });
