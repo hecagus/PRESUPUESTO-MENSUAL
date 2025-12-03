@@ -305,7 +305,8 @@ function setupDeudaListeners() {
       $("abonoMonto").value = "";
       alert("Abono guardado.");
     });
-}
+        }
+
 // ======================
 // app.js — PARTE 3/5: KM, GASOLINA, IO Y TURNOS
 // ======================
@@ -546,7 +547,7 @@ function finalizarTurno() {
 }
 
 // ======================
-// app.js — PARTE 4/5: RENDERIZADO Y GRÁFICAS
+// app.js — PARTE 4/5: RENDERIZADO DE RESULTADOS
 // ======================
 
 let gananciasChart = null;
@@ -743,7 +744,191 @@ function renderTablaTurnos() {
 }
 
 // ======================
-// Proyección Real
+// app.js — PARTE 5/5: LÓGICA DEL TUTORIAL, PROYECCIÓN, GRÁFICAS E INICIALIZACIÓN
+// ======================
+
+const TUTORIAL_COMPLETADO_KEY = "tutorialCompleto";
+
+// -----------------
+// Definición de Pasos
+// -----------------
+const tutorialSteps = [
+    {
+        title: "¡Bienvenido a Uber Eats Tracker!",
+        text: "Te guiaré rápidamente por las funciones clave de la aplicación. Haz clic en 'Siguiente'.",
+        target: null, 
+        positionClass: "modal-center",
+        buttonText: "Siguiente"
+    },
+    {
+        title: "Resumen del Día",
+        text: "Aquí verás tus ganancias y gastos del turno actual, calculados automáticamente.",
+        target: document.title.includes("Resultados") ? $("cardResumen") : null,
+        positionClass: "modal-top-right",
+        buttonText: "Siguiente"
+    },
+    {
+        title: "Administrador de Datos",
+        text: "El cerebro de la aplicación. Aquí registrarás tus ingresos, gastos, kilometraje, deudas y más.",
+        target: document.title.includes("Resultados") ? $("adminButton") : $("header")?.querySelector(".btn-admin"),
+        positionClass: "modal-bottom-left",
+        buttonText: document.title.includes("Resultados") ? "Ir al Administrador" : "Siguiente",
+        action: () => {
+            if (document.title.includes("Resultados")) {
+                 window.location.href = 'admin.html';
+                 return true; 
+            }
+            return false;
+        }
+    },
+    {
+        title: "Registro de Turnos",
+        text: "Usa estos botones para marcar el inicio y el fin de tu jornada. Al finalizar, registra tus horas y la ganancia bruta.",
+        target: $("btnIniciarTurno") ? $("btnIniciarTurno").closest(".card") : null,
+        positionClass: "modal-top-right",
+        buttonText: "Siguiente"
+    },
+    {
+        title: "Gestión de Deudas",
+        text: "Registra tus deudas fijas (coche, celular) y lleva un control de tus abonos. Esto ayuda al cálculo de la proyección.",
+        target: $("btnRegistrarDeuda") ? $("btnRegistrarDeuda").closest(".card") : null,
+        positionClass: "modal-bottom-left",
+        buttonText: "Siguiente"
+    },
+    {
+        title: "Importar y Exportar",
+        text: "Siempre haz una copia de seguridad de tus datos. Puedes exportar a JSON (copiar y pegar) o a Excel.",
+        target: $("btnExportar") ? $("btnExportar").closest(".card") : null,
+        positionClass: "modal-top-right",
+        buttonText: "Finalizar Tutorial"
+    }
+];
+
+let currentStep = 0;
+
+// -----------------
+// Lógica del Tour
+// -----------------
+function iniciarTutorial() {
+    if (localStorage.getItem(TUTORIAL_COMPLETADO_KEY)) return;
+    
+    // Si estamos en la página de admin, saltar al paso 3 (Registro de Turnos)
+    if (document.title.includes("Administración")) {
+        currentStep = 3; 
+    }
+
+    // El paso de ir al administrador sólo se muestra en index.html (paso 2)
+    if (document.title.includes("Administración") && currentStep === 2) {
+        currentStep = 3;
+    }
+
+    renderTutorialStep();
+}
+
+function renderTutorialStep() {
+    const step = tutorialSteps[currentStep];
+    const overlay = $("tutorialOverlay");
+    const modal = $("tutorialModal");
+    const title = $("tutorialTitle");
+    const text = $("tutorialText");
+    const button = $("tutorialNextBtn");
+    
+    if (!overlay || !modal || !button) return; 
+
+    // Ocultar modal y quitar highlight del paso anterior
+    document.querySelectorAll('.tutorial-highlight').forEach(el => {
+        el.classList.remove('tutorial-highlight');
+    });
+    
+    modal.classList.remove('modal-center', 'modal-top-right', 'modal-bottom-left');
+    
+    // Aplicar contenido y estilo del nuevo paso
+    title.textContent = step.title;
+    text.innerHTML = step.text;
+    button.textContent = step.buttonText;
+    modal.classList.add(step.positionClass);
+
+    if (step.target) {
+        // Resaltar elemento
+        step.target.classList.add('tutorial-highlight');
+        
+        // Calcular la posición de la modal cerca del target
+        const rect = step.target.getBoundingClientRect();
+        
+        // Ajustar la posición de la modal basada en la clase
+        if (step.positionClass === 'modal-top-right') {
+            modal.style.top = `${rect.top + window.scrollY + 10}px`;
+            modal.style.left = `${rect.right + window.scrollX - modal.offsetWidth}px`;
+        } else if (step.positionClass === 'modal-bottom-left') {
+            modal.style.top = `${rect.bottom + window.scrollY - modal.offsetHeight - 10}px`;
+            modal.style.left = `${rect.left + window.scrollX}px`;
+        } else {
+            // Posición central (modal-center)
+            modal.style.top = '50%';
+            modal.style.left = '50%';
+            modal.style.transform = 'translate(-50%, -50%)'; 
+        }
+        
+        step.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    } else {
+        // Posición central (paso inicial)
+        modal.style.top = '50%';
+        modal.style.left = '50%';
+        modal.style.transform = 'translate(-50%, -50%)';
+    }
+
+    // Mostrar overlay y modal
+    overlay.style.display = 'block';
+    modal.style.display = 'block';
+
+    // Se usa un pequeño retraso para asegurar que la transición de opacidad se vea
+    setTimeout(() => {
+        overlay.style.opacity = '1';
+        modal.style.opacity = '1';
+    }, 10); 
+}
+
+function nextTutorialStep() {
+    const step = tutorialSteps[currentStep];
+    
+    // Ejecutar acción si existe (Ej. ir a admin.html)
+    if (step.action && step.action()) {
+        return; 
+    }
+    
+    currentStep++;
+
+    if (currentStep < tutorialSteps.length) {
+        // Manejar salto de paso si el target no existe (ej. target del admin en index)
+        if (!tutorialSteps[currentStep].target && currentStep > 1 && !document.title.includes("Administración")) {
+            // Si estamos en index y el target es de admin, avanzamos el contador
+            currentStep++; 
+        }
+        
+        renderTutorialStep();
+    } else {
+        // Finalizar el tutorial
+        localStorage.setItem(TUTORIAL_COMPLETADO_KEY, 'true');
+        $("tutorialOverlay").style.opacity = '0';
+        $("tutorialModal").style.opacity = '0';
+        
+        setTimeout(() => {
+            $("tutorialOverlay").style.display = 'none';
+            $("tutorialModal").style.display = 'none';
+        }, 300);
+        
+        alert("¡Tutorial Finalizado! Ahora puedes empezar a registrar tus datos.");
+    }
+}
+
+// -----------------
+// Listener Principal del Tutorial
+// -----------------
+$("tutorialNextBtn")?.addEventListener('click', nextTutorialStep);
+
+// ======================
+// Proyección Real (Se mueve aquí para mantener el orden lógico de las partes)
 // ======================
 function calcularProyeccionReal() {
   const p = panelData.parametros || {};
@@ -794,11 +979,16 @@ function calcularProyeccionReal() {
 // ======================
 // GRÁFICAS (CHART.JS)
 // ======================
+let gananciasChart = null;
+let kmChart = null;
+
 function renderCharts() {
   const dailyData = aggregateDailyData();
 
+  // Tomar solo los últimos 14 días
   const last14Days = dailyData.slice(-14);
   const labels = last14Days.map(d => {
+      // Formatear de YYYY-MM-DD a MM/DD para la etiqueta
       const [y, m, d_] = d.date.split('-');
       return `${m}/${d_}`; 
   }); 
@@ -865,173 +1055,6 @@ function renderCharts() {
     });
   }
 }
-// ======================
-// app.js — PARTE 5/5: LÓGICA DEL TUTORIAL E INICIALIZACIÓN
-// ======================
-const TUTORIAL_COMPLETADO_KEY = "tutorialCompleto";
-
-// -----------------
-// Definición de Pasos
-// -----------------
-const tutorialSteps = [
-    {
-        title: "¡Bienvenido a Uber Eats Tracker!",
-        text: "Te guiaré rápidamente por las funciones clave de la aplicación. Haz clic en 'Siguiente'.",
-        target: null, 
-        positionClass: "modal-center",
-        buttonText: "Siguiente"
-    },
-    {
-        title: "Resumen del Día",
-        text: "Aquí verás tus ganancias y gastos del turno actual, calculados automáticamente.",
-        target: document.title.includes("Resultados") ? $("cardResumen") : null,
-        positionClass: "modal-top-right",
-        buttonText: "Siguiente"
-    },
-    {
-        title: "Administrador de Datos",
-        text: "El cerebro de la aplicación. Aquí registrarás tus ingresos, gastos, kilometraje, deudas y más.",
-        target: document.title.includes("Resultados") ? $("adminButton") : $("header")?.querySelector(".btn-admin"),
-        positionClass: "modal-bottom-left",
-        buttonText: document.title.includes("Resultados") ? "Ir al Administrador" : "Siguiente",
-        action: () => {
-            if (document.title.includes("Resultados")) {
-                 window.location.href = 'admin.html';
-                 return true; 
-            }
-            return false;
-        }
-    },
-    {
-        title: "Registro de Turnos",
-        text: "Usa estos botones para marcar el inicio y el fin de tu jornada. Al finalizar, registra tus horas y la ganancia bruta.",
-        target: $("btnIniciarTurno") ? $("btnIniciarTurno").closest(".card") : null,
-        positionClass: "modal-top-right",
-        buttonText: "Siguiente"
-    },
-    {
-        title: "Gestión de Deudas",
-        text: "Registra tus deudas fijas (coche, celular) y lleva un control de tus abonos. Esto ayuda al cálculo de la proyección.",
-        target: $("btnRegistrarDeuda") ? $("btnRegistrarDeuda").closest(".card") : null,
-        positionClass: "modal-bottom-left",
-        buttonText: "Siguiente"
-    },
-    {
-        title: "Importar y Exportar",
-        text: "Siempre haz una copia de seguridad de tus datos. Puedes exportar a JSON (copiar y pegar) o a Excel.",
-        target: $("btnExportar") ? $("btnExportar").closest(".card") : null,
-        positionClass: "modal-top-right",
-        buttonText: "Finalizar Tutorial"
-    }
-];
-
-let currentStep = 0;
-
-// -----------------
-// Lógica del Tour
-// -----------------
-function iniciarTutorial() {
-    if (localStorage.getItem(TUTORIAL_COMPLETADO_KEY)) return;
-    
-    // Si estamos en la página de admin, saltar al paso 3 (sección Turnos)
-    if (document.title.includes("Administración")) {
-        currentStep = 3; 
-    }
-
-    renderTutorialStep();
-}
-
-function renderTutorialStep() {
-    const step = tutorialSteps[currentStep];
-    const overlay = $("tutorialOverlay");
-    const modal = $("tutorialModal");
-    const title = $("tutorialTitle");
-    const text = $("tutorialText");
-    const button = $("tutorialNextBtn");
-    
-    if (!overlay || !modal || !button) return; 
-
-    // Ocultar modal y quitar highlight del paso anterior
-    document.querySelectorAll('.tutorial-highlight').forEach(el => {
-        el.classList.remove('tutorial-highlight');
-        el.style.boxShadow = '';
-    });
-    
-    modal.classList.remove('modal-center', 'modal-top-right', 'modal-bottom-left');
-    
-    // Aplicar contenido y estilo del nuevo paso
-    title.textContent = step.title;
-    text.innerHTML = step.text;
-    button.textContent = step.buttonText;
-    modal.classList.add(step.positionClass);
-
-    if (step.target) {
-        // Resaltar elemento
-        step.target.classList.add('tutorial-highlight');
-        
-        // Calcular la posición de la modal cerca del target
-        const rect = step.target.getBoundingClientRect();
-        
-        // Ajustar la posición de la modal basada en la clase
-        if (step.positionClass === 'modal-top-right') {
-            modal.style.top = `${rect.top + window.scrollY + 10}px`;
-            modal.style.left = `${rect.right + window.scrollX - modal.offsetWidth}px`;
-        } else if (step.positionClass === 'modal-bottom-left') {
-            modal.style.top = `${rect.bottom + window.scrollY - modal.offsetHeight - 10}px`;
-            modal.style.left = `${rect.left + window.scrollX}px`;
-        } else {
-            modal.style.top = '50%';
-            modal.style.left = '50%';
-        }
-        
-        step.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    } else {
-        modal.style.top = '50%';
-        modal.style.left = '50%';
-    }
-
-    // Mostrar overlay y modal
-    overlay.style.display = 'block';
-    modal.style.display = 'block';
-
-    setTimeout(() => {
-        overlay.style.opacity = '1';
-        modal.style.opacity = '1';
-    }, 10); 
-}
-
-function nextTutorialStep() {
-    const step = tutorialSteps[currentStep];
-    
-    // Ejecutar acción si existe (Ej. ir a admin.html)
-    if (step.action && step.action()) {
-        return; 
-    }
-    
-    currentStep++;
-
-    if (currentStep < tutorialSteps.length) {
-        renderTutorialStep();
-    } else {
-        // Finalizar el tutorial
-        localStorage.setItem(TUTORIAL_COMPLETADO_KEY, 'true');
-        $("tutorialOverlay").style.opacity = '0';
-        $("tutorialModal").style.opacity = '0';
-        
-        setTimeout(() => {
-            $("tutorialOverlay").style.display = 'none';
-            $("tutorialModal").style.display = 'none';
-        }, 300);
-        
-        alert("¡Tutorial Finalizado! Ahora puedes empezar a registrar tus datos.");
-    }
-}
-
-// -----------------
-// Listener Principal del Tutorial
-// -----------------
-$("tutorialNextBtn")?.addEventListener('click', nextTutorialStep);
 
 
 // ======================
