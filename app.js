@@ -310,7 +310,7 @@ function setupDeudaListeners() {
     $("btnDeudaNext")?.addEventListener("click", nextDeudaStep);
     $("btnDeudaBack")?.addEventListener("click", prevDeudaStep);
     
-    // El botón final del Wizard (ANTES ERA btnRegistrarDeuda)
+    // El botón final del Wizard 
     $("btnRegistrarDeudaFinal")?.addEventListener("click", () => {
         const nombre = ($("deudaNombre")?.value || "").trim();
         const monto = Number($("deudaMonto")?.value || 0);
@@ -345,7 +345,7 @@ function setupDeudaListeners() {
         alert("Deuda registrada (Wizard completado).");
     });
 
-    // Lógica para registrar un abono (SIN CAMBIOS FUNCIONALES, ahora renderDeudas maneja la eliminación)
+    // Lógica para registrar un abono
     $("btnRegistrarAbono")?.addEventListener("click", () => {
       const idx = $("abonoSeleccionar")?.value;
       const monto = Number($("abonoMonto")?.value || 0);
@@ -799,8 +799,8 @@ const tutorialSteps = [
     { title: "Resumen", text: "Aquí verás tu balance del día actual.", targetId: "cardResumen" },
     { title: "Administración", text: "Registra aquí ingresos, gastos y turnos. Click para ir al panel.", targetId: "adminButton", action: () => location.href = "admin.html" },
     { title: "Turnos", text: "Inicia y finaliza tu jornada aquí.", targetId: "cardTurnos" },
-    // El target de Deudas se mantiene para el admin.html, ahora apunta al inicio del wizard
-    { title: "Deudas", text: "Controla lo que debes y tus abonos.", targetId: "deudaWizardContainer" }, 
+    // El target de Deudas ahora es el contenedor principal del wizard en admin.html
+    { title: "Deudas", text: "Controla lo que debes, registra tus pagos y da de alta nuevas deudas por pasos.", targetId: "deudaWizardContainer" }, 
     { title: "Respaldo", text: "Descarga tus datos en Excel frecuentemente.", targetId: "btnExportarExcel" }
 ];
 
@@ -899,7 +899,7 @@ document.addEventListener("DOMContentLoaded", () => {
     actualizarUIturno();
     renderDeudas();
     
-    // Iniciar vista del wizard de deudas
+    // Iniciar vista del wizard de deudas (AHORA FUNCIONARÁ)
     updateDeudaWizardUI(); 
 
     // Cargar parámetros en UI
