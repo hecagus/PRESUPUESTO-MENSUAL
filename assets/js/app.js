@@ -1,8 +1,9 @@
 // ======================
-// app.js — PARTE 1/5: SETUP Y UTILIDADES
+// app.js — PARTE 1/5: SETUP, UTILIDADES y LÓGICA DE TUTORIAL
 // ======================
 
 const STORAGE_KEY = "panelData";
+const TUTORIAL_KEY = "tutorialCompleted";
 const $ = id => document.getElementById(id);
 
 // Estructura base
@@ -59,6 +60,222 @@ const fmtMoney = n => Number(n || 0).toLocaleString("es-MX", {
 
 const nowISO = () => new Date().toISOString();
 const nowLocal = () => new Date().toLocaleString("es-MX");
+
+// -----------------------------
+// LÓGICA DEL TUTORIAL
+// -----------------------------
+
+// Los pasos del tutorial, se usan IDs de admin.html y index.html
+const tutorialSteps = [
+    // 1. Introducción (Index.html)
+    { page: 'index.html', title: '¡Bienvenido a tu asistente de presupuesto!', text: 'Este tutorial te mostrará cómo usar todas las herramientas para optimizar tus finanzas. Haz clic en el botón de **Administrador**.', targetId: 'adminButton', modalClass: 'modal-center', buttonText: 'Entendido, ¡Empezar!' },
+    // 2. Ir al Admin
+    { page: 'index.html', title: 'Panel Administrativo', text: 'Aquí está el botón para acceder a los formularios y la configuración.', targetId: 'adminButton', modalClass: 'modal-top-right', action: () => { localStorage.setItem('tutorialStep', 2); window.location.href = 'admin.html'; }, buttonText: 'Ir al Administrador' },
+    
+    // ADMINISTRADOR
+    // 3. Registrar Ingreso (Admin.html)
+    { page: 'admin.html', title: '1. Registrar Ingreso', text: 'Aquí puedes agregar tus ingresos extras (propinas, bonos). Estos se suman a tus ganancias de turno.', targetId: 'cardIngreso', modalClass: 'modal-bottom-left', buttonText: 'Siguiente' },
+    // 4. Registrar Gasto
+    { page: 'admin.html', title: '2. Registrar Gasto', text: 'Lleva un control de tus gastos (Comida, Mantenimiento, etc.). Esto mejora tu proyección neta.', targetId: 'cardGasto', modalClass: 'modal-bottom-left', buttonText: 'Siguiente' },
+    // 5. Turnos de Trabajo
+    { page: 'admin.html', title: '3. Turnos de Trabajo', text: 'Usa "Iniciar Turno" y "Finalizar Turno" para registrar tus horas y ganancias de manera organizada.', targetId: 'cardTurnos', modalClass: 'modal-bottom-left', buttonText: 'Siguiente' },
+    // 6. Deudas
+    { page: 'admin.html', title: '4. Deudas y Abonos', text: 'Registra tus deudas pendientes y los abonos que realizas. El panel principal proyectará cuántos días te faltan para liquidarlas.', targetId: 'cardDeudas', modalClass: 'modal-top-right', buttonText: 'Siguiente' },
+    // 7. Kilometraje
+    { page: 'admin.html', title: '5. Kilometraje', text: 'Controla el KM recorrido en el día. Necesario para el cálculo automático de Costo por KM y Gasto Fijo.', targetId: 'cardKm', modalClass: 'modal-bottom-left', buttonText: 'Siguiente' },
+    // 8. Gasolina
+    { page: 'admin.html', title: '6. Registro de Gasolina', text: 'Al registrar el costo total y los litros, la app calcula tu eficiencia y mejora la proyección de gasto de **Transporte**.', targetId: 'cardGasolina', modalClass: 'modal-bottom-left', buttonText: 'Siguiente' },
+    // 9. Parámetros de Proyección
+    { page: 'admin.html', title: '7. Parámetros de Proyección', text: 'Estos campos se calculan automáticamente: Tu Deuda Total pendiente y el Gasto Fijo Diario promedio que debes cubrir.', targetId: 'cardParametros', modalClass: 'modal-top-right', buttonText: 'Siguiente' },
+    // 10. Importar / Exportar Datos
+    { page: 'admin.html', title: '8. Importar / Exportar', text: 'Usa estas opciones para crear un respaldo (JSON/Excel) o restaurar tu progreso.', targetId: 'cardIO', modalClass: 'modal-top-right', buttonText: 'Ir al Panel' },
+
+    // VOLVER AL PANEL (Index.html)
+    // 11. Volver al Panel
+    { page: 'admin.html', title: 'Volver al Panel', text: 'Ahora que conoces los formularios, volvamos al panel de resultados para ver tus métricas.', targetId: 'indexButton', modalClass: 'modal-top-right', action: () => { localStorage.setItem('tutorialStep', 11); window.location.href = 'index.html'; }, buttonText: 'Ver Resultados' },
+
+    // INDEX
+    // 12. Resumen del Día
+    { page: 'index.html', title: 'A. Resumen del Día', text: 'Aquí verás un resumen de tu actividad de **hoy**: Horas, Ganancia Bruta (Turnos + Ingresos), Gastos y Ganancia Neta.', targetId: 'cardResumen', modalClass: 'modal-bottom-left', buttonText: 'Siguiente' },
+    // 13. Proyección Real
+    { page: 'index.html', title: 'B. Proyección Real', text: 'Esta es tu métrica más importante: Calcula tu Ganancia Neta promedio por día y estima los **días necesarios para liquidar tus deudas**.', targetId: 'cardProyeccion', modalClass: 'modal-bottom-left', buttonText: 'Siguiente' },
+    // 14. Historial de Turnos
+    { page: 'index.html', title: 'C. Historial de Turnos', text: 'Lista detallada de tus turnos, mostrando la Ganancia Neta **después de restar los gastos de ese día**.', targetId: 'cardHistorial', modalClass: 'modal-top-right', buttonText: 'Siguiente' },
+    // 15. Métricas Mensuales
+    { page: 'index.html', title: 'D. Métricas Mensuales', text: 'Calcula tu eficiencia: Kilómetros totales, costo total de Gasolina y el **Costo promedio por KM**.', targetId: 'cardKmMenual', modalClass: 'modal-top-right', buttonText: 'Siguiente' },
+    // 16. Gráfica Ganancias
+    { page: 'index.html', title: 'E. Gráficas de Rendimiento', text: 'Visualiza la diferencia entre tus Ingresos y tus Gastos en los últimos 14 días.', targetId: 'cardGrafGanancias', modalClass: 'modal-bottom-left', buttonText: 'Siguiente' },
+    // 17. Gráfica KM
+    { page: 'index.html', title: 'F. Kilometraje Diario', text: 'Gráfico que muestra la variación de KM recorridos en los últimos 14 días.', targetId: 'cardGrafKm', modalClass: 'modal-top-right', buttonText: 'Finalizar Tour' },
+    
+    // 18. Fin
+    { page: 'index.html', title: '¡Tutorial Finalizado!', text: '¡Estás listo para empezar a usar tu asistente! Toda tu información se guarda en tu navegador. ¡Éxito!', targetId: null, modalClass: 'modal-center', buttonText: 'Empezar a usar' }
+];
+
+let currentStep = 0;
+
+function iniciarTutorial() {
+    // Si ya lo completó, salimos.
+    if (localStorage.getItem(TUTORIAL_KEY) === 'true') {
+        // En el paso 11 (volver de admin), puede que el tutorial no esté completo, forzamos el fin
+        if(localStorage.getItem('tutorialStep') === '11') localStorage.removeItem('tutorialStep');
+        return; 
+    }
+
+    const savedStep = Number(localStorage.getItem('tutorialStep') || 0);
+    currentStep = savedStep;
+
+    const modal = $('tutorialModal');
+    const overlay = $('tutorialOverlay');
+
+    if (modal && overlay) {
+        // Mostrar el modal y el overlay si es el primer paso o si hay un paso pendiente en la página actual
+        if (currentStep === 0 || tutorialSteps[currentStep].page.includes(document.title.toLowerCase().includes('resultados') ? 'index' : 'admin')) {
+             
+            overlay.style.display = 'block';
+            modal.style.display = 'block';
+
+            // Agregar listener una sola vez
+            if (!$('tutorialNextBtn').dataset.hasListener) {
+                $('tutorialNextBtn').addEventListener('click', manejarSiguientePaso);
+                $('tutorialNextBtn').dataset.hasListener = 'true';
+            }
+            mostrarPaso(currentStep);
+        } else {
+             // Si estamos en la página incorrecta para el paso actual, no hacemos nada y esperamos la redirección
+            localStorage.removeItem('tutorialStep'); // Limpiamos si hay un error de estado
+        }
+    }
+}
+
+function mostrarPaso(stepIndex) {
+    const step = tutorialSteps[stepIndex];
+    const modal = $('tutorialModal');
+    const title = $('tutorialTitle');
+    const text = $('tutorialText');
+    const button = $('tutorialNextBtn');
+    
+    if (!step || !modal) return finalizarTutorial();
+
+    // 1. Limpiar highlight anterior
+    document.querySelectorAll('.tutorial-highlight').forEach(el => el.classList.remove('tutorial-highlight'));
+    modal.className = '';
+    modal.classList.add('modal-center'); // Default
+    
+    // 2. Aplicar contenido
+    title.textContent = step.title;
+    text.innerHTML = step.text;
+    button.textContent = step.buttonText;
+    
+    // 3. Aplicar highlight y posición de la modal
+    if (step.targetId) {
+        const target = $(step.targetId);
+        if (target) {
+            target.classList.add('tutorial-highlight');
+            
+            // Forzar scroll al elemento
+            setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+            
+            // Posicionar modal cerca del elemento (logica simple de posicionamiento)
+            modal.classList.add(step.modalClass);
+            
+            // Asegurar que la modal se posicione correctamente si está absoluta
+            if (step.modalClass !== 'modal-center') {
+                const rect = target.getBoundingClientRect();
+                
+                // Si la modal está a la izquierda (bottom-left)
+                if (step.modalClass.includes('left')) {
+                    modal.style.left = '5%';
+                    modal.style.right = 'auto';
+                }
+                
+                // Si la modal está a la derecha (top-right)
+                if (step.modalClass.includes('right')) {
+                    modal.style.right = '5%';
+                    modal.style.left = 'auto';
+                }
+                
+                // Si la modal está arriba (top-right)
+                if (step.modalClass.includes('top')) {
+                    modal.style.top = `${rect.bottom + window.scrollY + 20}px`;
+                    modal.style.bottom = 'auto';
+                }
+                
+                // Si la modal está abajo (bottom-left)
+                if (step.modalClass.includes('bottom')) {
+                    modal.style.top = `${rect.top + window.scrollY - modal.offsetHeight - 20}px`;
+                    modal.style.bottom = 'auto';
+                }
+            } else {
+                modal.style.top = '50%';
+                modal.style.left = '50%';
+            }
+            
+        } else if(step.page.includes(document.title.toLowerCase().includes('resultados') ? 'admin' : 'index')) {
+            // Si el elemento no existe en la página actual y debería, saltar al siguiente
+            console.warn(`Target ID ${step.targetId} no encontrado en la página actual. Saltando.`);
+            currentStep++;
+            mostrarPaso(currentStep);
+            return;
+        }
+    } else {
+        // Centrar modal si no hay target
+        modal.classList.add('modal-center');
+    }
+    
+    modal.style.opacity = 1;
+}
+
+function manejarSiguientePaso() {
+    const step = tutorialSteps[currentStep];
+
+    // Ejecutar acción si existe (redirección)
+    if (step.action) {
+        step.action();
+        return; 
+    }
+
+    // Avanzar paso
+    currentStep++;
+
+    // Guardar el estado en localStorage
+    localStorage.setItem('tutorialStep', currentStep);
+
+    if (currentStep >= tutorialSteps.length) {
+        finalizarTutorial();
+        return;
+    }
+
+    // Si el siguiente paso requiere otra página, redirigir
+    const nextPage = tutorialSteps[currentStep].page;
+    if (nextPage.includes(document.title.toLowerCase().includes('resultados') ? 'admin' : 'index')) {
+        window.location.href = nextPage;
+        return;
+    }
+
+    // Mostrar el siguiente paso en la página actual
+    mostrarPaso(currentStep);
+}
+
+
+function finalizarTutorial() {
+    localStorage.setItem(TUTORIAL_KEY, 'true');
+    localStorage.removeItem('tutorialStep');
+
+    const modal = $('tutorialModal');
+    const overlay = $('tutorialOverlay');
+    
+    if (modal) modal.style.opacity = 0;
+    if (overlay) overlay.style.opacity = 0;
+    
+    setTimeout(() => {
+        if (modal) modal.style.display = 'none';
+        if (overlay) overlay.style.display = 'none';
+        
+        document.querySelectorAll('.tutorial-highlight').forEach(el => el.classList.remove('tutorial-highlight'));
+    }, 300);
+}
+
 
 // -----------------------------
 // FUNCIONES AUTOMÁTICAS
@@ -152,7 +369,8 @@ function renderMovimientos() {
     // tbody.innerHTML = `<tr><td colspan="4" style="text-align:center">No hay movimientos</td></tr>`;
     return;
   }
-}
+                      }
+
 // ======================
 // app.js — PARTE 2/5: REGISTROS DE MOVIMIENTOS Y DEUDAS
 // ======================
@@ -325,7 +543,8 @@ function setupDeudaListeners() {
 
       renderResumenIndex();
     });
-          }
+}
+
 // ======================
 // app.js — PARTE 3/5: KM, GASOLINA, IO Y TURNOS
 // ======================
@@ -571,6 +790,7 @@ function finalizarTurno() {
   alert("Turno finalizado.");
   renderResumenIndex();
 }
+
 // ======================
 // app.js — PARTE 4/5: RENDERIZADO DE RESULTADOS
 // ======================
@@ -592,25 +812,7 @@ function calcularResumenDatos() {
   const gastHoy  = gastosHoy.reduce((s, g) => s + (Number(g.cantidad) || 0), 0);
   
   // 2. Calcular la Ganancia Bruta Total, evitando duplicidad
-  let ganHoy = 0;
-  const turnoDescriptions = new Set(turnosHoy.map(t => `Ganancia turno (${t.horas}h)`)); // No es perfecto, pero es una buena aproximación de las descripciones generadas automáticamente.
-
-  ingresosHoy.forEach(i => {
-    // Si la descripción NO es una ganancia de turno (que ya se cuenta en turnosHoy), la sumamos.
-    // Ojo: Si usáramos turnos.map(t=>t.ganancia) para sumar directamente, los ingresos duplicados
-    // podrían ser un problema. La forma más segura es sumar todos los ingresos y restar los gastos.
-    
-    // Sumamos todos los ingresos registrados hoy. La duplicidad se resuelve más abajo
-    ganHoy += (Number(i.cantidad) || 0);
-  });
-
-  // El sistema registra la ganancia del turno 2 veces: en turnos[] y en ingresos[].
-  // Para evitar la doble suma: Sumamos todos los turnos Y SÓLO los ingresos que NO son de turno.
-  // **REVERTIR LOGICA A COMO ESTABA, PERO USANDO TODOS LOS INGRESOS**
-  // La forma más limpia es:
-  // a) Sumar TODAS las ganancias de los turnos (que es lo que se hace en la línea 552 original)
-  // b) Sumar SÓLO los ingresos que NO son ganancias de turno.
-
+  
   // 2.1 Ganancia de Turnos (Ingresos "Principales")
   const gananciaTurnos = turnosHoy.reduce((s, t) => s + (Number(t.ganancia) || 0), 0);
   
@@ -623,7 +825,7 @@ function calcularResumenDatos() {
     return s + (Number(i.cantidad) || 0);
   }, 0);
 
-  ganHoy = gananciaTurnos + gananciaManual;
+  const ganHoy = gananciaTurnos + gananciaManual;
   // FIN DE LA CORRECCIÓN
 
   const resNeta = ganHoy - gastHoy;
@@ -657,6 +859,7 @@ function aggregateDailyData() {
   };
   
   // Procesar Ingresos: Sumar todos los ingresos del día (turnos y manuales)
+  // Ahora usamos panelData.ingresos en lugar de panelData.turnos
   (panelData.ingresos || []).forEach(i => {
     // Usamos el campo 'cantidad' para los Ingresos
     processEntry(i, 'ingresos', 'cantidad');
@@ -1003,4 +1206,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (document.title.includes("Resultados")) {
         renderResumenIndex(); 
     }
+    
+    // 7. INICIAR TUTORIAL
+    iniciarTutorial();
 });
