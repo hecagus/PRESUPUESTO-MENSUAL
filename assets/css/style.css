@@ -156,4 +156,78 @@ textarea {
     .stats-grid {
         grid-template-columns: 1fr;
     }
+   /* ===========================
+   ESTILOS DE TUTORIAL (TOUR)
+=========================== */
+
+/* Overlay que oscurece la pantalla */
+#tutorialOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 9998; /* Debe estar justo debajo de la modal */
+    display: none;
+    transition: opacity 0.3s;
+}
+
+/* Modal de explicación */
+#tutorialModal {
+    position: absolute;
+    width: 90%;
+    max-width: 350px;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    z-index: 9999; /* El más alto para estar encima de todo */
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+#tutorialModal p {
+    margin: 10px 0 20px 0;
+    line-height: 1.5;
+}
+
+#tutorialModal button {
+    width: 100%;
+    background: #0066ff;
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* Estilo para resaltar el elemento actual (spotlight) */
+.tutorial-highlight {
+    z-index: 9999;
+    position: relative;
+    /* Se añadirán estilos para el borde/sombra en JS si es necesario, 
+       pero el z-index es la clave para que flote sobre el overlay. */
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7); /* Se usa un box-shadow grande en JS para el efecto */
+}
+
+/* Posiciones de la Modal (para que no cubra el elemento) */
+.modal-top-right {
+    top: 50px;
+    right: 5%;
+}
+
+.modal-bottom-left {
+    bottom: 50px;
+    left: 5%;
+}
+
+.modal-center {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+   
 }
