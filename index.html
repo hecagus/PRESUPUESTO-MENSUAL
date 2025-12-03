@@ -13,7 +13,7 @@
 
 <header class="header">
     <h1>Panel de Resultados</h1>
-    <a href="admin.html" id="adminButton" class="btn-admin">⚙ Ir al Administrador</a>
+    <a href="admin.html" class="btn-admin" id="adminButton">⚙ Ir al Administrador</a>
 </header>
 
 <main class="container">
@@ -44,7 +44,7 @@
         </div>
     </section>
     
-    <section class="card" id="cardProyeccion">
+    <section class="card">
         <h2>Proyección Real</h2>
 
         <p>Basado en tus promedios y deudas.</p>
@@ -55,7 +55,7 @@
         <div class="projection"><label>Días para liquidar deuda:</label> <span id="proyDias">0 días</span></div>
     </section>
 
-    <section class="card" id="cardHistorial">
+    <section class="card">
         <h2>Historial de Turnos</h2>
 
         <table class="tabla">
@@ -73,18 +73,18 @@
         </table>
     </section>
     
-    <section class="card" id="cardKmMenual">
+    <section class="card">
         <h2>Métricas Mensuales de Vehículo (Gasolina/KM)</h2>
         <div id="tablaKmMensual">
             </div>
     </section>
 
-    <section class="card" id="cardGrafGanancias">
+    <section class="card">
         <h2>Ganancias vs Gastos (Últimos 14 días)</h2>
         <canvas id="graficaGanancias"></canvas>
     </section>
 
-    <section class="card" id="cardGrafKm">
+    <section class="card">
         <h2>Kilometraje Diario (Últimos 14 días)</h2>
         <canvas id="graficaKm"></canvas>
     </section>
@@ -92,7 +92,6 @@
 </main>
 
 <div id="tutorialOverlay"></div>
-
 <div id="tutorialModal" class="modal-center">
     <h3 id="tutorialTitle">¡Bienvenido!</h3>
     <p id="tutorialText">Este es tu asistente de presupuesto. ¡Vamos a configurarlo!</p>
@@ -100,13 +99,6 @@
 </div>
 
 <script src="assets/js/app.js"></script>
-    <div id="tutorialOverlay"></div>
-<div id="tutorialModal" class="modal-center">
-    <h3 id="tutorialTitle">¡Bienvenido!</h3>
-    <p id="tutorialText">...</p>
-    <button id="tutorialNextBtn">Iniciar</button>
-</div>
-    
 
 </body>
 </html>
