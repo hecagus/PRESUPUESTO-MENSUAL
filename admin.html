@@ -37,6 +37,7 @@
             <option value="Comida">Comida</option>
             <option value="Transporte">Transporte</option>
             <option value="Mantenimiento">Mantenimiento</option>
+            <option value="Abono a Deuda">Abono a Deuda</option>
             <option value="Otros">Otros</option>
         </select>
         <button id="btnGuardarGasto" class="btn-warning">Guardar Gasto</button>
@@ -50,11 +51,48 @@
     </section>
 
     <section class="card">
-        <h2>Deudas</h2>
-        <h3>Nueva deuda</h3>
-        <input type="text" id="deudaNombre" placeholder="Nombre (Ej. Banco)">
-        <input type="number" id="deudaMonto" placeholder="Monto Total">
-        <button id="btnRegistrarDeuda" class="btn-secondary">Registrar Deuda</button>
+        <h2>Gestión de Deudas</h2>
+        
+        <div id="wizardDeudaContainer" style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #eee;">
+            <h3>Nueva Deuda</h3>
+            
+            <div id="wizStep1">
+                <label>1. Nombre de la deuda (Ej. Banco):</label>
+                <input type="text" id="wizNombre" placeholder="Nombre del acreedor">
+                <button id="btnWizNext1" class="btn-primary">Siguiente ➡</button>
+            </div>
+
+            <div id="wizStep2" style="display:none;">
+                <label>2. Monto Total a pagar ($):</label>
+                <input type="number" id="wizMonto" placeholder="0.00">
+                <div style="display:flex; gap:10px;">
+                    <button id="btnWizBack2" class="btn-secondary">⬅ Atrás</button>
+                    <button id="btnWizNext2" class="btn-primary">Siguiente ➡</button>
+                </div>
+            </div>
+
+            <div id="wizStep3" style="display:none;">
+                <label>3. ¿Cada cuánto tiempo abonas?</label>
+                <select id="wizFrecuencia">
+                    <option value="semanal">Semanal</option>
+                    <option value="quincenal">Quincenal</option>
+                    <option value="mensual">Mensual</option>
+                </select>
+                <div style="display:flex; gap:10px;">
+                    <button id="btnWizBack3" class="btn-secondary">⬅ Atrás</button>
+                    <button id="btnWizNext3" class="btn-primary">Siguiente ➡</button>
+                </div>
+            </div>
+
+            <div id="wizStep4" style="display:none;">
+                <label>4. ¿De cuánto es tu abono habitual?</label>
+                <input type="number" id="wizAbonoSugerido" placeholder="Ej. 500">
+                <div style="display:flex; gap:10px;">
+                    <button id="btnWizBack4" class="btn-secondary">⬅ Atrás</button>
+                    <button id="btnRegistrarDeudaFinal" class="btn-success">✅ Registrar Deuda</button>
+                </div>
+            </div>
+        </div>
 
         <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
 
