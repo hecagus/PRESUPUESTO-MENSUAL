@@ -1,9 +1,10 @@
-// ======================
-// app.js — PARTE 1/5: SETUP, UTILIDADES Y AUTO-CÁLCULOS
-// ======================
-
 const STORAGE_KEY = "panelData";
 const $ = id => document.getElementById(id);
+const TUTORIAL_COMPLETADO_KEY = "tutorialCompleto";
+
+// Declaración ÚNICA de variables globales para las gráficas (FIX 1)
+let gananciasChart = null;
+let kmChart = null;
 
 // Estructura base
 let panelData = {
@@ -21,6 +22,10 @@ let panelData = {
   }
 };
 
+// Turno activo
+let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || false;
+let turnoInicio = localStorage.getItem("turnoInicio") || null;
+
 // ======================
 // Cargar / Guardar
 // ======================
@@ -29,8 +34,6 @@ function cargarPanelData() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
-
-    // Asegurar que las propiedades existan
     panelData = Object.assign({}, panelData, parsed);
     panelData.parametros = Object.assign({}, panelData.parametros, (parsed.parametros || {}));
   } catch (e) {
@@ -46,8 +49,7 @@ function guardarPanelData() {
   }
 }
 
-// Cargar al inicio (antes de DOMContentLoaded)
-cargarPanelData();
+cargarPanelData(); // Cargar al inicio
 
 // ======================
 // Utilidades
@@ -60,32 +62,24 @@ const fmtMoney = n => Number(n || 0).toLocaleString("es-MX", {
 const nowISO = () => new Date().toISOString();
 const nowLocal = () => new Date().toLocaleString("es-MX");
 
-// -----------------------------
-// FUNCIONES AUTOMÁTICAS
-// -----------------------------
-
-// A) calcularDeudaTotalAuto: suma de (monto - abonado)
+// ======================
+// CÁLCULOS AUTOMÁTICOS
+// ======================
 function calcularDeudaTotalAuto() {
-  const deudas = panelData.deudas || [];
-
-  const total = deudas.reduce((s, d) => {
+  const total = (panelData.deudas || []).reduce((s, d) => {
     return s + ((Number(d.monto) || 0) - (Number(d.abonado) || 0));
   }, 0);
 
-  panelData.parametros = panelData.parametros || {};
   panelData.parametros.deudaTotal = total;
   guardarPanelData();
 
   const inp = $("proyDeudaTotal");
-  if (inp) {
-    inp.value = total.toFixed(2);
-  }
+  if (inp) inp.value = total.toFixed(2);
 }
 
-// B) calcularGastoFijoAuto: calcula promedio basado en abonos y KM
 function calcularGastoFijoAuto() {
-  panelData.parametros = panelData.parametros || {};
-  const comidaDiaria = 200; // Gasto fijo asumido de comida
+  const comidaDiaria = 200; 
+  const costoKmAsumido = 0.6; // Valor asumido para proyección
 
   const kmArr = panelData.kmDiarios || [];
   const kmProm = kmArr.length
@@ -95,7 +89,6 @@ function calcularGastoFijoAuto() {
   let ultimoAbono = 0;
   let ultimaFecha = 0;
 
-  // Busca el abono más reciente
   (panelData.gastos || []).forEach(g => {
     if ((g.categoria || "") === "Abono a Deuda") {
       const t = new Date(g.fechaISO || g.fechaLocal).getTime();
@@ -106,21 +99,16 @@ function calcularGastoFijoAuto() {
     }
   });
 
-  // Fórmula de Gasto Fijo: (Abono mensual / 6 días) + Gasto de comida + (KM promedio * costo por KM)
-  const gastoFijo = (ultimoAbono / 6) + comidaDiaria + (kmProm * 0.6); // 0.6 MXN/KM asumido
+  // Fórmula: (Abono mensual / 6 días) + Gasto de comida + (KM promedio * costo por KM asumido)
+  const gastoFijo = (ultimoAbono / 6) + comidaDiaria + (kmProm * costoKmAsumido);
 
   panelData.parametros.gastoFijo = gastoFijo;
   guardarPanelData();
 
   const inp = $("proyGastoFijo");
-  if (inp) {
-    inp.value = gastoFijo.toFixed(2);
-  }
+  if (inp) inp.value = gastoFijo.toFixed(2);
 }
 
-// ======================
-// Movimientos (Historial) - Se mantiene la función por si se usa
-// ======================
 function pushMovimiento(tipo, descripcion, monto) {
   panelData.movimientos.unshift({
     tipo,
@@ -138,17 +126,10 @@ function pushMovimiento(tipo, descripcion, monto) {
 }
 
 // ======================
-// app.js — PARTE 2/5: REGISTROS DE MOVIMIENTOS Y DEUDAS
-// ======================
-
-// ======================
-// Registrar ingreso
+// REGISTROS (Admin)
 // ======================
 function setupIngresoListeners() {
-  const btn = $("btnGuardarIngreso");
-  if (!btn) return;
-
-  btn.addEventListener("click", () => {
+  $("btnGuardarIngreso")?.addEventListener("click", () => {
     const desc = ($("ingresoDescripcion")?.value || "").trim();
     const qty = Number($("ingresoCantidad")?.value || 0);
 
@@ -169,18 +150,12 @@ function setupIngresoListeners() {
     $("ingresoCantidad").value = "";
 
     alert("Ingreso registrado.");
-    // renderResumenIndex se llama al final en DOMContentLoaded si estamos en index.html
+    renderResumenIndex(); // FIX 6: Re-render
   });
 }
 
-// ======================
-// Registrar gasto
-// ======================
 function setupGastoListeners() {
-  const btn = $("btnGuardarGasto");
-  if (!btn) return;
-
-  btn.addEventListener("click", () => {
+  $("btnGuardarGasto")?.addEventListener("click", () => {
     const desc = ($("gastoDescripcion")?.value || "").trim();
     const qty = Number($("gastoCantidad")?.value || 0);
     const cat = $("gastoCategoria")?.value || "Otros";
@@ -195,8 +170,9 @@ function setupGastoListeners() {
       fechaLocal: nowLocal()
     });
 
-    // Si es gasto que afecta el cálculo automático, recalcular
-    if (cat === "Comida" || cat === "Transporte") calcularGastoFijoAuto();
+    if (cat === "Comida" || cat === "Transporte" || cat === "Mantenimiento") {
+      calcularGastoFijoAuto();
+    }
 
     pushMovimiento("Gasto", `${desc} (${cat})`, qty);
     guardarPanelData();
@@ -205,12 +181,10 @@ function setupGastoListeners() {
     $("gastoCantidad").value = "";
 
     alert("Gasto registrado.");
+    renderResumenIndex(); // FIX 6: Re-render
   });
 }
 
-// ======================
-// Deudas
-// ======================
 function renderDeudas() {
   const list = $("listaDeudas");
   const select = $("abonoSeleccionar");
@@ -232,7 +206,6 @@ function renderDeudas() {
       </li>
     `;
 
-    // Solo agregar deudas con saldo pendiente al selector de abonos
     if (pendiente > 0) {
         const opt = document.createElement("option");
         opt.value = idx;
@@ -250,7 +223,6 @@ function renderDeudas() {
   }
 }
 
-// Event Listeners para Deudas
 function setupDeudaListeners() {
     $("btnRegistrarDeuda")?.addEventListener("click", () => {
       const nombre = ($("deudaNombre")?.value || "").trim();
@@ -285,7 +257,6 @@ function setupDeudaListeners() {
       
       deuda.abonado = (Number(deuda.abonado) || 0) + monto;
 
-      // registrar gasto tipo abono
       panelData.gastos.push({
         descripcion: `Abono a ${deuda.nombre}`,
         cantidad: monto,
@@ -298,22 +269,15 @@ function setupDeudaListeners() {
 
       guardarPanelData();
       renderDeudas();
-
       calcularDeudaTotalAuto();
       calcularGastoFijoAuto();
+      renderResumenIndex(); // FIX 6: Re-render
 
       $("abonoMonto").value = "";
       alert("Abono guardado.");
     });
-        }
+}
 
-// ======================
-// app.js — PARTE 3/5: KM, GASOLINA, IO Y TURNOS
-// ======================
-
-// ======================
-// KM y Gasolina
-// ======================
 function setupKmAndGasListeners() {
   $("kmFinal")?.addEventListener("input", () => {
     const ini = Number($("kmInicial")?.value || 0);
@@ -335,7 +299,6 @@ function setupKmAndGasListeners() {
       recorrido: fin - ini
     });
 
-    panelData.parametros = panelData.parametros || {};
     panelData.parametros.ultimoKMfinal = fin;
     guardarPanelData();
 
@@ -347,15 +310,15 @@ function setupKmAndGasListeners() {
 
     alert("Kilometraje guardado.");
     
-    // Asignar el último KM final para el siguiente registro
     if ($("kmInicial")) $("kmInicial").value = fin;
+    renderResumenIndex(); // FIX 6: Re-render
   });
 
   $("btnGuardarGas")?.addEventListener("click", () => {
     const litros = Number($("litrosGas")?.value || 0);
     const costo = Number($("costoGas")?.value || 0);
 
-    if (!litros || !costo) return alert("Datos inválidos.");
+    if (!litros || !costo || litros <= 0 || costo <= 0) return alert("Datos inválidos.");
 
     panelData.gasolina.push({
       fechaISO: nowISO(),
@@ -364,7 +327,6 @@ function setupKmAndGasListeners() {
       costo
     });
 
-    // registrar gasto de gasolina
     panelData.gastos.push({
       descripcion: `Gasolina ${litros}L`,
       cantidad: costo,
@@ -379,13 +341,10 @@ function setupKmAndGasListeners() {
     $("litrosGas").value = "";
     $("costoGas").value = "";
     alert("Repostaje guardado.");
+    renderResumenIndex(); // FIX 6: Re-render
   });
 }
 
-
-// ======================
-// Exportar a Excel
-// ======================
 function exportToExcel() {
     if (typeof XLSX === 'undefined') {
         return alert("Error: La librería SheetJS (XLSX) no está cargada. Asegúrate de incluir el script en admin.html.");
@@ -414,25 +373,19 @@ function exportToExcel() {
     alert(`Archivo ${fileName} generado correctamente.`);
 }
 
-
-// ======================
-// Importar / Exportar JSON
-// ======================
 function setupIoListeners() {
     $("btnExportar")?.addEventListener("click", () => {
+      // ... (export logic)
       const json = JSON.stringify(panelData, null, 2);
-
       navigator.clipboard.writeText(json)
         .then(() => alert("Datos copiados al portapapeles."))
         .catch(() => {
           const blob = new Blob([json], { type: "application/json" });
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
-
           a.href = url;
           a.download = `backup_ubereats_tracker_${Date.now()}.json`;
           a.click();
-
           URL.revokeObjectURL(url);
           alert("Backup descargado.");
         });
@@ -447,17 +400,13 @@ function setupIoListeners() {
 
       try {
         const parsed = JSON.parse(raw);
-
-        // Combinar datos existentes con los importados
         panelData = Object.assign({}, panelData, parsed);
         panelData.parametros = Object.assign({}, panelData.parametros, (parsed.parametros || {}));
 
         guardarPanelData();
         $("importJson").value = "";
         
-        // Refrescar UI completamente
         location.reload(); 
-
         alert("Importación correcta ✔. Recarga de página automática.");
 
       } catch (e) {
@@ -467,13 +416,9 @@ function setupIoListeners() {
     });
 }
 
-
 // ======================
-// Turnos
+// TURNOS
 // ======================
-let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || false;
-let turnoInicio = localStorage.getItem("turnoInicio") || null;
-
 function actualizarUIturno() {
   const ini = $("btnIniciarTurno");
   const fin = $("btnFinalizarTurno");
@@ -512,10 +457,14 @@ function finalizarTurno() {
   const fin = new Date();
   const horas = Number(((fin - inicio) / 3600000).toFixed(2));
 
-  const ganStr = prompt(`Terminó el turno.\nHoras: ${horas}\nGanancia (MXN):`);
+  const ganStr = prompt(`Terminó el turno.\nHoras: ${horas}h\nIngresa Ganancia Bruta (MXN):`);
+  
+  // FIX 7: Validación robusta para null, empty, NaN y negativo
+  if (ganStr === null || ganStr.trim() === "" || isNaN(Number(ganStr)) || Number(ganStr) < 0) {
+      return alert("Monto inválido o no ingresado. El turno no fue registrado.");
+  }
+  
   const gan = Number(ganStr);
-
-  if (!gan) return alert("Monto inválido. El turno no fue registrado.");
 
   panelData.turnos.push({
     inicio: inicio.toISOString(),
@@ -524,7 +473,6 @@ function finalizarTurno() {
     ganancia: gan
   });
 
-  // El ingreso de la ganancia se registra aquí
   panelData.ingresos.push({
     descripcion: `Ganancia turno (${horas}h)`,
     cantidad: gan,
@@ -542,24 +490,17 @@ function finalizarTurno() {
 
   guardarPanelData();
   actualizarUIturno();
+  renderResumenIndex(); // FIX 6: Re-render
 
   alert("Turno finalizado.");
 }
 
 // ======================
-// app.js — PARTE 4/5: RENDERIZADO DE RESULTADOS
-// ======================
-
-let gananciasChart = null;
-let kmChart = null;
-
-// ======================
-// Resumen del día
+// RENDERIZADO (Index)
 // ======================
 function calcularResumenDatos() {
   const hoy = new Date().toISOString().slice(0, 10);
 
-  // Obtener turnos y gastos DE HOY
   const turnosHoy = (panelData.turnos || []).filter(t => (t.inicio || "").slice(0, 10) === hoy);
   const gastosHoy = (panelData.gastos || []).filter(g => (g.fechaISO || "").slice(0, 10) === hoy);
 
@@ -570,30 +511,28 @@ function calcularResumenDatos() {
   return { horasHoy, ganHoy, gastHoy };
 }
 
-// ======================
-// AGREGACIÓN DE DATOS DIARIOS PARA GRÁFICAS
-// ======================
 function aggregateDailyData() {
   const data = {};
 
   const processEntry = (entry, type, amountKey) => {
-    
-    const rawDate = entry.fechaLocal || ""; 
-    if (!rawDate) return;
+    let isoDateStr = entry.fechaISO || entry.inicio; // FIX 4: Usa inicio/fechaISO
 
-    // Extraer solo la fecha: "DD/MM/YYYY"
-    const localDate = rawDate.split(',')[0].trim();
+    if (!isoDateStr) {
+      // Intenta inferir de fechaLocal si falta ISO, aunque no es ideal
+      const localMatch = (entry.fechaLocal || "").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (localMatch) {
+          isoDateStr = `${localMatch[3]}-${localMatch[2].padStart(2, '0')}-${localMatch[1].padStart(2, '0')}`;
+      }
+    }
     
-    // Convertir a formato "YYYY-MM-DD" para ordenar
-    const parts = localDate.split('/');
-    if (parts.length !== 3) return;
-    const dateKey = `${parts[2]}-${parts[1]}-${parts[0]}`; 
+    if (!isoDateStr) return; 
+
+    const dateKey = isoDateStr.slice(0, 10); // FIX 4: Clave consistente YYYY-MM-DD
 
     data[dateKey] = data[dateKey] || { date: dateKey, ingresos: 0, gastos: 0, kmRecorridos: 0 };
     data[dateKey][type] += (Number(entry[amountKey]) || 0);
   };
   
-  // Procesar las entradas (Se usa el ingreso del turno, no todos los ingresos)
   (panelData.turnos || []).forEach(t => processEntry(t, 'ingresos', 'ganancia'));
   (panelData.gastos || []).forEach(g => processEntry(g, 'gastos', 'cantidad'));
   (panelData.kmDiarios || []).forEach(k => processEntry(k, 'kmRecorridos', 'recorrido'));
@@ -601,15 +540,12 @@ function aggregateDailyData() {
   return Object.values(data).sort((a, b) => new Date(a.date) - new Date(b.date));
 }
 
-// ======================
-// CÁLCULO Y RENDERIZADO DE MÉTRICAS MENSUALES DE KM
-// ======================
 function aggregateKmMensual() {
     const dataMensual = {};
 
     (panelData.kmDiarios || []).forEach(k => {
-        const date = new Date(k.fechaISO);
-        const mesKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const mesKey = (k.fechaISO || "").slice(0, 7);
+        if (!mesKey) return;
         
         dataMensual[mesKey] = dataMensual[mesKey] || { kmRecorridos: 0, costoGasolina: 0 };
         dataMensual[mesKey].kmRecorridos += (Number(k.recorrido) || 0);
@@ -617,9 +553,9 @@ function aggregateKmMensual() {
 
     (panelData.gastos || []).forEach(g => {
         if (g.categoria === "Transporte" && g.descripcion.includes("Gasolina")) { 
-            const date = new Date(g.fechaISO);
-            const mesKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-            
+            const mesKey = (g.fechaISO || "").slice(0, 7);
+            if (!mesKey) return;
+
             dataMensual[mesKey] = dataMensual[mesKey] || { kmRecorridos: 0, costoGasolina: 0 };
             dataMensual[mesKey].costoGasolina += (Number(g.cantidad) || 0);
         }
@@ -634,21 +570,19 @@ function aggregateKmMensual() {
             : 0;
 
         return {
+            mesKey, // FIX 5: Mantener YYYY-MM para ordenar
             mes: dateString.charAt(0).toUpperCase() + dateString.slice(1),
             kmRecorridos: data.kmRecorridos,
             costoGasolina: data.costoGasolina,
             costoPorKm: costoPorKm
         };
     }).sort((a, b) => {
-      // Ordenar por año-mes descendente (más reciente primero)
-      const keyA = new Date(a.mes).getTime();
-      const keyB = new Date(b.mes).getTime();
-      return keyB - keyA;
+      // FIX 5: Ordenar por YYYY-MM descendente
+      return b.mesKey.localeCompare(a.mesKey);
     });
 
     return resultado;
 }
-
 
 function renderTablaKmMensual() {
     const tablaContainer = $("tablaKmMensual"); 
@@ -687,26 +621,6 @@ function renderTablaKmMensual() {
     tablaContainer.innerHTML = html;
 }
 
-// ======================
-// Render resumen index
-// ======================
-function renderResumenIndex() {
-  const r = calcularResumenDatos();
-
-  if ($("resHoras")) $("resHoras").textContent = r.horasHoy.toFixed(2);
-  if ($("resGananciaBruta")) $("resGananciaBruta").textContent = "$" + fmtMoney(r.ganHoy);
-  if ($("resGastos")) $("resGastos").textContent = "$" + fmtMoney(r.gastHoy);
-  if ($("resNeta")) $("resNeta").textContent = "$" + fmtMoney(r.ganHoy - r.gastHoy);
-
-  renderTablaTurnos();
-  renderTablaKmMensual();
-  renderCharts();
-  calcularProyeccionReal();
-}
-
-// ======================
-// Tabla Turnos
-// ======================
 function renderTablaTurnos() {
   const tbody = $("tablaTurnos");
   if (!tbody) return;
@@ -743,193 +657,68 @@ function renderTablaTurnos() {
   });
 }
 
-// ======================
-// app.js — PARTE 5/5: LÓGICA DEL TUTORIAL, PROYECCIÓN, GRÁFICAS E INICIALIZACIÓN
-// ======================
+function renderCharts() {
+  const dailyData = aggregateDailyData();
+  const last14Days = dailyData.slice(-14);
+  const labels = last14Days.map(d => {
+      const [y, m, d_] = d.date.split('-');
+      return `${m}/${d_}`; 
+  }); 
 
-const TUTORIAL_COMPLETADO_KEY = "tutorialCompleto";
-
-// -----------------
-// Definición de Pasos
-// -----------------
-const tutorialSteps = [
-    {
-        title: "¡Bienvenido a Uber Eats Tracker!",
-        text: "Te guiaré rápidamente por las funciones clave de la aplicación. Haz clic en 'Siguiente'.",
-        target: null, 
-        positionClass: "modal-center",
-        buttonText: "Siguiente"
-    },
-    {
-        title: "Resumen del Día",
-        text: "Aquí verás tus ganancias y gastos del turno actual, calculados automáticamente.",
-        target: document.title.includes("Resultados") ? $("cardResumen") : null,
-        positionClass: "modal-top-right",
-        buttonText: "Siguiente"
-    },
-    {
-        title: "Administrador de Datos",
-        text: "El cerebro de la aplicación. Aquí registrarás tus ingresos, gastos, kilometraje, deudas y más.",
-        target: document.title.includes("Resultados") ? $("adminButton") : $("header")?.querySelector(".btn-admin"),
-        positionClass: "modal-bottom-left",
-        buttonText: document.title.includes("Resultados") ? "Ir al Administrador" : "Siguiente",
-        action: () => {
-            if (document.title.includes("Resultados")) {
-                 window.location.href = 'admin.html';
-                 return true; 
-            }
-            return false;
-        }
-    },
-    {
-        title: "Registro de Turnos",
-        text: "Usa estos botones para marcar el inicio y el fin de tu jornada. Al finalizar, registra tus horas y la ganancia bruta.",
-        target: $("btnIniciarTurno") ? $("btnIniciarTurno").closest(".card") : null,
-        positionClass: "modal-top-right",
-        buttonText: "Siguiente"
-    },
-    {
-        title: "Gestión de Deudas",
-        text: "Registra tus deudas fijas (coche, celular) y lleva un control de tus abonos. Esto ayuda al cálculo de la proyección.",
-        target: $("btnRegistrarDeuda") ? $("btnRegistrarDeuda").closest(".card") : null,
-        positionClass: "modal-bottom-left",
-        buttonText: "Siguiente"
-    },
-    {
-        title: "Importar y Exportar",
-        text: "Siempre haz una copia de seguridad de tus datos. Puedes exportar a JSON (copiar y pegar) o a Excel.",
-        target: $("btnExportar") ? $("btnExportar").closest(".card") : null,
-        positionClass: "modal-top-right",
-        buttonText: "Finalizar Tutorial"
-    }
-];
-
-let currentStep = 0;
-
-// -----------------
-// Lógica del Tour
-// -----------------
-function iniciarTutorial() {
-    if (localStorage.getItem(TUTORIAL_COMPLETADO_KEY)) return;
-    
-    // Si estamos en la página de admin, saltar al paso 3 (Registro de Turnos)
-    if (document.title.includes("Administración")) {
-        currentStep = 3; 
-    }
-
-    // El paso de ir al administrador sólo se muestra en index.html (paso 2)
-    if (document.title.includes("Administración") && currentStep === 2) {
-        currentStep = 3;
-    }
-
-    renderTutorialStep();
-}
-
-function renderTutorialStep() {
-    const step = tutorialSteps[currentStep];
-    const overlay = $("tutorialOverlay");
-    const modal = $("tutorialModal");
-    const title = $("tutorialTitle");
-    const text = $("tutorialText");
-    const button = $("tutorialNextBtn");
-    
-    if (!overlay || !modal || !button) return; 
-
-    // Ocultar modal y quitar highlight del paso anterior
-    document.querySelectorAll('.tutorial-highlight').forEach(el => {
-        el.classList.remove('tutorial-highlight');
+  // Gráfica de Ganancias vs Gastos
+  const ctxGanancias = $("graficaGanancias");
+  if (ctxGanancias) {
+    if (gananciasChart) gananciasChart.destroy(); 
+    // ... (Chart.js configuration)
+    gananciasChart = new Chart(ctxGanancias, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Ingresos',
+          data: last14Days.map(d => d.ingresos),
+          backgroundColor: '#00a000', 
+        }, {
+          label: 'Gastos',
+          data: last14Days.map(d => d.gastos),
+          backgroundColor: '#d40000', 
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: { x: { stacked: false }, y: { beginAtZero: true } },
+        plugins: { legend: { position: 'top' }, title: { display: false } }
+      }
     });
-    
-    modal.classList.remove('modal-center', 'modal-top-right', 'modal-bottom-left');
-    
-    // Aplicar contenido y estilo del nuevo paso
-    title.textContent = step.title;
-    text.innerHTML = step.text;
-    button.textContent = step.buttonText;
-    modal.classList.add(step.positionClass);
+  }
 
-    if (step.target) {
-        // Resaltar elemento
-        step.target.classList.add('tutorial-highlight');
-        
-        // Calcular la posición de la modal cerca del target
-        const rect = step.target.getBoundingClientRect();
-        
-        // Ajustar la posición de la modal basada en la clase
-        if (step.positionClass === 'modal-top-right') {
-            modal.style.top = `${rect.top + window.scrollY + 10}px`;
-            modal.style.left = `${rect.right + window.scrollX - modal.offsetWidth}px`;
-        } else if (step.positionClass === 'modal-bottom-left') {
-            modal.style.top = `${rect.bottom + window.scrollY - modal.offsetHeight - 10}px`;
-            modal.style.left = `${rect.left + window.scrollX}px`;
-        } else {
-            // Posición central (modal-center)
-            modal.style.top = '50%';
-            modal.style.left = '50%';
-            modal.style.transform = 'translate(-50%, -50%)'; 
-        }
-        
-        step.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    } else {
-        // Posición central (paso inicial)
-        modal.style.top = '50%';
-        modal.style.left = '50%';
-        modal.style.transform = 'translate(-50%, -50%)';
-    }
-
-    // Mostrar overlay y modal
-    overlay.style.display = 'block';
-    modal.style.display = 'block';
-
-    // Se usa un pequeño retraso para asegurar que la transición de opacidad se vea
-    setTimeout(() => {
-        overlay.style.opacity = '1';
-        modal.style.opacity = '1';
-    }, 10); 
+  // Gráfica de Kilometraje
+  const ctxKm = $("graficaKm");
+  if (ctxKm) {
+    if (kmChart) kmChart.destroy(); 
+    // ... (Chart.js configuration)
+    kmChart = new Chart(ctxKm, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'KM Recorridos',
+          data: last14Days.map(d => d.kmRecorridos),
+          borderColor: '#0066ff', 
+          backgroundColor: '#0066ff40',
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } },
+        plugins: { legend: { position: 'top' }, title: { display: false } }
+      }
+    });
+  }
 }
 
-function nextTutorialStep() {
-    const step = tutorialSteps[currentStep];
-    
-    // Ejecutar acción si existe (Ej. ir a admin.html)
-    if (step.action && step.action()) {
-        return; 
-    }
-    
-    currentStep++;
-
-    if (currentStep < tutorialSteps.length) {
-        // Manejar salto de paso si el target no existe (ej. target del admin en index)
-        if (!tutorialSteps[currentStep].target && currentStep > 1 && !document.title.includes("Administración")) {
-            // Si estamos en index y el target es de admin, avanzamos el contador
-            currentStep++; 
-        }
-        
-        renderTutorialStep();
-    } else {
-        // Finalizar el tutorial
-        localStorage.setItem(TUTORIAL_COMPLETADO_KEY, 'true');
-        $("tutorialOverlay").style.opacity = '0';
-        $("tutorialModal").style.opacity = '0';
-        
-        setTimeout(() => {
-            $("tutorialOverlay").style.display = 'none';
-            $("tutorialModal").style.display = 'none';
-        }, 300);
-        
-        alert("¡Tutorial Finalizado! Ahora puedes empezar a registrar tus datos.");
-    }
-}
-
-// -----------------
-// Listener Principal del Tutorial
-// -----------------
-$("tutorialNextBtn")?.addEventListener('click', nextTutorialStep);
-
-// ======================
-// Proyección Real (Se mueve aquí para mantener el orden lógico de las partes)
-// ======================
 function calcularProyeccionReal() {
   const p = panelData.parametros || {};
   const deudaTotal = Number(p.deudaTotal || 0);
@@ -976,84 +765,206 @@ function calcularProyeccionReal() {
   }
 }
 
+function renderResumenIndex() {
+  const r = calcularResumenDatos();
+
+  if ($("resHoras")) $("resHoras").textContent = r.horasHoy.toFixed(2);
+  if ($("resGananciaBruta")) $("resGananciaBruta").textContent = "$" + fmtMoney(r.ganHoy);
+  if ($("resGastos")) $("resGastos").textContent = "$" + fmtMoney(r.gastHoy);
+  if ($("resNeta")) $("resNeta").textContent = "$" + fmtMoney(r.ganHoy - r.gastHoy);
+
+  renderTablaTurnos();
+  renderTablaKmMensual();
+  renderCharts();
+  calcularProyeccionReal();
+}
+
+
 // ======================
-// GRÁFICAS (CHART.JS)
+// TUTORIAL (Tour de Usuario)
 // ======================
-let gananciasChart = null;
-let kmChart = null;
-
-function renderCharts() {
-  const dailyData = aggregateDailyData();
-
-  // Tomar solo los últimos 14 días
-  const last14Days = dailyData.slice(-14);
-  const labels = last14Days.map(d => {
-      // Formatear de YYYY-MM-DD a MM/DD para la etiqueta
-      const [y, m, d_] = d.date.split('-');
-      return `${m}/${d_}`; 
-  }); 
-
-  // 1. Gráfica de Ganancias vs Gastos
-  const ctxGanancias = $("graficaGanancias");
-  if (ctxGanancias) {
-    if (gananciasChart) gananciasChart.destroy(); 
-
-    gananciasChart = new Chart(ctxGanancias, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Ingresos',
-          data: last14Days.map(d => d.ingresos),
-          backgroundColor: '#00a000', 
-        }, {
-          label: 'Gastos',
-          data: last14Days.map(d => d.gastos),
-          backgroundColor: '#d40000', 
-        }]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          x: { stacked: false },
-          y: { beginAtZero: true }
-        },
-        plugins: {
-          legend: { position: 'top' },
-          title: { display: false }
+const tutorialSteps = [
+    {
+        title: "¡Bienvenido a Uber Eats Tracker!",
+        text: "Te guiaré rápidamente por las funciones clave de la aplicación. Haz clic en 'Siguiente'.",
+        targetId: null, 
+        positionClass: "modal-center",
+        buttonText: "Siguiente"
+    },
+    {
+        title: "Resumen del Día",
+        text: "Aquí verás tus ganancias y gastos del turno actual, calculados automáticamente.",
+        targetId: "cardResumen", 
+        positionClass: "modal-top-right",
+        buttonText: "Siguiente"
+    },
+    {
+        title: "Administrador de Datos",
+        text: "El cerebro de la aplicación. Aquí registrarás tus ingresos, gastos, kilometraje, deudas y más.",
+        targetId: "adminButton", // FIX 3: Usamos el ID del botón para saltar de página
+        positionClass: "modal-bottom-left",
+        buttonText: document.title.includes("Resultados") ? "Ir al Administrador" : "Siguiente",
+        action: () => {
+            if (document.title.includes("Resultados")) {
+                 window.location.href = 'admin.html';
+                 return true; 
+            }
+            return false;
         }
-      }
+    },
+    {
+        title: "Registro de Turnos",
+        text: "Usa estos botones para marcar el inicio y el fin de tu jornada. Al finalizar, registra tus horas y la ganancia bruta.",
+        targetId: "btnIniciarTurno", // Se resolverá al padre "card"
+        positionClass: "modal-top-right",
+        buttonText: "Siguiente"
+    },
+    {
+        title: "Gestión de Deudas",
+        text: "Registra tus deudas fijas (coche, celular) y lleva un control de tus abonos. Esto ayuda al cálculo de la proyección.",
+        targetId: "btnRegistrarDeuda", // Se resolverá al padre "card"
+        positionClass: "modal-bottom-left",
+        buttonText: "Siguiente"
+    },
+    {
+        title: "Importar y Exportar",
+        text: "Siempre haz una copia de seguridad de tus datos. Puedes exportar a JSON (copiar y pegar) o a Excel.",
+        targetId: "btnExportar", // Se resolverá al padre "card"
+        positionClass: "modal-top-right",
+        buttonText: "Finalizar Tutorial"
+    }
+];
+
+let currentStep = 0;
+
+function resolveTarget(step) {
+    if (!step.targetId) return null;
+    
+    let element = $(step.targetId);
+
+    // Si el target es el adminButton y estamos en index, funciona bien.
+    // Si el target es un botón en admin.html, buscamos el padre .card para resaltarlo mejor.
+    if (document.title.includes("Administración") && element && element.tagName === 'BUTTON') {
+        return element.closest(".card");
+    }
+    
+    // Caso especial: si es el paso 2 (adminButton) pero estamos en admin, no hay target.
+    if (document.title.includes("Administración") && step.targetId === "adminButton") {
+        return null;
+    }
+    
+    return element;
+}
+
+function renderTutorialStep() {
+    const step = tutorialSteps[currentStep];
+    const overlay = $("tutorialOverlay");
+    const modal = $("tutorialModal");
+    const title = $("tutorialTitle");
+    const text = $("tutorialText");
+    const button = $("tutorialNextBtn");
+    
+    if (!overlay || !modal || !button) return; 
+
+    // Ocultar elementos anteriores
+    document.querySelectorAll('.tutorial-highlight').forEach(el => {
+        el.classList.remove('tutorial-highlight');
     });
-  }
+    
+    // FIX 8: Mostrar la modal invisiblemente primero para obtener medidas correctas
+    modal.style.visibility = 'hidden';
+    modal.style.display = 'block';
+    
+    modal.classList.remove('modal-center', 'modal-top-right', 'modal-bottom-left');
+    
+    // Aplicar contenido y estilo del nuevo paso
+    title.textContent = step.title;
+    text.innerHTML = step.text;
+    button.textContent = step.buttonText;
+    modal.classList.add(step.positionClass);
 
-  // 2. Gráfica de Kilometraje
-  const ctxKm = $("graficaKm");
-  if (ctxKm) {
-    if (kmChart) kmChart.destroy(); 
+    const targetElement = resolveTarget(step);
 
-    kmChart = new Chart(ctxKm, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'KM Recorridos',
-          data: last14Days.map(d => d.kmRecorridos),
-          borderColor: '#0066ff', 
-          backgroundColor: '#0066ff40',
-          fill: true,
-          tension: 0.4
-        }]
-      },
-      options: {
-        responsive: true,
-        scales: { y: { beginAtZero: true } },
-        plugins: {
-          legend: { position: 'top' },
-          title: { display: false }
+    if (targetElement) {
+        // Resaltar elemento
+        targetElement.classList.add('tutorial-highlight');
+        
+        const rect = targetElement.getBoundingClientRect();
+        
+        if (step.positionClass === 'modal-top-right') {
+            // Posicionar a la derecha superior del target
+            modal.style.top = `${rect.top + window.scrollY + 10}px`;
+            modal.style.left = `${rect.right + window.scrollX - modal.offsetWidth}px`;
+        } else if (step.positionClass === 'modal-bottom-left') {
+            // Posicionar a la izquierda inferior del target
+            modal.style.top = `${rect.bottom + window.scrollY + 10}px`;
+            modal.style.left = `${rect.left + window.scrollX}px`;
         }
-      }
-    });
-  }
+        
+        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+        // Posición central (paso inicial o pasos sin target en la página actual)
+        modal.classList.add('modal-center');
+        modal.style.top = '50%';
+        modal.style.left = '50%';
+        modal.style.transform = 'translate(-50%, -50%)'; 
+    }
+
+    // Finalmente hacerlo visible
+    overlay.style.display = 'block';
+    modal.style.visibility = 'visible';
+
+    setTimeout(() => {
+        overlay.style.opacity = '1';
+        modal.style.opacity = '1';
+    }, 10); 
+}
+
+function nextTutorialStep() {
+    const step = tutorialSteps[currentStep];
+    
+    // Si el paso actual no tiene target en esta página, saltarlo (Ej. paso 1 en admin)
+    if (document.title.includes("Administración") && currentStep === 1) {
+        currentStep = 3; // Salta al Registro de Turnos
+    }
+    
+    // Ejecutar acción si existe (Ej. ir a admin.html)
+    if (step.action && step.action()) {
+        return; 
+    }
+    
+    currentStep++;
+
+    if (currentStep < tutorialSteps.length) {
+        renderTutorialStep();
+    } else {
+        // Finalizar el tutorial
+        localStorage.setItem(TUTORIAL_COMPLETADO_KEY, 'true');
+        $("tutorialOverlay").style.opacity = '0';
+        $("tutorialModal").style.opacity = '0';
+        
+        setTimeout(() => {
+            $("tutorialOverlay").style.display = 'none';
+            $("tutorialModal").style.display = 'none';
+        }, 300);
+        
+        alert("¡Tutorial Finalizado! Ahora puedes empezar a registrar tus datos.");
+    }
+}
+
+function iniciarTutorial() {
+    if (localStorage.getItem(TUTORIAL_COMPLETADO_KEY)) return;
+    
+    // Si estamos en la página de admin, saltar al paso 3 (Registro de Turnos)
+    if (document.title.includes("Administración")) {
+        currentStep = 3; 
+    }
+    
+    // Solo iniciar si el botón existe
+    if($("tutorialNextBtn")) {
+      renderTutorialStep();
+      $("tutorialNextBtn")?.addEventListener('click', nextTutorialStep);
+    }
 }
 
 
@@ -1076,7 +987,6 @@ document.addEventListener("DOMContentLoaded", () => {
     actualizarUIturno();
     renderDeudas();
     
-    // Asignar el último KM final guardado como KM Inicial si existe
     if ($("kmInicial") && panelData.parametros.ultimoKMfinal !== null) {
         $("kmInicial").value = panelData.parametros.ultimoKMfinal;
     }
@@ -1089,15 +999,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const inpDeuda = document.getElementById("proyDeudaTotal");
     const inpGasto = document.getElementById("proyGastoFijo");
 
-    if (inpDeuda) {
-        inpDeuda.readOnly = true;
-        inpDeuda.style.background = "#eee";
-    }
-
-    if (inpGasto) {
-        inpGasto.readOnly = true;
-        inpGasto.style.background = "#eee";
-    }
+    if (inpDeuda) inpDeuda.readOnly = true;
+    if (inpGasto) inpGasto.readOnly = true;
 
     // 6. Renderizar Resultados (solo si estamos en index.html)
     if (document.title.includes("Resultados")) {
