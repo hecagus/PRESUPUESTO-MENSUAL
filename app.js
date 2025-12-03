@@ -6,6 +6,9 @@ const TUTORIAL_COMPLETADO_KEY = "tutorialCompleto";
 let gananciasChart = null;
 let kmChart = null;
 
+// Global state for Debt Wizard
+let deudaWizardStep = 1;
+
 // Estructura base de datos
 let panelData = {
   ingresos: [],
@@ -93,16 +96,16 @@ function calcularGastoFijoAuto() {
     ? kmArr.reduce((s, k) => s + (Number(k.recorrido) || 0), 0) / kmArr.length
     : 0;
 
-  let ultimoAbono = 0;
-  // Buscar el abono más reciente
-  (panelData.gastos || []).forEach(g => {
-    if ((g.categoria || "") === "Abono a Deuda") {
-       ultimoAbono = Number(g.cantidad) || 0;
-    }
-  });
-
+  let abonoSemanalProm = 0;
+  let abonos = (panelData.gastos || []).filter(g => (g.categoria || "") === "Abono a Deuda");
+  if (abonos.length > 0) {
+      // Tomamos el promedio de los últimos 4 abonos (aproximación)
+      const ultimosAbonos = abonos.slice(-4).reduce((s, g) => s + (Number(g.cantidad) || 0), 0);
+      abonoSemanalProm = ultimosAbonos / (Math.min(abonos.length, 4));
+  }
+  
   // Fórmula: (Abono semanal aprox / 6 días) + Comida + (KM prom * costo)
-  const gastoFijo = (ultimoAbono / 6) + comidaDiaria + (kmProm * costoKmAsumido);
+  const gastoFijo = (abonoSemanalProm / 6) + comidaDiaria + (kmProm * costoKmAsumido);
 
   panelData.parametros.gastoFijo = gastoFijo;
   
@@ -182,6 +185,63 @@ function setupGastoListeners() {
   });
 }
 
+// ======================
+// 5. WIZARD DEUDAS Y RENDER
+// ======================
+function updateDeudaWizardUI() {
+    const steps = [
+        $("deudaStep1"),
+        $("deudaStep2"),
+        $("deudaStep3"),
+        $("deudaStep4")
+    ];
+
+    steps.forEach((step, index) => {
+        if (step) {
+            step.style.display = (index + 1 === deudaWizardStep) ? "block" : "none";
+        }
+    });
+
+    const finalBtn = $("btnRegistrarDeudaFinal");
+    if (finalBtn) finalBtn.style.display = (deudaWizardStep === 4) ? "inline-block" : "none";
+
+    const nextBtn = $("btnDeudaNext");
+    const backBtn = $("btnDeudaBack");
+
+    if (nextBtn) nextBtn.style.display = (deudaWizardStep < 4) ? "inline-block" : "none";
+    if (backBtn) backBtn.style.display = (deudaWizardStep > 1) ? "inline-block" : "none";
+}
+
+function nextDeudaStep() {
+    // Validación antes de avanzar
+    switch (deudaWizardStep) {
+        case 1:
+            const nombre = ($("deudaNombre")?.value || "").trim();
+            if (!nombre) return alert("Ingresa el Nombre de la deuda (Ej. Banco, Moto).");
+            break;
+        case 2:
+            const monto = Number($("deudaMonto")?.value || 0);
+            if (monto <= 0) return alert("Ingresa un Monto Total positivo.");
+            break;
+        case 3:
+            const frecuencia = ($("deudaFrecuencia")?.value || "").trim();
+            if (!frecuencia) return alert("Selecciona la Frecuencia de pago.");
+            break;
+    }
+
+    if (deudaWizardStep < 4) {
+        deudaWizardStep++;
+        updateDeudaWizardUI();
+    }
+}
+
+function prevDeudaStep() {
+    if (deudaWizardStep > 1) {
+        deudaWizardStep--;
+        updateDeudaWizardUI();
+    }
+}
+
 function renderDeudas() {
   const list = $("listaDeudas");
   const select = $("abonoSeleccionar");
@@ -191,9 +251,30 @@ function renderDeudas() {
   list.innerHTML = "";
   select.innerHTML = "";
   let hayPendientes = false;
+  
+  const deudasPendientes = [];
 
-  panelData.deudas.forEach((d, idx) => {
+  panelData.deudas.forEach((d) => {
     const pendiente = (Number(d.monto) || 0) - (Number(d.abonado) || 0);
+
+    // ************* NUEVA LÓGICA DE ELIMINACIÓN *************
+    if (pendiente <= 0.01) {
+        // Muestra felicitación una sola vez antes de la eliminación
+        if (!d.liquidada) {
+            alert(`🎉 ¡Felicidades! Has liquidado tu deuda: ${d.nombre}.`);
+            d.liquidada = true; 
+        }
+        return; 
+    }
+    d.liquidada = false;
+    deudasPendientes.push(d);
+    // *******************************************************
+    
+    // Muestra la frecuencia y el abono sugerido (si existen)
+    let infoAbono = "";
+    if (d.frecuencia && d.abonoSugerido && d.abonoSugerido > 0) {
+        infoAbono = `<br><span style="color:#007bff; font-size:0.9em;">Pago: $${fmtMoney(d.abonoSugerido)} ${d.frecuencia}</span>`;
+    }
 
     list.innerHTML += `
       <li>
@@ -202,40 +283,69 @@ function renderDeudas() {
         <span style="color:${pendiente > 0 ? '#dc3545' : '#28a745'}">
             Pendiente: <strong>$${fmtMoney(pendiente)}</strong>
         </span>
+        ${infoAbono}
       </li>
     `;
 
-    if (pendiente > 0.1) { // Margen de error flotante
-        const opt = document.createElement("option");
-        opt.value = idx;
-        opt.textContent = `${d.nombre} — $${fmtMoney(pendiente)} pendiente`;
-        select.appendChild(opt);
-        hayPendientes = true;
-    }
+    // Solo se agregan al select si hay un saldo pendiente
+    const opt = document.createElement("option");
+    // El 'value' es el índice de la deuda en el nuevo array 'deudasPendientes'
+    opt.value = deudasPendientes.length - 1; 
+    opt.textContent = `${d.nombre} — $${fmtMoney(pendiente)} pendiente`;
+    select.appendChild(opt);
+    hayPendientes = true;
   });
+
+  // ************* REEMPLAZAR panelData.deudas *************
+  panelData.deudas = deudasPendientes; 
+  guardarPanelData(); // Guardar el estado limpio de deudas liquidadas
+  // *******************************************************
 
   if (panelData.deudas.length === 0) list.innerHTML = "<li>No hay deudas registradas.</li>";
   if (!hayPendientes) select.innerHTML = `<option value="">-- Sin deudas pendientes --</option>`;
 }
 
 function setupDeudaListeners() {
-    $("btnRegistrarDeuda")?.addEventListener("click", () => {
-      const nombre = ($("deudaNombre")?.value || "").trim();
-      const monto = Number($("deudaMonto")?.value || 0);
+    // Listeners para la navegación del Wizard
+    $("btnDeudaNext")?.addEventListener("click", nextDeudaStep);
+    $("btnDeudaBack")?.addEventListener("click", prevDeudaStep);
+    
+    // El botón final del Wizard (ANTES ERA btnRegistrarDeuda)
+    $("btnRegistrarDeudaFinal")?.addEventListener("click", () => {
+        const nombre = ($("deudaNombre")?.value || "").trim();
+        const monto = Number($("deudaMonto")?.value || 0);
+        const frecuencia = ($("deudaFrecuencia")?.value || "").trim();
+        const abonoSugerido = Number($("deudaAbonoSugerido")?.value || 0);
 
-      if (!nombre || monto <= 0) return alert("Nombre y monto requeridos.");
+        if (!nombre || monto <= 0 || !frecuencia || abonoSugerido < 0) {
+            return alert("Faltan datos o son inválidos para registrar la deuda.");
+        }
 
-      panelData.deudas.push({ nombre, monto, abonado: 0 });
+        // Nueva estructura de deuda
+        panelData.deudas.push({ 
+            nombre, 
+            monto, 
+            abonado: 0, 
+            frecuencia, 
+            abonoSugerido 
+        });
 
-      calcularDeudaTotalAuto();
-      guardarPanelData();
-      renderDeudas();
+        calcularDeudaTotalAuto();
+        guardarPanelData();
+        renderDeudas();
 
-      $("deudaNombre").value = "";
-      $("deudaMonto").value = "";
-      alert("Deuda registrada.");
+        // Limpiar y resetear el wizard
+        $("deudaNombre").value = "";
+        $("deudaMonto").value = "";
+        $("deudaFrecuencia").value = "";
+        $("deudaAbonoSugerido").value = "";
+        deudaWizardStep = 1;
+        updateDeudaWizardUI();
+
+        alert("Deuda registrada (Wizard completado).");
     });
 
+    // Lógica para registrar un abono (SIN CAMBIOS FUNCIONALES, ahora renderDeudas maneja la eliminación)
     $("btnRegistrarAbono")?.addEventListener("click", () => {
       const idx = $("abonoSeleccionar")?.value;
       const monto = Number($("abonoMonto")?.value || 0);
@@ -263,7 +373,7 @@ function setupDeudaListeners() {
       calcularDeudaTotalAuto();
       calcularGastoFijoAuto();
       guardarPanelData();
-      renderDeudas();
+      renderDeudas(); // Esto actualizará la lista y eliminará si el saldo es 0.
 
       $("abonoMonto").value = "";
       alert("Abono registrado correctamente.");
@@ -349,7 +459,13 @@ function exportToExcel() {
         Gastos: gastos,
         KmDiarios: kmDiarios,
         Gasolina: gasolina,
-        Deudas: deudas.map(d => ({ ...d, pendiente: d.monto - d.abonado })),
+        // Incluir la nueva información de deudas en el backup
+        Deudas: deudas.map(d => ({ 
+            ...d, 
+            pendiente: d.monto - d.abonado,
+            frecuencia: d.frecuencia || 'N/A',
+            abonoSugerido: d.abonoSugerido || 0 
+        })),
         Turnos: turnos,
         Movimientos: movimientos
     };
@@ -403,7 +519,7 @@ function setupIoListeners() {
 }
 
 // ======================
-// 5. GESTIÓN DE TURNOS
+// 6. GESTIÓN DE TURNOS
 // ======================
 function actualizarUIturno() {
   const iniBtn = $("btnIniciarTurno");
@@ -494,7 +610,7 @@ function finalizarTurno() {
 }
 
 // ======================
-// 6. RENDERIZADO (INDEX)
+// 7. RENDERIZADO (INDEX)
 // ======================
 function calcularResumenDatos() {
   // Obtenemos fecha ISO local YYYY-MM-DD
@@ -676,14 +792,15 @@ function renderResumenIndex() {
 }
 
 // ======================
-// 7. TUTORIAL
+// 8. TUTORIAL
 // ======================
 const tutorialSteps = [
     { title: "Bienvenido", text: "Te daré un tour rápido.", targetId: null },
     { title: "Resumen", text: "Aquí verás tu balance del día actual.", targetId: "cardResumen" },
     { title: "Administración", text: "Registra aquí ingresos, gastos y turnos. Click para ir al panel.", targetId: "adminButton", action: () => location.href = "admin.html" },
     { title: "Turnos", text: "Inicia y finaliza tu jornada aquí.", targetId: "cardTurnos" },
-    { title: "Deudas", text: "Controla lo que debes y tus abonos.", targetId: "btnRegistrarDeuda" },
+    // El target de Deudas se mantiene para el admin.html, ahora apunta al inicio del wizard
+    { title: "Deudas", text: "Controla lo que debes y tus abonos.", targetId: "deudaWizardContainer" }, 
     { title: "Respaldo", text: "Descarga tus datos en Excel frecuentemente.", targetId: "btnExportarExcel" }
 ];
 
@@ -767,7 +884,7 @@ function initTutorial() {
 }
 
 // ======================
-// 8. INIT
+// 9. INIT
 // ======================
 document.addEventListener("DOMContentLoaded", () => {
     setupIngresoListeners();
@@ -782,6 +899,9 @@ document.addEventListener("DOMContentLoaded", () => {
     actualizarUIturno();
     renderDeudas();
     
+    // Iniciar vista del wizard de deudas
+    updateDeudaWizardUI(); 
+
     // Cargar parámetros en UI
     calcularDeudaTotalAuto();
     calcularGastoFijoAuto();
