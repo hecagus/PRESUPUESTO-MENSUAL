@@ -120,7 +120,7 @@ input, select, textarea {
     padding: 12px;
     border: 1px solid #ddd;
     border-radius: 8px;
-    font-size: 16px; /* Evita zoom en iOS */
+    font-size: 16px; 
     margin-bottom: 10px;
     background: #fafafa;
 }
@@ -209,7 +209,7 @@ button:active {
 =========================== */
 @media (max-width: 600px) {
     .stats-grid {
-        grid-template-columns: 1fr 1fr; /* 2 columnas en móvil se ve mejor que 1 */
+        grid-template-columns: 1fr 1fr; 
     }
     
     input, select, textarea {
@@ -225,6 +225,7 @@ button:active {
         font-size: 13px;
     }
 }
+
 
 /* ===========================
    5. TUTORIAL (MODALS)
@@ -262,27 +263,19 @@ button:active {
     transform: translate(-50%, -50%);
 }
 
-.modal-top-right {
-    transform: translate(-100%, 0); 
-}
-
-.modal-bottom-left {
-    transform: translate(0, 0); 
-}
-
 .tutorial-highlight {
     z-index: 1005 !important; 
     position: relative !important; 
     box-shadow: 0 0 0 5px rgba(6, 193, 103, 0.8), 0 0 20px rgba(0, 0, 0, 0.5); /* Color Uber Green */
     transition: box-shadow 0.3s;
     border-radius: 8px; 
-    background-color: white; /* Asegura legibilidad */
+    background-color: white; 
 }
 
 @media (max-width: 600px) {
     #tutorialModal {
         width: 85%;
-        position: fixed; /* Mejor fijo en móvil */
+        position: fixed; 
     }
     
     .modal-center,
@@ -293,3 +286,4 @@ button:active {
         transform: translate(-50%, -50%) !important;
     }
 }
+/* FIN DE ARCHIVO */
