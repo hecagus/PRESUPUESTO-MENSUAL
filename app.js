@@ -68,6 +68,7 @@ function fmtMoney(amount) {
 }
 
 cargarPanelData(); // Carga de datos al iniciar
+
 // ======================
 // 2. LISTENERS DE ENTRADA
 // ======================
@@ -345,8 +346,9 @@ function setupKmAndGasListeners() {
 function setupIoListeners() {
     // ... Lógica de Exportar/Importar (JSON y Excel)
 }
+
 // ======================
-// 6. CÁLCULOS AUTOMÁTICOS (Modificado para usar datos acumulados)
+// 6. CÁLCULOS AUTOMÁTICOS 
 // ======================
 function calcularDeudaTotalAuto() {
     const totalDeuda = panelData.deudas.reduce((sum, d) => {
@@ -409,6 +411,7 @@ function calcularGastoFijoAuto() {
     
     guardarPanelData();
 }
+
 // ======================
 // 7. RENDERIZADO (INDEX)
 // ======================
@@ -538,11 +541,13 @@ function renderProyecciones() {
         }
     }
     
-    // LÓGICA PARA RENDIMIENTO DEL VEHÍCULO (NUEVA SECCIÓN)
-    if ($("proyCostoGasKm")) $("proyCostoGasKm").textContent = `$${p.costoPorKm.toFixed(4)}`;
-    if ($("proyCostoMantKm")) $("proyCostoMantKm").textContent = `$${p.costoMantenimientoPorKm.toFixed(4)}`;
-    
-    const costoTotalKm = (p.costoPorKm || 0) + (p.costoMantenimientoPorKm || 0);
+    // LÓGICA PARA RENDIMIENTO DEL VEHÍCULO (FIX CORRECCIÓN DE TIPO DE DATO)
+    const costoGasKm = Number(p.costoPorKm) || 0;
+    const costoMantKm = Number(p.costoMantenimientoPorKm) || 0;
+    const costoTotalKm = costoGasKm + costoMantKm;
+
+    if ($("proyCostoGasKm")) $("proyCostoGasKm").textContent = `$${costoGasKm.toFixed(4)}`;
+    if ($("proyCostoMantKm")) $("proyCostoMantKm").textContent = `$${costoMantKm.toFixed(4)}`;
     if ($("proyCostoTotalKm")) $("proyCostoTotalKm").textContent = `$${costoTotalKm.toFixed(4)}`;
 }
 
@@ -583,12 +588,11 @@ document.addEventListener("DOMContentLoaded", () => {
     renderDeudas();
     
     // Iniciar vista del wizard de deudas
-    // La función debe estar definida en la Parte 3 si usas el wizard
     // updateDeudaWizardUI(); 
 
     // Cargar parámetros en UI
     calcularDeudaTotalAuto();
-    calcularGastoFijoAuto();
+    calcularGastoFijoAuto(); // Esto recalcula con la data histórica ANTES de renderizar
 
     // Rellenar KM inicial si existe historial
     if ($("kmInicial") && panelData.parametros.ultimoKMfinal !== null) {
