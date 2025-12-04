@@ -48,6 +48,13 @@
     </section>
 
     <section class="card">
+        <h2>Rendimiento del Vehículo (Acumulado)</h2>
+        <p>Promedios calculados desde el primer registro.</p>
+        <div class="projection"><label>Costo Gasolina / KM:</label> <span id="proyCostoGasKm">$0.0000</span></div>
+        <div class="projection"><label>Costo Mantenimiento / KM:</label> <span id="proyCostoMantKm">$0.0000</span></div>
+        <div class="projection"><label>Costo Operativo Total / KM:</label> <span id="proyCostoTotalKm">$0.0000</span></div>
+    </section>
+    <section class="card">
         <h2>Últimos Turnos</h2>
         <table class="tabla">
             <thead>
@@ -62,7 +69,7 @@
     </section>
     
     <section class="card">
-        <h2>Control Gasolina / KM</h2>
+        <h2>Control Gasolina / KM (Histórico Mensual)</h2>
         <div id="tablaKmMensual"></div>
     </section>
 
@@ -82,10 +89,9 @@
 <div id="tutorialModal" class="modal-center">
     <h3 id="tutorialTitle">Bienvenido</h3>
     <p id="tutorialText">Iniciando...</p>
-    <button id="tutorialNextBtn">Iniciar</button>
+    <button id="tutorialNextBtn" class="btn-primary" style="width:100%; margin-top:10px;">Siguiente</button>
 </div>
 
 <script src="app.js"></script>
-
 </body>
 </html>
