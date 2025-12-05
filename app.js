@@ -1,5 +1,5 @@
 // app.js - Parte 1/5
-// Inicialización, constantes, utilidades y migraciones robustas
+// Inicialización, constantes, utilidades, estructura base y migraciones robustas
 
 const STORAGE_KEY = "panelData";
 const BACKUP_KEY = "panelData_backup_v1";
@@ -10,12 +10,12 @@ let gananciasChart = null;
 let kmChart = null;
 let deudaWizardStep = 1;
 
-// Estructura base
+// Estructura base (respetada y extendida ligeramente para compatibilidad)
 let panelData = {
   ingresos: [],
   gastos: [],
   kmDiarios: [],
-  gasolina: [], // mantenida por compatibilidad
+  gasolina: [], // compatibilidad
   deudas: [],
   movimientos: [],
   turnos: [],
@@ -29,13 +29,15 @@ let panelData = {
       'Aceite (KM)': 3000,
       'Bujía (KM)': 8000,
       'Llantas (KM)': 15000
-    }
+    },
+    // flags UI
+    tutorialVisto: false
   }
 };
 
-// Estado de turno (guardamos TS como string en localStorage para compat)
-let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || false;
-let turnoInicio = localStorage.getItem("turnoInicio") || null; // string TS o null
+// Estado runtime de turno
+let turnoActivo = localStorage.getItem("turnoActivo") === "true";
+let turnoInicio = localStorage.getItem("turnoInicio") || null;
 
 // ---------- UTILIDADES ----------
 function safeNumber(v, fallback = 0) {
@@ -43,7 +45,6 @@ function safeNumber(v, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-/** Devuelve YYYY-MM-DD basado en TS o Date para agrupaciones internas */
 function getDateKey(date) {
   const d = date ? new Date(Number(date)) : new Date();
   const y = d.getFullYear();
@@ -52,13 +53,11 @@ function getDateKey(date) {
   return `${y}-${m}-${day}`;
 }
 
-/** Formatea moneda */
 function fmtMoney(amount, decimals = 2) {
   const n = safeNumber(amount, 0);
   return n.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-/** Fecha local legible (es-MX) */
 function fmtDateLocal(ts = Date.now()) {
   return new Date(Number(ts)).toLocaleString('es-MX', {
     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -66,14 +65,13 @@ function fmtDateLocal(ts = Date.now()) {
   });
 }
 
-/** Generador simple de ID para deudas */
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
 // ---------- MIGRACIONES ROBUSTAS ----------
 function runMigrations() {
-  // Asegurar que las colecciones existan
+  // asegurar colecciones existentes
   panelData.ingresos = Array.isArray(panelData.ingresos) ? panelData.ingresos : [];
   panelData.gastos = Array.isArray(panelData.gastos) ? panelData.gastos : [];
   panelData.kmDiarios = Array.isArray(panelData.kmDiarios) ? panelData.kmDiarios : [];
@@ -82,38 +80,34 @@ function runMigrations() {
 
   const normalizeItem = (item) => {
     if (!item || typeof item !== 'object') return null;
-    // timestamp: prefer timestamp -> ts -> derive from fechaLocal -> Date.now()
+    // timestamp preferido
     let ts = safeNumber(item.timestamp ?? item.ts ?? (item.fechaLocal ? new Date(item.fechaLocal).getTime() : null), null);
     if (!ts) ts = Date.now();
     item.timestamp = Number(ts);
     if (!item.fechaLocal) item.fechaLocal = fmtDateLocal(item.timestamp);
-    // eliminar fechaISO y ts antiguo para evitar confusión
     if (item.fechaISO) delete item.fechaISO;
     if (item.ts) delete item.ts;
     return item;
   };
 
-  // Normalizar colecciones
   panelData.ingresos = panelData.ingresos.map(i => normalizeItem(i)).filter(Boolean);
   panelData.gastos = panelData.gastos.map(g => normalizeItem(g)).filter(Boolean);
   panelData.kmDiarios = panelData.kmDiarios.map(k => normalizeItem(k)).filter(Boolean);
+
   panelData.turnos = panelData.turnos.map(t => {
     const nt = normalizeItem(t);
-    // soportar estructuras antiguas: inicio/fin o inicioTS/finTS
     nt.inicioTS = safeNumber(nt.inicioTS ?? nt.inicio ?? nt.ts ?? nt.timestamp ?? null, null);
     nt.finTS = safeNumber(nt.finTS ?? nt.fin ?? nt.timestamp ?? null, null);
-    // asegurar horas/ganancia/km fields con fallback
-    nt.horas = (nt.horas !== undefined) ? String(nt.horas) : (nt.horas === 0 ? "0.00" : nt.horas);
+    nt.horas = (nt.horas !== undefined) ? Number(nt.horas) : (nt.horas === 0 ? 0 : nt.horas);
     nt.ganancia = safeNumber(nt.ganancia ?? nt.cantidad ?? 0, 0);
     nt.kmRecorrido = safeNumber(nt.kmRecorrido ?? nt.recorrido ?? 0, 0);
     return nt;
   }).filter(Boolean);
 
-  // Migración robusta de deudas: soporta estructura antigua
+  // Deudas: migración robusta
   const migrated = [];
   for (const d of panelData.deudas) {
     if (!d) continue;
-    // Si ya tiene id y campos nuevos, normalizamos nombres
     if (d.id && d.montoTotal !== undefined) {
       const newD = {
         id: d.id,
@@ -128,7 +122,6 @@ function runMigrations() {
       };
       migrated.push(newD);
     } else {
-      // deuda antigua: fields likely {nombre, monto, abonado, frecuencia, abonoSugerido}
       const montoOriginal = safeNumber(d.monto ?? d.montoTotal ?? 0, 0);
       const abonado = safeNumber(d.abonado ?? d.abonadoTotal ?? 0, 0);
       const newD = {
@@ -146,17 +139,18 @@ function runMigrations() {
     }
   }
   panelData.deudas = migrated;
-                                 }
 
+  // parametros
+  panelData.parametros = { ...panelData.parametros, ...(panelData.parametros || {}) };
+}
 // app.js - Parte 2/5
-// Carga / Guardado / Backup / Listeners de Ingresos, Gastos y Gasolina
+// Carga/Guardado/Backup, Listeners de Ingresos/Gastos/Gasolina y helpers UI básicos
 
 function cargarPanelData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
-    // Merge seguro, evitando sobrescribir la estructura base por error
     panelData = { ...panelData, ...parsed };
     panelData.parametros = { ...panelData.parametros, ...(parsed.parametros || {}) };
     runMigrations();
@@ -183,15 +177,13 @@ function guardarPanelData() {
   }
 }
 
-// ---------- Listeners: Ingresos ----------
+// Listeners Ingresos
 function setupIngresoListeners() {
   const btn = $("btnGuardarIngreso");
   if (!btn) return;
   btn.addEventListener("click", () => {
-    const descEl = $("ingresoDescripcion");
-    const cantEl = $("ingresoCantidad");
-    const desc = descEl ? String(descEl.value || "").trim() : "Ingreso manual";
-    const cantidad = safeNumber(cantEl ? cantEl.value : 0, 0);
+    const desc = String($("ingresoDescripcion")?.value || "Ingreso manual").trim();
+    const cantidad = safeNumber($("ingresoCantidad")?.value, 0);
     if (cantidad <= 0) return alert("Introduce una cantidad válida y mayor a cero.");
     const nuevo = {
       descripcion: desc || "Ingreso manual",
@@ -200,8 +192,8 @@ function setupIngresoListeners() {
       timestamp: Date.now()
     };
     panelData.ingresos.push(nuevo);
-    if (descEl) descEl.value = "";
-    if (cantEl) cantEl.value = "";
+    if ($("ingresoDescripcion")) $("ingresoDescripcion").value = "";
+    if ($("ingresoCantidad")) $("ingresoCantidad").value = "";
     guardarPanelData();
     calcularMetricasAutomaticas();
     renderResumenIndex();
@@ -209,17 +201,14 @@ function setupIngresoListeners() {
   });
 }
 
-// ---------- Listeners: Gastos Generales ----------
+// Listeners Gastos
 function setupGastoListeners() {
   const btn = $("btnGuardarGasto");
   if (!btn) return;
   btn.addEventListener("click", () => {
-    const descEl = $("gastoDescripcion");
-    const cantEl = $("gastoCantidad");
-    const catEl = $("gastoCategoria");
-    const desc = descEl ? String(descEl.value || "").trim() : "";
-    const cantidad = safeNumber(cantEl ? cantEl.value : 0, 0);
-    const categoria = catEl ? String(catEl.value || "") : "";
+    const desc = String($("gastoDescripcion")?.value || "").trim();
+    const cantidad = safeNumber($("gastoCantidad")?.value, 0);
+    const categoria = String($("gastoCategoria")?.value || "");
     if (cantidad <= 0 || !categoria) return alert("Introduce una cantidad y categoría válidas.");
     const gasto = {
       descripcion: desc || categoria,
@@ -229,8 +218,8 @@ function setupGastoListeners() {
       timestamp: Date.now()
     };
     panelData.gastos.push(gasto);
-    if (descEl) descEl.value = "";
-    if (cantEl) cantEl.value = "";
+    if ($("gastoDescripcion")) $("gastoDescripcion").value = "";
+    if ($("gastoCantidad")) $("gastoCantidad").value = "";
     guardarPanelData();
     calcularMetricasAutomaticas();
     renderResumenIndex();
@@ -238,15 +227,13 @@ function setupGastoListeners() {
   });
 }
 
-// ---------- Listeners: Gasolina (litros) ----------
+// Listeners Gasolina
 function setupGasListeners() {
   const btn = $("btnGuardarGas");
   if (!btn) return;
   btn.addEventListener("click", () => {
-    const litrosEl = $("litrosGas");
-    const costoEl = $("costoGas");
-    const litros = safeNumber(litrosEl ? litrosEl.value : 0, 0);
-    const costo = safeNumber(costoEl ? costoEl.value : 0, 0);
+    const litros = safeNumber($("litrosGas")?.value, 0);
+    const costo = safeNumber($("costoGas")?.value, 0);
     if (litros <= 0 || costo <= 0) return alert("Introduce un Costo y Litros válidos y mayores a cero.");
     const carga = {
       descripcion: `Gasolina ${litros.toFixed(2)} L`,
@@ -257,11 +244,10 @@ function setupGasListeners() {
       timestamp: Date.now()
     };
     panelData.gastos.push(carga);
-    // Also keep gasolina array for backward compatibility / historical liters
     panelData.gasolina = panelData.gasolina || [];
     panelData.gasolina.push({ litros, costo, fechaLocal: carga.fechaLocal, timestamp: carga.timestamp });
-    if (litrosEl) litrosEl.value = "";
-    if (costoEl) costoEl.value = "";
+    if ($("litrosGas")) $("litrosGas").value = "";
+    if ($("costoGas")) $("costoGas").value = "";
     guardarPanelData();
     calcularMetricasAutomaticas();
     renderResumenIndex();
@@ -269,10 +255,31 @@ function setupGasListeners() {
   });
 }
 
+// Helpers UI pequeños
+function mostrarAlertasOperativas() {
+  const lista = $("listaAlertas");
+  const card = $("cardAlertas");
+  if (!lista || !card) return;
+  const alerts = [];
+  // Ejemplo: si falta km inicial pero hay un turno activo
+  if (turnoActivo && (!panelData.parametros.kmInicialTurno && (panelData.parametros.ultimoKMfinal === null || panelData.parametros.ultimoKMfinal === 0))) {
+    alerts.push("No se ha registrado un KM inicial válido para el turno activo.");
+  }
+  // Si tenemos deudas altas
+  if (safeNumber(panelData.parametros.deudaTotal, 0) > 10000) {
+    alerts.push("Deuda total alta: revisa tus abonos programados.");
+  }
+  if (alerts.length === 0) {
+    card.classList.add("hidden");
+  } else {
+    card.classList.remove("hidden");
+    lista.innerHTML = alerts.map(a => `<li>${a}</li>`).join("");
+  }
+}
 // app.js - Parte 3/5
-// Lógica de Turnos, KM, Wizard de Deudas y Abonos
+// Turnos, KM, Wizard de Deudas, Abonos y render parcial de deudas
 
-// ---------- Turnos UI ----------
+// Turno UI
 function actualizarUIturno() {
   const btnIniciar = $("btnIniciarTurno");
   const btnFinalizar = $("btnFinalizarTurno");
@@ -325,12 +332,11 @@ function finalizarTurno() {
   if (Number.isNaN(recorrido) || recorrido < 0) {
     return alert(`Error: El KM Final (${kmFinal}) no puede ser menor que el KM Inicial (${kmInicialTurno}). Corrige el KM Final.`);
   }
-  // Registrar sólo si al menos se cumple el recorrido (>=0) y ganancia es número válido (>=0)
   if (ganancia >= 0 && recorrido >= 0) {
     const nuevoTurno = {
       inicioTS: inicioTS,
       finTS: finTS,
-      horas: horas.toFixed(2),
+      horas: Number(horas.toFixed(2)),
       ganancia,
       kmRecorrido: recorrido,
       kmInicial: kmInicialTurno,
@@ -373,7 +379,7 @@ function finalizarTurno() {
   }
 }
 
-// ---------- KM listeners ----------
+// KM listeners y guardado
 function setupKmListeners() {
   const kmInicialInput = $("kmInicial");
   const kmFinalInput = $("kmFinal");
@@ -414,7 +420,7 @@ function setupKmListeners() {
   });
 }
 
-// ---------- Deudas: Wizard y Abonos ----------
+// Deudas: Wizard y Abonos
 function updateDeudaWizardUI() {
   const steps = [$("deudaStep1"), $("deudaStep2"), $("deudaStep3"), $("deudaStep4")];
   if (!steps[0]) return;
@@ -476,7 +482,7 @@ function setupDeudaWizardListeners() {
       historialAbonos: []
     };
     panelData.deudas.push(nueva);
-    // Reset wizard fields safely
+    // Reset
     if ($("deudaNombre")) $("deudaNombre").value = "";
     if ($("deudaMonto")) $("deudaMonto").value = "";
     if ($("deudaFrecuencia")) $("deudaFrecuencia").value = "";
@@ -545,9 +551,9 @@ function renderDeudas() {
       select.innerHTML += `<option value="${deuda.id}">${deuda.nombre} ($${fmtMoney(deuda.saldo)} Pendiente)</option>`;
     }
   }
-      }
+}
 // app.js - Parte 4/5
-// IO (Import/Export/Excel), cálculos automáticos, render de tabla de turnos y KM mensual
+// IO (Import/Export/Excel), cálculos automáticos, render tabla turnos y tabla km mensual
 
 function setupIoListeners() {
   const btnExport = $("btnExportar");
@@ -574,7 +580,6 @@ function setupIoListeners() {
         const imported = JSON.parse(json);
         if (!confirm("ADVERTENCIA: reemplazar datos actuales con datos importados?")) return;
         panelData = { ...panelData, ...imported };
-        // Reasegurar estructura base y migrar
         runMigrations();
         guardarPanelData();
         alert("Datos restaurados correctamente. Recargando...");
@@ -625,18 +630,20 @@ function exportToExcel() {
   }
 }
 
-// ---------- Cálculos automáticos ----------
+// cálculos automáticos agrupados
 function calcularMetricasAutomaticas() {
   calcularDeudaTotalAuto();
   calcularGastoFijoAuto();
   calcularCostosPorKmAuto();
   guardarPanelData();
+  mostrarAlertasOperativas();
 }
 
 function calcularDeudaTotalAuto() {
   const total = (panelData.deudas || []).reduce((s, d) => s + Math.max(0, safeNumber(d.saldo, 0)), 0);
   panelData.parametros.deudaTotal = total;
   if ($("proyDeudaTotal")) $("proyDeudaTotal").value = `$${fmtMoney(total)}`;
+  if ($("proyDeuda")) $("proyDeuda").textContent = `$${fmtMoney(total)}`;
 }
 
 function calcularGastoFijoAuto() {
@@ -644,6 +651,7 @@ function calcularGastoFijoAuto() {
   if (gastosHogar.length === 0) {
     panelData.parametros.gastoFijo = 0;
     if ($("proyGastoFijo")) $("proyGastoFijo").value = "$0.00";
+    if ($("proyGastoFijoDiario")) $("proyGastoFijoDiario").textContent = `$0.00`;
     return;
   }
   const daySet = new Set();
@@ -657,13 +665,13 @@ function calcularGastoFijoAuto() {
   const gastoDiario = totalMonto / dias;
   panelData.parametros.gastoFijo = gastoDiario;
   if ($("proyGastoFijo")) $("proyGastoFijo").value = `$${fmtMoney(gastoDiario)}`;
+  if ($("proyGastoFijoDiario")) $("proyGastoFijoDiario").textContent = `$${fmtMoney(gastoDiario)}`;
 }
 
 function calcularCostosPorKmAuto() {
   const totalKm = (panelData.kmDiarios || []).reduce((s, k) => s + safeNumber(k.recorrido, 0), 0);
   const totalGas = (panelData.gastos || []).filter(g => g.categoria === "Transporte (Gasolina)").reduce((s, g) => s + safeNumber(g.cantidad, 0), 0);
   const totalMant = (panelData.gastos || []).filter(g => g.categoria === "Mantenimiento VEHÍCULO").reduce((s, g) => s + safeNumber(g.cantidad, 0), 0);
-  // Estimación preventiva por KM usando parámetros base
   const basePreventivoPerKm = (
     (300 / 3000) + // aceite
     (500 / 8000) + // bujía
@@ -676,9 +684,13 @@ function calcularCostosPorKmAuto() {
   }
   panelData.parametros.costoPorKm = costoGasKm;
   panelData.parametros.costoMantenimientoPorKm = costoMantKm;
+  if ($("proyCostoGasKm")) $("proyCostoGasKm").textContent = `$${fmtMoney(costoGasKm, 4)}`;
+  if ($("proyCostoTotalKm")) $("proyCostoTotalKm").textContent = `$${fmtMoney(costoGasKm + costoMantKm, 4)}`;
 }
+// app.js - Parte 5/5
+// Render final (turnos, tablas, graficas seguras, historial), tutorial y INIT
 
-// ---------- Render Tabla Turnos ----------
+// Render tabla turnos (últimos 10)
 function renderTablaTurnos() {
   const tbody = $("tablaTurnos");
   if (!tbody) return;
@@ -700,12 +712,9 @@ function renderTablaTurnos() {
       </tr>
     `;
   }).join("");
-                                                      }
+}
 
-
-// app.js - Parte 5/5
-// Render charts (seguro), render tablaKmMensual, resumen e init
-
+// Tabla mensual KM
 function renderTablaKmMensual() {
   const container = $("tablaKmMensual");
   if (!container) return;
@@ -727,6 +736,7 @@ function renderTablaKmMensual() {
     }
   }
   const rows = Object.keys(stats).sort((a, b) => {
+    // orden descendente por fecha tentativa
     const da = new Date(a).getTime();
     const db = new Date(b).getTime();
     return db - da;
@@ -743,12 +753,10 @@ function renderTablaKmMensual() {
   `;
 }
 
-// ---------- Charts seguros (Chart.js) ----------
+// Charts seguros
 function renderCharts() {
-  // defensas: si Chart no está cargado, salir silenciosamente
   if (typeof Chart === "undefined") return;
   try {
-    // Datos últimos 14 días (ingresos vs gastos trabajo)
     const days = 14;
     const labels = [];
     const incomes = [];
@@ -759,14 +767,12 @@ function renderCharts() {
       d.setDate(today.getDate() - i);
       const key = getDateKey(d);
       labels.push(d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit' }));
-      // sumar ingresos/gastos de ese dayKey
       const ing = (panelData.ingresos || []).filter(it => getDateKey(it.timestamp) === key).reduce((s, it) => s + safeNumber(it.cantidad, 0), 0);
       const gas = (panelData.gastos || []).filter(g => getDateKey(g.timestamp) === key && (String(g.categoria || "").includes("TRABAJO") || String(g.categoria || "").includes("Transporte"))).reduce((s, g) => s + safeNumber(g.cantidad, 0), 0);
       incomes.push(ing);
       expenses.push(gas);
     }
 
-    // Ganancias chart
     const ctx1 = $("graficaGanancias");
     if (ctx1) {
       if (gananciasChart) gananciasChart.destroy();
@@ -788,11 +794,9 @@ function renderCharts() {
       });
     }
 
-    // KM chart: Ganancia neta por KM o KM recorridos por día
     const ctx2 = $("graficaKm");
     if (ctx2) {
       if (kmChart) kmChart.destroy();
-      // Mostrar KM diarios
       const kmLabels = [];
       const kmData = [];
       for (let i = days - 1; i >= 0; i--) {
@@ -814,9 +818,9 @@ function renderCharts() {
   }
 }
 
-// ---------- Render resumen y proyecciones ----------
+// Resumen y proyecciones
 function calcularResumenDatos() {
-  const todayKey = getDateKey(); // YYYY-MM-DD
+  const todayKey = getDateKey();
   const ingresosHoy = (panelData.ingresos || []).filter(i => getDateKey(i.timestamp) === todayKey);
   const gastosHoy = (panelData.gastos || []).filter(g => getDateKey(g.timestamp) === todayKey);
   const turnosHoy = (panelData.turnos || []).filter(t => getDateKey(t.timestamp) === todayKey);
@@ -835,57 +839,128 @@ function renderResumenIndex() {
   $("resGananciaBruta").textContent = `$${fmtMoney(r.ganHoy)}`;
   $("resGastosTrabajo").textContent = `$${fmtMoney(r.gastTrabajoHoy)}`;
   $("resNeta").textContent = `$${fmtMoney(r.netaHoy)}`;
-  // Proyecciones
   if ($("proyDeuda")) $("proyDeuda").textContent = `$${fmtMoney(panelData.parametros.deudaTotal)}`;
   if ($("proyGastoFijoDiario")) $("proyGastoFijoDiario").textContent = `$${fmtMoney(panelData.parametros.gastoFijo)}`;
   if ($("proyNetaPromedio")) {
-    // Calculamos neta diaria promedio aproximada:
     const totalIng = (panelData.ingresos || []).reduce((s, i) => s + safeNumber(i.cantidad, 0), 0);
     const totalGastTrabajo = (panelData.gastos || []).filter(g => typeof g.categoria === 'string' && (g.categoria.includes("TRABAJO") || g.categoria.includes("Transporte") || g.categoria.includes("Mantenimiento VEHÍCULO") || g.categoria.includes("Abono a Deuda"))).reduce((s, g) => s + safeNumber(g.cantidad, 0), 0);
     const diasTrabajados = Math.max(1, new Set((panelData.ingresos || []).map(i => getDateKey(i.timestamp))).size);
     const netoDiarioProm = (totalIng - totalGastTrabajo) / diasTrabajados;
     $("proyNetaPromedio").textContent = `$${fmtMoney(netoDiarioProm)}`;
   }
-  // Actualizar tablas y graficas
   renderTablaTurnos();
   renderTablaKmMensual();
   renderCharts();
   renderDeudas();
+  if ($("proyDias")) {
+    const deuda = safeNumber(panelData.parametros.deudaTotal, 0);
+    const netoDiario = safeNumber(document.querySelector("#proyNetaPromedio")?.textContent?.replace(/[^0-9.-]+/g,"") ,0) || 0;
+    const dias = netoDiario > 0 ? Math.ceil(deuda / netoDiario) : "–";
+    $("proyDias").textContent = dias === "–" ? "Calculando..." : `${dias} días (estimado)`;
+  }
 }
 
-// ---------- INIT ----------
+// Historial render
+function renderHistorial() {
+  const tbody = $("historialBody");
+  const resumen = $("historialResumen");
+  if (!tbody || !resumen) return;
+  const movimientos = [
+    ...((panelData.ingresos || []).map(i => ({ tipo: 'Ingreso', fecha: i.fechaLocal, descripcion: i.descripcion, monto: i.cantidad }))),
+    ...((panelData.gastos || []).map(g => ({ tipo: 'Gasto', fecha: g.fechaLocal, descripcion: g.descripcion, monto: g.cantidad })))
+  ].sort((a,b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  if (movimientos.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center">Sin movimientos</td></tr>`;
+    resumen.innerHTML = `<p>No hay datos para mostrar.</p>`;
+    return;
+  }
+  tbody.innerHTML = movimientos.map(m => `<tr><td>${m.tipo}</td><td>${m.fecha}</td><td>${m.descripcion}</td><td>$${fmtMoney(m.monto)}</td></tr>`).join("");
+  // resumen simple
+  const totalIngresos = (panelData.ingresos || []).reduce((s,i)=>s+safeNumber(i.cantidad,0),0);
+  const totalGastos = (panelData.gastos || []).reduce((s,g)=>s+safeNumber(g.cantidad,0),0);
+  resumen.innerHTML = `<p>Total Ingresos: $${fmtMoney(totalIngresos)} — Total Gastos: $${fmtMoney(totalGastos)}</p>`;
+}
+
+// Tutorial modal (centralizado y seguro)
+function setupTutorial() {
+  const overlay = $("tutorialOverlay");
+  const modal = $("tutorialModal");
+  const title = $("tutorialTitle");
+  const text = $("tutorialText");
+  const btn = $("tutorialNextBtn");
+  if (!overlay || !modal || !btn || !title || !text) return;
+  // pasos simples
+  const steps = [
+    { t: "Bienvenido", txt: "Este tutorial muestra las funciones básicas del tracker." },
+    { t: "Registrar Turno", txt: "Ve a Administración y utiliza 'Iniciar Turno' antes de comenzar." },
+    { t: "Registrar Gastos", txt: "Registra combustible y gastos para calcular costos por KM." },
+    { t: "Panel", txt: "Revisa el Panel para métricas diarias y gráficas." }
+  ];
+  let cur = 0;
+  function showStep(i) {
+    const s = steps[i] || steps[0];
+    title.textContent = s.t;
+    text.textContent = s.txt;
+    overlay.style.display = 'block';
+    modal.style.display = 'block';
+    btn.textContent = (i === steps.length - 1) ? "Entendido" : "Siguiente";
+  }
+  btn.addEventListener("click", () => {
+    if (cur < steps.length - 1) { cur++; showStep(cur); return; }
+    // cerrar
+    overlay.style.display = 'none';
+    modal.style.display = 'none';
+    panelData.parametros.tutorialVisto = true;
+    guardarPanelData();
+  });
+  // Si no visto, mostrar al inicio
+  if (!panelData.parametros.tutorialVisto) {
+    showStep(0);
+  } else {
+    // asegurarse oculto
+    overlay.style.display = 'none';
+    modal.style.display = 'none';
+  }
+}
+
+// INIT
 function initApp() {
   cargarPanelData();
-  // Detectar si estamos en admin o index por título
-  const title = (document.title || "").toLowerCase();
-  // Listeners comunes
+  runMigrations();
+  // listeners comunes
   setupIoListeners();
-  // Admin page
-  if (title.includes("administración") || title.includes("administracion")) {
+  // Detect page por title
+  const title = (document.title || "").toLowerCase();
+  if (title.includes("administración") || title.includes("administracion") || title.includes("panel administrativo")) {
     setupIngresoListeners();
     setupGastoListeners();
     setupGasListeners();
     setupDeudaWizardListeners();
     setupAbonoListeners();
     setupKmListeners();
+    setupDeudaWizardListeners();
     if ($("btnIniciarTurno")) $("btnIniciarTurno").addEventListener("click", iniciarTurno);
     if ($("btnFinalizarTurno")) $("btnFinalizarTurno").addEventListener("click", finalizarTurno);
     actualizarUIturno();
     renderDeudas();
     updateDeudaWizardUI();
   }
-  // Index page
-  if (title.includes("resultados") || title.includes("dashboard") || title.includes("panel de resultados")) {
+  if (title.includes("resultados") || title.includes("dashboard") || title.includes("panel de resultados") || title.includes("panel")) {
     renderResumenIndex();
   }
-  // Precargar KM inicial
+  // historial page
+  if (title.includes("historial")) {
+    renderHistorial();
+  }
+  // Inicializaciones adicionales
   if ($("kmInicial") && panelData.parametros.ultimoKMfinal !== null) {
     $("kmInicial").value = Number(panelData.parametros.ultimoKMfinal).toFixed(0);
   }
-  // Calculos iniciales
   calcularMetricasAutomaticas();
-  // UI inicial
   actualizarUIturno();
+  setupTutorial();
+  mostrarAlertasOperativas();
 }
 
+// DOM ready
 document.addEventListener("DOMContentLoaded", initApp);
