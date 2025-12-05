@@ -1,95 +1,117 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resultados – Uber Eats Tracker</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Panel de Resultados – Uber Eats Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body>
 
 <header class="header">
-    <h1>Panel de Resultados</h1>
-    <a href="admin.html" class="btn-admin" id="adminButton">⚙ Ir al Administrador</a>
+  <h1>Panel de Resultados</h1>
+  <a href="admin.html" class="btn-admin" id="adminButton">⚙ Ir al Administrador</a>
 </header>
 
 <main class="container">
 
-    <section class="card" id="cardResumen"> 
-        <h2>Resumen del Día (Hoy)</h2>
-        <div class="stats-grid">
-            <div class="stat">
-                <label>Horas</label>
-                <span id="resHoras">0</span>
-            </div>
-            <div class="stat">
-                <label>Ganancia Bruta</label>
-                <span id="resGananciaBruta">$0.00</span>
-            </div>
-            <div class="stat">
-                <label>Gastos</label>
-                <span id="resGastos">$0.00</span>
-            </div>
-            <div class="stat">
-                <label>Neta</label>
-                <span id="resNeta">$0.00</span>
-            </div>
-        </div>
-    </section>
-    
-    <section class="card">
-        <h2>Proyección Real</h2>
-        <p>Basado en tus promedios y deudas.</p>
-        <div class="projection"><label>Deuda total:</label> <span id="proyDeuda">$0</span></div>
-        <div class="projection"><label>Neta diaria prom:</label> <span id="proyNeta">$0</span></div>
-        <div class="projection"><label>Tiempo libre de deudas:</label> <span id="proyDias">Calculando...</span></div>
-    </section>
+  <section class="card hidden" id="cardAlertas">
+    <h2>⚠️ Alertas Operativas</h2>
+    <ul id="listaAlertas" class="alert-list"></ul>
+  </section>
 
-    <section class="card">
-        <h2>Rendimiento del Vehículo (Acumulado)</h2>
-        <p>Promedios calculados desde el primer registro.</p>
-        <div class="projection"><label>Costo Gasolina / KM:</label> <span id="proyCostoGasKm">$0.0000</span></div>
-        <div class="projection"><label>Costo Mantenimiento / KM:</label> <span id="proyCostoMantKm">$0.0000</span></div>
-        <div class="projection"><label>Costo Operativo Total / KM:</label> <span id="proyCostoTotalKm">$0.0000</span></div>
-    </section>
-    <section class="card">
-        <h2>Últimos Turnos</h2>
-        <table class="tabla">
-            <thead>
-            <tr>
-                <th>Fecha</th>
-                <th>Horas</th>
-                <th>Ganancia</th>
-            </tr>
-            </thead>
-            <tbody id="tablaTurnos"></tbody>
-        </table>
-    </section>
-    
-    <section class="card">
-        <h2>Control Gasolina / KM (Histórico Mensual)</h2>
-        <div id="tablaKmMensual"></div>
-    </section>
+  <section class="card" id="cardResumen">
+    <h2>Resumen del Día (Hoy)</h2>
+    <div class="stats-grid">
+      <div class="stat">
+        <label>Horas Trabajadas</label>
+        <span id="resHoras">0.00h</span>
+      </div>
+      <div class="stat stat-large">
+        <label>Ganancia Bruta (Hoy)</label>
+        <span id="resGananciaBruta">$0.00</span>
+      </div>
+      <div class="stat stat-large">
+        <label>Gastos Trabajo (Hoy)</label>
+        <span id="resGastosTrabajo">$0.00</span>
+      </div>
+      <div class="stat stat-highlight">
+        <label>Ganancia Neta (Hoy)</label>
+        <span id="resNeta">$0.00</span>
+      </div>
+    </div>
+  </section>
 
-    <section class="card">
-        <h2>Balance (14 días)</h2>
-        <canvas id="graficaGanancias"></canvas>
-    </section>
+  <section class="card">
+    <h2>Métricas Clave (Acumulado)</h2>
+    <p>Valores promedio calculados del historial.</p>
+    <div class="projection-grid">
+      <div class="projection">
+        <label>Ganancia Neta / Hora</label>
+        <span id="proyNetaHoraProm">$0.00</span>
+      </div>
+      <div class="projection">
+        <label>Ganancia Neta / KM</label>
+        <span id="proyNetaKmProm">$0.000</span>
+      </div>
+      <div class="projection">
+        <label>Costo Operativo Total / KM</label>
+        <span id="proyCostoTotalKm">$0.0000</span>
+      </div>
+      <div class="projection">
+        <label>Costo Gasolina / KM</label>
+        <span id="proyCostoGasKm">$0.0000</span>
+      </div>
+    </div>
+  </section>
 
-    <section class="card">
-        <h2>Rendimiento KM</h2>
-        <canvas id="graficaKm"></canvas>
-    </section>
+  <section class="card">
+    <h2>Proyección Financiera</h2>
+    <p>Proyecciones basadas en tu ritmo actual.</p>
+    <div class="projection"><label>Deuda total pendiente:</label> <span id="proyDeuda">$0</span></div>
+    <div class="projection"><label>Gasto fijo diario (HOGAR):</label> <span id="proyGastoFijoDiario">$0.00</span></div>
+    <div class="projection"><label>Ganancia neta diaria prom:</label> <span id="proyNetaPromedio">$0</span></div>
+    <div class="projection"><label>Tiempo libre de deudas:</label> <span id="proyDias">Calculando...</span></div>
+  </section>
+
+  <section class="card">
+    <h2>Últimos Turnos</h2>
+    <table class="tabla">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Horas</th>
+          <th>KM</th>
+          <th>Neta (Est.)</th>
+        </tr>
+      </thead>
+      <tbody id="tablaTurnos"></tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Control Gasolina / KM (Histórico Mensual)</h2>
+    <div id="tablaKmMensual"></div>
+  </section>
+
+  <section class="card">
+    <h2>Balance Financiero (14 días)</h2>
+    <canvas id="graficaGanancias"></canvas>
+  </section>
+
+  <section class="card">
+    <h2>Rendimiento Operativo Diario</h2>
+    <canvas id="graficaKm"></canvas>
+  </section>
 
 </main>
 
 <div id="tutorialOverlay"></div>
 <div id="tutorialModal" class="modal-center">
-    <h3 id="tutorialTitle">Bienvenido</h3>
-    <p id="tutorialText">Iniciando...</p>
-    <button id="tutorialNextBtn" class="btn-primary" style="width:100%; margin-top:10px;">Siguiente</button>
+  <h3 id="tutorialTitle">Bienvenido</h3>
+  <p id="tutorialText">Iniciando...</p>
+  <button id="tutorialNextBtn" class="btn-primary" style="width:100%; margin-top:10px;">Siguiente</button>
 </div>
 
 <script src="app.js"></script>
