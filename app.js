@@ -1,5 +1,13 @@
-// app.js - Parte 1/5 (CORREGIDO Y DFP - Defensa fuerte de datos)
-// Inicialización, constantes, utilidades y migraciones robustas
+// app.js - VERSIÓN INTEGRADA, CORREGIDA y DFP (A + B)
+// --------------------------------------------------
+// Cambios principales:
+// - Migraciones robustas y curación automática de datos cargados.
+// - Validaciones defensivas (evitan TypeError / RangeError).
+// - Integración con index/admin/historial (listeners y renders).
+// - Render simple de gráficas usando Chart.js si está disponible.
+// - Función validarYArreglarDatos() que intenta corregir problemas detectados.
+// - No modifica tu estructura de datos salvo para sanear (merge seguro).
+// --------------------------------------------------
 
 const STORAGE_KEY = "panelData";
 const BACKUP_KEY = "panelData_backup_v1";
@@ -46,6 +54,10 @@ function safeNumber(v, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function isObject(v) {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
 /**
  * Formatea un número como moneda (sin símbolo de moneda).
  * @param {number} num
@@ -69,10 +81,14 @@ function formatearFecha(date) {
 // ---------- MANEJO DE DATOS ----------
 
 /**
- * Asegura que la estructura de panelData esté completa para evitar errores al cargar desde versiones antiguas.
+ * Intenta detectar datos antiguos y migrarlos/sanar automáticamente.
+ * Corrige:
+ * - Estructuras faltantes (parametros.*, mantenimientoBase)
+ * - Campos numéricos no numéricos
+ * - Fechas faltantes en turnos / movimientos (agrega fecha actual si faltan)
  */
-function asegurarEstructura() {
-  // Colecciones principales
+function validarYArreglarDatos() {
+  // 1) Colecciones principales
   if (!Array.isArray(panelData.ingresos)) panelData.ingresos = [];
   if (!Array.isArray(panelData.gastos)) panelData.gastos = [];
   if (!Array.isArray(panelData.kmDiarios)) panelData.kmDiarios = [];
@@ -80,33 +96,102 @@ function asegurarEstructura() {
   if (!Array.isArray(panelData.movimientos)) panelData.movimientos = [];
   if (!Array.isArray(panelData.turnos)) panelData.turnos = [];
 
-  // Asegurar 'parametros' es un objeto; si no, usar defaults
-  if (typeof panelData.parametros !== 'object' || panelData.parametros === null) {
-    panelData.parametros = JSON.parse(JSON.stringify(DEFAULT_PANEL_DATA.parametros));
-  } else {
-    // Fusionar de forma segura: empezamos por defaults y sobreescribimos solo con propiedades válidas
-    const merged = JSON.parse(JSON.stringify(DEFAULT_PANEL_DATA.parametros));
-    // Copiar propiedades existentes si son válidas
-    if ('deudaTotal' in panelData.parametros) merged.deudaTotal = safeNumber(panelData.parametros.deudaTotal);
-    if ('gastoFijo' in panelData.parametros) merged.gastoFijo = safeNumber(panelData.parametros.gastoFijo);
-    if ('ultimoKMfinal' in panelData.parametros) merged.ultimoKMfinal = panelData.parametros.ultimoKMfinal === null ? null : safeNumber(panelData.parametros.ultimoKMfinal, null);
-    if ('costoPorKm' in panelData.parametros) merged.costoPorKm = safeNumber(panelData.parametros.costoPorKm);
-    if ('costoMantenimientoPorKm' in panelData.parametros) merged.costoMantenimientoPorKm = safeNumber(panelData.parametros.costoMantenimientoPorKm);
-    // mantenimientoBase: si viene y es objeto, combinar keys
-    if (typeof panelData.parametros.mantenimientoBase === 'object' && panelData.parametros.mantenimientoBase !== null) {
-      merged.mantenimientoBase = { ...merged.mantenimientoBase, ...panelData.parametros.mantenimientoBase };
+  // 2) Algunos usuarios previos pudieron tener objeto "mantenimiento" fuera de parametros
+  // Moverlo si existe
+  if (panelData.mantenimiento && isObject(panelData.mantenimiento)) {
+    if (!panelData.parametros) panelData.parametros = {};
+    if (!isObject(panelData.parametros.mantenimientoBase)) {
+      panelData.parametros.mantenimientoBase = {};
     }
-    panelData.parametros = merged;
+    panelData.parametros.mantenimientoBase = {
+      ...panelData.parametros.mantenimientoBase,
+      ...panelData.mantenimiento
+    };
+    delete panelData.mantenimiento;
   }
 
-  // Asegurar tipos numéricos finales
+  // 3) Asegurar parametros
+  if (!isObject(panelData.parametros)) {
+    panelData.parametros = JSON.parse(JSON.stringify(DEFAULT_PANEL_DATA.parametros));
+  } else {
+    // merge seguro
+    const p = panelData.parametros;
+    panelData.parametros = {
+      ...JSON.parse(JSON.stringify(DEFAULT_PANEL_DATA.parametros)),
+      ...p
+    };
+    // mantenimientoBase merge
+    if (!isObject(panelData.parametros.mantenimientoBase)) {
+      panelData.parametros.mantenimientoBase = JSON.parse(JSON.stringify(DEFAULT_PANEL_DATA.parametros.mantenimientoBase));
+    } else {
+      panelData.parametros.mantenimientoBase = {
+        ...JSON.parse(JSON.stringify(DEFAULT_PANEL_DATA.parametros.mantenimientoBase)),
+        ...panelData.parametros.mantenimientoBase
+      };
+    }
+  }
+
+  // 4) Forzar tipos numéricos para campos clave
   panelData.parametros.deudaTotal = safeNumber(panelData.parametros.deudaTotal);
   panelData.parametros.gastoFijo = safeNumber(panelData.parametros.gastoFijo);
   panelData.parametros.costoPorKm = safeNumber(panelData.parametros.costoPorKm);
   panelData.parametros.costoMantenimientoPorKm = safeNumber(panelData.parametros.costoMantenimientoPorKm);
-  if (panelData.parametros.ultimoKMfinal !== null) {
-    panelData.parametros.ultimoKMfinal = safeNumber(panelData.parametros.ultimoKMfinal, null);
-  }
+  panelData.parametros.ultimoKMfinal = panelData.parametros.ultimoKMfinal === null ? null : safeNumber(panelData.parametros.ultimoKMfinal);
+
+  // 5) Saneamiento de turnos: asegurar fechas y horas válidas
+  panelData.turnos = panelData.turnos.map(t => {
+    const copy = Object.assign({}, t);
+    // fechaInicio / fechaFin: si faltan, crear con fecha actual y avisar
+    if (!copy.fechaInicio) {
+      console.warn("Turno sin fechaInicio detectado. Se asigna fecha actual:", copy);
+      copy.fechaInicio = new Date().toISOString();
+    }
+    if (!copy.fechaFin) {
+      // si no hay fechaFin, mantenerlo como null o usar fechaInicio para evitar NaN
+      copy.fechaFin = copy.fechaFin || copy.fechaInicio;
+    }
+    // horas, kmRecorridos, gananciaBruta: forzar números
+    copy.horas = safeNumber(copy.horas);
+    copy.kmRecorridos = safeNumber(copy.kmRecorridos);
+    copy.gananciaBruta = safeNumber(copy.gananciaBruta);
+    copy.gananciaNeta = safeNumber(copy.gananciaNeta);
+    copy.kmInicial = safeNumber(copy.kmInicial);
+    copy.kmFinal = safeNumber(copy.kmFinal);
+    return copy;
+  });
+
+  // 6) Saneamiento de movimientos/ingresos/gastos: fechas y montos
+  ['movimientos', 'ingresos', 'gastos'].forEach(key => {
+    panelData[key] = panelData[key].map(m => {
+      const copy = Object.assign({}, m);
+      if (!copy.fecha) {
+        // intenta usar fecha ISO si existe otro campo; si no, asigna ahora
+        copy.fecha = new Date().toISOString();
+        console.warn(`Movimiento sin fecha detectado en ${key}. Se asignó fecha actual.`, m);
+      }
+      copy.monto = safeNumber(copy.monto);
+      if (copy.esTrabajo === undefined) copy.esTrabajo = false;
+      return copy;
+    });
+  });
+
+  // 7) Saneamiento de deudas
+  panelData.deudas = panelData.deudas.map(d => {
+    const copy = Object.assign({}, d);
+    copy.saldo = safeNumber(copy.saldo, safeNumber(copy.montoOriginal, 0));
+    if (!copy.estado) copy.estado = copy.saldo > 0 ? 'Pendiente' : 'Pagada';
+    return copy;
+  });
+
+  // 8) Persistir arreglos si hubo cambio (no rompemos datos originales, solo saneamos)
+  saveData();
+}
+
+/**
+ * Asegura que la estructura de panelData esté completa (compatibilidad).
+ */
+function asegurarEstructura() {
+  validarYArreglarDatos();
 }
 
 /**
@@ -117,9 +202,7 @@ function cargarPanelData() {
   if (data) {
     try {
       const loadedData = JSON.parse(data);
-      // Validación: solo sobreescribir si loadedData es objeto
-      if (typeof loadedData === 'object' && loadedData !== null) {
-        // No reasignamos panelData por completo para preservar defaults; fusionamos
+      if (isObject(loadedData)) {
         panelData = { ...panelData, ...loadedData };
       } else {
         console.warn("panelData en localStorage no es un objeto. Ignorando.");
@@ -131,7 +214,7 @@ function cargarPanelData() {
       if (backupData) {
         try {
           const parsed = JSON.parse(backupData);
-          if (typeof parsed === 'object' && parsed !== null) {
+          if (isObject(parsed)) {
             panelData = { ...panelData, ...parsed };
             console.warn("Se cargó el backup debido a error de parseo.");
           }
@@ -158,7 +241,7 @@ function saveData() {
   }
 }
 
-// ---------- GESTIÓN DE TURNO (omito por espacio) ----------
+// ---------- GESTIÓN DE TURNO ----------
 function actualizarUIturno() {
   const btnIniciar = $("btnIniciarTurno");
   const btnFinalizar = $("btnFinalizarTurno");
@@ -171,7 +254,10 @@ function actualizarUIturno() {
   const labelGananciaBruta = $("labelGananciaBruta");
 
   if (turnoActivo) {
-    if (textoTurno && turnoInicio) textoTurno.innerHTML = `🟢 Turno activo iniciado el ${new Date(safeNumber(turnoInicio)).toLocaleString()}`;
+    if (textoTurno && turnoInicio) {
+      // si turnoInicio es string TS, safeNumber lo convierte correctamente
+      textoTurno.innerHTML = `🟢 Turno activo iniciado el ${new Date(safeNumber(turnoInicio)).toLocaleString()}`;
+    }
     if (btnIniciar) btnIniciar.style.display = 'none';
     if (btnFinalizar) btnFinalizar.style.display = 'block';
     if (kmInicialInput) {
@@ -302,7 +388,7 @@ function finalizarTurno() {
   alert(`Turno finalizado. Ganancia Neta Estimada: $${fmtMoney(gananciaNeta)}`);
 }
 
-// ---------- REGISTRO DE MOVIMIENTOS GENERALES (omito por espacio) ----------
+// ---------- REGISTRO DE MOVIMIENTOS GENERALES ----------
 function registrarMovimiento(tipo, descripcion, monto, esTrabajo = false) {
   const mov = {
     id: Date.now(),
@@ -417,7 +503,7 @@ function setupAbonoListeners() {
   });
 }
 
-// ---------- GESTIÓN DE DEUDAS (WIZARD) (omito por espacio) ----------
+// ---------- GESTIÓN DE DEUDAS (WIZARD) ----------
 function updateDeudaWizardUI() {
   if ($('deudaStep1')) $('deudaStep1').style.display = 'none';
   if ($('deudaStep2')) $('deudaStep2').style.display = 'none';
@@ -518,7 +604,7 @@ function renderDeudas() {
   saveData(); // Persistir el total calculado
 }
 
-// ---------- CÁLCULOS Y MÉTRICAS (CORRECCIÓN RangeError y TypeError) ----------
+// ---------- CÁLCULOS Y MÉTRICAS ----------
 function calcularMetricas() {
   const turnos = Array.isArray(panelData.turnos) ? panelData.turnos : [];
   const ingresosTrabajo = Array.isArray(panelData.ingresos) ? panelData.ingresos : [];
@@ -538,7 +624,6 @@ function calcularMetricas() {
   if (turnos.length > 0) {
     const fechas = turnos
       .map(t => {
-        // Mejor validación de fecha
         if (!t || !t.fechaFin) {
           console.warn("Dato de fecha de turno faltante o inválido detectado:", t && t.fechaFin);
           return null;
@@ -632,7 +717,7 @@ function calcularMetricas() {
   saveData();
 }
 
-// ---------- RENDERIZADO DE UI (omito por espacio) ----------
+// ---------- RENDERIZADO DE UI ----------
 function renderTablaTurnos() {
   const tablaTurnosBody = $("tablaTurnos");
   if (!tablaTurnosBody) return;
@@ -669,10 +754,68 @@ function renderCharts() {
   const ctxGanancias = $('graficaGanancias');
   const ctxKm = $('graficaKm');
 
+  // Si Chart.js no está cargado, salimos sin errores
   if (!ctxGanancias || !ctxKm || typeof Chart === 'undefined') return;
 
-  // Lógica de renderizado de gráficos (omitir detalles por brevedad)
-  // Debes construir datasets usando panelData.turnos / panelData.movimientos
+  // Preparar datasets simples (últimos 7 turnos por fecha)
+  const turnos = panelData.turnos
+    .slice()
+    .sort((a, b) => new Date(a.fechaFin) - new Date(b.fechaFin))
+    .slice(-14); // hasta 14 puntos
+
+  const labels = turnos.map(t => {
+    const d = t && t.fechaFin ? new Date(t.fechaFin) : new Date();
+    return d.toLocaleDateString();
+  });
+
+  const ganancias = turnos.map(t => safeNumber(t.gananciaNeta));
+  const kms = turnos.map(t => safeNumber(t.kmRecorridos));
+
+  // Destruir si existen (evita duplicados)
+  try {
+    if (gananciasChart) {
+      gananciasChart.destroy();
+      gananciasChart = null;
+    }
+    if (kmChart) {
+      kmChart.destroy();
+      kmChart = null;
+    }
+  } catch (e) {
+    console.warn("Error destruyendo charts previos:", e);
+  }
+
+  // Crear charts (sin especificar colores, como pediste)
+  gananciasChart = new Chart(ctxGanancias.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Ganancia Neta por turno',
+        data: ganancias,
+        fill: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false
+    }
+  });
+
+  kmChart = new Chart(ctxKm.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Km recorridos',
+        data: kms
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false
+    }
+  });
 }
 
 function renderAlertas(alertas) {
@@ -827,7 +970,7 @@ function exportarExcel() {
   XLSX.writeFile(wb, "UberEatsTracker_Data.xlsx");
 }
 
-// ---------- EVENT LISTENERS GLOBALES (Asegurando el enlace) ----------
+// ---------- EVENT LISTENERS GLOBALES ----------
 function setupIoListeners() {
   if ($("btnExportar")) $("btnExportar").addEventListener("click", exportarJson);
   if ($("btnImportar")) $("btnImportar").addEventListener("click", importarJson);
@@ -840,14 +983,19 @@ function showTutorialModal() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // 1) Cargar y sanear datos
   cargarPanelData();
+
+  // 2) Recalcular métricas tras cargar y sanear
   calcularMetricas();
 
   const body = document.body;
   const page = body ? body.getAttribute('data-page') : null;
 
+  // 3) Listeners globales
   setupIoListeners();
 
+  // 4) Listeners y render por página
   if (page === 'admin') {
     setupIngresoListeners();
     setupGastoListeners();
@@ -860,6 +1008,7 @@ document.addEventListener("DOMContentLoaded", () => {
     actualizarUIturno();
     renderDeudas();
     updateDeudaWizardUI();
+
   } else if (page === 'index') {
     renderResumenIndex();
   } else if (page === 'historial') {
