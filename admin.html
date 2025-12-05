@@ -4,14 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Administración – Uber Eats Tracker</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="style.css" /> <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 </head>
 <body data-page="admin">
 
 <header class="header">
   <h1>Panel Administrativo</h1>
-  <a href="index.html" class="btn-admin" id="adminButton" type="button">⬅ Volver al Panel</a>
+  <div class="header-actions">
+    <a href="index.html" class="btn-admin" id="adminButton" type="button">⬅ Volver al Panel</a>
+  </div>
 </header>
 
 <main class="container">
@@ -19,9 +20,19 @@
   <section class="card" id="cardTurnos">
     <h2>Gestión de Turno</h2>
     <p id="turnoTexto" style="margin-bottom:10px;">🔴 Sin turno activo</p>
+    
+    <label id="labelKmInicial" style="display:none;">KM Inicial (Lectura/Corrección):</label>
+    <input type="number" id="kmInicial" style="display:none;" />
+
+    <label id="labelKmFinal" style="display:none;">KM Final:</label>
+    <input type="number" id="kmFinal" style="display:none;" />
+
+    <label id="labelGananciaBruta" style="display:none;">Ganancia Bruta del Turno ($):</label>
+    <input type="number" id="gananciaBruta" style="display:none;" placeholder="0.00" />
+    
     <button id="btnIniciarTurno" class="btn-success" type="button">Iniciar Turno</button>
     <button id="btnFinalizarTurno" class="btn-danger" type="button" style="display:none;">Finalizar Turno</button>
-    <p class="nota">Al iniciar, el KM Inicial se registra automáticamente. Si no hay, ponlo manual.</p>
+    <p class="nota">Al iniciar, el KM Inicial se precarga del último registro. Se puede corregir manualmente.</p>
   </section>
 
   <section class="card">
@@ -30,100 +41,61 @@
     <input type="text" id="ingresoDescripcion" placeholder="Ej. Propina extra, Pago Plataforma" />
     <label>Monto:</label>
     <input type="number" id="ingresoCantidad" placeholder="0.00" />
-    <button id="btnGuardarIngreso" class="btn-primary" type="button">Guardar Ingreso</button>
+    <button id="btnRegistrarIngreso" class="btn-primary" type="button">Registrar Ingreso</button>
   </section>
 
   <section class="card">
-    <h2>Registro de Gasolina (Carga)</h2>
-    <label>Litros Cargados:</label>
-    <input type="number" id="litrosGas" placeholder="0.00" />
-    <label>Costo Total ($):</label>
-    <input type="number" id="costoGas" placeholder="0.00" />
-    <button id="btnGuardarGas" class="btn-primary" type="button">Guardar Carga y Gasto</button>
-  </section>
-
-  <section class="card">
-    <h2>Registrar Gasto General</h2>
+    <h2>Registrar Gasto (Trabajo y Otros)</h2>
     <label>Descripción:</label>
-    <input type="text" id="gastoDescripcion" placeholder="Ej. Agua, Comida, Renta..." />
+    <input type="text" id="gastoDescripcion" placeholder="Ej. Gasolina, Peaje, Refacciones" />
     <label>Monto:</label>
     <input type="number" id="gastoCantidad" placeholder="0.00" />
-    <label>Categoría:</label>
-    <select id="gastoCategoria">
-      <optgroup label="TRABAJO (Variables)">
-        <option value="Comida TRABAJO">Comida (Turno)</option>
-        <option value="Transporte (Peaje)">Peajes/Parking</option>
-        <option value="Mantenimiento VEHÍCULO">Mantenimiento (Aceite, Bujías, etc.)</option>
-        <option value="Abono a Deuda TRABAJO">Abono a Deuda</option>
-        <option value="Otros TRABAJO">Otros gastos (Turno)</option>
-      </optgroup>
-      <optgroup label="HOGAR (Fijos/Diarios)">
-        <option value="Comida HOGAR">Comida (Diaria/Super)</option>
-        <option value="Renta/Hipotecar">Renta/Hipotecar</option>
-        <option value="Servicios/Luz/Agua">Servicios (Luz, Agua, Internet)</option>
-        <option value="Otros HOGAR">Otros gastos (Hogar)</option>
-      </optgroup>
+    <label>¿Es gasto fijo/hogar?</label>
+    <select id="gastoTipo">
+      <option value="trabajo">Trabajo (Operativo)</option>
+      <option value="fijo">Fijo (Hogar/Personal)</option>
     </select>
-    <button id="btnGuardarGasto" class="btn-primary" type="button">Guardar Gasto</button>
+    <button id="btnRegistrarGasto" class="btn-danger" type="button">Registrar Gasto</button>
   </section>
 
   <section class="card">
-    <h2>Registro de Kilometraje</h2>
-    <label>KM Inicial (Odómetro):</label>
-    <input type="number" id="kmInicial" placeholder="0" readonly style="background:#eee;" />
-    <label>KM Final (Odómetro):</label>
-    <input type="number" id="kmFinal" placeholder="0" />
-    <p>KM Recorridos: <strong id="kmRecorridos">0</strong></p>
-    <button id="btnGuardarKm" class="btn-primary" type="button">Guardar KM</button>
-    <p class="nota">⚠ El KM Final debe ser mayor al KM Inicial. (Validación automática)</p>
+    <h2>Parámetros Operativos</h2>
+    <label>Costo Estimado por KM ($/km):</label>
+    <input type="number" id="costoPorKm" />
+    <button id="btnGuardarKmParam" class="btn-secondary" type="button">Guardar</button>
+    <p class="nota">Usado para calcular el costo operativo estimado de cada turno.</p>
+
+    <hr style="margin:20px 0;"/>
+
+    <h3>Mantenimiento Base (KM)</h3>
+    <label>Aceite:</label>
+    <input type="number" id="mantenimientoAceite" />
+    <label>Bujía:</label>
+    <input type="number" id="mantenimientoBujia" />
+    <label>Llantas:</label>
+    <input type="number" id="mantenimientoLlantas" />
+    <button id="btnGuardarMantenimiento" class="btn-secondary" type="button">Guardar Umbrales</button>
+    <p class="nota">Distancia máxima en KM antes de la siguiente alerta.</p>
   </section>
 
   <section class="card">
-    <h2>Parámetros Automáticos</h2>
-    <label>Deuda Total Pendiente:</label>
-    <input type="text" id="proyDeudaTotal" readonly style="background:#eee;" />
-    <label>Gasto Fijo Diario (HOGAR):</label>
-    <input type="text" id="proyGastoFijo" readonly style="background:#eee;" />
-  </section>
+    <h2>Gestión de Deudas y Abonos</h2>
+    <div id="wizardStep1">
+      <h3>Registrar Nueva Deuda</h3>
+      <label>Monto Total de la Deuda:</label>
+      <input type="number" id="deudaMontoTotal" placeholder="1000.00" />
+      <label>Descripción:</label>
+      <input type="text" id="deudaDescripcion" placeholder="Ej. Tarjeta, Préstamo personal" />
+      <button id="btnSiguienteDeuda" class="btn-primary" type="button">Siguiente</button>
+    </div>
 
-  <section class="card" id="cardDeudas">
-    <h2>Gestión de Deudas</h2>
-
-    <div id="deudaWizardContainer">
-      <div id="deudaStep1" style="display:block;">
-        <h3>Nueva Deuda (Paso 1/4)</h3>
-        <label>Nombre de la deuda (Ej. Banco, Moto)</label>
-        <input type="text" id="deudaNombre" placeholder="Ej. Banco, Moto Blast" />
-      </div>
-
-      <div id="deudaStep2" style="display:none;">
-        <h3>Monto Total (Paso 2/4)</h3>
-        <label>Monto Total de la Deuda ($)</label>
-        <input type="number" id="deudaMonto" placeholder="0.00" />
-      </div>
-
-      <div id="deudaStep3" style="display:none;">
-        <h3>Frecuencia de Pago (Paso 3/4)</h3>
-        <label>¿Cada cuánto abonas?</label>
-        <select id="deudaFrecuencia">
-          <option value="">-- Seleccionar --</option>
-          <option value="Semanal">Semanal</option>
-          <option value="Quincenal">Quincenal</option>
-          <option value="Mensual">Mensual</option>
-        </select>
-      </div>
-
-      <div id="deudaStep4" style="display:none;">
-        <h3>Monto del Abono (Paso 4/4)</h3>
-        <label>¿De cuánto es tu abono habitual ($)?</label>
-        <input type="number" id="deudaAbonoSugerido" placeholder="0.00" />
-      </div>
-
-      <div style="margin-top:15px;">
-        <button id="btnDeudaBack" class="btn-secondary" type="button" style="display:none;">⬅ Anterior</button>
-        <button id="btnDeudaNext" class="btn-secondary" type="button">Siguiente ➡</button>
-        <button id="btnRegistrarDeudaFinal" class="btn-primary" type="button" style="display:none;">Registrar Deuda</button>
-      </div>
+    <div id="wizardStep2" style="display:none;">
+      <h3>Gasto Fijo Diario (Hogar/Personal)</h3>
+      <label>Gasto Fijo Diario ($):</label>
+      <input type="number" id="gastoFijoDiario" placeholder="100.00" />
+      <p class="nota">Este es el gasto mínimo que debes cubrir antes de abonar a deudas.</p>
+      <button id="btnFinalizarDeuda" class="btn-success" type="button">Guardar Deuda y Gasto Fijo</button>
+      <button id="btnVolverDeuda" class="btn-secondary" type="button">Volver</button>
     </div>
 
     <hr style="margin:20px 0;" />
@@ -132,7 +104,7 @@
     <label>Seleccionar Deuda:</label>
     <select id="abonoSeleccionar"></select>
     <label>Cantidad a abonar ($):</label>
-    <input type="number" id="abonoMonto" />
+    <input type="number" id="abonoMonto" placeholder="0.00" />
     <button id="btnRegistrarAbono" class="btn-success" type="button">Registrar Abono</button>
     <p class="nota">⚠ El abono no puede ser mayor al saldo pendiente. (Validación automática)</p>
 
@@ -150,13 +122,12 @@
 
     <div style="margin-top:15px; border-top:1px solid #eee; padding-top:10px;">
       <textarea id="importJson" rows="3" placeholder="Pega aquí el JSON para restaurar..."></textarea>
-      <button id="btnImportar" class="btn-danger" type="button">Restaurar Datos</button>
+      <button id="btnImportar" class="btn-danger" type="button">Restaurar Datos</button> 
     </div>
   </section>
 
 </main>
 
-<!-- Tutorial modal (único por página) -->
 <div id="tutorialOverlay" class="overlay" style="display:none;"></div>
 <div id="tutorialModal" class="modal-center" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle" style="display:none;">
   <h3 id="tutorialTitle">Bienvenido</h3>
