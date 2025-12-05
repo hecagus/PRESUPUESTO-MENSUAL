@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tutorial – Uber Eats Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header class="header">
+  <h1>Tutorial</h1>
+  <a href="index.html" class="btn-admin">⬅ Panel</a>
+</header>
+
+<main class="container">
+  <section class="card">
+    <h2>Guía rápida</h2>
+    <ol>
+      <li>Ve a Administración para registrar turnos, gastos y gasolina.</li>
+      <li>Usa "Iniciar Turno" antes de comenzar; registra KM final y finaliza el turno al terminar.</li>
+      <li>Revisa las métricas en el Panel de Resultados.</li>
+    </ol>
+    <p class="nota">El tutorial también puede mostrarse en un modal (si el JS lo activa).</p>
+  </section>
+</main>
+
+<div id="tutorialOverlay"></div>
+<div id="tutorialModal" class="modal-center">
+  <h3 id="tutorialTitle">Bienvenido</h3>
+  <p id="tutorialText">Iniciando...</p>
+  <button id="tutorialNextBtn" class="btn-primary" style="width:100%; margin-top:10px;">Siguiente</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
