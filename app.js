@@ -608,8 +608,11 @@ function renderTablaTurnos() {
     .sort((a, b) => new Date(b.fechaFin) - new Date(a.fechaFin))
     .slice(0, 5)
     .forEach(turno => {
-      // CORRECCIÓN APLICADA: Se usa safeNumber() para convertir turno.horas a número.
-      const horasFormateadas = safeNumber(turno.horas).toFixed(2);
+      
+      // 🐛 CORRECCIÓN APLICADA: Se usa safeNumber() para asegurar que 'turno.horas' es un número
+      // y prevenir el error: turno.horas.toFixed is not a function
+      const horasFormateadas = safeNumber(turno.horas).toFixed(2); // <--- LÍNEA CORREGIDA
+      // ---------------------------------------------------------------------------------
 
       const row = `
         <tr>
