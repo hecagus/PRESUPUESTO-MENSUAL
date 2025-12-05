@@ -1,9 +1,8 @@
 // app.js
 // Lógica principal de Uber Eats Tracker
-// Panel de Resultados (Index): Muestra datos
-// Administración (Admin): Recopila datos y gestiona
 
 const STORAGE_KEY = "panelData";
+const BACKUP_KEY = "panelData_backup_v1"; // Clave de respaldo mencionada, aunque el guardado principal usa STORAGE_KEY
 const $ = id => document.getElementById(id);
 
 // Gráficas (globales para poder destruirlas y recrearlas)
@@ -66,7 +65,7 @@ function calcularHorasTrabajadas(inicioTS, finTS = Date.now()) {
   return diffMs / (1000 * 60 * 60); // De milisegundos a horas
 }
 
-// ---------- MANEJO DE DATOS ----------
+// ---------- MANEJO DE DATOS Y PERSISTENCIA ----------
 
 function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(panelData));
@@ -114,12 +113,12 @@ function actualizarUIturno() {
     btnFinalizar.style.display = 'block';
 
     // Mostrar campos de finalización
-    $("labelKmInicial").style.display = 'none';
-    kmInicialInput.style.display = 'none';
-    $("labelKmFinal").style.display = 'block';
-    kmFinalInput.style.display = 'block';
-    $("labelGananciaBruta").style.display = 'block';
-    gananciaBrutaInput.style.display = 'block';
+    if ($("labelKmInicial")) $("labelKmInicial").style.display = 'none';
+    if (kmInicialInput) kmInicialInput.style.display = 'none';
+    if ($("labelKmFinal")) $("labelKmFinal").style.display = 'block';
+    if (kmFinalInput) kmFinalInput.style.display = 'block';
+    if ($("labelGananciaBruta")) $("labelGananciaBruta").style.display = 'block';
+    if (gananciaBrutaInput) gananciaBrutaInput.style.display = 'block';
 
   } else {
     textoTurno.textContent = '🔴 Sin turno activo';
@@ -127,18 +126,17 @@ function actualizarUIturno() {
     btnFinalizar.style.display = 'none';
 
     // Ocultar campos de finalización
-    $("labelKmFinal").style.display = 'none';
-    kmFinalInput.style.display = 'none';
-    gananciaBrutaInput.value = ""; 
-    $("labelGananciaBruta").style.display = 'none';
-    kmFinalInput.style.display = 'none';
+    if ($("labelKmFinal")) $("labelKmFinal").style.display = 'none';
+    if (kmFinalInput) kmFinalInput.style.display = 'none';
+    if (gananciaBrutaInput) gananciaBrutaInput.value = ""; 
+    if ($("labelGananciaBruta")) $("labelGananciaBruta").style.display = 'none';
 
     // Mostrar campos de inicio
-    $("labelKmInicial").style.display = 'block';
-    kmInicialInput.style.display = 'block';
+    if ($("labelKmInicial")) $("labelKmInicial").style.display = 'block';
+    if (kmInicialInput) kmInicialInput.style.display = 'block';
 
     // Precargar KM inicial si hay un último registro
-    if (panelData.parametros.ultimoKMfinal > 0) {
+    if (panelData.parametros.ultimoKMfinal > 0 && kmInicialInput) {
       kmInicialInput.value = safeNumber(panelData.parametros.ultimoKMfinal).toFixed(0);
     }
   }
@@ -155,8 +153,8 @@ function iniciarTurno() {
   turnoInicio = new Date().toISOString();
   turnoKMInicial = kmInicial;
 
-  $("kmFinal").value = ""; 
-  $("gananciaBruta").value = ""; 
+  if ($("kmFinal")) $("kmFinal").value = ""; 
+  if ($("gananciaBruta")) $("gananciaBruta").value = ""; 
 
   alert(`Turno iniciado con KM Inicial: ${kmInicial} km.`);
   actualizarUIturno();
@@ -177,7 +175,7 @@ function finalizarTurno() {
     alert(`¡Error! El KM Final (${kmFinal}) debe ser mayor que el KM Inicial (${kmInicial}).`);
     return;
   }
-  if (gananciaBruta < 0) { // Permitimos 0 por si el turno fue muy malo
+  if (gananciaBruta < 0) { 
     alert("¡Error! La Ganancia Bruta no puede ser negativa.");
     return;
   }
@@ -217,7 +215,6 @@ function finalizarTurno() {
   alert(`Turno finalizado. Ganancia Neta Estimada: $${fmtMoney(gananciaNetaEstimada)}.`);
   actualizarUIturno();
   saveData();
-  // Al finalizar un turno, es buena práctica volver al panel
   window.location.href = "index.html"; 
 }
 
@@ -275,8 +272,11 @@ function handleRegistrarGasto() {
   saveData();
 }
 
-// --- FUNCIONES DE DATOS Y RESPALDO (EXPORTACIÓN/IMPORTACIÓN) ---
+// ----------------------------------------------------
+// --- FUNCIONES DE DATOS Y RESPALDO (CORREGIDAS) ---
+// ----------------------------------------------------
 
+/** Copia el JSON completo al portapapeles. (Asociado a 'Copiar JSON') */
 function handleExportJson() {
     // Incluir estado del turno activo para el respaldo completo
     const fullData = {
@@ -307,6 +307,29 @@ function handleExportJson() {
     }
 }
 
+/** Descarga el JSON completo como archivo. (Alternativa para "Descargar Excel") */
+function handleDownloadJson() {
+    const fullData = {
+        ...panelData,
+        turnoActivo: turnoActivo,
+        turnoInicio: turnoInicio,
+        turnoKMInicial: turnoKMInicial
+    };
+    const dataString = JSON.stringify(fullData, null, 2);
+    const blob = new Blob([dataString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `backup_ubereats_tracker_${getTodayDateString()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    alert("✅ Archivo JSON descargado.");
+}
+
+/** Intenta restaurar los datos desde el JSON pegado. (Asociado a 'Restaurar Datos') */
 function handleImportJson() {
     const jsonText = $("importJson").value.trim();
     if (!jsonText) {
@@ -314,51 +337,63 @@ function handleImportJson() {
         return;
     }
 
-    if (!confirm("🚨 ¿Está seguro de querer restaurar los datos? Esto reemplazará todos los datos actuales de su sesión.")) {
+    if (!confirm("🚨 ¿Está seguro de querer restaurar los datos? Esto reemplazará TODOS los datos actuales de su sesión.")) {
         return;
     }
 
     try {
         const importedData = JSON.parse(jsonText);
 
-        // Validación simple de la estructura
-        if (!Array.isArray(importedData.turnos) || !Array.isArray(importedData.movimientos)) {
-            alert("❌ Error: El JSON importado parece no tener la estructura correcta (faltan arrays clave como 'turnos' o 'movimientos').");
+        // --- VALIDACIÓN MÁS ESTRICTA Y ASIGNACIÓN EXPLÍCITA ---
+        if (!Array.isArray(importedData.turnos) || !importedData.parametros || typeof importedData.parametros.ultimoKMfinal === 'undefined') {
+            alert("❌ Error: El JSON importado parece no tener la estructura correcta (faltan arrays clave o el objeto 'parametros').");
             return;
         }
 
-        // 1. Overwrite global data
-        panelData = {
-            ...panelData, // Mantiene la estructura base
-            ...importedData
+        // 1. Overwrite global data collections
+        panelData.ingresos = importedData.ingresos || [];
+        panelData.gastos = importedData.gastos || [];
+        panelData.movimientos = importedData.movimientos || [];
+        panelData.turnos = importedData.turnos || [];
+        panelData.deudas = importedData.deudas || [];
+        panelData.kilometraje = importedData.kilometraje || { aceite: 0, bujia: 0, llantas: 0 };
+        
+        // Sobreescribir el objeto de parámetros (importante)
+        panelData.parametros = {
+            ...panelData.parametros, // Mantiene defaults de la estructura base
+            ...importedData.parametros
         };
 
-        // 2. Restore Turno State (se asume que están en el respaldo)
-        turnoActivo = importedData.turnoActivo || false;
+        // 2. Restore Turno State (variables globales separadas)
+        turnoActivo = importedData.turnoActivo === true; 
         turnoInicio = importedData.turnoInicio || null;
         turnoKMInicial = importedData.turnoKMInicial || null;
 
         // 3. Save and Reload
         saveData(); 
         alert("✅ ¡Datos restaurados con éxito! Recargando la página.");
-        window.location.reload();
+        
+        // Añadir un pequeño retraso antes de recargar para asegurar que el alert se muestre
+        setTimeout(() => {
+             window.location.reload();
+        }, 100);
+
 
     } catch (e) {
         console.error("Error al analizar JSON:", e);
-        alert("❌ Error al restaurar los datos. Asegúrese de que el JSON sea válido.");
+        alert(`❌ Error al restaurar los datos. Asegúrese de que el JSON sea válido. Detalle: ${e.message}`);
     }
 }
 
 function handleExportExcel() {
-    // Esta función requiere la librería 'xlsx.full.min.js' (ya incluida en admin.html)
-    // Lógica avanzada de exportación a Excel...
-    alert("Exportación a Excel en progreso (requiere librería XLSX y lógica de formateo).");
-    
-    // Aquí iría el código de XLSX para crear el libro con varias hojas (turnos, movimientos, etc.)
+    // Placeholder - la lógica real de Excel va aquí y depende de la librería XLSX
+    alert("Descarga Excel (.xlsx) en desarrollo. Usando Descargar JSON como alternativa.");
+    handleDownloadJson();
 }
 
-
-// ---------- LÓGICA DE RESULTADOS/DASHBOARD (index.html) ----------
+// ----------------------------------------------------
+// --- LÓGICA DE RESULTADOS/DASHBOARD (index.html) ---
+// ----------------------------------------------------
 
 /**
  * Calcula las métricas de un día específico.
@@ -418,16 +453,13 @@ function renderResumenIndex() {
   if ($("resKmRecorridos")) $("resKmRecorridos").textContent = `${todayMetrics.kmRecorridos.toFixed(1)} km`;
   if ($("resGananciaPorHora")) $("resGananciaPorHora").textContent = `$${fmtMoney(todayMetrics.gananciaPorHora)}/h`;
 
-  // Proyecciones (implementación simplificada)
   renderProyecciones();
   renderTablaTurnos();
-  // renderCharts(); // Descomentar al tener Chart.js
+  // Aquí se llamaría a renderCharts() si la librería Chart.js está disponible
   checkAndRenderAlertas();
 }
 
 function renderProyecciones() {
-  // Simulación de cálculo de promedio de 7 días (ajustar con lógica real si es necesario)
-  // **Asumiendo un cálculo promedio aquí para que el panel no esté vacío:**
   const NET_PROMEDIO_7_DIAS = panelData.turnos.length > 0 
                             ? panelData.turnos.reduce((sum, t) => sum + safeNumber(t.gananciaNeta), 0) / panelData.turnos.length 
                             : 0; 
@@ -445,7 +477,7 @@ function renderProyecciones() {
   let tiempoLibreDeDeudas = "Calculando...";
 
   if (deudaTotal > 0) {
-    if (excedenteDiario > 10) { // Un mínimo para considerarlo avance
+    if (excedenteDiario > 10) { 
       tiempoLibreDeDeudas = `${Math.ceil(deudaTotal / excedenteDiario)} días`;
     } else {
       tiempoLibreDeDeudas = "Sin avance (Neto < Gasto Fijo)";
@@ -503,8 +535,8 @@ function checkAndRenderAlertas() {
     }
 }
 
-// Lógica de renderCharts y renderHistorial... (omito por brevedad, asumiendo que usan los datos correctos)
-function renderCharts() { /* Lógica de Chart.js */ }
+
+// Lógica de renderHistorial... 
 function renderHistorial() { 
   const historialBody = $("historialBody");
   if (!historialBody) return;
@@ -554,24 +586,23 @@ function setupAdminListeners() {
   // Deudas (Parámetros fijos)
   if ($("btnFinalizarDeuda")) $("btnFinalizarDeuda").addEventListener("click", () => {
     panelData.parametros.gastoFijo = safeNumber($("gastoFijoDiario").value);
-    // Asumo que la deuda total también se registra aquí o en otro paso del wizard
-    // panelData.parametros.deudaTotal = safeNumber($("deudaMontoTotal").value); 
+    // Asumiendo que hay un campo para la deuda total
+    if ($("deudaMontoTotal")) panelData.parametros.deudaTotal = safeNumber($("deudaMontoTotal").value);
     saveData();
-    alert("Gasto Fijo guardado.");
+    alert("Gasto Fijo y/o Deuda Total guardados.");
   });
 
-  // ** DATOS Y RESPALDO (CORREGIDO) **
-  if ($("btnExportarExcel")) $("btnExportarExcel").addEventListener("click", handleExportExcel);
-  if ($("btnExportar")) $("btnExportar").addEventListener("click", handleExportJson);
-  if ($("btnImportar")) $("btnImportar").addEventListener("click", handleImportJson);
-  // ** FIN DE CORRECCIÓN **
+  // DATOS Y RESPALDO (CONEXIÓN DE BOTONES A FUNCIONES)
+  if ($("btnExportarExcel")) $("btnExportarExcel").addEventListener("click", handleExportExcel); // Llama al placeholder/descarga JSON
+  if ($("btnExportar")) $("btnExportar").addEventListener("click", handleExportJson); // Llama a Copiar JSON
+  if ($("btnImportar")) $("btnImportar").addEventListener("click", handleImportJson); // Llama a Restaurar Datos
 }
 
 // ---------- INICIALIZACIÓN GLOBAL (Selecciona qué ejecutar) ----------
 function initApp() {
   cargarPanelData(); 
 
-  const page = document.body.dataset.page || "index"; // Usar data-page del body
+  const page = document.body.dataset.page || "index"; 
 
   // 1. Lógica de Administración (admin.html)
   if (page === "admin") {
@@ -580,6 +611,7 @@ function initApp() {
     // Cargar parámetros en los inputs
     if ($("costoPorKm")) $("costoPorKm").value = panelData.parametros.costoPorKm;
     if ($("gastoFijoDiario")) $("gastoFijoDiario").value = panelData.parametros.gastoFijo;
+    if ($("deudaMontoTotal")) $("deudaMontoTotal").value = panelData.parametros.deudaTotal;
   }
 
   // 2. Lógica de Resultados/Dashboard (index.html)
