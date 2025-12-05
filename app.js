@@ -58,6 +58,8 @@ function fmtMoney(num) {
  * @returns {string}
  */
 function formatearFecha(date) {
+  // Siempre revisar si la fecha es válida antes de formatear
+  if (isNaN(date.getTime())) return "Fecha Inválida"; 
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 }
 
@@ -540,7 +542,19 @@ function calcularMetricas() {
   // Métricas diarias promedio (usando el rango de fechas de los turnos)
   let diasTrabajados = 0;
   if (turnos.length > 0) {
-    const fechas = turnos.map(t => new Date(t.fechaFin).toISOString().substring(0, 10)); // Solo YYYY-MM-DD
+    // 💡 CORRECCIÓN APLICADA: Se usa un filtro para asegurar que la fecha sea válida.
+    const fechas = turnos
+      .map(t => {
+        const date = new Date(t.fechaFin);
+        // Si la fecha es inválida (getTime() devuelve NaN), devolvemos null.
+        if (isNaN(date.getTime())) {
+          console.warn("Dato de fecha de turno inválido detectado:", t.fechaFin);
+          return null; 
+        }
+        return date.toISOString().substring(0, 10); // YYYY-MM-DD
+      })
+      .filter(f => f !== null); // Quitar las entradas inválidas
+
     const fechasUnicas = new Set(fechas);
     diasTrabajados = fechasUnicas.size;
   }
@@ -609,10 +623,8 @@ function renderTablaTurnos() {
     .slice(0, 5)
     .forEach(turno => {
       
-      // 🐛 CORRECCIÓN APLICADA: Se usa safeNumber() para asegurar que 'turno.horas' es un número
-      // y prevenir el error: turno.horas.toFixed is not a function
-      const horasFormateadas = safeNumber(turno.horas).toFixed(2); // <--- LÍNEA CORREGIDA
-      // ---------------------------------------------------------------------------------
+      // La corrección previa (safeNumber) ya está aplicada aquí
+      const horasFormateadas = safeNumber(turno.horas).toFixed(2); 
 
       const row = `
         <tr>
@@ -719,7 +731,7 @@ function renderHistorial() {
         
     const totalGastos = panelData.movimientos
         .filter(m => m.tipo === 'Gasto')
-        .reduce((sum, m => sum + safeNumber(m.monto)), 0);
+        .reduce((sum, m) => sum + safeNumber(m.monto), 0);
         
     const balance = totalIngresos - totalGastos;
     
@@ -777,6 +789,11 @@ function importarJson() {
 }
 
 function exportarExcel() {
+    // Se asume que la librería XLSX.js está cargada en admin.html
+    if (typeof XLSX === 'undefined') {
+        alert("La librería de Excel no está cargada. Asegúrate de estar en la página de administración.");
+        return;
+    }
     const wb = XLSX.utils.book_new();
     
     // 1. Hoja de Turnos
