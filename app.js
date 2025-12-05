@@ -2,7 +2,7 @@
 // Lógica principal de Uber Eats Tracker
 
 const STORAGE_KEY = "panelData";
-const BACKUP_KEY = "panelData_backup_v1"; // Clave de respaldo mencionada, aunque el guardado principal usa STORAGE_KEY
+const BACKUP_KEY = "panelData_backup_v1"; 
 const $ = id => document.getElementById(id);
 
 // Gráficas (globales para poder destruirlas y recrearlas)
@@ -56,13 +56,28 @@ function fmtMoney(amount) {
 }
 
 function getTodayDateString() {
-  return new Date().toISOString().slice(0, 10);
+  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
 function calcularHorasTrabajadas(inicioTS, finTS = Date.now()) {
   if (!inicioTS) return 0;
   const diffMs = finTS - new Date(inicioTS).getTime();
   return diffMs / (1000 * 60 * 60); // De milisegundos a horas
+}
+
+/** * NUEVA FUNCIÓN: Muestra la fecha o un error si es inválida. 
+ * Resuelve el "Invalid Date" en el historial.
+ */
+function safeDateDisplay(isoString) {
+  try {
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) {
+      return 'Fecha Inválida';
+    }
+    return date.toLocaleDateString();
+  } catch {
+    return 'Fecha Inválida';
+  }
 }
 
 // ---------- MANEJO DE DATOS Y PERSISTENCIA ----------
@@ -88,6 +103,16 @@ function cargarPanelData() {
           ...parsedData.parametros
         }
       };
+      // Migración simple: Asegurar que los movimientos tienen fechas válidas para evitar errores de NaN
+      panelData.movimientos = (panelData.movimientos || []).map(mov => {
+        if (!mov.fecha || isNaN(new Date(mov.fecha).getTime())) {
+            // Si no hay fecha o es inválida, asignamos una fecha muy antigua 
+            // para que no afecte el resumen de 'Hoy' pero se pueda mostrar en el historial.
+            mov.fecha = mov.fecha || '1970-01-01T00:00:00.000Z'; 
+        }
+        return mov;
+      });
+      panelData.turnos = panelData.turnos || [];
     }
   } catch (error) {
     console.error("Error al cargar datos:", error);
@@ -96,7 +121,6 @@ function cargarPanelData() {
 
 // ---------- LÓGICA DE ADMINISTRACIÓN (admin.html) ----------
 
-/** Actualiza la interfaz del formulario de turno: Iniciar vs. Finalizar */
 function actualizarUIturno() {
   const btnIniciar = $("btnIniciarTurno");
   const btnFinalizar = $("btnFinalizarTurno");
@@ -107,12 +131,12 @@ function actualizarUIturno() {
 
   if (!btnIniciar || !btnFinalizar || !textoTurno) return;
 
+  // ... (El resto de esta función queda igual) ...
   if (turnoActivo) {
     textoTurno.textContent = `🟢 Turno activo desde: ${new Date(turnoInicio).toLocaleString()}`;
     btnIniciar.style.display = 'none';
     btnFinalizar.style.display = 'block';
 
-    // Mostrar campos de finalización
     if ($("labelKmInicial")) $("labelKmInicial").style.display = 'none';
     if (kmInicialInput) kmInicialInput.style.display = 'none';
     if ($("labelKmFinal")) $("labelKmFinal").style.display = 'block';
@@ -125,17 +149,14 @@ function actualizarUIturno() {
     btnIniciar.style.display = 'block';
     btnFinalizar.style.display = 'none';
 
-    // Ocultar campos de finalización
     if ($("labelKmFinal")) $("labelKmFinal").style.display = 'none';
     if (kmFinalInput) kmFinalInput.style.display = 'none';
     if (gananciaBrutaInput) gananciaBrutaInput.value = ""; 
     if ($("labelGananciaBruta")) $("labelGananciaBruta").style.display = 'none';
 
-    // Mostrar campos de inicio
     if ($("labelKmInicial")) $("labelKmInicial").style.display = 'block';
     if (kmInicialInput) kmInicialInput.style.display = 'block';
 
-    // Precargar KM inicial si hay un último registro
     if (panelData.parametros.ultimoKMfinal > 0 && kmInicialInput) {
       kmInicialInput.value = safeNumber(panelData.parametros.ultimoKMfinal).toFixed(0);
     }
@@ -170,7 +191,6 @@ function finalizarTurno() {
     alert("No hay turno activo para finalizar.");
     return;
   }
-
   if (kmFinal <= kmInicial) {
     alert(`¡Error! El KM Final (${kmFinal}) debe ser mayor que el KM Inicial (${kmInicial}).`);
     return;
@@ -187,7 +207,7 @@ function finalizarTurno() {
 
   const nuevoTurno = {
     id: Date.now(),
-    fecha: getTodayDateString(),
+    fecha: getTodayDateString(), // YYYY-MM-DD
     inicio: turnoInicio,
     fin: new Date().toISOString(),
     horas: safeNumber(horas),
@@ -202,12 +222,10 @@ function finalizarTurno() {
   panelData.turnos.push(nuevoTurno);
   panelData.parametros.ultimoKMfinal = kmFinal;
 
-  // Actualizar kilometraje de mantenimiento
   panelData.kilometraje.aceite += kmRecorridos;
   panelData.kilometraje.bujia += kmRecorridos;
   panelData.kilometraje.llantas += kmRecorridos;
 
-  // Resetear estado del turno
   turnoActivo = false;
   turnoInicio = null;
   turnoKMInicial = null;
@@ -230,7 +248,7 @@ function handleRegistrarIngreso() {
   const nuevoIngreso = {
     id: Date.now(),
     tipo: "Ingreso",
-    fecha: new Date().toISOString(),
+    fecha: new Date().toISOString(), // ISO String
     descripcion: descripcion,
     monto: cantidad
   };
@@ -258,8 +276,7 @@ function handleRegistrarGasto() {
     id: Date.now(),
     tipo: "Gasto",
     subtipo: tipo,
-    fecha: new Date().toISOString(),
-    descripcion: descripcion,
+    fecha: new Date().toISOString(), // ISO String
     monto: cantidad * -1 // Almacenar como negativo
   };
 
@@ -272,13 +289,9 @@ function handleRegistrarGasto() {
   saveData();
 }
 
-// ----------------------------------------------------
-// --- FUNCIONES DE DATOS Y RESPALDO (CORREGIDAS) ---
-// ----------------------------------------------------
+// --- FUNCIONES DE DATOS Y RESPALDO ---
 
-/** Copia el JSON completo al portapapeles. (Asociado a 'Copiar JSON') */
 function handleExportJson() {
-    // Incluir estado del turno activo para el respaldo completo
     const fullData = {
         ...panelData,
         turnoActivo: turnoActivo,
@@ -296,7 +309,6 @@ function handleExportJson() {
                 alert("❌ Error al copiar. Consulte la consola.");
             });
     } else {
-        // Fallback for older browsers
         const dummy = document.createElement("textarea");
         document.body.appendChild(dummy);
         dummy.value = dataString;
@@ -307,7 +319,6 @@ function handleExportJson() {
     }
 }
 
-/** Descarga el JSON completo como archivo. (Alternativa para "Descargar Excel") */
 function handleDownloadJson() {
     const fullData = {
         ...panelData,
@@ -329,7 +340,6 @@ function handleDownloadJson() {
     alert("✅ Archivo JSON descargado.");
 }
 
-/** Intenta restaurar los datos desde el JSON pegado. (Asociado a 'Restaurar Datos') */
 function handleImportJson() {
     const jsonText = $("importJson").value.trim();
     if (!jsonText) {
@@ -344,8 +354,7 @@ function handleImportJson() {
     try {
         const importedData = JSON.parse(jsonText);
 
-        // --- VALIDACIÓN MÁS ESTRICTA Y ASIGNACIÓN EXPLÍCITA ---
-        if (!Array.isArray(importedData.turnos) || !importedData.parametros || typeof importedData.parametros.ultimoKMfinal === 'undefined') {
+        if (!Array.isArray(importedData.turnos) || !importedData.parametros) {
             alert("❌ Error: El JSON importado parece no tener la estructura correcta (faltan arrays clave o el objeto 'parametros').");
             return;
         }
@@ -360,7 +369,7 @@ function handleImportJson() {
         
         // Sobreescribir el objeto de parámetros (importante)
         panelData.parametros = {
-            ...panelData.parametros, // Mantiene defaults de la estructura base
+            ...panelData.parametros, 
             ...importedData.parametros
         };
 
@@ -373,11 +382,9 @@ function handleImportJson() {
         saveData(); 
         alert("✅ ¡Datos restaurados con éxito! Recargando la página.");
         
-        // Añadir un pequeño retraso antes de recargar para asegurar que el alert se muestre
         setTimeout(() => {
              window.location.reload();
         }, 100);
-
 
     } catch (e) {
         console.error("Error al analizar JSON:", e);
@@ -386,14 +393,12 @@ function handleImportJson() {
 }
 
 function handleExportExcel() {
-    // Placeholder - la lógica real de Excel va aquí y depende de la librería XLSX
     alert("Descarga Excel (.xlsx) en desarrollo. Usando Descargar JSON como alternativa.");
     handleDownloadJson();
 }
 
-// ----------------------------------------------------
-// --- LÓGICA DE RESULTADOS/DASHBOARD (index.html) ---
-// ----------------------------------------------------
+
+// ---------- LÓGICA DE RESULTADOS/DASHBOARD (index.html) ----------
 
 /**
  * Calcula las métricas de un día específico.
@@ -404,27 +409,27 @@ function getMetricsForDay(dateStr) {
   let gastosTrabajo = 0;
   let kmRecorridos = 0;
 
-  // 1. Turnos del día
+  // 1. Turnos del día: t.fecha debe ser YYYY-MM-DD
   panelData.turnos
     .filter(t => t.fecha === dateStr)
     .forEach(t => {
       horas += safeNumber(t.horas);
       gananciaBruta += safeNumber(t.gananciaBruta);
       kmRecorridos += safeNumber(t.kmRecorridos);
-      // Incluir costo operativo como gasto de trabajo
+      // Costo operativo
       gastosTrabajo += safeNumber(t.costoOperativo);
     });
 
-  // 2. Gastos de trabajo del día
+  // 2. Gastos de trabajo del día: g.fecha es ISO string (YYYY-MM-DDTHH:...)
   panelData.gastos
-    .filter(g => g.subtipo === 'trabajo' && g.fecha.startsWith(dateStr))
+    .filter(g => g.subtipo === 'trabajo' && g.fecha && g.fecha.startsWith(dateStr))
     .forEach(g => {
       gastosTrabajo += safeNumber(g.monto) * -1; 
     });
     
-    // 3. Ingresos extra del día
+    // 3. Ingresos extra del día: i.fecha es ISO string
     panelData.ingresos
-    .filter(i => i.fecha.startsWith(dateStr))
+    .filter(i => i.fecha && i.fecha.startsWith(dateStr))
     .forEach(i => {
       gananciaBruta += safeNumber(i.monto);
     });
@@ -445,7 +450,8 @@ function getMetricsForDay(dateStr) {
 function renderResumenIndex() {
   const todayMetrics = getMetricsForDay(getTodayDateString());
 
-  // Resumen del Día
+  // Si los datos de hoy están a cero, puede ser porque no hay turno finalizado hoy. 
+  // La migración de datos garantiza que los datos antiguos no interfieran con la fecha de hoy.
   if ($("resHoras")) $("resHoras").textContent = `${todayMetrics.horas.toFixed(2)}h`;
   if ($("resGananciaBruta")) $("resGananciaBruta").textContent = `$${fmtMoney(todayMetrics.gananciaBruta)}`;
   if ($("resGastosTrabajo")) $("resGastosTrabajo").textContent = `$${fmtMoney(todayMetrics.gastosTrabajo)}`;
@@ -455,7 +461,7 @@ function renderResumenIndex() {
 
   renderProyecciones();
   renderTablaTurnos();
-  // Aquí se llamaría a renderCharts() si la librería Chart.js está disponible
+  // renderCharts(); // Descomentar al implementar la lógica de Chart.js
   checkAndRenderAlertas();
 }
 
@@ -536,7 +542,10 @@ function checkAndRenderAlertas() {
 }
 
 
-// Lógica de renderHistorial... 
+/**
+ * Lógica para renderizar el Historial.
+ * Corregido para manejar "Invalid Date" y "Gasto (undefined)".
+ */
 function renderHistorial() { 
   const historialBody = $("historialBody");
   if (!historialBody) return;
@@ -544,15 +553,22 @@ function renderHistorial() {
   historialBody.innerHTML = "";
   // Ordenar movimientos por fecha descendente
   panelData.movimientos
-    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+    // Intentar ordenar, si la fecha es inválida, se usará la fecha de migración (1970)
+    .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
     .forEach(mov => {
       const montoFmt = `$${fmtMoney(Math.abs(mov.monto))}`;
-      const tipoDisplay = mov.tipo === "Gasto" ? `Gasto (${mov.subtipo})` : mov.tipo;
+      
+      // Manejo de 'Gasto (undefined)' -> 'Gasto (otros)'
+      const subtipoDisplay = mov.tipo === "Gasto" ? ` (${mov.subtipo || 'otros'})` : ''; 
+      const tipoDisplay = mov.tipo + subtipoDisplay;
+      
+      // Uso de safeDateDisplay para evitar 'Invalid Date'
+      const dateDisplay = safeDateDisplay(mov.fecha);
       
       historialBody.innerHTML += `
         <tr>
           <td>${tipoDisplay}</td>
-          <td>${new Date(mov.fecha).toLocaleDateString()}</td>
+          <td>${dateDisplay}</td>
           <td>${mov.descripcion}</td>
           <td style="color: ${mov.monto < 0 ? '#dc3545' : '#06C167'};">
             ${mov.monto < 0 ? '-' : ''}${montoFmt}
@@ -586,13 +602,12 @@ function setupAdminListeners() {
   // Deudas (Parámetros fijos)
   if ($("btnFinalizarDeuda")) $("btnFinalizarDeuda").addEventListener("click", () => {
     panelData.parametros.gastoFijo = safeNumber($("gastoFijoDiario").value);
-    // Asumiendo que hay un campo para la deuda total
     if ($("deudaMontoTotal")) panelData.parametros.deudaTotal = safeNumber($("deudaMontoTotal").value);
     saveData();
     alert("Gasto Fijo y/o Deuda Total guardados.");
   });
 
-  // DATOS Y RESPALDO (CONEXIÓN DE BOTONES A FUNCIONES)
+  // DATOS Y RESPALDO (CORREGIDO)
   if ($("btnExportarExcel")) $("btnExportarExcel").addEventListener("click", handleExportExcel); // Llama al placeholder/descarga JSON
   if ($("btnExportar")) $("btnExportar").addEventListener("click", handleExportJson); // Llama a Copiar JSON
   if ($("btnImportar")) $("btnImportar").addEventListener("click", handleImportJson); // Llama a Restaurar Datos
@@ -602,13 +617,13 @@ function setupAdminListeners() {
 function initApp() {
   cargarPanelData(); 
 
-  const page = document.body.dataset.page || "index"; 
+  // Usar data-page del body si está disponible, si no, inferir por el título o usar 'index'
+  const page = document.body.dataset.page || (document.title.toLowerCase().includes('administración') ? 'admin' : document.title.toLowerCase().includes('historial') ? 'historial' : 'index'); 
 
   // 1. Lógica de Administración (admin.html)
   if (page === "admin") {
     setupAdminListeners();
     actualizarUIturno(); 
-    // Cargar parámetros en los inputs
     if ($("costoPorKm")) $("costoPorKm").value = panelData.parametros.costoPorKm;
     if ($("gastoFijoDiario")) $("gastoFijoDiario").value = panelData.parametros.gastoFijo;
     if ($("deudaMontoTotal")) $("deudaMontoTotal").value = panelData.parametros.deudaTotal;
