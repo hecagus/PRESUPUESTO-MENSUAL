@@ -1,30 +1,35 @@
-// app.js - Parte 1/5
-// Inicialización, constantes, utilidades y migraciones robustas
+// app.js
+// Lógica principal de Uber Eats Tracker
+// Panel de Resultados (Index): Muestra datos
+// Administración (Admin): Recopila datos y gestiona
 
 const STORAGE_KEY = "panelData";
 const BACKUP_KEY = "panelData_backup_v1";
 const $ = id => document.getElementById(id);
 const TUTORIAL_COMPLETADO_KEY = "tutorialCompleto";
 
+// Gráficas (globales para poder destruirlas y recrearlas)
 let gananciasChart = null;
 let kmChart = null;
 let deudaWizardStep = 1;
 
-// Estructura base
+// Estructura base de datos
 let panelData = {
-  ingresos: [],
-  gastos: [],
-  kmDiarios: [],
-  gasolina: [], // mantenida por compatibilidad, no se usa
+  ingresos: [], // Ingresos de trabajo extra
+  gastos: [], // Gastos operativos y fijos
+  movimientos: [], // Colección unificada para historial (ingresos + gastos)
+  turnos: [], // Registros de turnos finalizados
+  kilometraje: { // Registros de kilometraje para alertas
+    aceite: 0,
+    bujia: 0,
+    llantas: 0
+  },
   deudas: [],
-  movimientos: [], // Colección principal para el Historial
-  turnos: [],
   parametros: {
     deudaTotal: 0,
     gastoFijo: 0,
-    ultimoKMfinal: null,
-    costoPorKm: 0,
-    costoMantenimientoPorKm: 0,
+    ultimoKMfinal: 0, // El KM final del último turno
+    costoPorKm: 0.85, // Ejemplo
     mantenimientoBase: {
       'Aceite (KM)': 3000,
       'Bujía (KM)': 8000,
@@ -33,104 +38,72 @@ let panelData = {
   }
 };
 
-// Estado de turno (guardamos TS como string en localStorage para compat)
+// Estado de turno (persiste en localStorage por separado para acceso rápido)
 let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || false;
 let turnoInicio = localStorage.getItem("turnoInicio") || null; // string TS o null
+let turnoKMInicial = localStorage.getItem("turnoKMInicial") || null; // string KM o null
 
 // ---------- UTILIDADES ----------
+
 function safeNumber(v, fallback = 0) {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
 }
 
-/**
- * Formatea un número a moneda (ej. 1234.56 -> 1,234.56)
- * @param {number} amount
- * @returns {string}
- */
 function fmtMoney(amount) {
-    if (amount === undefined || amount === null) return "0.00";
-    return safeNumber(amount, 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (amount === undefined || amount === null) return "0.00";
+  return safeNumber(amount, 0).toLocaleString('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 }
 
-/**
- * Calcula la diferencia entre dos timestamps en horas decimales.
- * @param {string} tsInicio - Timestamp de inicio (ISO string).
- * @param {string} tsFin - Timestamp de fin (ISO string).
- * @returns {number} Horas trabajadas (ej. 8.5)
- */
-function calcularHorasTrabajadas(tsInicio, tsFin) {
-    if (!tsInicio || !tsFin) return 0;
-    const inicio = new Date(tsInicio).getTime();
-    const fin = new Date(tsFin).getTime();
-    const diffMs = fin - inicio;
-    if (diffMs <= 0) return 0;
-    // (diff en ms) / (1000 ms/s * 60 s/m * 60 m/h)
-    return safeNumber(diffMs / 3600000, 0);
-}
-
-// Función para obtener la fecha de hoy en formato 'YYYY-MM-DD'
 function getTodayDateString() {
-    return new Date().toISOString().slice(0, 10);
+  return new Date().toISOString().slice(0, 10);
 }
-// ===================================
-// GESTIÓN DE LOCALSTORAGE Y ESTRUCTURA
-// ===================================
-// ... (continúa en la parte 2/5)
-// app.js - Parte 2/5
-// Persistencia de Datos y Lógica de Turno
 
-// ===================================
-// GESTIÓN DE LOCALSTORAGE Y ESTRUCTURA
-// ===================================
+function calcularHorasTrabajadas(inicioTS, finTS = Date.now()) {
+  if (!inicioTS) return 0;
+  const diffMs = finTS - new Date(inicioTS).getTime();
+  return diffMs / (1000 * 60 * 60); // De milisegundos a horas
+}
+
+// ---------- MANEJO DE DATOS ----------
 
 function saveData() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(panelData));
-    localStorage.setItem(BACKUP_KEY, JSON.stringify(panelData));
-  } catch (error) {
-    console.error("Error al guardar datos:", error);
-  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(panelData));
+  localStorage.setItem("turnoActivo", turnoActivo);
+  localStorage.setItem("turnoInicio", turnoInicio);
+  localStorage.setItem("turnoKMInicial", turnoKMInicial);
 }
 
 function cargarPanelData() {
-  const data = localStorage.getItem(STORAGE_KEY);
-  if (data) {
-    try {
-      panelData = JSON.parse(data);
-      // Asegurar que las colecciones existen para evitar errores (Migración ligera)
-      panelData.movimientos = panelData.movimientos || [];
-      panelData.turnos = panelData.turnos || [];
-      panelData.parametros = panelData.parametros || {};
-    } catch (error) {
-      console.error("Error al parsear datos de localStorage. Usando respaldo.", error);
-      cargarRespaldo();
+  try {
+    const storedData = localStorage.getItem(STORAGE_KEY);
+    if (storedData) {
+      const parsedData = JSON.parse(storedData);
+      // Fusión (merge) robusta de datos para nuevas propiedades
+      panelData = {
+        ...panelData,
+        ...parsedData,
+        parametros: {
+          ...panelData.parametros,
+          ...parsedData.parametros
+        }
+      };
     }
+  } catch (error) {
+    console.error("Error al cargar datos:", error);
+    // Podría forzar una copia de seguridad y resetear si el error es grave
   }
 }
 
-function cargarRespaldo() {
-  const backup = localStorage.getItem(BACKUP_KEY);
-  if (backup) {
-    try {
-      panelData = JSON.parse(backup);
-      console.warn("Datos restaurados desde respaldo.");
-    } catch (error) {
-      console.error("Error al parsear respaldo. Usando estructura base.", error);
-    }
-  }
-}
+// ---------- LÓGICA DE ADMINISTRACIÓN (admin.html) ----------
 
-// =========================
-// LÓGICA DE GESTIÓN DE TURNO
-// =========================
-
+/** Actualiza la interfaz del formulario de turno: Iniciar vs. Finalizar */
 function actualizarUIturno() {
   const btnIniciar = $("btnIniciarTurno");
   const btnFinalizar = $("btnFinalizarTurno");
-  const labelKmInicial = $("labelKmInicial");
-  const labelKmFinal = $("labelKmFinal");
-  const labelGananciaBruta = $("labelGananciaBruta");
   const kmInicialInput = $("kmInicial");
   const kmFinalInput = $("kmFinal");
   const gananciaBrutaInput = $("gananciaBruta");
@@ -144,393 +117,309 @@ function actualizarUIturno() {
     btnFinalizar.style.display = 'block';
 
     // Mostrar campos de finalización
-    if (labelKmFinal) labelKmFinal.style.display = 'block';
-    if (kmFinalInput) kmFinalInput.style.display = 'block';
-    if (labelGananciaBruta) labelGananciaBruta.style.display = 'block';
-    if (gananciaBrutaInput) gananciaBrutaInput.style.display = 'block';
-    // Ocultar KM inicial (ya está registrado)
-    if (labelKmInicial) labelKmInicial.style.display = 'none';
-    if (kmInicialInput) kmInicialInput.style.display = 'none';
+    $("labelKmInicial").style.display = 'none';
+    kmInicialInput.style.display = 'none';
+    $("labelKmFinal").style.display = 'block';
+    kmFinalInput.style.display = 'block';
+    $("labelGananciaBruta").style.display = 'block';
+    gananciaBrutaInput.style.display = 'block';
 
   } else {
     textoTurno.textContent = '🔴 Sin turno activo';
     btnIniciar.style.display = 'block';
     btnFinalizar.style.display = 'none';
-    
+
     // Ocultar campos de finalización
-    if (labelKmFinal) labelKmFinal.style.display = 'none';
-    if (kmFinalInput) kmFinalInput.style.display = 'none';
-    if (labelGananciaBruta) labelGananciaBruta.style.display = 'none';
-    if (gananciaBrutaInput) gananciaBrutaInput.style.display = 'none';
-    // Mostrar campo KM inicial para precarga
-    if (labelKmInicial) labelKmInicial.style.display = 'block';
-    if (kmInicialInput) kmInicialInput.style.display = 'block';
-    // Precargar KM inicial (Solo si existe el input)
-    if ($("kmInicial") && panelData.parametros.ultimoKMfinal !== null) {
-      $("kmInicial").value = safeNumber(panelData.parametros.ultimoKMfinal).toFixed(0);
+    $("labelKmFinal").style.display = 'none';
+    kmFinalInput.style.display = 'none';
+    gananciaBrutaInput.value = ""; // Limpiar el valor anterior
+    $("labelGananciaBruta").style.display = 'none';
+    kmFinalInput.style.display = 'none';
+
+    // Mostrar campos de inicio
+    $("labelKmInicial").style.display = 'block';
+    kmInicialInput.style.display = 'block';
+
+    // Precargar KM inicial si hay un último registro
+    if (panelData.parametros.ultimoKMfinal > 0) {
+      kmInicialInput.value = safeNumber(panelData.parametros.ultimoKMfinal).toFixed(0);
     }
   }
 }
 
 function iniciarTurno() {
-  if (turnoActivo) {
-    alert("Ya hay un turno activo.");
-    return;
-  }
-  const kmInicial = safeNumber($("kmInicial") ? $("kmInicial").value : 0);
-
+  const kmInicial = safeNumber($("kmInicial").value);
   if (kmInicial <= 0) {
-    alert("Debe registrar un KM inicial válido para comenzar el turno.");
+    alert("¡Error! El KM Inicial debe ser un número positivo.");
     return;
   }
 
-  turnoInicio = new Date().toISOString();
   turnoActivo = true;
-  localStorage.setItem("turnoActivo", "true");
-  localStorage.setItem("turnoInicio", turnoInicio);
-  panelData.parametros.kmInicioTurno = kmInicial; // Guardar KM inicial del turno en parámetros
-  saveData();
+  turnoInicio = new Date().toISOString();
+  turnoKMInicial = kmInicial;
+
+  $("kmFinal").value = ""; // Limpiar
+  $("gananciaBruta").value = ""; // Limpiar
+
+  alert(`Turno iniciado con KM Inicial: ${kmInicial} km.`);
   actualizarUIturno();
-  alert("Turno iniciado con KM: " + kmInicial + ".");
+  saveData();
 }
 
 function finalizarTurno() {
-  if (!turnoActivo || !turnoInicio) {
-    alert("No hay un turno activo para finalizar.");
-    return;
-  }
-
   const kmFinal = safeNumber($("kmFinal").value);
   const gananciaBruta = safeNumber($("gananciaBruta").value);
-  const kmInicial = safeNumber(panelData.parametros.kmInicioTurno);
-  const costoPorKm = safeNumber(panelData.parametros.costoPorKm);
+  const kmInicial = safeNumber(turnoKMInicial);
 
-  if (kmFinal <= kmInicial || gananciaBruta <= 0) {
-    alert("Revise los datos: KM Final debe ser mayor al KM Inicial y la Ganancia Bruta debe ser positiva.");
+  if (!turnoActivo || !turnoInicio) {
+    alert("No hay turno activo para finalizar.");
     return;
   }
 
-  const kmRecorridos = kmFinal - kmInicial;
-  const tsFin = new Date().toISOString();
-  const horasTrabajadas = calcularHorasTrabajadas(turnoInicio, tsFin);
-  const costoOperativo = kmRecorridos * costoPorKm;
-  const gananciaNeta = safeNumber(gananciaBruta - costoOperativo);
+  if (kmFinal <= kmInicial) {
+    alert(`¡Error! El KM Final (${kmFinal}) debe ser mayor que el KM Inicial (${kmInicial}).`);
+    return;
+  }
+  if (gananciaBruta <= 0) {
+    alert("¡Error! La Ganancia Bruta debe ser un número positivo.");
+    return;
+  }
 
-  // 1. REGISTRAR TURNO EN LA COLECCIÓN 'turnos'
+  const horas = calcularHorasTrabajadas(turnoInicio);
+  const kmRecorridos = kmFinal - kmInicial;
+  const costoOperativo = kmRecorridos * safeNumber(panelData.parametros.costoPorKm);
+  const gananciaNetaEstimada = gananciaBruta - costoOperativo;
+
   const nuevoTurno = {
-    fecha: tsFin,
-    tsInicio: turnoInicio,
-    tsFin: tsFin,
-    horas: safeNumber(horasTrabajadas, 2),
+    id: Date.now(),
+    fecha: getTodayDateString(),
+    inicio: turnoInicio,
+    fin: new Date().toISOString(),
+    horas: safeNumber(horas),
     kmInicial: kmInicial,
     kmFinal: kmFinal,
     kmRecorridos: kmRecorridos,
     gananciaBruta: gananciaBruta,
     costoOperativo: costoOperativo,
-    gananciaNeta: gananciaNeta
+    gananciaNeta: gananciaNetaEstimada
   };
-  panelData.turnos.unshift(nuevoTurno); // Agregar al inicio
 
-  // 2. CREAR MOVIMIENTOS EN LA COLECCIÓN 'movimientos'
-  panelData.movimientos.unshift({
-    fecha: tsFin,
-    tipo: 'Ingreso (Turno)',
-    descripcion: `Ganancia Bruta del Turno (${kmRecorridos} KM)`,
-    monto: gananciaBruta
-  });
-
-  panelData.movimientos.unshift({
-    fecha: tsFin,
-    tipo: 'Gasto (Operativo)',
-    descripcion: `Costo Operativo Estimado del Turno (${kmRecorridos} KM)`,
-    monto: -costoOperativo // Se guarda como negativo
-  });
-
-  // 3. ACTUALIZAR PARÁMETROS FINALES
+  panelData.turnos.push(nuevoTurno);
   panelData.parametros.ultimoKMfinal = kmFinal;
-  panelData.parametros.kmInicioTurno = null; // Limpiar
 
-  // 4. LIMPIAR ESTADO DE TURNO
+  // Actualizar kilometraje de mantenimiento
+  panelData.kilometraje.aceite += kmRecorridos;
+  panelData.kilometraje.bujia += kmRecorridos;
+  panelData.kilometraje.llantas += kmRecorridos;
+
+  // Resetear estado del turno
   turnoActivo = false;
   turnoInicio = null;
-  localStorage.removeItem("turnoActivo");
-  localStorage.removeItem("turnoInicio");
-  
-  // 5. GUARDAR Y ACTUALIZAR UI
-  saveData();
-  alert(`Turno finalizado. Ganancia Neta: $${fmtMoney(gananciaNeta)}. Horas: ${horasTrabajadas.toFixed(2)}h.`);
+  turnoKMInicial = null;
+
+  alert(`Turno finalizado. Ganancia Neta Estimada: $${fmtMoney(gananciaNetaEstimada)}.`);
   actualizarUIturno();
-  // renderResumenIndex(); // Necesitaría esta función en index.html
+  saveData();
+  // Al finalizar un turno, es buena práctica volver al panel
+  window.location.href = "index.html"; 
 }
 
-// ... (continúa en la parte 3/5)
-// app.js - Parte 3/5
-// Manejadores de Formularios y Lógica de Datos
-
-// =========================
-// MANEJADORES DE FORMULARIOS
-// =========================
-
 function handleRegistrarIngreso() {
-  const desc = $("ingresoDescripcion").value.trim();
-  const monto = safeNumber($("ingresoCantidad").value);
+  const descripcion = $("ingresoDescripcion").value.trim();
+  const cantidad = safeNumber($("ingresoCantidad").value);
 
-  if (desc === "" || monto <= 0) {
-    alert("Debe ingresar una descripción y un monto positivo.");
+  if (!descripcion || cantidad <= 0) {
+    alert("Complete la descripción y asegúrese de que el monto sea positivo.");
     return;
   }
 
-  const ingreso = {
+  const nuevoIngreso = {
+    id: Date.now(),
+    tipo: "Ingreso",
     fecha: new Date().toISOString(),
-    descripcion: desc,
-    monto: monto
+    descripcion: descripcion,
+    monto: cantidad
   };
-  panelData.ingresos.unshift(ingreso);
 
-  // Trazabilidad del movimiento para Historial
-  panelData.movimientos.unshift({
-    fecha: ingreso.fecha,
-    tipo: 'Ingreso (Extra)',
-    descripcion: desc,
-    monto: monto
-  });
+  panelData.ingresos.push(nuevoIngreso);
+  panelData.movimientos.push(nuevoIngreso);
 
-  saveData();
-  // renderIngresos(); // Asumo que esta existe para actualizar el total
-  alert("Ingreso registrado.");
   $("ingresoDescripcion").value = "";
   $("ingresoCantidad").value = "";
+  alert("Ingreso registrado.");
+  saveData();
 }
 
 function handleRegistrarGasto() {
-  const desc = $("gastoDescripcion").value.trim();
-  const monto = safeNumber($("gastoCantidad").value);
+  const descripcion = $("gastoDescripcion").value.trim();
+  const cantidad = safeNumber($("gastoCantidad").value);
   const tipo = $("gastoTipo").value; // 'trabajo' o 'fijo'
 
-  if (desc === "" || monto <= 0) {
-    alert("Debe ingresar una descripción y un monto positivo.");
+  if (!descripcion || cantidad <= 0) {
+    alert("Complete la descripción y asegúrese de que el monto sea positivo.");
     return;
   }
 
-  const gasto = {
+  const nuevoGasto = {
+    id: Date.now(),
+    tipo: "Gasto",
+    subtipo: tipo,
     fecha: new Date().toISOString(),
-    descripcion: desc,
-    monto: monto,
-    tipo: tipo
+    descripcion: descripcion,
+    monto: cantidad * -1 // Almacenar como negativo
   };
-  panelData.gastos.unshift(gasto);
 
-  // Trazabilidad del movimiento para Historial
-  panelData.movimientos.unshift({
-    fecha: gasto.fecha,
-    tipo: `Gasto (${tipo === 'fijo' ? 'Fijo/Hogar' : 'Trabajo'})`,
-    descripcion: desc,
-    monto: -monto // Se guarda como negativo
-  });
+  panelData.gastos.push(nuevoGasto);
+  panelData.movimientos.push(nuevoGasto);
 
-  saveData();
-  // renderGastos(); // Asumo que esta existe para actualizar el total
-  alert("Gasto registrado.");
   $("gastoDescripcion").value = "";
   $("gastoCantidad").value = "";
-}
-
-function handleRegistrarAbono() {
-  const deudaId = $("abonoSeleccionar").value;
-  const abonoMonto = safeNumber($("abonoMonto").value);
-
-  if (!deudaId || abonoMonto <= 0) {
-    alert("Debe seleccionar una deuda y un monto positivo para abonar.");
-    return;
-  }
-
-  const deuda = panelData.deudas.find(d => d.id === deudaId);
-  if (!deuda) {
-    alert("Deuda no encontrada.");
-    return;
-  }
-
-  // Implementación de la validación de abono
-  const saldoPendiente = deuda.montoTotal - deuda.montoAbonado;
-  if (abonoMonto > saldoPendiente) {
-    alert(`Error: El abono de $${fmtMoney(abonoMonto)} excede el saldo pendiente de $${fmtMoney(saldoPendiente)}.`);
-    return;
-  }
-
-  deuda.montoAbonado += abonoMonto;
-  deuda.abonos.unshift({
-    fecha: new Date().toISOString(),
-    monto: abonoMonto
-  });
-
-  // Trazabilidad del movimiento para Historial
-  panelData.movimientos.unshift({
-    fecha: new Date().toISOString(),
-    tipo: 'Abono Deuda',
-    descripcion: `Abono a: ${deuda.descripcion}`,
-    monto: -abonoMonto // Se guarda como negativo
-  });
-
+  alert(`Gasto (${tipo}) registrado.`);
   saveData();
-  alert(`Abono de $${fmtMoney(abonoMonto)} registrado a ${deuda.descripcion}.`);
-  $("abonoMonto").value = "";
-  // renderDeudas(); // Asumo que esta existe para actualizar la lista
 }
 
-// ... (continúa en la parte 4/5)
-// app.js - Parte 4/5
-// Métricas, Renderizado y Alertas
+// ... (El resto de la lógica de Admin como manejo de deudas, abonos, exportación, etc., debe ir aquí)
 
-// =========================
-// FUNCIONES DE RENDERIZADO (INDEX Y ADMIN)
-// =========================
-
-// ... (Otras funciones de renderizado como renderDeudas, renderTablaTurnos, etc. se asume que existían)
+// ---------- LÓGICA DE RESULTADOS/DASHBOARD (index.html) ----------
 
 /**
- * Calcula el kilometraje total acumulado y genera alertas de mantenimiento.
+ * Calcula las métricas de un día específico.
+ * Se asume que getMetricsForDay, renderTablaTurnos, renderCharts, etc., están definidos.
  */
-function checkAndRenderAlertas() {
-    const cardAlertas = $("cardAlertas");
-    const listaAlertas = $("listaAlertas");
+function getMetricsForDay(dateStr) {
+  let horas = 0;
+  let gananciaBruta = 0;
+  let gastosTrabajo = 0;
+  let kmRecorridos = 0;
 
-    if (!cardAlertas || !listaAlertas) return;
+  // 1. Turnos del día
+  panelData.turnos
+    .filter(t => t.fecha === dateStr)
+    .forEach(t => {
+      horas += safeNumber(t.horas);
+      gananciaBruta += safeNumber(t.gananciaBruta);
+      kmRecorridos += safeNumber(t.kmRecorridos);
+      // Incluir costo operativo como gasto de trabajo
+      gastosTrabajo += safeNumber(t.costoOperativo);
+    });
 
-    // 1. Calcular KM Total Acumulado (usando el último KM final conocido)
-    const ultimoKMfinal = safeNumber(panelData.parametros.ultimoKMfinal);
+  // 2. Gastos de trabajo del día
+  panelData.gastos
+    .filter(g => g.subtipo === 'trabajo' && g.fecha.startsWith(dateStr))
+    .forEach(g => {
+      gastosTrabajo += safeNumber(g.monto) * -1; // Multiplicar por -1 para tener el valor positivo del gasto
+    });
     
-    // Si no hay KM registrado, ocultar y salir
-    if (ultimoKMfinal === 0) {
-        cardAlertas.classList.add('hidden');
-        return;
+    // 3. Ingresos extra del día
+    panelData.ingresos
+    .filter(i => i.fecha.startsWith(dateStr))
+    .forEach(i => {
+      gananciaBruta += safeNumber(i.monto);
+    });
+
+  const gananciaNeta = gananciaBruta - gastosTrabajo;
+  const gananciaPorHora = horas > 0 ? gananciaNeta / horas : 0;
+
+  return {
+    horas: horas,
+    gananciaBruta: gananciaBruta,
+    gastosTrabajo: gastosTrabajo,
+    gananciaNeta: gananciaNeta,
+    kmRecorridos: kmRecorridos,
+    gananciaPorHora: gananciaPorHora
+  };
+}
+
+function renderResumenIndex() {
+  const todayMetrics = getMetricsForDay(getTodayDateString());
+
+  // Resumen del Día
+  if ($("resHoras")) $("resHoras").textContent = `${todayMetrics.horas.toFixed(2)}h`;
+  if ($("resGananciaBruta")) $("resGananciaBruta").textContent = `$${fmtMoney(todayMetrics.gananciaBruta)}`;
+  if ($("resGastosTrabajo")) $("resGastosTrabajo").textContent = `$${fmtMoney(todayMetrics.gastosTrabajo)}`;
+  if ($("resGananciaNeta")) $("resGananciaNeta").textContent = `$${fmtMoney(todayMetrics.gananciaNeta)}`;
+  if ($("resKmRecorridos")) $("resKmRecorridos").textContent = `${todayMetrics.kmRecorridos.toFixed(1)} km`;
+  if ($("resGananciaPorHora")) $("resGananciaPorHora").textContent = `$${fmtMoney(todayMetrics.gananciaPorHora)}/h`;
+
+  // Proyecciones
+  renderProyecciones();
+  renderTablaTurnos();
+  renderCharts();
+  checkAndRenderAlertas();
+}
+
+function renderProyecciones() {
+  // Simulación de cálculo de promedio de 7 días (aquí debe ir la lógica completa)
+  const NET_PROMEDIO_7_DIAS = 150; // Valor de ejemplo
+  const gastoFijoDiario = safeNumber(panelData.parametros.gastoFijo);
+  const deudaTotal = safeNumber(panelData.parametros.deudaTotal);
+  
+  if ($("proyKmTotal")) $("proyKmTotal").textContent = `${safeNumber(panelData.parametros.ultimoKMfinal).toFixed(0)} KM`;
+  if ($("proyDeuda")) $("proyDeuda").textContent = `$${fmtMoney(deudaTotal)}`;
+  if ($("proyGastoFijoDiario")) $("proyGastoFijoDiario").textContent = `$${fmtMoney(gastoFijoDiario)}`;
+  if ($("proyNetaPromedio")) $("proyNetaPromedio").textContent = `$${fmtMoney(NET_PROMEDIO_7_DIAS)}`;
+
+  // Cálculo de tiempo libre de deudas
+  const excedenteDiario = NET_PROMEDIO_7_DIAS - gastoFijoDiario;
+  let tiempoLibreDeDeudas = "Calculando...";
+
+  if (deudaTotal > 0) {
+    if (excedenteDiario > 0) {
+      tiempoLibreDeDeudas = `${Math.ceil(deudaTotal / excedenteDiario)} días`;
+    } else {
+      tiempoLibreDeDeudas = "Sin avance (Neto < Gasto Fijo)";
     }
+  } else {
+    tiempoLibreDeDeudas = "¡Libre de Deudas!";
+  }
 
-    listaAlertas.innerHTML = '';
-    let alertasPendientes = false;
+  if ($("proyDias")) $("proyDias").textContent = tiempoLibreDeDeudas;
+}
 
-    // 2. Iterar sobre los umbrales de mantenimiento
-    const mantenimientoBase = panelData.parametros.mantenimientoBase;
+function renderTablaTurnos() {
+    const tablaTurnos = $("tablaTurnos");
+    if (!tablaTurnos) return;
 
-    for (const [item, umbral] of Object.entries(mantenimientoBase)) {
-        // En un proyecto real, necesitarías la fecha o KM del *último* cambio de cada item
-        // Asumiremos por simplicidad que el KM actual (ultimoKMfinal) es el total
-        // recorrido desde el inicio/último reset (simulando un odómetro).
+    tablaTurnos.innerHTML = "";
+    // Mostrar solo los últimos 5 turnos ordenados por fecha/ID
+    panelData.turnos
+        .sort((a, b) => b.id - a.id)
+        .slice(0, 5)
+        .forEach(turno => {
+            tablaTurnos.innerHTML += `
+                <tr>
+                    <td>${turno.fecha}</td>
+                    <td>${turno.horas.toFixed(2)}</td>
+                    <td>${turno.kmRecorridos.toFixed(1)}</td>
+                    <td>$${fmtMoney(turno.gananciaNeta)}</td>
+                </tr>
+            `;
+        });
+}
 
-        if (ultimoKMfinal >= safeNumber(umbral)) {
-            const mensaje = `${item} ha superado o alcanzado el umbral de ${umbral} KM. ¡Mantenimiento necesario!`;
-            listaAlertas.innerHTML += `<li>${mensaje}</li>`;
-            alertasPendientes = true;
+function checkAndRenderAlertas() {
+    const listaAlertas = $("listaAlertas");
+    const cardAlertas = $("cardAlertas");
+    if (!listaAlertas || !cardAlertas) return;
+
+    listaAlertas.innerHTML = "";
+    let alertasCount = 0;
+
+    for (const [nombre, umbral] of Object.entries(panelData.parametros.mantenimientoBase)) {
+        const kmActual = panelData.kilometraje[nombre.split(' ')[0].toLowerCase()] || 0;
+        if (kmActual >= umbral) {
+            listaAlertas.innerHTML += `<li>Mantenimiento de **${nombre.split(' ')[0]}** pendiente. ${kmActual.toFixed(0)} KM / ${umbral} KM.</li>`;
+            alertasCount++;
         }
     }
 
-    // 3. Renderizar KM total acumulado en el panel
-    if ($("proyKmTotal")) {
-        $("proyKmTotal").textContent = `${ultimoKMfinal.toLocaleString('es-MX')} KM`;
-    }
-
-    // 4. Mostrar u ocultar la tarjeta de alertas
-    if (alertasPendientes) {
-        cardAlertas.classList.remove('hidden');
+    if (alertasCount > 0) {
+        cardAlertas.classList.remove("hidden");
     } else {
-        cardAlertas.classList.add('hidden');
+        cardAlertas.classList.add("hidden");
+        listaAlertas.innerHTML = "<li>No hay alertas de mantenimiento pendientes.</li>";
     }
 }
 
-
-// =========================
-// RENDERIZADO DE HISTORIAL
-// =========================
-
-function renderHistorial() {
-    const tablaBody = $("historialBody");
-    if (!tablaBody) return;
-
-    tablaBody.innerHTML = "";
-
-    // Usar panelData.movimientos y ordenar por fecha descendente
-    const movimientosOrdenados = panelData.movimientos
-        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-    movimientosOrdenados.forEach(mov => {
-        const monto = safeNumber(mov.monto);
-        const signo = monto >= 0 ? '+' : '';
-        const clase = monto >= 0 ? 'color: var(--success); font-weight: 600;' : 'color: var(--danger);';
-        
-        tablaBody.innerHTML += `
-            <tr>
-                <td>${mov.tipo}</td>
-                <td>${new Date(mov.fecha).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
-                <td>${mov.descripcion}</td>
-                <td style="${clase}">${signo}$${fmtMoney(Math.abs(monto))}</td>
-            </tr>
-        `;
-    });
-}
-
-
-// ... (continúa en la parte 5/5)
-// app.js - Parte 5/5
-// Listeners e Inicialización (Corregido: Eliminada Gestión de JSON)
-
-// =========================
-// SETUP DE LISTENERS (SIMPLIFICADO)
-// =========================
-
-function setupIngresoListeners() {
-  if ($("btnRegistrarIngreso")) $("btnRegistrarIngreso").addEventListener("click", handleRegistrarIngreso);
-}
-
-function setupGastoListeners() {
-  if ($("btnRegistrarGasto")) $("btnRegistrarGasto").addEventListener("click", handleRegistrarGasto);
-}
-
-function setupAbonoListeners() {
-  if ($("btnRegistrarAbono")) $("btnRegistrarAbono").addEventListener("click", handleRegistrarAbono);
-}
-
-// Nota: Las funciones de gestión de I/O (Importar/Exportar JSON/Excel) y su listener (setupIoListeners)
-// han sido eliminadas por solicitud del usuario.
-
-// =========================
-// INICIALIZACIÓN GLOBAL
-// =========================
-function initApp() {
-  cargarPanelData();
-  const title = (document.title || "").toLowerCase();
-
-  // Páginas de Administración y Turno
-  if (title.includes("administración") || title.includes("administracion")) {
-    // Se asume que las funciones para Deudas (setupDeudaWizardListeners, etc.) existen y se ejecutarán aquí
-    setupIngresoListeners(); 
-    setupGastoListeners(); 
-    setupAbonoListeners(); 
-    
-    if ($("btnIniciarTurno")) $("btnIniciarTurno").addEventListener("click", iniciarTurno);
-    if ($("btnFinalizarTurno")) $("btnFinalizarTurno").addEventListener("click", finalizarTurno);
-    
-    // Aquí irían las llamadas a renderDeudas, updateDeudaWizardUI, etc.
-  }
-  
-  // Página de Resultados (Panel)
-  if (title.includes("resultados") || title.includes("dashboard") || title.includes("panel de resultados")) {
-    // Aquí irían las llamadas a renderResumenIndex(), renderCharts(), etc.
-    // checkAndRenderAlertas(); // Descomentar al implementar métricas y alertas
-  }
-
-  // Página de Historial
-  if (title.includes("historial")) {
-    renderHistorial(); 
-  }
-  
-  // Precargar KM inicial (solo si el input existe y estamos en admin)
-  if (title.includes("administración") && $("kmInicial") && panelData.parametros.ultimoKMfinal !== null) {
-      $("kmInicial").value = safeNumber(panelData.parametros.ultimoKMfinal).toFixed(0);
-  }
-
-  // Si estamos en la página de administración, actualizamos el estado visual del turno inmediatamente
-  if (title.includes("administración") || title.includes("administracion")) {
-      actualizarUIturno(); 
-  }
-}
-
-document.addEventListener("DOMContentLoaded", initApp);
+function renderCharts() {
+  // Simulación de datos de 14 días (aquí debe ir la lógica real con Chart.js)
