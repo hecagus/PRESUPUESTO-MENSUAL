@@ -551,6 +551,7 @@ function calcularMetricas() {
           console.warn("Dato de fecha de turno inválido detectado:", t.fechaFin);
           return null; 
         }
+        // Llamada a toISOString() solo si la fecha es válida
         return date.toISOString().substring(0, 10); // YYYY-MM-DD
       })
       .filter(f => f !== null); // Quitar las entradas inválidas
@@ -641,10 +642,73 @@ function renderTablaTurnos() {
 
 function renderTablaKmMensual() {
     // Esta función es compleja y se omite por simplicidad en este código
+    const tablaKmMensual = $("tablaKmMensual");
+    if (!tablaKmMensual) return;
+    tablaKmMensual.innerHTML = "<p class='nota'>Función no implementada en esta versión.</p>";
 }
 
 function renderCharts() {
     // Esta función es compleja y se omite por simplicidad en este código
+    // Se asume que Chart.js está cargado
+    const ctxGanancias = $('graficaGanancias');
+    const ctxKm = $('graficaKm');
+    
+    // Placeholder para evitar errores si no hay librerías cargadas
+    if (!ctxGanancias || !ctxKm || typeof Chart === 'undefined') return;
+
+    // Destruir charts previos si existen
+    if (gananciasChart) gananciasChart.destroy();
+    if (kmChart) kmChart.destroy();
+    
+    const turnos = panelData.turnos.slice(-14); // Últimos 14 turnos
+    const labels = turnos.map(t => formatearFecha(new Date(t.fechaFin)));
+    const ganancias = turnos.map(t => safeNumber(t.gananciaNeta));
+    const kms = turnos.map(t => safeNumber(t.kmRecorridos));
+
+    // Gráfico de Ganancias
+    gananciasChart = new Chart(ctxGanancias, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Ganancia Neta por Turno ($)',
+                data: ganancias,
+                backgroundColor: 'rgba(6, 193, 103, 0.8)', // Green
+                borderColor: 'rgba(6, 193, 103, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+    
+    // Gráfico de KM Recorridos
+    kmChart = new Chart(ctxKm, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'KM Recorridos por Turno',
+                data: kms,
+                backgroundColor: 'rgba(0, 0, 0, 0.6)', // Black
+                borderColor: 'rgba(0, 0, 0, 1)',
+                borderWidth: 2,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
 }
 
 function renderAlertas(alertas) {
@@ -670,8 +734,6 @@ function renderResumenIndex() {
   const m = panelData.metricas;
 
   // Resumen del Día (Horas, Ganancia Bruta, Gastos Trabajo) - Simplificado
-  // Este resumen debería ser por *día de hoy*, pero para este código simple,
-  // usaremos el promedio histórico o el último turno para el dashboard.
   // **Asumiendo que solo se muestra el promedio o el último turno simple por ahora**
   
   if ($("resHoras")) $("resHoras").textContent = safeNumber(m.horasPromedio).toFixed(2) + "h (Prom)";
@@ -884,7 +946,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   } else if (page === 'index') {
     renderResumenIndex();
-    // Aquí se llamarían a renderCharts y renderTablaKmMensual dentro de renderResumenIndex()
     
   } else if (page === 'historial') {
     renderHistorial();
@@ -892,13 +953,10 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Mostrar tutorial si no ha sido completado
   if (!localStorage.getItem(TUTORIAL_COMPLETADO_KEY)) {
-      showTutorialModal(); // Asume que esta función existe en otro lugar o la definimos abajo
+      showTutorialModal(); 
   }
 
 });
-
-// Placeholder para las funciones que usan inputs en admin.html que no están en el archivo base (setupGasListeners, setupKmListeners)
-// No es necesario definirlas si no existen en el HTML o no generan el error.
 
 // =========================
 //    TUTORIAL MODAL
@@ -925,7 +983,9 @@ function showTutorialModal() {
     
     // Mostrar
     overlay.style.display = 'block';
-    modal.style.display = 'block';
+    // Aplicar opacidad para transición
+    setTimeout(() => { overlay.style.opacity = '1'; modal.style.display = 'block'; }, 10);
+    
     updateTutorialModal();
     
     if (nextBtn) {
@@ -952,16 +1012,20 @@ function updateTutorialModal() {
 }
 
 function handleTutorialNext() {
+    const overlay = $("tutorialOverlay");
+    const modal = $("tutorialModal");
+    
     if (currentTutorialStep < tutorialSteps.length - 1) {
         currentTutorialStep++;
         updateTutorialModal();
     } else {
         // Fin del tutorial
-        const overlay = $("tutorialOverlay");
-        const modal = $("tutorialModal");
-        if (overlay) overlay.style.display = 'none';
-        if (modal) modal.style.display = 'none';
-        
+        if (overlay) overlay.style.opacity = '0';
+        setTimeout(() => {
+            if (overlay) overlay.style.display = 'none';
+            if (modal) modal.style.display = 'none';
+        }, 300); // Esperar la transición
+
         localStorage.setItem(TUTORIAL_COMPLETADO_KEY, "true");
         alert("¡Tutorial completado! Ahora a la Administración para empezar.");
     }
