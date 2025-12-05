@@ -11,7 +11,7 @@ let kmChart = null;
 let deudaWizardStep = 1;
 
 // Estructura base
-let panelData = {
+const DEFAULT_PANEL_DATA = { // Usamos una constante para la estructura inicial
   ingresos: [],
   gastos: [],
   kmDiarios: [],
@@ -32,6 +32,8 @@ let panelData = {
     }
   }
 };
+
+let panelData = {...DEFAULT_PANEL_DATA}; // Inicializar con la estructura por defecto
 
 // Estado de turno (guardamos TS como string en localStorage para compat)
 let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || false;
@@ -69,30 +71,23 @@ function formatearFecha(date) {
  * Asegura que la estructura de panelData esté completa para evitar errores al cargar desde versiones antiguas.
  */
 function asegurarEstructura() {
+  // 1. Asegurar las colecciones principales (si faltan completamente)
   if (!panelData.ingresos) panelData.ingresos = [];
   if (!panelData.gastos) panelData.gastos = [];
   if (!panelData.kmDiarios) panelData.kmDiarios = [];
   if (!panelData.deudas) panelData.deudas = [];
   if (!panelData.movimientos) panelData.movimientos = [];
-
-  // Migración o inicialización de 'turnos' y 'parametros'
   if (!panelData.turnos) panelData.turnos = [];
-  if (!panelData.parametros) {
-    panelData.parametros = {
-      deudaTotal: 0,
-      gastoFijo: 0,
-      ultimoKMfinal: null,
-      costoPorKm: 0,
-      costoMantenimientoPorKm: 0,
-      mantenimientoBase: {
-        'Aceite (KM)': 3000,
-        'Bujía (KM)': 8000,
-        'Llantas (KM)': 15000
-      }
-    };
-  }
 
-  // Asegurar las propiedades de parametros
+  // 2. **FIX CLAVE para TypeError:** Asegurar 'parametros' y sus propiedades anidadas (robustez)
+  // Utilizamos la estructura por defecto y la fusionamos con los datos existentes
+  // para garantizar que todas las propiedades (incluyendo mantenimientoBase) existan.
+  panelData.parametros = {
+    ...DEFAULT_PANEL_DATA.parametros, // Start with all defaults (e.g., mantenimientoBase)
+    ...(panelData.parametros || {}) // Overwrite with any existing loaded parameters
+  };
+
+  // 3. Asegurar las propiedades de parametros como números (post-merge)
   panelData.parametros.deudaTotal = safeNumber(panelData.parametros.deudaTotal);
   panelData.parametros.gastoFijo = safeNumber(panelData.parametros.gastoFijo);
   if (panelData.parametros.ultimoKMfinal === undefined) panelData.parametros.ultimoKMfinal = null;
@@ -108,7 +103,9 @@ function cargarPanelData() {
   if (data) {
     try {
       const loadedData = JSON.parse(data);
-      panelData = { ...panelData, ...loadedData }; // Sobrescribe con los datos cargados
+      // Solo sobrescribimos las propiedades de panelData, no el objeto en sí.
+      // Luego 'asegurarEstructura' completará los datos faltantes.
+      panelData = { ...panelData, ...loadedData }; 
     } catch (e) {
       console.error("Error al cargar o parsear datos de localStorage:", e);
       // Intentar cargar el backup
@@ -137,9 +134,9 @@ function saveData() {
 }
 
 
-// ---------- GESTIÓN DE TURNO ----------
-
+// ---------- GESTIÓN DE TURNO (omito por espacio) ----------
 function actualizarUIturno() {
+  // ... (código anterior)
   const btnIniciar = $("btnIniciarTurno");
   const btnFinalizar = $("btnFinalizarTurno");
   const textoTurno = $("turnoTexto");
@@ -284,7 +281,7 @@ function finalizarTurno() {
   alert(`Turno finalizado. Ganancia Neta Estimada: $${fmtMoney(gananciaNeta)}`);
 }
 
-// ---------- REGISTRO DE MOVIMIENTOS GENERALES ----------
+// ---------- REGISTRO DE MOVIMIENTOS GENERALES (omito por espacio) ----------
 
 function registrarMovimiento(tipo, descripcion, monto, esTrabajo = false) {
   const mov = {
@@ -400,19 +397,17 @@ function setupAbonoListeners() {
   });
 }
 
-
-// ---------- GESTIÓN DE DEUDAS (WIZARD) ----------
+// ---------- GESTIÓN DE DEUDAS (WIZARD) (omito por espacio) ----------
 function updateDeudaWizardUI() {
     // Esconder todos los pasos
     if ($('deudaStep1')) $('deudaStep1').style.display = 'none';
     if ($('deudaStep2')) $('deudaStep2').style.display = 'none';
 
-    if (panelData.parametros.deudaTotal === 0 && panelData.parametros.gastoFijo === 0) {
+    if (panelData.parametros.deudaTotal === 0 && panelData.parametros.gastoFijo === 0 && panelData.deudas.length === 0) {
         // Mostrar Paso 1
         if ($('deudaStep1')) $('deudaStep1').style.display = 'block';
     } else {
-        // Mostrar Paso 2 (o el resumen, pero para la edición)
-        // Como no hay un paso de resumen en este código simple, forzamos al paso de edición si ya hay datos.
+        // Mostrar Paso 2 (edición/resumen)
         if ($('deudaStep2')) $('deudaStep2').style.display = 'block';
         
         // Cargar valores actuales en el paso de edición
@@ -516,7 +511,7 @@ function renderDeudas() {
 }
 
 
-// ---------- CÁLCULOS Y MÉTRICAS (CORRECCIÓN RangeError) ----------
+// ---------- CÁLCULOS Y MÉTRICAS (CORRECCIÓN RangeError y TypeError) ----------
 
 function calcularMetricas() {
   const turnos = panelData.turnos;
@@ -535,13 +530,19 @@ function calcularMetricas() {
   // Métricas diarias promedio (usando el rango de fechas de los turnos)
   let diasTrabajados = 0;
   if (turnos.length > 0) {
-    // 💡 CORRECCIÓN PARA EL RangeError: Se valida la fecha antes de usar toISOString()
+    // 💡 CORRECCIÓN PARA EL RangeError: Mejor validación de la fecha
     const fechas = turnos
       .map(t => {
+        // Aseguramos que la propiedad exista antes de intentar crear la fecha
+        if (!t.fechaFin) {
+            console.warn("Dato de fecha de turno faltante o inválido detectado:", t);
+            return null;
+        }
+        
         const date = new Date(t.fechaFin);
         // Si la fecha es inválida (getTime() devuelve NaN), devolvemos null.
         if (isNaN(date.getTime())) {
-          console.warn("Dato de fecha de turno inválido detectado:", t.fechaFin);
+          console.warn("Dato de fecha de turno inválido (RangeError) detectado:", t.fechaFin);
           return null; 
         }
         // Llamada a toISOString() solo si la fecha es válida
@@ -575,7 +576,8 @@ function calcularMetricas() {
   const alertas = [];
   
   if (ultimoKm > 0) {
-      const baseMant = panelData.parametros.mantenimientoBase;
+      // ESTA LÍNEA AHORA ESTÁ SEGURA GRACIAS A LA CORRECCIÓN EN asegurarEstructura()
+      const baseMant = panelData.parametros.mantenimientoBase; 
       const kmAceite = safeNumber(baseMant['Aceite (KM)']);
       const kmBujia = safeNumber(baseMant['Bujía (KM)']);
       const kmLlantas = safeNumber(baseMant['Llantas (KM)']);
@@ -603,7 +605,7 @@ function calcularMetricas() {
   };
 }
 
-// ---------- RENDERIZADO DE UI (INDEX) (Funciones omitidas por espacio) ----------
+// ---------- RENDERIZADO DE UI (omito por espacio) ----------
 
 function renderTablaTurnos() {
   const tablaTurnosBody = $("tablaTurnos");
@@ -640,14 +642,21 @@ function renderCharts() {
     if (!ctxGanancias || !ctxKm || typeof Chart === 'undefined') return;
 
     // ... Lógica de renderizado de gráficos ...
-    // Se deja el placeholder para reducir el tamaño del código
 }
 
 function renderAlertas(alertas) {
     const lista = $("listaAlertas");
     const card = $("cardAlertas");
     if (!lista || !card) return;
-    // ... Lógica de renderizado de alertas ...
+    lista.innerHTML = "";
+    if (alertas.length > 0) {
+        alertas.forEach(a => {
+            lista.innerHTML += `<li>${a}</li>`;
+        });
+        card.classList.remove('hidden');
+    } else {
+        card.classList.add('hidden');
+    }
 }
 
 function renderResumenIndex() {
@@ -783,8 +792,7 @@ function exportarExcel() {
     }
     const wb = XLSX.utils.book_new();
     
-    // ... Lógica de exportación de Excel ...
-    // Se deja el placeholder para reducir el tamaño del código
+    // ... Lógica de exportación de Excel ... (Omitida por brevedad)
     XLSX.writeFile(wb, "UberEatsTracker_Data.xlsx");
 }
 
@@ -799,6 +807,11 @@ function setupIoListeners() {
 }
 
 // ---------- INICIALIZACIÓN GLOBAL ----------
+function showTutorialModal() {
+    // ... Lógica de tutorial (omito por brevedad)
+    // Para evitar que el código falle si no tienes la función implementada, dejo un placeholder
+    console.log("Mostrando tutorial...");
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   cargarPanelData();
@@ -837,5 +850,3 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
 });
-
-// ... (Funciones de Tutorial omitidas por espacio)
