@@ -7,11 +7,11 @@
   <link rel="stylesheet" href="style.css" />
   <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 </head>
-<body>
+<body data-page="admin">
 
 <header class="header">
   <h1>Panel Administrativo</h1>
-  <a href="index.html" class="btn-admin" id="adminButton">⬅ Volver al Panel</a>
+  <a href="index.html" class="btn-admin" id="adminButton" type="button">⬅ Volver al Panel</a>
 </header>
 
 <main class="container">
@@ -19,8 +19,8 @@
   <section class="card" id="cardTurnos">
     <h2>Gestión de Turno</h2>
     <p id="turnoTexto" style="margin-bottom:10px;">🔴 Sin turno activo</p>
-    <button id="btnIniciarTurno" class="btn-success">Iniciar Turno</button>
-    <button id="btnFinalizarTurno" class="btn-danger" style="display:none;">Finalizar Turno</button>
+    <button id="btnIniciarTurno" class="btn-success" type="button">Iniciar Turno</button>
+    <button id="btnFinalizarTurno" class="btn-danger" type="button" style="display:none;">Finalizar Turno</button>
     <p class="nota">Al iniciar, el KM Inicial se registra automáticamente. Si no hay, ponlo manual.</p>
   </section>
 
@@ -30,7 +30,7 @@
     <input type="text" id="ingresoDescripcion" placeholder="Ej. Propina extra, Pago Plataforma" />
     <label>Monto:</label>
     <input type="number" id="ingresoCantidad" placeholder="0.00" />
-    <button id="btnGuardarIngreso" class="btn-primary">Guardar Ingreso</button>
+    <button id="btnGuardarIngreso" class="btn-primary" type="button">Guardar Ingreso</button>
   </section>
 
   <section class="card">
@@ -39,7 +39,7 @@
     <input type="number" id="litrosGas" placeholder="0.00" />
     <label>Costo Total ($):</label>
     <input type="number" id="costoGas" placeholder="0.00" />
-    <button id="btnGuardarGas" class="btn-primary">Guardar Carga y Gasto</button>
+    <button id="btnGuardarGas" class="btn-primary" type="button">Guardar Carga y Gasto</button>
   </section>
 
   <section class="card">
@@ -64,17 +64,17 @@
         <option value="Otros HOGAR">Otros gastos (Hogar)</option>
       </optgroup>
     </select>
-    <button id="btnGuardarGasto" class="btn-primary">Guardar Gasto</button>
+    <button id="btnGuardarGasto" class="btn-primary" type="button">Guardar Gasto</button>
   </section>
 
   <section class="card">
     <h2>Registro de Kilometraje</h2>
     <label>KM Inicial (Odómetro):</label>
-    <input type="number" id="kmInicial" placeholder="0" readonly style="background:#ddd;" />
+    <input type="number" id="kmInicial" placeholder="0" readonly style="background:#eee;" />
     <label>KM Final (Odómetro):</label>
     <input type="number" id="kmFinal" placeholder="0" />
     <p>KM Recorridos: <strong id="kmRecorridos">0</strong></p>
-    <button id="btnGuardarKm" class="btn-primary">Guardar KM</button>
+    <button id="btnGuardarKm" class="btn-primary" type="button">Guardar KM</button>
     <p class="nota">⚠ El KM Final debe ser mayor al KM Inicial. (Validación automática)</p>
   </section>
 
@@ -120,9 +120,9 @@
       </div>
 
       <div style="margin-top:15px;">
-        <button id="btnDeudaBack" class="btn-secondary" style="display:none;">⬅ Anterior</button>
-        <button id="btnDeudaNext" class="btn-secondary" style="display:inline-block;">Siguiente ➡</button>
-        <button id="btnRegistrarDeudaFinal" class="btn-primary" style="display:none;">Registrar Deuda</button>
+        <button id="btnDeudaBack" class="btn-secondary" type="button" style="display:none;">⬅ Anterior</button>
+        <button id="btnDeudaNext" class="btn-secondary" type="button">Siguiente ➡</button>
+        <button id="btnRegistrarDeudaFinal" class="btn-primary" type="button" style="display:none;">Registrar Deuda</button>
       </div>
     </div>
 
@@ -133,7 +133,7 @@
     <select id="abonoSeleccionar"></select>
     <label>Cantidad a abonar ($):</label>
     <input type="number" id="abonoMonto" />
-    <button id="btnRegistrarAbono" class="btn-success">Registrar Abono</button>
+    <button id="btnRegistrarAbono" class="btn-success" type="button">Registrar Abono</button>
     <p class="nota">⚠ El abono no puede ser mayor al saldo pendiente. (Validación automática)</p>
 
     <hr style="margin:20px 0;" />
@@ -144,23 +144,24 @@
 
   <section class="card">
     <h2>Datos y Respaldo</h2>
-    <button id="btnExportarExcel" class="btn-success">Descargar Excel (.xlsx)</button>
-    <button id="btnExportar" class="btn-secondary">Copiar JSON</button>
+    <button id="btnExportarExcel" class="btn-success" type="button">Descargar Excel (.xlsx)</button>
+    <button id="btnExportar" class="btn-secondary" type="button">Copiar JSON</button>
     <p class="nota">El respaldo automático se guarda en <strong>localStorage</strong> con la clave <strong>panelData_backup_v1</strong>.</p>
 
     <div style="margin-top:15px; border-top:1px solid #eee; padding-top:10px;">
       <textarea id="importJson" rows="3" placeholder="Pega aquí el JSON para restaurar..."></textarea>
-      <button id="btnImportar" class="btn-danger">Restaurar Datos</button>
+      <button id="btnImportar" class="btn-danger" type="button">Restaurar Datos</button>
     </div>
   </section>
 
 </main>
 
-<div id="tutorialOverlay"></div>
-<div id="tutorialModal" class="modal-center">
+<!-- Tutorial modal (único por página) -->
+<div id="tutorialOverlay" class="overlay" style="display:none;"></div>
+<div id="tutorialModal" class="modal-center" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle" style="display:none;">
   <h3 id="tutorialTitle">Bienvenido</h3>
   <p id="tutorialText">Iniciando...</p>
-  <button id="tutorialNextBtn" class="btn-primary" style="width:100%; margin-top:10px;">Siguiente</button>
+  <button id="tutorialNextBtn" class="btn-primary" type="button" style="width:100%; margin-top:10px;">Siguiente</button>
 </div>
 
 <script src="app.js"></script>
