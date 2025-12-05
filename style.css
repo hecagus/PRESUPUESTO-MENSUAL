@@ -3,28 +3,30 @@
 =========================== */
 :root {
     --primary: #000000;       /* Uber Black */
-    --secondary: #06C167;     /* Uber Green */
-    --accent: #2d2d2d;
-    --bg: #f3f3f3;
-    --text: #333;
+    --secondary: #06C167;     /* Uber Green (Accent) */
+    --accent: #2d2d2d;        /* Darker gray */
+    --bg: #f7f7f7;            /* Lighter background */
+    --text: #1a1a1a;          /* Almost black text */
     --white: #fff;
     --danger: #dc3545;
     --warning: #ffc107;
-    --success: #28a745;
-    --shadow: 0 4px 6px rgba(0,0,0,0.1);
+    --success: #06C167;       /* Using secondary color for success/buttons */
+    --shadow: 0 6px 15px rgba(0,0,0,0.1);
+    --border-radius: 8px;
 }
 
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
 }
 
 body {
     background-color: var(--bg);
     color: var(--text);
     padding-bottom: 40px;
+    line-height: 1.6;
 }
 
 /* ===========================
@@ -33,203 +35,365 @@ body {
 .header {
     background-color: var(--primary);
     color: var(--white);
-    padding: 15px 20px;
+    padding: 15px 25px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
 .header h1 {
-    font-size: 1.2rem;
+    font-size: 24px;
     font-weight: 600;
-}
-
-.container {
-    max-width: 800px;
-    margin: 20px auto;
-    padding: 0 15px;
-}
-
-.card {
-    background: var(--white);
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: var(--shadow);
-}
-
-.card h2 {
-    margin-bottom: 15px;
-    font-size: 1.1rem;
-    color: var(--primary);
-    border-bottom: 2px solid var(--secondary);
-    padding-bottom: 8px;
-    display: inline-block;
-}
-
-.card h3 {
-    font-size: 1rem;
-    margin: 15px 0 10px;
-    color: #555;
-}
-
-/* Stats Grid */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 15px;
-}
-
-.stat {
-    background: #f9f9f9;
-    padding: 15px;
-    border-radius: 8px;
-    text-align: center;
-    border: 1px solid #eee;
-}
-
-.stat label {
-    display: block;
-    font-size: 0.8rem;
-    color: #666;
-    margin-bottom: 5px;
-}
-
-.stat span {
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: var(--primary);
-}
-
-/* ===========================
-   3. FORMULARIOS Y BOTONES
-=========================== */
-label {
-    display: block;
-    margin: 10px 0 5px;
-    font-weight: 500;
-    font-size: 0.9rem;
-}
-
-input, select, textarea {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 16px; 
-    margin-bottom: 10px;
-    background: #fafafa;
-}
-
-input:focus, select:focus, textarea:focus {
-    outline: none;
-    border-color: var(--secondary);
-    background: #fff;
-}
-
-button {
-    cursor: pointer;
-    border: none;
-    padding: 12px 20px;
-    border-radius: 8px;
-    font-weight: 600;
-    transition: transform 0.1s, opacity 0.2s;
-    width: 100%;
-    margin-top: 10px;
-    font-size: 1rem;
-}
-
-button:active {
-    transform: scale(0.98);
 }
 
 .btn-admin {
-    background: rgba(255,255,255,0.2);
-    color: white;
-    text-decoration: none;
+    background-color: var(--secondary);
+    color: var(--primary);
     padding: 8px 15px;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    transition: background 0.3s;
+    border-radius: var(--border-radius);
+    text-decoration: none;
+    font-weight: 600;
+    transition: background-color 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .btn-admin:hover {
-    background: rgba(255,255,255,0.3);
+    background-color: #049752;
 }
 
-.btn-primary { background-color: var(--primary); color: white; }
-.btn-secondary { background-color: #6c757d; color: white; }
-.btn-success { background-color: var(--secondary); color: white; }
-.btn-danger { background-color: var(--danger); color: white; }
-.btn-warning { background-color: var(--warning); color: #000; }
+.container {
+    max-width: 900px;
+    margin: 25px auto;
+    padding: 0 20px;
+}
 
-/* Tablas y Listas */
+.card {
+    background-color: var(--white);
+    padding: 25px;
+    border-radius: var(--border-radius);
+    margin-bottom: 25px;
+    box-shadow: var(--shadow);
+    border: 1px solid #e0e0e0;
+}
+
+.card h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: var(--accent);
+    border-bottom: 2px solid #eee;
+    padding-bottom: 8px;
+    font-size: 20px;
+}
+
+/* Formularios y Entradas */
+label {
+    display: block;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text);
+}
+
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: var(--border-radius);
+    font-size: 16px;
+    transition: border-color 0.2s;
+    background-color: #fff;
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: var(--secondary);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(6, 193, 103, 0.2);
+}
+
+textarea {
+    resize: vertical;
+}
+
+/* Botones */
+.btn-primary, .btn-secondary, .btn-danger, .btn-success {
+    padding: 12px 20px;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 10px;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+    display: block;
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    color: var(--white);
+}
+
+.btn-primary:hover {
+    background-color: var(--accent);
+}
+
+.btn-secondary {
+    background-color: #e0e0e0;
+    color: var(--text);
+}
+
+.btn-secondary:hover {
+    background-color: #ccc;
+}
+
+.btn-danger {
+    background-color: var(--danger);
+    color: var(--white);
+}
+
+.btn-danger:hover {
+    background-color: #c9303c;
+}
+
+.btn-success {
+    background-color: var(--success);
+    color: var(--primary);
+}
+
+.btn-success:hover {
+    background-color: #049752;
+}
+
+/* Alineación de botones múltiples en una línea */
+.btn-secondary, .btn-primary, .btn-danger, .btn-success {
+    display: inline-block;
+    width: auto;
+}
+
+/* Tablas */
 .tabla {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 10px;
-    font-size: 0.9rem;
+    margin-top: 15px;
 }
 
 .tabla th, .tabla td {
-    padding: 10px;
+    padding: 12px;
     text-align: left;
     border-bottom: 1px solid #eee;
 }
 
 .tabla th {
-    background-color: #f8f9fa;
+    background-color: #f0f0f0;
     font-weight: 600;
+    color: var(--text);
 }
 
+.tabla tr:last-child td {
+    border-bottom: none;
+}
+
+/* Listas (Deudas) */
 .list {
     list-style: none;
+    padding: 0;
     margin-top: 15px;
 }
 
 .list li {
-    background: #fff;
-    border-bottom: 1px solid #eee;
     padding: 10px 0;
+    border-bottom: 1px dashed #e0e0e0;
 }
 
+.list li:last-child {
+    border-bottom: none;
+}
+
+/* Sección de Resumen de Hoy */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.stat {
+    background-color: #f0f0f0;
+    padding: 15px;
+    border-radius: var(--border-radius);
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.stat label {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 400;
+    color: #666;
+    display: block;
+}
+
+.stat span {
+    display: block;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-top: 5px;
+}
+
+.stat-highlight {
+    grid-column: 1 / -1;
+    background-color: var(--secondary);
+}
+
+.stat-highlight span {
+    color: var(--primary);
+    font-size: 30px;
+}
+.stat-large {
+    grid-column: span 1;
+}
+
+/* Proyecciones */
 .projection {
     display: flex;
     justify-content: space-between;
     padding: 8px 0;
-    border-bottom: 1px dashed #eee;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 16px;
 }
 
-/* ===========================
-   4. MEDIA QUERIES
-=========================== */
+.projection:last-child {
+    border-bottom: none;
+}
+
+.projection label {
+    font-weight: 500;
+    color: #555;
+    margin: 0;
+}
+
+.projection span {
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.projection-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.projection-grid .projection {
+    display: block;
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: var(--border-radius);
+    text-align: center;
+}
+.projection-grid .projection label {
+    display: block;
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 5px;
+}
+.projection-grid .projection span {
+    font-size: 18px;
+}
+
+.nota {
+    font-size: 0.9em;
+    color: #777;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    padding: 8px;
+    background: #f9f9f9;
+    border-left: 3px solid var(--secondary);
+    border-radius: 0 0 4px 4px;
+}
+
+/* ALERTAS */
+.alert-card {
+    background-color: #ffe0b2;
+    border: 1px solid var(--warning);
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.3);
+}
+
+.alert-card h2 {
+    color: #e65100;
+    border-bottom: 2px solid #ffcc80;
+}
+
+.alert-list {
+    list-style: none;
+    padding: 0;
+}
+
+.alert-list li {
+    padding: 10px;
+    margin-bottom: 8px;
+    border-radius: 5px;
+    font-weight: 500;
+    background-color: #fff3e0;
+    border-left: 4px solid var(--warning);
+}
+
+.alert-list li.alert-danger {
+    background-color: #f8d7da;
+    border-left: 4px solid var(--danger);
+}
+
+.alert-list li.alert-success {
+    background-color: #d4edda;
+    border-left: 4px solid var(--success);
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* MEDIA QUERIES */
 @media (max-width: 600px) {
-    .stats-grid {
-        grid-template-columns: 1fr 1fr; 
-    }
-    
-    input, select, textarea {
-        padding: 12px; 
-    }
-    
-    .header h1 {
-        font-size: 18px;
+    .container {
+        margin: 15px auto;
+        padding: 0 10px;
     }
 
-    .header .btn-admin {
-        padding: 6px 12px;
-        font-size: 13px;
+    .card {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    .stat-large {
+        grid-column: 1 / -1;
+    }
+
+    .projection-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .btn-primary, .btn-secondary, .btn-danger, .btn-success {
+        display: block;
+        margin-bottom: 10px;
+    }
+    
+    .btn-admin {
+        padding: 6px 10px;
+        font-size: 14px;
     }
 }
 
-
-/* ===========================
-   5. TUTORIAL (MODALS)
-=========================== */
+/* TUTORIAL (MODALS) */
 #tutorialOverlay {
     position: fixed;
     top: 0;
@@ -245,9 +409,9 @@ button:active {
 
 #tutorialModal {
     position: absolute; 
-    background: white;
+    background: var(--white);
     padding: 25px;
-    border-radius: 12px;
+    border-radius: var(--border-radius);
     width: 90%;
     max-width: 350px;
     z-index: 1001;
@@ -264,26 +428,10 @@ button:active {
 }
 
 .tutorial-highlight {
-    z-index: 1005 !important; 
-    position: relative !important; 
-    box-shadow: 0 0 0 5px rgba(6, 193, 103, 0.8), 0 0 20px rgba(0, 0, 0, 0.5); /* Color Uber Green */
-    transition: box-shadow 0.3s;
-    border-radius: 8px; 
-    background-color: white; 
+    position: relative;
+    z-index: 1002; /* Asegura que highlight no tape modal */
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    border: 3px solid var(--secondary);
+    border-radius: var(--border-radius);
+    transition: all 0.3s ease-in-out;
 }
-
-@media (max-width: 600px) {
-    #tutorialModal {
-        width: 85%;
-        position: fixed; 
-    }
-    
-    .modal-center,
-    .modal-top-right, 
-    .modal-bottom-left {
-        top: 50% !important;
-        left: 50% !important;
-        transform: translate(-50%, -50%) !important;
-    }
-}
-/* FIN DE ARCHIVO */
