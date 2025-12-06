@@ -1,10 +1,9 @@
-// app.js - VERSIÓN INTEGRADA Y CORREGIDA (SOLUCIÓN FINAL)
+// app.js - VERSIÓN FINAL CON LÓGICA DE FRECUENCIA DE PAGO
 // ---------------------------------------------------------------------
 
 const STORAGE_KEY = "panelData";
 const BACKUP_KEY = "panelData_backup_v1";
 const $ = id => document.getElementById(id);
-const TUTORIAL_COMPLETADO_KEY = "tutorialCompleto";
 
 let gananciasChart = null;
 let kmChart = null;
@@ -19,10 +18,9 @@ const DEFAULT_PANEL_DATA = {
   turnos: [],
   parametros: {
     deudaTotal: 0,
-    gastoFijo: 0,
+    gastoFijo: 0, // Esto ahora representará la "Cuota Diaria de Deuda" calculada
     ultimoKMfinal: null,
     costoPorKm: 0,
-    costoMantenimientoPorKm: 0,
     mantenimientoBase: {
       'Aceite (KM)': 3000,
       'Bujía (KM)': 8000,
@@ -31,10 +29,10 @@ const DEFAULT_PANEL_DATA = {
   }
 };
 
-// Inicializar estado en memoria
+// Inicializar estado
 let panelData = JSON.parse(JSON.stringify(DEFAULT_PANEL_DATA));
 
-// Estado de turno (persistencia ligera)
+// Estado de turno
 let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || false;
 let turnoInicio = localStorage.getItem("turnoInicio") || null;
 
@@ -58,29 +56,25 @@ function formatearFecha(date) {
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 }
 
-// ---------- MANEJO DE DATOS ----------
+// ---------- GESTIÓN DE DATOS ----------
 
 function validarYArreglarDatos() {
-  // 1) Asegurar arrays
-  ['ingresos', 'gastos', 'deudas', 'movimientos', 'turnos', 'kmDiarios'].forEach(k => {
+  ['ingresos', 'gastos', 'deudas', 'movimientos', 'turnos'].forEach(k => {
     if (!Array.isArray(panelData[k])) panelData[k] = [];
   });
 
-  // 2) Asegurar parametros y mantenimientoBase
   if (!isObject(panelData.parametros)) {
     panelData.parametros = JSON.parse(JSON.stringify(DEFAULT_PANEL_DATA.parametros));
-  } else {
-    if (!panelData.parametros.mantenimientoBase) {
-      panelData.parametros.mantenimientoBase = DEFAULT_PANEL_DATA.parametros.mantenimientoBase;
-    }
+  }
+  
+  if (!panelData.parametros.mantenimientoBase) {
+    panelData.parametros.mantenimientoBase = DEFAULT_PANEL_DATA.parametros.mantenimientoBase;
   }
 
-  // 3) Saneamiento numérico crítico
-  ['deudaTotal', 'gastoFijo', 'costoPorKm', 'costoMantenimientoPorKm'].forEach(k => {
+  ['deudaTotal', 'gastoFijo', 'costoPorKm'].forEach(k => {
     panelData.parametros[k] = safeNumber(panelData.parametros[k]);
   });
 
-  // 4) Saneamiento de Turnos
   panelData.turnos = panelData.turnos.map(t => ({
     ...t,
     horas: safeNumber(t.horas),
@@ -89,14 +83,12 @@ function validarYArreglarDatos() {
     fechaFin: t.fechaFin || new Date().toISOString()
   }));
 
-  // 5) Saneamiento de Deudas
   panelData.deudas = panelData.deudas.map(d => ({
     ...d,
     saldo: safeNumber(d.saldo, d.montoOriginal),
     estado: safeNumber(d.saldo) > 0.01 ? 'Pendiente' : 'Pagada'
   }));
   
-  // 6) Persistir arreglos si hubo cambio (no rompemos datos originales, solo saneamos)
   saveData();
 }
 
@@ -107,7 +99,7 @@ function cargarPanelData() {
       const loaded = JSON.parse(data);
       if (isObject(loaded)) panelData = { ...panelData, ...loaded };
     } catch (e) {
-      console.error("Error cargando datos principales, intentando backup...", e);
+      console.error("Error cargando datos, intentando backup...", e);
       const backup = localStorage.getItem(BACKUP_KEY);
       if (backup) {
         try { panelData = { ...panelData, ...JSON.parse(backup) }; } catch (ex) {}
@@ -130,6 +122,9 @@ function saveData() {
 // ---------- GESTIÓN DE TURNO ----------
 
 function actualizarUIturno() {
+  const btnIni = $("btnIniciarTurno");
+  if (!btnIni) return;
+
   const elems = {
     btnIni: $("btnIniciarTurno"),
     btnFin: $("btnFinalizarTurno"),
@@ -144,28 +139,24 @@ function actualizarUIturno() {
 
   if (turnoActivo) {
     if (elems.txt) elems.txt.innerHTML = `🟢 En curso (Inicio: ${new Date(safeNumber(turnoInicio)).toLocaleTimeString()})`;
-    if (elems.btnIni) elems.btnIni.style.display = 'none';
-    if (elems.btnFin) elems.btnFin.style.display = 'block';
+    elems.btnIni.style.display = 'none';
+    elems.btnFin.style.display = 'block';
     
     ['inKmF', 'inGan', 'lblKmF', 'lblGan'].forEach(k => { if(elems[k]) elems[k].style.display = 'block'; });
     
     if (elems.inKmI) {
       elems.inKmI.value = safeNumber(turnoActivo.kmInicial);
       elems.inKmI.setAttribute('readonly', true);
-      if(elems.lblKmI) elems.lblKmI.style.display = 'block';
     }
-
   } else {
     if (elems.txt) elems.txt.innerHTML = `🔴 Sin turno activo`;
-    if (elems.btnIni) elems.btnIni.style.display = 'block';
-    if (elems.btnFin) elems.btnFin.style.display = 'none';
+    elems.btnIni.style.display = 'block';
+    elems.btnFin.style.display = 'none';
 
     ['inKmF', 'inGan', 'lblKmF', 'lblGan'].forEach(k => { if(elems[k]) elems[k].style.display = 'none'; });
 
     if (elems.inKmI) {
       elems.inKmI.removeAttribute('readonly');
-      elems.inKmI.style.display = 'block';
-      if(elems.lblKmI) elems.lblKmI.style.display = 'block';
       if (panelData.parametros.ultimoKMfinal) {
         elems.inKmI.value = safeNumber(panelData.parametros.ultimoKMfinal);
       } else {
@@ -199,9 +190,8 @@ function finalizarTurno() {
   const horas = (Date.now() - safeNumber(turnoActivo.timestamp)) / 36e5;
   const kmRec = kmFinal - kmInicial;
   
-  // Costos operativos estimados
-  const costoOperativo = safeNumber(panelData.parametros.costoPorKm) + safeNumber(panelData.parametros.costoMantenimientoPorKm);
-  const costoEst = kmRec * costoOperativo;
+  // Costo operativo
+  const costoEst = kmRec * safeNumber(panelData.parametros.costoPorKm);
   const neta = gananciaBruta - costoEst;
 
   panelData.turnos.push({
@@ -214,7 +204,6 @@ function finalizarTurno() {
 
   panelData.parametros.ultimoKMfinal = kmFinal;
   
-  // Reset
   localStorage.removeItem("turnoActivo");
   localStorage.removeItem("turnoInicio");
   turnoActivo = false;
@@ -224,11 +213,16 @@ function finalizarTurno() {
   alert(`Turno finalizado. Neta Est.: $${fmtMoney(neta)}`);
 }
 
-// ---------- REGISTRO DE MOVIMIENTOS GENERALES ----------
+// ---------- REGISTRO DE MOVIMIENTOS ----------
 
 function registrarMovimiento(tipo, descId, montoId, esTrabajo) {
-  const desc = $(descId).value.trim();
-  const monto = safeNumber($(montoId).value);
+  const descInput = $(descId);
+  const montoInput = $(montoId);
+  
+  if (!descInput || !montoInput) return;
+
+  const desc = descInput.value.trim();
+  const monto = safeNumber(montoInput.value);
 
   if (!desc || monto <= 0) return alert(`Completa descripción y monto > 0 para ${tipo}.`);
 
@@ -242,15 +236,15 @@ function registrarMovimiento(tipo, descId, montoId, esTrabajo) {
   if (tipo === 'Ingreso') panelData.ingresos.push(mov);
   else panelData.gastos.push(mov);
   
-  panelData.movimientos.push(mov); // Historial unificado
+  panelData.movimientos.push(mov);
   
-  $(descId).value = "";
-  $(montoId).value = "";
+  descInput.value = "";
+  montoInput.value = "";
   saveData();
   alert(`${tipo} registrado.`);
 }
 
-// ---------- GESTIÓN DE DEUDAS (WIZARD CORREGIDO) ----------
+// ---------- GESTIÓN DE DEUDAS (WIZARD REDISEÑADO) ----------
 
 function updateDeudaWizardUI() {
   const step1 = $('wizardStep1');
@@ -259,31 +253,39 @@ function updateDeudaWizardUI() {
   if (!step1 || !step2) return;
 
   const tieneDeudas = panelData.deudas.length > 0;
-  const tieneParams = panelData.parametros.deudaTotal > 0 || panelData.parametros.gastoFijo > 0;
-
-  if (!tieneDeudas && !tieneParams) {
+  // Si no hay deudas y el gasto fijo (ahora cuota diaria) es 0, iniciamos wizard
+  if (!tieneDeudas && panelData.parametros.gastoFijo === 0) {
     step1.style.display = 'block';
     step2.style.display = 'none';
   } else {
     step1.style.display = 'none';
     step2.style.display = 'block';
-    if ($('gastoFijoDiario')) $('gastoFijoDiario').value = safeNumber(panelData.parametros.gastoFijo);
   }
 }
 
 function setupDeudaWizardListeners() {
-  // PASO 1: Registrar Deuda Inicial
-  const btnSiguiente = $('btnSiguienteDeuda'); // ID CORREGIDO
+  console.log("Iniciando listeners de Deuda...");
+
+  // 1. Botón SIGUIENTE (Paso 1 -> Paso 2)
+  const btnSiguiente = document.getElementById('btnSiguienteDeuda');
   if (btnSiguiente) {
-    btnSiguiente.addEventListener('click', () => {
-      const monto = safeNumber($("deudaMontoTotal").value); // ID CORREGIDO
-      const desc = $("deudaDescripcion").value.trim();
+    const newBtn = btnSiguiente.cloneNode(true);
+    btnSiguiente.parentNode.replaceChild(newBtn, btnSiguiente);
+    
+    newBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const inputMonto = document.getElementById("deudaMontoTotal");
+      const inputDesc = document.getElementById("deudaDescripcion");
 
-      if (monto <= 0 || !desc) {
-        alert("Ingresa un monto válido y una descripción.");
-        return;
-      }
+      if (!inputMonto || !inputDesc) return;
 
+      const monto = safeNumber(inputMonto.value);
+      const desc = inputDesc.value.trim();
+
+      if (monto <= 0) return alert("Ingresa un monto total de deuda válido.");
+      if (!desc) return alert("Ingresa una descripción.");
+
+      // Guardar deuda
       panelData.deudas.push({
         id: Date.now(),
         descripcion: desc,
@@ -292,80 +294,117 @@ function setupDeudaWizardListeners() {
         estado: 'Pendiente',
         fechaRegistro: new Date().toISOString()
       });
-
+      
+      // Actualizar total
       panelData.parametros.deudaTotal = monto;
+
+      // Cambio de pantalla
+      const s1 = $('wizardStep1');
+      const s2 = $('wizardStep2');
+      if (s1) s1.style.display = 'none';
+      if (s2) s2.style.display = 'block';
       
-      $('wizardStep1').style.display = 'none';
-      $('wizardStep2').style.display = 'block';
-      
-      // Limpiar inputs paso 1
-      $("deudaMontoTotal").value = "";
-      $("deudaDescripcion").value = "";
+      inputMonto.value = "";
+      inputDesc.value = "";
+      console.log("Deuda registrada. Pasando a configuración de pagos...");
     });
   }
 
-  // PASO 2: Guardar Gasto Fijo
-  const btnFinalizar = $('btnFinalizarDeuda');
+  // 2. Botón FINALIZAR (Paso 2: Plan de Pagos)
+  const btnFinalizar = document.getElementById('btnFinalizarDeuda');
   if (btnFinalizar) {
-    btnFinalizar.addEventListener('click', () => {
-      const gastoFijo = safeNumber($("gastoFijoDiario").value);
+    // Clonar para limpiar listeners viejos
+    const newBtnFin = btnFinalizar.cloneNode(true);
+    btnFinalizar.parentNode.replaceChild(newBtnFin, btnFinalizar);
+
+    newBtnFin.addEventListener('click', () => {
+      // Nuevos IDs según el HTML modificado
+      const inputAbono = $("abonoPeriodicoMonto");
+      const selectFrec = $("abonoPeriodicoFrecuencia");
+
+      if (!inputAbono || !selectFrec) {
+        alert("Error: Asegúrate de haber actualizado el código HTML del WizardStep2.");
+        return;
+      }
+
+      const abono = safeNumber(inputAbono.value);
+      const dias = safeNumber(selectFrec.value); // 7, 15, 30
+
+      if (abono <= 0) return alert("Ingresa el monto que abonas periódicamente.");
+      if (dias <= 0) return alert("Selecciona una frecuencia válida.");
+
+      // CÁLCULO DE LA CUOTA DIARIA
+      const costoDiarioDeuda = abono / dias;
+
+      // Guardamos esto en 'gastoFijo' (que ahora funciona como 'Meta Diaria de Deuda')
+      panelData.parametros.gastoFijo = costoDiarioDeuda;
       
-      if (gastoFijo < 0) return alert("El gasto fijo no puede ser negativo.");
-      
-      panelData.parametros.gastoFijo = gastoFijo;
       saveData();
-      
       renderDeudas();
       calcularMetricas();
-      alert("Configuración financiera guardada.");
+      
+      alert(`Plan Guardado.\nPara cubrir tu pago de $${abono}, necesitas apartar aprox $${fmtMoney(costoDiarioDeuda)} diarios.`);
     });
   }
 
-  // VOLVER
-  const btnVolver = $('btnVolverDeuda');
+  // 3. Botón VOLVER
+  const btnVolver = document.getElementById('btnVolverDeuda');
   if (btnVolver) {
     btnVolver.addEventListener('click', () => {
-       $('wizardStep1').style.display = 'block';
-       $('wizardStep2').style.display = 'none';
+       const s1 = $('wizardStep1');
+       const s2 = $('wizardStep2');
+       if (s1) s1.style.display = 'block';
+       if (s2) s2.style.display = 'none';
     });
   }
   
-  // ABONOS
-  const btnAbono = $('btnRegistrarAbono');
+  // 4. Botón ABONO (Funcionalidad de pago)
+  const btnAbono = document.getElementById('btnRegistrarAbono');
   if (btnAbono) {
-    btnAbono.addEventListener('click', () => {
-       const idDeuda = parseInt($('abonoSeleccionar').value);
-       const monto = safeNumber($('abonoMonto').value);
+    const newBtnAbono = btnAbono.cloneNode(true);
+    btnAbono.parentNode.replaceChild(newBtnAbono, btnAbono);
+
+    newBtnAbono.addEventListener('click', () => {
+       const elSelect = $('abonoSeleccionar');
+       const elMonto = $('abonoMonto');
+       
+       if(!elSelect || !elMonto) return;
+       const idDeuda = parseInt(elSelect.value);
+       const monto = safeNumber(elMonto.value);
        
        const deuda = panelData.deudas.find(d => d.id === idDeuda);
-       if (!deuda || monto <= 0) return alert("Selecciona deuda y monto > 0");
-       if (monto > deuda.saldo) return alert("El abono excede el saldo pendiente.");
+       if (!deuda) return alert("Selecciona una deuda.");
+       if (monto <= 0) return alert("Monto inválido.");
+       if (monto > safeNumber(deuda.saldo)) return alert("El abono excede el saldo.");
        
-       // Registro simple de gasto para historial
+       // Registrar en historial
        panelData.movimientos.push({
             id: Date.now(),
             tipo: 'Gasto',
-            descripcion: `Abono a: ${deuda.descripcion}`,
+            descripcion: `Abono Deuda: ${deuda.descripcion}`,
             monto: monto,
             fecha: new Date().toISOString(),
             esTrabajo: false
         });
 
-       deuda.saldo -= monto;
+       deuda.saldo = safeNumber(deuda.saldo) - monto;
+       
        if (deuda.saldo <= 0.01) {
            deuda.saldo = 0;
            deuda.estado = 'Pagada';
-           alert(`¡Deuda "${deuda.descripcion}" liquidada!`);
+           alert(`¡Deuda liquidada! 🎉`);
+       } else {
+           alert("Abono registrado.");
        }
        
-       // Recalcular total global
+       // Recalcular deuda total pendiente
        panelData.parametros.deudaTotal = panelData.deudas
          .filter(d => d.estado !== 'Pagada')
-         .reduce((acc, d) => acc + d.saldo, 0);
+         .reduce((acc, d) => acc + safeNumber(d.saldo), 0);
 
        saveData();
        renderDeudas();
-       $('abonoMonto').value = "";
+       elMonto.value = "";
        calcularMetricas();
     });
   }
@@ -377,23 +416,23 @@ function renderDeudas() {
   if (!lista || !select) return;
 
   lista.innerHTML = "";
-  select.innerHTML = "<option value=''>-- Seleccionar --</option>";
+  select.innerHTML = "<option value=''>-- Seleccionar Deuda --</option>";
 
-  panelData.deudas
-    .slice()
-    .sort((a, b) => safeNumber(b.saldo) - safeNumber(a.saldo))
-    .forEach(d => {
-      const color = d.estado === 'Pagada' ? 'green' : (safeNumber(d.saldo) > 0 ? 'red' : 'gray');
+  const deudasOrdenadas = panelData.deudas.slice().sort((a, b) => safeNumber(b.saldo) - safeNumber(a.saldo));
+
+  deudasOrdenadas.forEach(d => {
+      const saldo = safeNumber(d.saldo);
+      const color = d.estado === 'Pagada' ? 'green' : (saldo > 0 ? '#dc2626' : 'gray');
       
       lista.innerHTML += `
-        <li style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #eee;">
-          <span>${d.descripcion} (${d.estado})</span>
-          <strong style="color:${color}">$${fmtMoney(d.saldo)}</strong>
+        <li style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #eee;">
+          <span>${d.descripcion}</span>
+          <strong style="color:${color}">$${fmtMoney(saldo)}</strong>
         </li>
       `;
 
-      if (d.estado === 'Pendiente' && safeNumber(d.saldo) > 0) {
-        select.innerHTML += `<option value="${d.id}">${d.descripcion} - $${fmtMoney(d.saldo)}</option>`;
+      if (d.estado === 'Pendiente' && saldo > 0) {
+        select.innerHTML += `<option value="${d.id}">${d.descripcion} - $${fmtMoney(saldo)}</option>`;
       }
     });
 }
@@ -401,41 +440,48 @@ function renderDeudas() {
 // ---------- CÁLCULOS Y MÉTRICAS ----------
 
 function calcularMetricas() {
-  // Ganancias: Turnos Netos + Ingresos No Turnos
-  const totalGananciaBruta = panelData.turnos.reduce((s, x) => s + x.gananciaBruta, 0) + panelData.ingresos.reduce((s, x) => s + x.monto, 0);
+  const turnos = panelData.turnos;
   
-  // Gastos: Estimado de Turnos + Gastos registrados (trabajo)
-  const totalGastosTrabajo = panelData.turnos.reduce((s, x) => s + (x.gananciaBruta - x.gananciaNeta), 0) + panelData.gastos.filter(g => g.esTrabajo).reduce((s, x) => s + x.monto, 0);
+  // Ingresos
+  const ingresosExtra = panelData.ingresos.reduce((s, x) => s + safeNumber(x.monto), 0);
+  const gananciaTurnos = turnos.reduce((s, x) => s + safeNumber(x.gananciaBruta), 0);
+  const totalGananciaBruta = gananciaTurnos + ingresosExtra;
+  
+  // Gastos
+  const gastosOperativos = turnos.reduce((s, x) => s + (safeNumber(x.gananciaBruta) - safeNumber(x.gananciaNeta)), 0);
+  const gastosManuales = panelData.gastos.filter(g => g.esTrabajo).reduce((s, x) => s + safeNumber(x.monto), 0);
+  const totalGastosTrabajo = gastosOperativos + gastosManuales;
 
-  // Días activos (para promedio)
-  const fechas = panelData.turnos
-    .map(t => t.fechaFin.split('T')[0])
-    .filter(f => f !== null);
-    
+  // Promedios
+  const fechas = turnos.map(t => t.fechaFin.split('T')[0]).filter(Boolean);
   const diasTrabajados = new Set(fechas).size || 1;
   
-  const netoProm = (totalGananciaBruta - totalGastosTrabajo) / diasTrabajados;
+  const gananciaNetaTotal = totalGananciaBruta - totalGastosTrabajo;
+  const netoDiarioProm = diasTrabajados > 0 ? (gananciaNetaTotal / diasTrabajados) : 0;
   
-  const totalKm = panelData.turnos.reduce((sum, t) => sum + safeNumber(t.kmRecorridos), 0);
-  const totalHoras = panelData.turnos.reduce((sum, t) => sum + safeNumber(t.horas), 0);
-
-  // Proyección de Deuda
+  // Métricas
   const m = {
-    netoDiarioProm: netoProm,
-    deudaPendiente: panelData.parametros.deudaTotal,
-    gastoFijo: panelData.parametros.gastoFijo,
-    diasLibre: 0,
-    totalKm: totalKm,
-    totalHoras: totalHoras,
+    netoDiarioProm: netoDiarioProm,
+    deudaPendiente: safeNumber(panelData.parametros.deudaTotal),
+    cuotaDiariaDeuda: safeNumber(panelData.parametros.gastoFijo), // Usamos gastoFijo como la cuota diaria calculada
+    totalKm: turnos.reduce((sum, t) => sum + safeNumber(t.kmRecorridos), 0),
+    totalHoras: turnos.reduce((sum, t) => sum + safeNumber(t.horas), 0),
     gananciaBrutaProm: totalGananciaBruta / diasTrabajados,
-    gastoTrabajoProm: totalGastosTrabajo / diasTrabajados
+    gastoTrabajoProm: totalGastosTrabajo / diasTrabajados,
+    diasTrabajados: diasTrabajados
   };
 
-  const capacidadPago = m.netoDiarioProm - m.gastoFijo;
-  if (m.deudaPendiente > 0 && capacidadPago > 0) {
-    m.diasLibre = Math.ceil(m.deudaPendiente / capacidadPago);
+  // Cálculo: ¿Cubrimos la cuota diaria?
+  // Diferencia diaria = Lo que ganas neto - Lo que necesitas para la deuda
+  const superavitDiario = m.netoDiarioProm - m.cuotaDiariaDeuda;
+  
+  // Proyección de días para liquidar TOTALMENTE la deuda
+  if (m.deudaPendiente > 0 && superavitDiario > 0) {
+      // Si sobra dinero después de pagar la cuota diaria, podríamos abonar más.
+      // Pero para simplificar, usamos todo el neto disponible para proyectar liquidación rápida.
+      m.diasLibre = Math.ceil(m.deudaPendiente / m.netoDiarioProm);
   } else {
-    m.diasLibre = "N/A";
+      m.diasLibre = "N/A";
   }
   
   panelData.metricas = m;
@@ -443,91 +489,105 @@ function calcularMetricas() {
   return m;
 }
 
-// ---------- RENDERIZADO DE UI ----------
+// ---------- RENDERIZADO ----------
 
 function renderIndex() {
   const m = calcularMetricas();
+  const setTxt = (id, val) => { const el = $(id); if(el) el.textContent = val; };
   
-  const setTxt = (id, val) => { if($(id)) $(id).textContent = val; };
-  
-  // Resumen del Día (Promedio)
-  setTxt("resHoras", safeNumber(m.totalHoras / m.diasTrabajados).toFixed(2) + "h (Prom)");
-  setTxt("resGananciaBruta", `$${fmtMoney(m.gananciaBrutaProm)} (Prom)`);
-  setTxt("resGastosTrabajo", `$${fmtMoney(m.gastoTrabajoProm)} (Prom)`);
+  setTxt("resHoras", `${(m.totalHoras / m.diasTrabajados).toFixed(1)}h (Prom)`);
+  setTxt("resGananciaBruta", `$${fmtMoney(m.gananciaBrutaProm)}`);
   setTxt("resGananciaNeta", `$${fmtMoney(m.netoDiarioProm)}`);
-  setTxt("resKmRecorridos", safeNumber(m.totalKm / m.diasTrabajados).toFixed(0) + " km (Prom)");
-  setTxt("resGananciaPorHora", `$${fmtMoney(m.netoDiarioProm / (m.totalHoras / m.diasTrabajados))} /h (Prom)`);
+  setTxt("resKmRecorridos", `${(m.totalKm / m.diasTrabajados).toFixed(0)} km (Prom)`);
 
-  // Proyecciones
+  // Actualización de etiquetas para reflejar la nueva lógica
   setTxt("proyDeuda", `$${fmtMoney(m.deudaPendiente)}`);
-  setTxt("proyGastoFijoDiario", `$${fmtMoney(m.gastoFijo)}`);
+  
+  // Ahora mostramos la Cuota Diaria Calculada
+  const lblGasto = $("proyGastoFijoDiario");
+  if(lblGasto) {
+      // Truco: cambiar etiqueta visualmente si es posible, si no solo el valor
+      lblGasto.previousElementSibling.textContent = "Necesitas apartar (Diario):";
+      lblGasto.textContent = `$${fmtMoney(m.cuotaDiariaDeuda)}`;
+      lblGasto.style.color = m.netoDiarioProm >= m.cuotaDiariaDeuda ? "green" : "red";
+  }
+
   setTxt("proyNetaPromedio", `$${fmtMoney(m.netoDiarioProm)}`);
-  setTxt("proyDias", m.diasLibre === "N/A" ? "¡Ingreso diario neto insuficiente! 😢" : `${m.diasLibre} días (Estimado)`);
+  setTxt("proyDias", m.diasLibre === "N/A" ? "¡Déficit!" : `${m.diasLibre} días (Estimado)`);
   setTxt("proyKmTotal", safeNumber(m.totalKm).toFixed(0) + " KM");
 
-  // Tabla turnos
-  const tbody = $("tablaTurnos");
-  if (tbody) {
-    tbody.innerHTML = "";
-    panelData.turnos.slice(-5).reverse().forEach(t => {
-      tbody.innerHTML += `
-        <tr>
-          <td>${formatearFecha(new Date(t.fechaFin))}</td>
-          <td>${safeNumber(t.horas).toFixed(1)}h</td>
-          <td>${safeNumber(t.kmRecorridos)}km</td>
-          <td>$${fmtMoney(t.gananciaNeta)}</td>
-        </tr>
-      `;
-    });
-  }
-  
-  // Render de Alertas (simple)
+  renderCharts();
+  renderAlertas();
+  renderTablaTurnos();
+}
+
+function renderAlertas() {
   const alertas = [];
   const kmActual = safeNumber(panelData.parametros.ultimoKMfinal);
   const base = panelData.parametros.mantenimientoBase;
-
-  if (kmActual !== null && kmActual > 0) {
-    for (const key in base) {
-      const intervalo = safeNumber(base[key]);
-      if (intervalo > 0) {
-        const proximidad = intervalo - (kmActual % intervalo);
-        if (proximidad <= Math.ceil(intervalo * 0.1)) {
-          alertas.push(`${key.split(' ')[0]}: Estás a ~${proximidad.toFixed(0)}km del siguiente intervalo de ${intervalo}km.`);
+  
+  if (kmActual > 0) {
+    for (const [key, val] of Object.entries(base)) {
+        const intervalo = safeNumber(val);
+        if (intervalo > 0) {
+            const mod = kmActual % intervalo;
+            const faltante = intervalo - mod;
+            if (faltante <= (intervalo * 0.1) || faltante < 100) {
+                alertas.push(`⚠️ ${key.split(' ')[0]}: Mantenimiento en ${faltante.toFixed(0)} km.`);
+            }
         }
-      }
     }
   }
-  
-  const listaAlertas = $("listaAlertas");
-  const cardAlertas = $("cardAlertas");
-  if (listaAlertas && cardAlertas) {
-      listaAlertas.innerHTML = "";
+
+  const ul = $("listaAlertas");
+  const card = $("cardAlertas");
+  if (ul && card) {
+      ul.innerHTML = "";
       if (alertas.length > 0) {
-          alertas.forEach(a => { listaAlertas.innerHTML += `<li>${a}</li>`; });
-          cardAlertas.classList.remove('hidden');
+          alertas.forEach(a => ul.innerHTML += `<li>${a}</li>`);
+          card.classList.remove('hidden');
       } else {
-          cardAlertas.classList.add('hidden');
+          card.classList.add('hidden');
       }
   }
+}
 
-  renderCharts();
+function renderTablaTurnos() {
+    const tbody = $("tablaTurnos");
+    if (tbody) {
+      tbody.innerHTML = "";
+      panelData.turnos.slice().sort((a,b) => new Date(b.fechaFin) - new Date(a.fechaFin)).slice(0, 5).forEach(t => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${formatearFecha(new Date(t.fechaFin))}</td>
+            <td>${safeNumber(t.horas).toFixed(1)}h</td>
+            <td>${safeNumber(t.kmRecorridos)}km</td>
+            <td>$${fmtMoney(t.gananciaNeta)}</td>
+          </tr>
+        `;
+      });
+    }
 }
 
 function renderCharts() {
   if (typeof Chart === 'undefined') return;
   const ctx1 = $("graficaGanancias");
   const ctx2 = $("graficaKm");
-  
   if (ctx1 && ctx2) {
-    const data = panelData.turnos.slice(-14);
-    const labels = data.map(t => new Date(t.fechaFin).toLocaleDateString());
+    const data = panelData.turnos.slice().sort((a,b) => new Date(a.fechaFin) - new Date(b.fechaFin)).slice(-14);
+    const labels = data.map(t => new Date(t.fechaFin).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'}));
     
     if (gananciasChart) gananciasChart.destroy();
     gananciasChart = new Chart(ctx1, {
       type: 'line',
       data: {
         labels,
-        datasets: [{ label: 'Ganancia Neta por turno', data: data.map(d=>d.gananciaNeta), borderColor: '#2563eb', tension: 0.1 }]
+        datasets: [{ 
+            label: 'Neta ($)', 
+            data: data.map(d=>d.gananciaNeta), 
+            borderColor: '#2563eb', 
+            tension: 0.3 
+        }]
       },
       options: { responsive: true, maintainAspectRatio: false }
     });
@@ -537,7 +597,11 @@ function renderCharts() {
       type: 'bar',
       data: {
         labels,
-        datasets: [{ label: 'Km recorridos', data: data.map(d=>d.kmRecorridos), backgroundColor: '#16a34a' }]
+        datasets: [{ 
+            label: 'KM', 
+            data: data.map(d=>d.kmRecorridos), 
+            backgroundColor: '#16a34a' 
+        }]
       },
       options: { responsive: true, maintainAspectRatio: false }
     });
@@ -547,35 +611,34 @@ function renderCharts() {
 function renderHistorial() {
   const tbody = $("historialBody");
   const resumen = $("historialResumen");
-
   if (!tbody || !resumen) return;
+
   tbody.innerHTML = "";
-  
   const totalIngresos = panelData.movimientos.filter(m => m.tipo === 'Ingreso').reduce((s, x) => s + x.monto, 0);
   const totalGastos = panelData.movimientos.filter(m => m.tipo === 'Gasto').reduce((s, x) => s + x.monto, 0);
-  const balance = totalIngresos - totalGastos;
 
   panelData.movimientos.sort((a,b) => new Date(b.fecha) - new Date(a.fecha)).forEach(mov => {
-    const tipoLabel = mov.tipo === 'Ingreso' ? '➕ Ingreso' : '➖ Gasto';
+    const isIngreso = mov.tipo === 'Ingreso';
     tbody.innerHTML += `
-      <tr class="${mov.tipo.toLowerCase()}-row">
-        <td>${tipoLabel}</td>
-        <td>${new Date(mov.fecha).toLocaleString()}</td>
+      <tr style="background-color: ${isIngreso ? '#f0fdf4' : '#fef2f2'}">
+        <td>${isIngreso ? '➕' : '➖'} ${mov.tipo}</td>
+        <td>${new Date(mov.fecha).toLocaleDateString()}</td>
         <td>${mov.descripcion}</td>
-        <td>$${fmtMoney(mov.monto)}</td>
+        <td style="font-weight:bold; color: ${isIngreso ? '#16a34a' : '#dc2626'}">$${fmtMoney(mov.monto)}</td>
       </tr>
     `;
   });
   
   resumen.innerHTML = `
-    <p><strong>Total Ingresos:</strong> $${fmtMoney(totalIngresos)}</p>
-    <p><strong>Total Gastos:</strong> $${fmtMoney(totalGastos)}</p>
-    <p><strong>Balance Neto:</strong> $${fmtMoney(balance)}</p>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; text-align:center;">
+        <div style="font-weight:bold; color:#16a34a">Ing: $${fmtMoney(totalIngresos)}</div>
+        <div style="font-weight:bold; color:#dc2626">Gas: $${fmtMoney(totalGastos)}</div>
+        <div style="font-weight:bold; color:#111">Bal: $${fmtMoney(totalIngresos - totalGastos)}</div>
+    </div>
   `;
 }
 
-
-// ---------- INICIALIZACIÓN GLOBAL ----------
+// ---------- INICIALIZACIÓN ----------
 document.addEventListener("DOMContentLoaded", () => {
   cargarPanelData();
   const page = document.body.getAttribute('data-page');
@@ -584,26 +647,21 @@ document.addEventListener("DOMContentLoaded", () => {
     actualizarUIturno();
     setupDeudaWizardListeners();
     renderDeudas();
-    updateDeudaWizardUI(); // Asegura el paso correcto del wizard
+    updateDeudaWizardUI();
 
-    // Listeners Turno
     if($("btnIniciarTurno")) $("btnIniciarTurno").addEventListener("click", iniciarTurno);
     if($("btnFinalizarTurno")) $("btnFinalizarTurno").addEventListener("click", finalizarTurno);
-    
-    // Listeners Ingreso/Gasto
     if($("btnRegistrarIngreso")) $("btnRegistrarIngreso").addEventListener("click", () => registrarMovimiento('Ingreso', 'ingresoDescripcion', 'ingresoCantidad', true));
-    
     if($("btnRegistrarGasto")) $("btnRegistrarGasto").addEventListener("click", () => {
-       const esTrabajo = $("gastoTipo") ? $("gastoTipo").value === 'trabajo' : false;
+       const elTipo = $("gastoTipo");
+       const esTrabajo = elTipo ? elTipo.value === 'trabajo' : false;
        registrarMovimiento('Gasto', 'gastoDescripcion', 'gastoCantidad', esTrabajo);
     });
     
-    // Guardar Parámetros KM
+    // Configuración Parametros
     const btnSaveKm = $("btnGuardarKmParam");
     if (btnSaveKm) {
-        // Precargar valor actual
         if ($("costoPorKm")) $("costoPorKm").value = safeNumber(panelData.parametros.costoPorKm);
-        
         btnSaveKm.addEventListener("click", () => {
             panelData.parametros.costoPorKm = safeNumber($("costoPorKm").value);
             saveData();
@@ -611,10 +669,8 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Guardar Mantenimiento
     const btnSaveMant = $("btnGuardarMantenimiento");
     if (btnSaveMant) {
-        // Precargar valores
         if ($("mantenimientoAceite")) $("mantenimientoAceite").value = safeNumber(panelData.parametros.mantenimientoBase['Aceite (KM)']);
         if ($("mantenimientoBujia")) $("mantenimientoBujia").value = safeNumber(panelData.parametros.mantenimientoBase['Bujía (KM)']);
         if ($("mantenimientoLlantas")) $("mantenimientoLlantas").value = safeNumber(panelData.parametros.mantenimientoBase['Llantas (KM)']);
@@ -627,28 +683,23 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("Umbrales de mantenimiento guardados.");
         });
     }
-
+    
     // Export/Import
     if($("btnExportar")) $("btnExportar").addEventListener("click", () => {
-        try {
-            navigator.clipboard.writeText(JSON.stringify(panelData, null, 2));
-            alert("JSON Copiado al portapapeles.");
-        } catch(e) { console.error(e); alert("Error al copiar."); }
+        navigator.clipboard.writeText(JSON.stringify(panelData, null, 2))
+          .then(() => alert("JSON Copiado."))
+          .catch(() => alert("Error al copiar."));
     });
-
     if($("btnImportar")) $("btnImportar").addEventListener("click", () => {
-        try {
-          const json = $("importJson").value;
-          if(!json) return alert("Pega el JSON.");
-          if (!confirm("ADVERTENCIA: ¿Estás seguro de que quieres reemplazar tus datos actuales? ESTA ACCIÓN ES IRREVERSIBLE.")) return;
-
-          const importedData = JSON.parse(json);
-          // Restauración segura
-          panelData = { ...JSON.parse(JSON.stringify(DEFAULT_PANEL_DATA)), ...importedData };
-          saveData();
-          alert("Datos restaurados correctamente. La página se recargará para aplicar los cambios.");
-          window.location.reload();
-        } catch(e) { alert(`JSON Inválido. Error: ${e.message}`); }
+        const json = $("importJson").value;
+        if(!json) return alert("Pega el JSON.");
+        if(confirm("¿Restaurar datos? Se perderá lo actual.")) {
+            try {
+                panelData = { ...JSON.parse(JSON.stringify(DEFAULT_PANEL_DATA)), ...JSON.parse(json) };
+                saveData();
+                window.location.reload();
+            } catch(e) { alert("JSON inválido."); }
+        }
     });
   } 
   else if (page === 'index') {
@@ -656,15 +707,5 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   else if (page === 'historial') {
     renderHistorial();
-  }
-  
-  // Lógica simple de tutorial (placeholder)
-  if (!localStorage.getItem(TUTORIAL_COMPLETADO_KEY)) {
-    // Aquí podrías mostrar el modal de tutorial si fuera interactivo,
-    // pero por ahora solo se registrará como completo al cargar la página.
-    // Para no ser intrusivo, la regla del prompt dice que el tutorial está en tutorial.html, 
-    // pero si está en index/admin, se debe mostrar un modal.
-    // Dejo la funcionalidad de mostrar modal como un TODO si es necesario.
-    // localStorage.setItem(TUTORIAL_COMPLETADO_KEY, "true");
   }
 });
