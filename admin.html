@@ -1,4 +1,97 @@
-<div id="wizardStep2" style="display:none;">
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Administración – Uber Eats Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+</head>
+<body data-page="admin">
+
+<header class="header">
+  <h1>Panel Administrativo</h1>
+  <div class="header-actions">
+    <a href="index.html" class="btn-admin" id="adminButton" type="button">⬅ Volver al Panel</a>
+  </div>
+</header>
+
+<main class="container">
+
+  <section class="card" id="cardTurnos">
+    <h2>Gestión de Turno</h2>
+    <p id="turnoTexto" style="margin-bottom:10px;">🔴 Sin turno activo</p>
+    
+    <label id="labelKmInicial">KM Inicial (Lectura/Corrección):</label>
+    <input type="number" id="kmInicial" placeholder="0" />
+
+    <label id="labelKmFinal" style="display:none;">KM Final:</label>
+    <input type="number" id="kmFinal" style="display:none;" placeholder="0" />
+
+    <label id="labelGananciaBruta" style="display:none;">Ganancia Bruta del Turno ($):</label>
+    <input type="number" id="gananciaBruta" style="display:none;" placeholder="0.00" />
+    
+    <button id="btnIniciarTurno" class="btn-success" type="button">Iniciar Turno</button>
+    <button id="btnFinalizarTurno" class="btn-danger" type="button" style="display:none;">Finalizar Turno</button>
+    <p class="nota">Al iniciar, el KM Inicial se precarga del último registro. Se puede corregir manualmente.</p>
+  </section>
+
+  <section class="card">
+    <h2>Registrar Ingreso (Trabajo)</h2>
+    <label>Descripción:</label>
+    <input type="text" id="ingresoDescripcion" placeholder="Ej. Propina extra, Pago Plataforma" />
+    <label>Monto:</label>
+    <input type="number" id="ingresoCantidad" placeholder="0.00" />
+    <button id="btnRegistrarIngreso" class="btn-primary" type="button">Registrar Ingreso</button>
+  </section>
+
+  <section class="card">
+    <h2>Registrar Gasto (Trabajo y Otros)</h2>
+    <label>Descripción:</label>
+    <input type="text" id="gastoDescripcion" placeholder="Ej. Gasolina, Peaje, Refacciones" />
+    <label>Monto:</label>
+    <input type="number" id="gastoCantidad" placeholder="0.00" />
+    <label>¿Es gasto fijo/hogar?</label>
+    <select id="gastoTipo">
+      <option value="trabajo">Trabajo (Operativo)</option>
+      <option value="fijo">Fijo (Hogar/Personal)</option>
+    </select>
+    <button id="btnRegistrarGasto" class="btn-danger" type="button">Registrar Gasto</button>
+  </section>
+
+  <section class="card">
+    <h2>Parámetros Operativos</h2>
+    <label>Costo Estimado por KM ($/km):</label>
+    <input type="number" id="costoPorKm" />
+    <button id="btnGuardarKmParam" class="btn-secondary" type="button">Guardar</button>
+    <p class="nota">Usado para calcular el costo operativo estimado de cada turno.</p>
+
+    <hr style="margin:20px 0;"/>
+
+    <h3>Mantenimiento Base (KM)</h3>
+    <label>Aceite:</label>
+    <input type="number" id="mantenimientoAceite" />
+    <label>Bujía:</label>
+    <input type="number" id="mantenimientoBujia" />
+    <label>Llantas:</label>
+    <input type="number" id="mantenimientoLlantas" />
+    <button id="btnGuardarMantenimiento" class="btn-secondary" type="button">Guardar Umbrales</button>
+    <p class="nota">Distancia máxima en KM antes de la siguiente alerta.</p>
+  </section>
+
+  <section class="card">
+    <h2>Gestión de Deudas y Abonos</h2>
+    
+    <div id="wizardStep1">
+      <h3>Registrar Nueva Deuda</h3>
+      <label>Monto Total de la Deuda:</label>
+      <input type="number" id="deudaMontoTotal" placeholder="1000.00" />
+      <label>Descripción:</label>
+      <input type="text" id="deudaDescripcion" placeholder="Ej. Tarjeta, Préstamo personal" />
+      <button id="btnSiguienteDeuda" class="btn-primary" type="button">Siguiente</button>
+    </div>
+
+    <div id="wizardStep2" style="display:none;">
       <h3>Plan de Pagos (Compromiso)</h3>
       
       <label>¿Cuánto abonas periódicamente a esta deuda?</label>
@@ -16,3 +109,44 @@
       <button id="btnFinalizarDeuda" class="btn-success" type="button">Guardar Plan de Pagos</button>
       <button id="btnVolverDeuda" class="btn-secondary" type="button">Volver</button>
     </div>
+
+    <hr style="margin:20px 0;" />
+
+    <h3>Registrar Abono</h3>
+    <label>Seleccionar Deuda:</label>
+    <select id="abonoSeleccionar"></select>
+    <label>Cantidad a abonar ($):</label>
+    <input type="number" id="abonoMonto" placeholder="0.00" />
+    <button id="btnRegistrarAbono" class="btn-success" type="button">Registrar Abono</button>
+    <p class="nota">⚠ El abono no puede ser mayor al saldo pendiente.</p>
+
+    <hr style="margin:20px 0;" />
+
+    <h3>Deudas Pendientes</h3>
+    <ul id="listaDeudas" class="list"></ul>
+  </section>
+
+  <section class="card">
+    <h2>Datos y Respaldo</h2>
+    <button id="btnExportarExcel" class="btn-success" type="button" style="display:none;">Descargar Excel (Próximamente)</button>
+    <button id="btnExportar" class="btn-secondary" type="button">Copiar JSON (Respaldo)</button>
+    <p class="nota">El respaldo automático se guarda en tu navegador. Usa "Copiar JSON" para guardarlo en un archivo de texto por seguridad.</p>
+
+    <div style="margin-top:15px; border-top:1px solid #eee; padding-top:10px;">
+      <textarea id="importJson" rows="3" placeholder="Pega aquí el JSON para restaurar..."></textarea>
+      <button id="btnImportar" class="btn-danger" type="button">Restaurar Datos</button>
+    </div>
+  </section>
+
+</main>
+
+<div id="tutorialOverlay" class="overlay" style="display:none;"></div>
+<div id="tutorialModal" class="modal-center" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle" style="display:none;">
+  <h3 id="tutorialTitle">Bienvenido</h3>
+  <p id="tutorialText">Iniciando...</p>
+  <button id="tutorialNextBtn" class="btn-primary" type="button" style="width:100%; margin-top:10px;">Siguiente</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
