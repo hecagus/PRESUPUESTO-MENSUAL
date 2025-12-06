@@ -55,6 +55,21 @@ label {
   font-weight: 500;
   color: #444;
 }
+
+/* NUEVO: Estilos para organizar los inputs de turno */
+.turno-inputs {
+    display: grid;
+    /* Permite hasta 3 columnas, pero se ajustará a las disponibles */
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px 20px; /* Separación vertical y horizontal */
+    margin-bottom: 15px; /* Separación del botón de abajo */
+}
+.turno-inputs label, .turno-inputs input {
+    margin-top: 0;
+    margin-bottom: 0;
+    display: block;
+}
+
 input[type="text"], input[type="number"], select, textarea {
   width: 100%;
   padding: 10px;
@@ -191,4 +206,7 @@ a.btn-admin, button {
   .stat-large { grid-column: 1 / -1; }
   .projection-grid { grid-template-columns: 1fr; }
   .tabla th, .tabla td { padding: 8px; font-size: 0.9rem; }
+  
+  /* Ajuste para que los inputs de turno se vean bien en móvil */
+  .turno-inputs { grid-template-columns: 1fr; gap: 0; }
 }
