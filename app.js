@@ -1,4 +1,4 @@
-// app.js - VERSIÓN FINAL UNIFICADA (Autocorrección + Frecuencias + Importación Robusta)
+// app.js - VERSIÓN FINAL UNIFICADA (Autocorrección + Frecuencias + Importación Robusta + Combustible Real)
 // ---------------------------------------------------------------------
 
 const STORAGE_KEY = "panelData";
@@ -16,11 +16,12 @@ const DEFAULT_PANEL_DATA = {
   deudas: [],
   movimientos: [],
   turnos: [],
+  cargasCombustible: [], // NUEVO: Para control real de gasolina
   parametros: {
     deudaTotal: 0,
     gastoFijo: 0, // Representa la "Cuota Diaria de Deuda" calculada
     ultimoKMfinal: null,
-    costoPorKm: 0,
+    costoPorKm: 0, // Ahora se calculará dinámicamente
     mantenimientoBase: {
       'Aceite (KM)': 3000,
       'Bujía (KM)': 8000,
@@ -59,7 +60,7 @@ function formatearFecha(date) {
 
 function validarYArreglarDatos() {
   // 1. Asegurar arrays básicos
-  ['ingresos', 'gastos', 'deudas', 'movimientos', 'turnos'].forEach(k => {
+  ['ingresos', 'gastos', 'deudas', 'movimientos', 'turnos', 'cargasCombustible'].forEach(k => {
     if (!Array.isArray(panelData[k])) panelData[k] = [];
   });
 
@@ -72,7 +73,9 @@ function validarYArreglarDatos() {
   }
 
   // 2. AUTOCORRECCIÓN INTELIGENTE DE GASTOS
-  const palabrasTrabajo = ['gasolina', 'combustible', 'uber', 'mottu', 'moto', 'mantenimiento', 'aceite', 'llanta', 'refaccion', 'taller', 'reparacion', 'servicio'];
+  // NOTA: Eliminamos 'gasolina' y 'combustible' de esta lista para evitar duplicidad 
+  // con la nueva función registrarGasolina, que maneja su propio registro.
+  const palabrasTrabajo = ['uber', 'mottu', 'moto', 'mantenimiento', 'aceite', 'llanta', 'refaccion', 'taller', 'reparacion', 'servicio'];
   
   panelData.gastos = panelData.gastos.map(g => {
     const desc = (g.descripcion || "").toLowerCase();
@@ -97,10 +100,13 @@ function validarYArreglarDatos() {
   
   panelData.movimientos = [...movsGastos, ...movsIngresos].sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
 
-  // 3. Saneamiento numérico
+  // 3. Saneamiento numérico y Recálculo
   ['deudaTotal', 'gastoFijo', 'costoPorKm'].forEach(k => {
     panelData.parametros[k] = safeNumber(panelData.parametros[k]);
   });
+
+  // Re-calcular métricas de combustible al cargar datos
+  calcularMetricasCombustible(false); 
 
   saveData();
 }
@@ -180,10 +186,76 @@ function importarJson() {
         console.error(e);
         alert("❌ Error al leer el JSON:\n" + e.message + "\n\nVerifica que hayas copiado todo el código correctamente.");
     }
-        }
-// app.js (Parte 3/5: Cálculos y Métricas / Renderizado UI)
+}
+// app.js (Parte 3/5: Cálculos y Métricas / Combustible Real)
 
 // ---------- CÁLCULOS Y MÉTRICAS ----------
+
+function calcularMetricasCombustible(updateUI = true) {
+    const cargas = panelData.cargasCombustible.slice().sort((a, b) => a.kmCarga - b.kmCarga);
+    
+    const displayCosto = $("costoPorKmDisplay");
+    const displayProyeccion = $("proyeccionRepostaje");
+    
+    if (cargas.length < 2) {
+        panelData.parametros.costoPorKm = 0;
+        if (displayCosto) displayCosto.textContent = "$0.00";
+        if (displayProyeccion) displayProyeccion.textContent = "Necesitas 2 cargas para calcular métricas.";
+        return;
+    }
+
+    let kmRecorridosTotal = 0;
+    let costoTotal = 0;
+
+    // Usar solo las últimas 3 cargas para un promedio dinámico
+    const ultimasCargas = cargas.slice(-3); 
+    
+    for (let i = 1; i < ultimasCargas.length; i++) {
+        const cargaActual = ultimasCargas[i];
+        const cargaAnterior = ultimasCargas[i - 1];
+        
+        const kmRecorridos = cargaActual.kmCarga - cargaAnterior.kmCarga;
+        // Solo contabilizamos el costo de la carga ANTERIOR, que cubrió esos KM
+        const costoPeriodo = cargaAnterior.monto; 
+
+        if (kmRecorridos > 0) {
+            kmRecorridosTotal += kmRecorridos;
+            costoTotal += costoPeriodo;
+        }
+    }
+    
+    let costoPorKm = 0;
+    if (kmRecorridosTotal > 0) {
+        costoPorKm = costoTotal / kmRecorridosTotal;
+    }
+    
+    panelData.parametros.costoPorKm = costoPorKm;
+
+    // --- Proyección de repostaje ---
+    let mensajeProyeccion = "Sin información.";
+    const ultimoKmCarga = ultimasCargas[ultimasCargas.length - 1].kmCarga;
+    const kmAcumuladosDesdeCarga = safeNumber(panelData.parametros.ultimoKMfinal) - ultimoKmCarga;
+    
+    // Suponiendo un tanque de 400 km de autonomía y 50 km de reserva
+    const AUTONOMIA_ESTIMADA = 400; 
+    const KM_RESTANTES = AUTONOMIA_ESTIMADA - kmAcumuladosDesdeCarga;
+    
+    if (KM_RESTANTES <= 50) {
+        const costoEstimadoRecarga = 200; // Valor fijo de ejemplo para el aviso
+        mensajeProyeccion = `🚨 ¡Cargar ya! Debes repostar unos $${fmtMoney(costoEstimadoRecarga)}.`;
+    } else if (KM_RESTANTES <= 150) {
+        mensajeProyeccion = `⚠️ Revisar tanque. Faltan ${KM_RESTANTES.toFixed(0)} km aprox.`;
+    } else {
+        mensajeProyeccion = `Tanque OK. Faltan ${KM_RESTANTES.toFixed(0)} km aprox.`;
+    }
+
+    if (updateUI) {
+        if (displayCosto) displayCosto.textContent = `$${fmtMoney(costoPorKm)}`;
+        if (displayProyeccion) displayProyeccion.textContent = mensajeProyeccion;
+    }
+    
+    saveData();
+}
 
 function calcularMetricas() {
   const turnos = panelData.turnos;
@@ -244,11 +316,13 @@ function calcularMetricas() {
   saveData();
   return m;
 }
-
-// ---------- RENDERIZADO UI ----------
+// app.js (Parte 4/5: Renderizado UI / Gestión de Turno y Movimientos)
 
 function renderIndex() {
   const m = calcularMetricas();
+  // Forzamos la actualización de métricas de combustible también en el index
+  calcularMetricasCombustible(true); 
+
   const setTxt = (id, val) => { const el = $(id); if(el) el.textContent = val; };
   
   setTxt("resHoras", `${(m.totalHoras / m.diasTrabajados).toFixed(1)}h (Prom)`);
@@ -276,6 +350,7 @@ function renderIndex() {
 }
 
 function renderCharts() {
+// ... (sin cambios)
   if (typeof Chart === 'undefined') return;
   const ctx1 = $("graficaGanancias");
   const ctx2 = $("graficaKm");
@@ -312,6 +387,7 @@ function renderCharts() {
 }
 
 function renderAlertas() {
+// ... (sin cambios)
   const alertas = [];
   const kmActual = safeNumber(panelData.parametros.ultimoKMfinal);
   const base = panelData.parametros.mantenimientoBase;
@@ -343,10 +419,11 @@ function renderAlertas() {
 }
 
 function renderTablaTurnos() {
+// ... (sin cambios)
     const tbody = $("tablaTurnos");
     if (tbody) {
       tbody.innerHTML = "";
-      panelData.turnos.slice().sort((a,b) => new Date(b.fechaFin || b.fin) - new Date(a.fechaFin || a.fechaFin)).slice(0, 5).forEach(t => {
+      panelData.turnos.slice().sort((a,b) => new Date(b.fechaFin || b.fin) - new Date(a.fechaFin || a.fin)).slice(0, 5).forEach(t => {
         const fecha = new Date(t.fechaFin || t.fin);
         tbody.innerHTML += `
           <tr>
@@ -361,6 +438,7 @@ function renderTablaTurnos() {
 }
 
 function renderHistorial() {
+// ... (sin cambios)
   const tbody = $("historialBody");
   const resumen = $("historialResumen");
   if (!tbody || !resumen) return;
@@ -390,13 +468,15 @@ function renderHistorial() {
     </div>
   `;
 }
-// app.js (Parte 4/5: Gestión de Turno y Listeners de Movimientos)
 
 // ---------- GESTIÓN DE TURNO Y LISTENERS ----------
 
 function actualizarUIturno() {
   const btnIni = $("btnIniciarTurno");
   if (!btnIni) return;
+
+  // Actualizar métricas de combustible antes de actualizar UI
+  calcularMetricasCombustible(true); 
 
   const elems = {
     btnIni: $("btnIniciarTurno"),
@@ -426,7 +506,7 @@ function actualizarUIturno() {
     elems.btnFin.style.display = 'none';
     ['inKmF', 'inGan', 'lblKmF', 'lblGan'].forEach(k => { if(elems[k]) elems[k].style.display = 'none'; });
     if (elems.inKmI) {
-      // Si no hay turno activo, precargar con el último KM final registrado (o vacío/0)
+      // Si no hay turno activo, precargar con el último KM final registrado (que viene de turno o carga de combustible)
       elems.inKmI.removeAttribute('readonly');
       const ultimoKm = safeNumber(panelData.parametros.ultimoKMfinal);
       
@@ -458,6 +538,7 @@ function finalizarTurno() {
   const horas = (Date.now() - safeNumber(turnoActivo.timestamp)) / 36e5;
   const kmRec = kmFinal - kmInicial;
   
+  // Usamos el costoPorKm calculado por la nueva métrica de combustible
   const costoEst = kmRec * safeNumber(panelData.parametros.costoPorKm);
   const neta = gananciaBruta - costoEst;
 
@@ -469,7 +550,11 @@ function finalizarTurno() {
     gananciaBruta, gananciaNeta: neta
   });
 
-  panelData.parametros.ultimoKMfinal = kmFinal;
+  // El ultimoKMfinal se actualiza aquí si el turno es más reciente que cualquier carga de combustible
+  if (kmFinal > safeNumber(panelData.parametros.ultimoKMfinal)) {
+      panelData.parametros.ultimoKMfinal = kmFinal;
+  }
+  
   localStorage.removeItem("turnoActivo");
   localStorage.removeItem("turnoInicio");
   turnoActivo = false;
@@ -504,6 +589,54 @@ function registrarMovimiento(tipo, descId, montoId, esTrabajo) {
   montoInput.value = "";
   saveData();
   alert(`${tipo} registrado.`);
+}
+
+function registrarCargaCombustible() {
+    const kmCarga = safeNumber($("kmCarga").value);
+    const litros = safeNumber($("litrosCarga").value);
+    const monto = safeNumber($("costoCarga").value);
+    const desc = $("descCarga").value.trim() || "Carga de Gasolina";
+    const ultimoKm = safeNumber(panelData.parametros.ultimoKMfinal);
+
+    if (kmCarga <= ultimoKm && ultimoKm > 0) return alert(`El KM de carga (${kmCarga}) debe ser mayor al último KM registrado (${ultimoKm}).`);
+    if (monto <= 0 || litros <= 0) return alert("Por favor, ingresa el monto y la cantidad de litros.");
+    
+    const nuevaCarga = {
+        id: Date.now(),
+        fecha: new Date().toISOString(),
+        kmCarga, litros, monto,
+        descripcion: desc
+    };
+    
+    panelData.cargasCombustible.push(nuevaCarga);
+    
+    // Registrar la carga como un Gasto Operativo
+    const gastoMov = {
+        id: Date.now(), 
+        tipo: 'Gasto', 
+        descripcion: `Gasolina: ${desc} (${litros.toFixed(2)} L)`, 
+        monto: monto, 
+        fecha: nuevaCarga.fecha, 
+        esTrabajo: true
+    };
+    panelData.gastos.push(gastoMov);
+    panelData.movimientos.push(gastoMov);
+
+    // Actualizar el KM final del sistema
+    panelData.parametros.ultimoKMfinal = kmCarga;
+    
+    // Recalcular métricas y actualizar UI
+    calcularMetricasCombustible(true);
+    
+    // Limpiar campos
+    $("kmCarga").value = "";
+    $("litrosCarga").value = "";
+    $("costoCarga").value = "";
+    $("descCarga").value = "";
+    
+    saveData();
+    actualizarUIturno(); // Refresca el KM Inicial
+    alert(`⛽ Carga registrada. Nuevo costo por KM calculado.`);
 }
 // app.js (Parte 5/5: Wizard Deuda y Inicialización Global)
 
@@ -629,6 +762,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if($("btnIniciarTurno")) $("btnIniciarTurno").addEventListener("click", iniciarTurno);
     if($("btnFinalizarTurno")) $("btnFinalizarTurno").addEventListener("click", finalizarTurno);
     if($("btnRegistrarIngreso")) $("btnRegistrarIngreso").addEventListener("click", () => registrarMovimiento('Ingreso', 'ingresoDescripcion', 'ingresoCantidad', true));
+    
+    // NUEVO LISTENER: Registro de Carga de Combustible
+    if($("btnRegistrarCarga")) $("btnRegistrarCarga").addEventListener("click", registrarCargaCombustible);
+
     if($("btnRegistrarGasto")) $("btnRegistrarGasto").addEventListener("click", () => {
        const tipo = $("gastoTipo") ? $("gastoTipo").value : 'fijo';
        registrarMovimiento('Gasto', 'gastoDescripcion', 'gastoCantidad', tipo === 'trabajo');
@@ -638,11 +775,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if($("btnExportar")) $("btnExportar").addEventListener("click", exportarJson);
     if($("btnImportar")) $("btnImportar").addEventListener("click", importarJson);
     
-    // Guardado de Parámetros
-    if($("btnGuardarKmParam")) $("btnGuardarKmParam").addEventListener("click", () => {
-        panelData.parametros.costoPorKm = safeNumber($("costoPorKm").value);
-        saveData(); alert("Guardado.");
-    });
+    // Guardado de Parámetros (Solo Mantenimiento ahora, CostoPorKm es calculado)
     if($("btnGuardarMantenimiento")) $("btnGuardarMantenimiento").addEventListener("click", () => {
         const base = panelData.parametros.mantenimientoBase;
         base['Aceite (KM)'] = safeNumber($("mantenimientoAceite").value);
