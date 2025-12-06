@@ -22,14 +22,16 @@
     <h2>Gestión de Turno</h2>
     <p id="turnoTexto" style="margin-bottom:10px;">🔴 Sin turno activo</p>
     
-    <label id="labelKmInicial">KM Inicial (Lectura/Corrección):</label>
-    <input type="number" id="kmInicial" placeholder="0" />
+    <div class="turno-inputs">
+        <label id="labelKmInicial">KM Inicial (Lectura/Corrección):</label>
+        <input type="number" id="kmInicial" placeholder="0" />
 
-    <label id="labelKmFinal" style="display:none;">KM Final:</label>
-    <input type="number" id="kmFinal" style="display:none;" placeholder="0" />
+        <label id="labelKmFinal" style="display:none;">KM Final:</label>
+        <input type="number" id="kmFinal" style="display:none;" placeholder="0" />
 
-    <label id="labelGananciaBruta" style="display:none;">Ganancia Bruta del Turno ($):</label>
-    <input type="number" id="gananciaBruta" style="display:none;" placeholder="0.00" />
+        <label id="labelGananciaBruta" style="display:none;">Ganancia Bruta del Turno ($):</label>
+        <input type="number" id="gananciaBruta" style="display:none;" placeholder="0.00" />
+    </div>
     
     <button id="btnIniciarTurno" class="btn-success" type="button">Iniciar Turno</button>
     <button id="btnFinalizarTurno" class="btn-danger" type="button" style="display:none;">Finalizar Turno</button>
@@ -81,7 +83,6 @@
 
   <section class="card">
     <h2>Gestión de Deudas y Abonos</h2>
-    
     <div id="wizardStep1">
       <h3>Registrar Nueva Deuda</h3>
       <label>Monto Total de la Deuda:</label>
@@ -92,21 +93,11 @@
     </div>
 
     <div id="wizardStep2" style="display:none;">
-      <h3>Plan de Pagos (Compromiso)</h3>
-      
-      <label>¿Cuánto abonas periódicamente a esta deuda?</label>
-      <input type="number" id="abonoPeriodicoMonto" placeholder="Ej. 1500.00" />
-      
-      <label>¿Con qué frecuencia realizas este pago?</label>
-      <select id="abonoPeriodicoFrecuencia">
-        <option value="7">Semanal (Cada 7 días)</option>
-        <option value="15">Quincenal (Cada 15 días)</option>
-        <option value="30">Mensual (Cada 30 días)</option>
-      </select>
-      
-      <p class="nota">Calcularemos automáticamente cuánto debes apartar al día.</p>
-      
-      <button id="btnFinalizarDeuda" class="btn-success" type="button">Guardar Plan de Pagos</button>
+      <h3>Gasto Fijo Diario (Hogar/Personal)</h3>
+      <label>Gasto Fijo Diario ($):</label>
+      <input type="number" id="gastoFijoDiario" placeholder="100.00" />
+      <p class="nota">Este es el gasto mínimo que debes cubrir antes de abonar a deudas.</p>
+      <button id="btnFinalizarDeuda" class="btn-success" type="button">Guardar Deuda y Gasto Fijo</button>
       <button id="btnVolverDeuda" class="btn-secondary" type="button">Volver</button>
     </div>
 
@@ -118,7 +109,7 @@
     <label>Cantidad a abonar ($):</label>
     <input type="number" id="abonoMonto" placeholder="0.00" />
     <button id="btnRegistrarAbono" class="btn-success" type="button">Registrar Abono</button>
-    <p class="nota">⚠ El abono no puede ser mayor al saldo pendiente.</p>
+    <p class="nota">⚠ El abono no puede ser mayor al saldo pendiente. (Validación automática)</p>
 
     <hr style="margin:20px 0;" />
 
@@ -128,9 +119,9 @@
 
   <section class="card">
     <h2>Datos y Respaldo</h2>
-    <button id="btnExportarExcel" class="btn-success" type="button" style="display:none;">Descargar Excel (Próximamente)</button>
-    <button id="btnExportar" class="btn-secondary" type="button">Copiar JSON (Respaldo)</button>
-    <p class="nota">El respaldo automático se guarda en tu navegador. Usa "Copiar JSON" para guardarlo en un archivo de texto por seguridad.</p>
+    <button id="btnExportarExcel" class="btn-success" type="button">Descargar Excel (.xlsx)</button>
+    <button id="btnExportar" class="btn-secondary" type="button">Copiar JSON</button>
+    <p class="nota">El respaldo automático se guarda en <strong>localStorage</strong> con la clave <strong>panelData_backup_v1</strong>.</p>
 
     <div style="margin-top:15px; border-top:1px solid #eee; padding-top:10px;">
       <textarea id="importJson" rows="3" placeholder="Pega aquí el JSON para restaurar..."></textarea>
