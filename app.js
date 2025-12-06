@@ -53,8 +53,7 @@ function formatearFecha(date) {
   if (!(date instanceof Date) || isNaN(date.getTime())) return "Fecha Inválida";
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 }
-
-// ---------- GESTIÓN Y CORRECCIÓN DE DATOS ----------
+// app.js (Parte 2/5: Gestión y Corrección de Datos)
 
 function validarYArreglarDatos() {
   // 1. Asegurar arrays básicos
@@ -180,6 +179,7 @@ function importarJson() {
         alert("❌ Error al leer el JSON:\n" + e.message + "\n\nVerifica que hayas copiado todo el código correctamente.");
     }
 }
+// app.js (Parte 3/5: Cálculos y Métricas / Renderizado UI)
 
 // ---------- CÁLCULOS Y MÉTRICAS ----------
 
@@ -388,6 +388,7 @@ function renderHistorial() {
     </div>
   `;
 }
+// app.js (Parte 4/5: Gestión de Turno y Listeners de Movimientos)
 
 // ---------- GESTIÓN DE TURNO Y LISTENERS ----------
 
@@ -501,6 +502,7 @@ function registrarMovimiento(tipo, descId, montoId, esTrabajo) {
   saveData();
   alert(`${tipo} registrado.`);
 }
+// app.js (Parte 5/5: Wizard Deuda y Inicialización Global)
 
 // ---------- WIZARD DEUDA (LÓGICA FRECUENCIA) ----------
 
@@ -547,12 +549,11 @@ function setupDeudaWizardListeners() {
       btnFin.parentNode.replaceChild(newBtn, btnFin);
       newBtn.addEventListener("click", () => {
           // IDs actualizados para la lógica de frecuencia
-          const abono = safeNumber($("abonoPeriodicoMonto").value);
-          const dias = safeNumber($("abonoPeriodicoFrecuencia").value);
+          const abono = safeNumber($("gastoFijoDiario").value); // En el HTML el ID es "gastoFijoDiario"
           
-          if (abono <= 0 || dias <= 0) return alert("Por favor ingresa un monto de abono y selecciona la frecuencia.");
+          if (abono <= 0) return alert("Por favor ingresa un monto de abono.");
           
-          panelData.parametros.gastoFijo = abono / dias; // Calculamos cuota diaria
+          panelData.parametros.gastoFijo = abono; // El usuario ya ingresa el gasto fijo DIARIO
           saveData();
           renderDeudas();
           calcularMetricas();
