@@ -35,7 +35,7 @@
     
     <button id="btnIniciarTurno" class="btn-success" type="button">Iniciar Turno</button>
     <button id="btnFinalizarTurno" class="btn-danger" type="button" style="display:none;">Finalizar Turno</button>
-    <p class="nota">Al iniciar, el KM Inicial se precarga del último registro. Se puede corregir manualmente.</p>
+    <p class="nota">El KM Inicial debe coincidir con el KM final de tu última carga de combustible o último turno.</p>
   </section>
 
   <section class="card">
@@ -48,9 +48,40 @@
   </section>
 
   <section class="card">
+    <h2>⛽ Control de Combustible (KM y Costo Real)</h2>
+    
+    <h3>Métricas de Combustible</h3>
+    <div class="projection-grid">
+        <div class="projection">
+            <label>Costo Estimado por KM ($/km):</label>
+            <span id="costoPorKmDisplay">0.00</span>
+        </div>
+        <div class="projection">
+            <label>Proyección de Repostaje:</label>
+            <span id="proyeccionRepostaje">Sin datos de carga.</span>
+        </div>
+    </div>
+    <p class="nota">Este valor se calcula automáticamente con tus últimas 3 cargas de combustible.</p>
+    
+    <hr style="margin:20px 0;"/>
+
+    <h3>Registrar Carga de Combustible</h3>
+    <label>Kilometraje Actual (KM):</label>
+    <input type="number" id="kmCarga" placeholder="Ej. 10250" />
+    <label>Litros Cargados:</label>
+    <input type="number" id="litrosCarga" placeholder="Ej. 5.50" />
+    <label>Costo Total de la Carga ($):</label>
+    <input type="number" id="costoCarga" placeholder="Ej. 150.00" />
+    <label>Descripción (Opcional):</label>
+    <input type="text" id="descCarga" placeholder="Ej. Gasolinera PEMEX" />
+    
+    <button id="btnRegistrarCarga" class="btn-success" type="button">Registrar Carga de Combustible</button>
+    <p class="nota">Al registrar, se actualiza automáticamente el `Costo Estimado por KM` y el `Último KM final` del sistema.</p>
+  </section>
+  <section class="card">
     <h2>Registrar Gasto (Trabajo y Otros)</h2>
     <label>Descripción:</label>
-    <input type="text" id="gastoDescripcion" placeholder="Ej. Gasolina, Peaje, Refacciones" />
+    <input type="text" id="gastoDescripcion" placeholder="Ej. Peaje, Refacciones, Lavado" />
     <label>Monto:</label>
     <input type="number" id="gastoCantidad" placeholder="0.00" />
     <label>¿Es gasto fijo/hogar?</label>
@@ -63,11 +94,6 @@
 
   <section class="card">
     <h2>Parámetros Operativos</h2>
-    <label>Costo Estimado por KM ($/km):</label>
-    <input type="number" id="costoPorKm" />
-    <button id="btnGuardarKmParam" class="btn-secondary" type="button">Guardar</button>
-    <p class="nota">Usado para calcular el costo operativo estimado de cada turno.</p>
-
     <hr style="margin:20px 0;"/>
 
     <h3>Mantenimiento Base (KM)</h3>
