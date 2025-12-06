@@ -55,6 +55,8 @@ function formatearFecha(date) {
 }
 // app.js (Parte 2/5: Gestión y Corrección de Datos)
 
+// ---------- GESTIÓN Y CORRECCIÓN DE DATOS ----------
+
 function validarYArreglarDatos() {
   // 1. Asegurar arrays básicos
   ['ingresos', 'gastos', 'deudas', 'movimientos', 'turnos'].forEach(k => {
@@ -178,7 +180,7 @@ function importarJson() {
         console.error(e);
         alert("❌ Error al leer el JSON:\n" + e.message + "\n\nVerifica que hayas copiado todo el código correctamente.");
     }
-}
+        }
 // app.js (Parte 3/5: Cálculos y Métricas / Renderizado UI)
 
 // ---------- CÁLCULOS Y MÉTRICAS ----------
@@ -344,7 +346,7 @@ function renderTablaTurnos() {
     const tbody = $("tablaTurnos");
     if (tbody) {
       tbody.innerHTML = "";
-      panelData.turnos.slice().sort((a,b) => new Date(b.fechaFin || b.fin) - new Date(a.fechaFin || a.fin)).slice(0, 5).forEach(t => {
+      panelData.turnos.slice().sort((a,b) => new Date(b.fechaFin || b.fin) - new Date(a.fechaFin || a.fechaFin)).slice(0, 5).forEach(t => {
         const fecha = new Date(t.fechaFin || t.fin);
         tbody.innerHTML += `
           <tr>
@@ -414,6 +416,7 @@ function actualizarUIturno() {
     elems.btnFin.style.display = 'block';
     ['inKmF', 'inGan', 'lblKmF', 'lblGan'].forEach(k => { if(elems[k]) elems[k].style.display = 'block'; });
     if (elems.inKmI) {
+      // Si hay turno activo, mostrar el KM Inicial de ese turno y hacerlo readonly
       elems.inKmI.value = safeNumber(turnoActivo.kmInicial);
       elems.inKmI.setAttribute('readonly', true);
     }
@@ -423,12 +426,12 @@ function actualizarUIturno() {
     elems.btnFin.style.display = 'none';
     ['inKmF', 'inGan', 'lblKmF', 'lblGan'].forEach(k => { if(elems[k]) elems[k].style.display = 'none'; });
     if (elems.inKmI) {
+      // Si no hay turno activo, precargar con el último KM final registrado (o vacío/0)
       elems.inKmI.removeAttribute('readonly');
-      if (panelData.parametros.ultimoKMfinal) {
-        elems.inKmI.value = safeNumber(panelData.parametros.ultimoKMfinal);
-      } else {
-        elems.inKmI.value = "";
-      }
+      const ultimoKm = safeNumber(panelData.parametros.ultimoKMfinal);
+      
+      // Si existe un último KM (válido y > 0), usarlo. Si no, dejarlo vacío.
+      elems.inKmI.value = ultimoKm > 0 ? ultimoKm : "";
     }
   }
 }
