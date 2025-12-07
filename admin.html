@@ -132,7 +132,8 @@
   </section>
 
   <section class="card">
-    <h2>Mantenimiento (Alertas por KM)</h2>
+    <h2>Mantenimiento (Umbrales y Alertas)</h2>
+    <p class="nota">Estos valores se usan para activar las alertas en el Panel de Resultados.</p>
     <label>Aceite (Cada X KM):</label>
     <input type="number" id="mantenimientoAceite" />
     <label>Bujía (Cada X KM):</label>
@@ -216,7 +217,8 @@
   </section>
 
   <section class="card">
-    <h2>Respaldo</h2>
+    <h2>Respaldo y Exportación</h2>
+    <button id="btnExportarExcel" class="btn-success" type="button">Descargar Excel (.xlsx)</button>
     <button id="btnExportar" class="btn-secondary" type="button">Copiar Datos (JSON)</button>
     <div style="margin-top:10px;">
       <textarea id="importJson" rows="2" placeholder="Pegar JSON aquí..."></textarea>
