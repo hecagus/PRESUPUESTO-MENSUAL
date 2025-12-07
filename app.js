@@ -1,4 +1,4 @@
-// app.js - VERSIÓN FINAL GASTOS INTELIGENTES
+// app.js - VERSIÓN FINAL: GASTOS CON CATEGORÍA MANUAL
 // ---------------------------------------------------------------------
 
 const STORAGE_KEY = "panelData";
@@ -6,7 +6,7 @@ const $ = id => document.getElementById(id);
 let gananciasChart = null;
 let kmChart = null;
 
-// --- CONFIGURACIÓN DE CATEGORÍAS INTELIGENTES ---
+// --- CONFIGURACIÓN DE CATEGORÍAS (CON OPCIÓN "OTRA") ---
 const CATEGORIAS_GASTOS = {
     moto: [
         "Mantenimiento (Aceite/Filtros)",
@@ -16,19 +16,19 @@ const CATEGORIAS_GASTOS = {
         "Lavado/Limpieza",
         "Accesorios/Equipo",
         "Seguro/Trámites",
-        "Otros Moto"
+        "✏️ Otra / Nueva..." // Opción especial
     ],
     hogar: [
         "Comida del día (Calle)",
         "Despensa/Supermercado",
-        "Renta",
+        "Renta/Alquiler",
         "Luz/Agua/Gas",
-        "Internet/Streaming (Netflix, etc)",
+        "Internet/Streaming",
         "Celular/Datos",
         "Salud/Farmacia",
         "Ropa/Personal",
         "Diversión/Salidas",
-        "Otros Hogar"
+        "✏️ Otra / Nueva..." // Opción especial
     ]
 };
 
@@ -66,9 +66,7 @@ function cargarPanelData() {
 }
 
 function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(panelData)); }
-
 function exportarJson() { navigator.clipboard.writeText(JSON.stringify(panelData)).then(() => alert("Copiado.")); }
-
 function importarJson() {
     try {
         const json = $("importJson").value;
@@ -96,7 +94,7 @@ function calcularMetricasCombustible(updateUI = true) {
     // Proyección
     const ultimoKM = safeNumber(panelData.parametros.ultimoKMfinal);
     const ultimaCarga = cargas.length > 0 ? cargas[cargas.length-1].kmActual : ultimoKM;
-    const rest = 350 - (ultimoKM - ultimaCarga); // 350km tanque
+    const rest = 350 - (ultimoKM - ultimaCarga); 
     
     if (updateUI) {
         if($("costoPorKmDisplay")) $("costoPorKmDisplay").innerText = `$${fmtMoney(panelData.parametros.costoPorKm)}`;
@@ -127,6 +125,7 @@ function calcularMetricasGenerales() {
 function setupGastosInteligentes() {
     const radios = document.getElementsByName("gastoTipoRadio");
     const select = $("gastoCategoriaSelect");
+    const inputManual = $("gastoCategoriaManual"); // Campo extra
     const checkFijo = $("gastoRecurrenteCheck");
     const divDia = $("divDiaPago");
     
@@ -139,14 +138,27 @@ function setupGastosInteligentes() {
             opt.text = cat;
             select.add(opt);
         });
+        // Reiniciar estado manual
+        inputManual.style.display = "none";
+        inputManual.value = "";
     };
 
-    // Listener Radios
+    // Detectar si seleccionan "Otra..."
+    select.addEventListener("change", (e) => {
+        if(e.target.value.includes("Otra")) {
+            inputManual.style.display = "block";
+            inputManual.focus();
+        } else {
+            inputManual.style.display = "none";
+        }
+    });
+
+    // Listener Radios (Moto vs Hogar)
     radios.forEach(r => {
         r.addEventListener("change", (e) => llenarCategorias(e.target.value));
     });
 
-    // Listener Checkbox
+    // Listener Checkbox Fijo
     if(checkFijo) {
         checkFijo.addEventListener("change", (e) => {
             divDia.style.display = e.target.checked ? "block" : "none";
@@ -179,7 +191,6 @@ function actualizarUITurno() {
 function iniciarTurno() {
   const kmInicial = safeNumber(panelData.parametros.ultimoKMfinal);
   if (kmInicial <= 0 && !confirm("KM Inicial es 0. ¿Continuar?")) return;
-  
   turnoActivo = { inicio: Date.now(), kmInicial };
   localStorage.setItem("turnoActivo", JSON.stringify(turnoActivo));
   actualizarUITurno();
@@ -238,31 +249,39 @@ function setupGasolinaWizard() {
 
 // ---------- LISTENERS GENERALES ----------
 function setupListeners() {
-    // Ingreso
     if($("btnRegistrarIngreso")) $("btnRegistrarIngreso").onclick = () => {
         const d = $("ingresoDescripcion").value; const m = safeNumber($("ingresoCantidad").value);
         if(m > 0) { panelData.ingresos.push({id: Date.now(), descripcion: d, monto: m, fecha: new Date().toISOString()}); saveData(); alert("Ingreso OK"); $("ingresoDescripcion").value=""; $("ingresoCantidad").value=""; }
     };
 
-    // GASTO INTELIGENTE
+    // --- REGISTRO DE GASTO (LÓGICA MEJORADA) ---
     if($("btnRegistrarGasto")) $("btnRegistrarGasto").onclick = () => {
         const monto = safeNumber($("gastoCantidad").value);
         if (monto <= 0) return alert("Ingresa un monto.");
 
         const tipoRadio = document.querySelector('input[name="gastoTipoRadio"]:checked').value;
-        const categoria = $("gastoCategoriaSelect").value;
-        const descManual = $("gastoDescripcion").value.trim();
+        const selectCat = $("gastoCategoriaSelect").value;
+        const manualCat = $("gastoCategoriaManual").value.trim();
+        const descExtra = $("gastoDescripcion").value.trim();
+        
+        // Determinar nombre de la categoría real
+        let categoriaFinal = selectCat;
+        if (selectCat.includes("Otra") && manualCat) {
+            categoriaFinal = manualCat; // Usamos lo que escribió el usuario
+        } else if (selectCat.includes("Otra") && !manualCat) {
+            return alert("Por favor escribe el nombre de la nueva categoría.");
+        }
+
+        const descCompleta = descExtra ? `${categoriaFinal}: ${descExtra}` : categoriaFinal;
+
         const esFijo = $("gastoRecurrenteCheck").checked;
         const diaPago = esFijo ? safeNumber($("gastoDiaPago").value) : null;
-
-        // Construir descripción automática si no hay manual
-        const descFinal = descManual ? `${categoria}: ${descManual}` : categoria;
 
         panelData.gastos.push({
             id: Date.now(),
             fecha: new Date().toISOString(),
-            descripcion: descFinal,
-            categoria: categoria, // Guardamos la categoría limpia para análisis futuro
+            descripcion: descCompleta,
+            categoria: categoriaFinal, 
             monto: monto,
             esTrabajo: (tipoRadio === 'moto'),
             esFijo: esFijo,
@@ -271,14 +290,17 @@ function setupListeners() {
         });
 
         saveData();
-        alert(`Gasto registrado: ${descFinal}`);
+        alert(`Gasto guardado: ${descCompleta}`);
+        
+        // Limpieza inteligente
         $("gastoCantidad").value = "";
         $("gastoDescripcion").value = "";
-        $("gastoRecurrenteCheck").checked = false;
-        $("divDiaPago").style.display = "none";
+        $("gastoCategoriaManual").value = "";
+        $("gastoCategoriaManual").style.display = "none";
+        // Reiniciar select a la primera opción
+        $("gastoCategoriaSelect").selectedIndex = 0;
     };
 
-    // Deudas
     if($("btnSiguienteDeuda")) $("btnSiguienteDeuda").onclick = () => {
         const m = safeNumber($("deudaMontoTotal").value); const d = $("deudaDescripcion").value;
         if(m>0) { panelData.deudas.push({id:Date.now(), desc:d, saldo:m}); saveData(); renderDeudas(); updateDeudaWiz(); }
@@ -293,7 +315,6 @@ function setupListeners() {
         if(d && m>0 && m<=d.saldo) { d.saldo-=m; panelData.gastos.push({id:Date.now(), descripcion:`Abono ${d.desc}`, monto:m, fecha:new Date().toISOString(), esTrabajo:false}); saveData(); renderDeudas(); alert("Abonado"); }
     };
 
-    // Export/Import
     if($("btnExportar")) $("btnExportar").onclick = exportarJson;
     if($("btnImportar")) $("btnImportar").onclick = importarJson;
 }
@@ -304,25 +325,22 @@ function renderDeudas() {
     panelData.deudas.forEach(d => { if(d.saldo>0.1) { l.innerHTML+=`<li>${d.desc}: $${fmtMoney(d.saldo)}</li>`; const o=document.createElement("option"); o.value=d.id; o.text=d.desc; s.add(o); } });
 }
 
-// RENDER INDEX (Simplificado)
 function renderIndex() {
     const m = calcularMetricasGenerales();
     calcularMetricasCombustible(true);
     const set = (id,v) => { if($(id)) $(id).innerText = v; };
     set("resGananciaBruta", `$${fmtMoney(m.brutaProm)}`);
     set("resGananciaNeta", `$${fmtMoney(m.netoDiario)}`);
-    // ... completar resto de renders visuales
     renderCharts();
 }
 function renderCharts() { if(typeof Chart !== 'undefined' && $("graficaGanancias")) { /* chart logic here */ } }
 
-// INIT
 document.addEventListener("DOMContentLoaded", () => {
     cargarPanelData();
     const page = document.body.getAttribute('data-page');
     if (page === 'admin') {
         setupGasolinaWizard();
-        setupGastosInteligentes(); // <--- INICIA EL NUEVO MODULO
+        setupGastosInteligentes();
         setupListeners();
         actualizarUITurno();
         renderDeudas();
