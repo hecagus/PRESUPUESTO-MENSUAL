@@ -22,8 +22,10 @@
     <h2>Gestión de Turno</h2>
     <p id="turnoTexto" style="margin-bottom:10px;">🔴 Sin turno activo</p>
     
-    <div id="cierreTurnoContainer" style="display:none;">
-        <label>KM Final del Día:</label>
+    <div id="cierreTurnoContainer" style="display:none; margin-top:15px; padding-top:10px; border-top:1px solid #eee;">
+        <label style="color:#dc2626; font-weight:bold;">Cierre de Día:</label>
+        
+        <label>KM Final (incluyendo regreso a casa):</label>
         <input type="number" id="kmFinalTurno" placeholder="Lectura del odómetro" />
         
         <label>Ganancia Bruta del Turno ($):</label>
@@ -76,23 +78,26 @@
     <div id="gasWizardPaso1">
         <label>1. Litros Cargados:</label>
         <input type="number" id="gasLitros" placeholder="0.00" />
-        <button id="btnGasSiguiente1" class="btn-primary" type="button">Siguiente ➡</button>
+        <button id="btnGasSiguiente1" class="btn-primary" type="button" style="width:100%; margin-top:10px;">Siguiente ➡</button>
     </div>
 
     <div id="gasWizardPaso2" style="display:none;">
         <label>2. Costo Total ($):</label>
         <input type="number" id="gasCosto" placeholder="$0.00" />
-        <button id="btnGasSiguiente2" class="btn-primary" type="button">Siguiente ➡</button>
-        <button id="btnGasAtras2" class="btn-secondary" type="button">⬅ Atrás</button>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button id="btnGasAtras2" class="btn-secondary" type="button" style="flex:1;">⬅ Atrás</button>
+            <button id="btnGasSiguiente2" class="btn-primary" type="button" style="flex:1;">Siguiente ➡</button>
+        </div>
     </div>
 
     <div id="gasWizardPaso3" style="display:none;">
         <label>3. Kilometraje Actual (Odómetro):</label>
         <input type="number" id="gasKmActual" placeholder="Ej. 12500" />
-        <button id="btnRegistrarCargaFinal" class="btn-success" type="button">✅ Guardar Carga</button>
-        <button id="btnGasAtras3" class="btn-secondary" type="button">⬅ Atrás</button>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+             <button id="btnGasAtras3" class="btn-secondary" type="button" style="flex:1;">⬅ Atrás</button>
+             <button id="btnRegistrarCargaFinal" class="btn-success" type="button" style="flex:1;">✅ Guardar Carga</button>
+        </div>
     </div>
-    
   </section>
 
   <section class="card">
@@ -117,12 +122,12 @@
       <button id="btnSiguienteDeuda" class="btn-primary" type="button">Guardar Deuda</button>
     </div>
     
-    <hr style="margin:20px 0;" />
-    
-    <h3>Meta Diaria (Ahorro/Deuda)</h3>
-    <label>Monto diario a cubrir ($):</label>
-    <input type="number" id="gastoFijoDiario" />
-    <button id="btnFinalizarDeuda" class="btn-success" type="button">Actualizar Meta</button>
+    <div id="wizardStep2" style="display:none;">
+        <h3>Meta Diaria (Ahorro/Deuda)</h3>
+        <label>Monto diario a cubrir ($):</label>
+        <input type="number" id="gastoFijoDiario" />
+        <button id="btnFinalizarDeuda" class="btn-success" type="button">Actualizar Meta</button>
+    </div>
 
     <hr style="margin:20px 0;" />
 
