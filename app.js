@@ -1,4 +1,4 @@
-// app.js - VERSIÓN FINAL: DEUDAS CON WIZARD Y FECHA
+// app.js - VERSIÓN FINAL: DEUDAS CON MONTO DE CUOTA EN CÁLCULO DE META
 // ---------------------------------------------------------------------
 
 const STORAGE_KEY = "panelData";
@@ -40,13 +40,41 @@ function fmtMoney(n) { return safeNumber(n).toFixed(2).replace(/\B(?=(\d{3})+(?!
 function formatearFecha(d) { return new Date(d).toLocaleDateString(); }
 
 // ---------- GESTIÓN DE DATOS ----------
+function getDailyDebtContribution() {
+    let totalDiario = 0;
+    panelData.deudas.forEach(d => {
+        const montoCuota = safeNumber(d.montoCuota);
+        if (montoCuota > 0 && d.saldo > 0) {
+            let dias = 0;
+            switch (d.frecuencia) {
+                case 'Diario': dias = 1; break;
+                case 'Semanal': dias = 7; break;
+                case 'Quincenal': dias = 15; break;
+                case 'Mensual': dias = 30; break;
+                default: dias = 30;
+            }
+            if (dias > 0) {
+                totalDiario += montoCuota / dias;
+            }
+        }
+    });
+    return totalDiario;
+}
+
 function recalcularMetaDiaria() {
+    // 1. GASTOS FIJOS (NETFLIX, RENTA, ETC.)
     const totalFijos = panelData.gastosFijosMensuales.reduce((s, g) => s + safeNumber(g.monto), 0);
-    const cuotaFijos = totalFijos / 30;
+    const cuotaFijosDiaria = totalFijos / 30;
     
-    panelData.parametros.gastoFijo = cuotaFijos; 
+    // 2. DEUDAS (CONTRIBUCIÓN SUGERIDA)
+    const cuotaDeudasDiaria = getDailyDebtContribution();
+
+    // 3. META DIARIA TOTAL
+    const metaTotal = cuotaFijosDiaria + cuotaDeudasDiaria;
     
-    if($("metaDiariaDisplay")) $("metaDiariaDisplay").innerText = `$${fmtMoney(cuotaFijos)}`;
+    panelData.parametros.gastoFijo = metaTotal; 
+    
+    if($("metaDiariaDisplay")) $("metaDiariaDisplay").innerText = `$${fmtMoney(metaTotal)}`;
     if($("totalFijoMensualDisplay")) $("totalFijoMensualDisplay").innerText = `$${fmtMoney(totalFijos)}`;
     
     saveData();
@@ -80,7 +108,7 @@ function importarJson() {
     } catch (e) { alert("Error JSON"); }
 }
 
-// ---------- CÁLCULOS CENTRALES ----------
+// ---------- CÁLCULOS CENTRALES (Recorte por espacio) ----------
 function calcularMetricasCombustible(updateUI = true) {
     const cargas = panelData.cargasCombustible.sort((a, b) => a.kmActual - b.kmActual);
     if (cargas.length >= 2) {
@@ -149,7 +177,9 @@ function renderDeudas() {
     panelData.deudas.forEach(d => { 
         if(d.saldo>0.1) { 
             const proximo = d.proximoPago ? formatearFecha(new Date(d.proximoPago)) : 'N/A';
-            l.innerHTML+=`<li><strong>${d.desc}</strong> ($${fmtMoney(d.saldo)} restan) | Próx. Pago: ${proximo} (${d.frecuencia})</li>`; 
+            const montoCuota = safeNumber(d.montoCuota);
+            // Se muestra el monto de la cuota en la lista
+            l.innerHTML+=`<li><strong>${d.desc}</strong> ($${fmtMoney(d.saldo)} restan) | Cuota: $${fmtMoney(montoCuota)} (${d.frecuencia}) | Próx. Pago: ${proximo}</li>`; 
             const o=document.createElement("option"); o.value=d.id; o.text=d.desc; s.add(o); 
         } 
     });
@@ -272,7 +302,11 @@ function setupDeudaWizard() {
     // Paso 2 -> 3
     $("btnDeudaNext2").onclick = () => {
         const monto = safeNumber($("deudaMontoTotal").value);
+        const montoCuota = safeNumber($("deudaMontoCuota").value);
+        
         if (monto <= 0) return alert("Ingresa un monto total válido.");
+        if (montoCuota <= 0) return alert("Ingresa el monto de la cuota."); 
+
         p2.style.display = "none"; p3.style.display = "block";
     };
     
@@ -284,6 +318,7 @@ function setupDeudaWizard() {
     $("btnRegistrarDeudaFinal").onclick = () => {
         const nombre = $("deudaNombre").value.trim();
         const montoTotal = safeNumber($("deudaMontoTotal").value);
+        const montoCuota = safeNumber($("deudaMontoCuota").value);
         const frecuencia = $("deudaFrecuencia").value;
         const proximoPago = $("deudaProximoPago").value;
 
@@ -291,17 +326,19 @@ function setupDeudaWizard() {
         
         const nuevaDeuda = {
             id: Date.now(), desc: nombre, montoOriginal: montoTotal, saldo: montoTotal,
-            frecuencia: frecuencia, proximoPago: proximoPago, creadaEn: new Date().toISOString()
+            frecuencia: frecuencia, proximoPago: proximoPago, creadaEn: new Date().toISOString(),
+            montoCuota: montoCuota
         };
         
         panelData.deudas.push(nuevaDeuda);
         panelData.parametros.deudaTotal += montoTotal; 
         saveData();
+        recalcularMetaDiaria();
         renderDeudas();
         
-        // Limpiar y volver al paso 1
         $("deudaNombre").value = "";
         $("deudaMontoTotal").value = "";
+        $("deudaMontoCuota").value = "";
         $("deudaProximoPago").value = "";
         p3.style.display = "none"; p1.style.display = "block";
         alert(`Deuda "${nombre}" registrada.`);
@@ -362,7 +399,11 @@ function setupListeners() {
         if(d && m>0 && m<=d.saldo) { 
             d.saldo-=m; 
             panelData.parametros.deudaTotal -= m;
-            panelData.gastos.push({id:Date.now(), descripcion:`Abono ${d.desc}`, monto:m, fecha:new Date().toISOString(), esTrabajo:false}); saveData(); renderDeudas(); alert("Abonado"); 
+            panelData.gastos.push({id:Date.now(), descripcion:`Abono ${d.desc}`, monto:m, fecha:new Date().toISOString(), esTrabajo:false}); 
+            saveData(); 
+            recalcularMetaDiaria(); // Recalcular meta por si el saldo afecta la recomendación
+            renderDeudas(); 
+            alert("Abonado"); 
         }
     };
 
