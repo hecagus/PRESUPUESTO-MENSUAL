@@ -147,12 +147,38 @@
     <hr style="margin:20px 0;" />
 
     <h3>💳 Deudas (Préstamos / Tarjetas)</h3>
-    <div id="wizardStep1">
-      <label>Monto Total de la Deuda:</label>
-      <input type="number" id="deudaMontoTotal" placeholder="Ej. 5000" />
-      <label>Descripción:</label>
-      <input type="text" id="deudaDescripcion" placeholder="Ej. Tarjeta Azul" />
-      <button id="btnSiguienteDeuda" class="btn-primary" type="button">Registrar Nueva Deuda</button>
+    
+    <div id="deudaWizardStep1">
+      <label>1. Nombre de la Deuda:</label>
+      <input type="text" id="deudaNombre" placeholder="Ej. Moto a crédito, Tarjeta de tienda" />
+      <button id="btnDeudaNext1" class="btn-primary" type="button" style="width:100%; margin-top:10px;">Siguiente ➡</button>
+    </div>
+
+    <div id="deudaWizardStep2" style="display:none;">
+      <label>2. Monto Total Adeudado ($):</label>
+      <input type="number" id="deudaMontoTotal" placeholder="Ej. 15000.00" />
+      <div style="display:flex; gap:10px; margin-top:10px;">
+          <button id="btnDeudaBack2" class="btn-secondary" type="button" style="flex:1;">⬅ Atrás</button>
+          <button id="btnDeudaNext2" class="btn-primary" type="button" style="flex:1;">Siguiente ➡</button>
+      </div>
+    </div>
+
+    <div id="deudaWizardStep3" style="display:none;">
+      <label>3. Frecuencia de Pago:</label>
+      <select id="deudaFrecuencia">
+        <option value="Mensual">Mensual</option>
+        <option value="Quincenal">Quincenal</option>
+        <option value="Semanal">Semanal</option>
+        <option value="Diario">Diario</option>
+      </select>
+
+      <label>4. Fecha Próximo Pago:</label>
+      <input type="date" id="deudaProximoPago" />
+
+      <div style="display:flex; gap:10px; margin-top:10px;">
+          <button id="btnDeudaBack3" class="btn-secondary" type="button" style="flex:1;">⬅ Atrás</button>
+          <button id="btnRegistrarDeudaFinal" class="btn-success" type="button" style="flex:1;">✅ Registrar Deuda</button>
+      </div>
     </div>
 
     <div style="margin-top:20px;">
