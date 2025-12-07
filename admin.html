@@ -23,8 +23,8 @@
     <p id="turnoTexto" style="margin-bottom:10px;">🔴 Sin turno activo</p>
     
     <div class="turno-inputs">
-        <label id="labelKmInicial">KM Inicial (Lectura/Corrección):</label>
-        <input type="number" id="kmInicial" placeholder="0" />
+        <label id="labelKmInicial" style="display:none;">KM Inicial:</label>
+        <input type="number" id="kmInicial" placeholder="0" style="display:none;" readonly />
 
         <label id="labelKmFinal" style="display:none;">KM Final:</label>
         <input type="number" id="kmFinal" style="display:none;" placeholder="0" />
@@ -35,7 +35,7 @@
     
     <button id="btnIniciarTurno" class="btn-success" type="button">Iniciar Turno</button>
     <button id="btnFinalizarTurno" class="btn-danger" type="button" style="display:none;">Finalizar Turno</button>
-    <p class="nota">El KM Inicial debe coincidir con el KM final de tu última carga de combustible o último turno.</p>
+    <p class="nota">Solo controla tiempo de trabajo y ganancia bruta.</p>
   </section>
 
   <section class="card">
@@ -48,17 +48,31 @@
   </section>
 
   <section class="card">
+    <h2>Registrar Gasto (Trabajo y Otros)</h2>
+    <label>Descripción:</label>
+    <input type="text" id="gastoDescripcion" placeholder="Ej. Peaje, Refacciones, Lavado" />
+    <label>Monto:</label>
+    <input type="number" id="gastoCantidad" placeholder="0.00" />
+    <label>¿Es gasto fijo/hogar?</label>
+    <select id="gastoTipo">
+      <option value="trabajo">Trabajo (Operativo)</option>
+      <option value="fijo">Fijo (Hogar/Personal)</option>
+    </select>
+    <button id="btnRegistrarGasto" class="btn-danger" type="button">Registrar Gasto</button>
+  </section>
+
+  <section class="card">
     <h2>⛽ Control de Combustible (KM y Costo Real)</h2>
     
     <h3>Métricas de Combustible</h3>
     <div class="projection-grid">
         <div class="projection">
             <label>Costo Estimado por KM ($/km):</label>
-            <span id="costoPorKmDisplay">0.00</span>
+            <span id="costoPorKmDisplay">$0.00</span>
         </div>
         <div class="projection">
             <label>Proyección de Repostaje:</label>
-            <span id="proyeccionRepostaje">Sin datos de carga.</span>
+            <span id="proyeccionRepostaje">Necesitas 2 cargas para calcular.</span>
         </div>
     </div>
     <p class="nota">Este valor se calcula automáticamente con tus últimas 3 cargas de combustible.</p>
@@ -76,20 +90,7 @@
     <input type="text" id="descCarga" placeholder="Ej. Gasolinera PEMEX" />
     
     <button id="btnRegistrarCarga" class="btn-success" type="button">Registrar Carga de Combustible</button>
-    <p class="nota">Al registrar, se actualiza automáticamente el `Costo Estimado por KM` y el `Último KM final` del sistema.</p>
-  </section>
-  <section class="card">
-    <h2>Registrar Gasto (Trabajo y Otros)</h2>
-    <label>Descripción:</label>
-    <input type="text" id="gastoDescripcion" placeholder="Ej. Peaje, Refacciones, Lavado" />
-    <label>Monto:</label>
-    <input type="number" id="gastoCantidad" placeholder="0.00" />
-    <label>¿Es gasto fijo/hogar?</label>
-    <select id="gastoTipo">
-      <option value="trabajo">Trabajo (Operativo)</option>
-      <option value="fijo">Fijo (Hogar/Personal)</option>
-    </select>
-    <button id="btnRegistrarGasto" class="btn-danger" type="button">Registrar Gasto</button>
+    <p class="nota">Al registrar, se actualiza el `Costo Estimado por KM` y el `Último KM final`.</p>
   </section>
 
   <section class="card">
