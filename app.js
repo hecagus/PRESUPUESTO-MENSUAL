@@ -1,4 +1,4 @@
-// app.js - VERSIÓN FINAL: DEUDAS CON MONTO DE CUOTA EN CÁLCULO DE META
+// app.js - VERSIÓN FINAL: SOPORTE COMPLETO DE FRECUENCIAS
 // ---------------------------------------------------------------------
 
 const STORAGE_KEY = "panelData";
@@ -6,7 +6,16 @@ const $ = id => document.getElementById(id);
 let gananciasChart = null;
 let kmChart = null;
 
-// --- CONFIGURACIÓN DE CATEGORÍAS ---
+// --- CONFIGURACIÓN DE FRECUENCIAS y CATEGORÍAS ---
+const DIAS_POR_FRECUENCIA = {
+    'Diario': 1,
+    'Semanal': 7,
+    'Quincenal': 15,
+    'Mensual': 30,
+    'Bimestral': 60,
+    'No Recurrente': 0
+};
+
 const CATEGORIAS_GASTOS = {
     moto: [
         "Mantenimiento (Aceite/Filtros)", "Reparación Mecánica", "Llantas/Frenos",
@@ -45,14 +54,7 @@ function getDailyDebtContribution() {
     panelData.deudas.forEach(d => {
         const montoCuota = safeNumber(d.montoCuota);
         if (montoCuota > 0 && d.saldo > 0) {
-            let dias = 0;
-            switch (d.frecuencia) {
-                case 'Diario': dias = 1; break;
-                case 'Semanal': dias = 7; break;
-                case 'Quincenal': dias = 15; break;
-                case 'Mensual': dias = 30; break;
-                default: dias = 30;
-            }
+            const dias = DIAS_POR_FRECUENCIA[d.frecuencia] || 30;
             if (dias > 0) {
                 totalDiario += montoCuota / dias;
             }
@@ -63,8 +65,12 @@ function getDailyDebtContribution() {
 
 function recalcularMetaDiaria() {
     // 1. GASTOS FIJOS (NETFLIX, RENTA, ETC.)
-    const totalFijos = panelData.gastosFijosMensuales.reduce((s, g) => s + safeNumber(g.monto), 0);
-    const cuotaFijosDiaria = totalFijos / 30;
+    const cuotaFijosDiaria = panelData.gastosFijosMensuales.reduce((dailySum, g) => {
+        const days = DIAS_POR_FRECUENCIA[g.frecuencia] || 30; 
+        const costPerDay = safeNumber(g.monto) / days; 
+        return dailySum + costPerDay;
+    }, 0); 
+    const totalFijos = cuotaFijosDiaria * 30;
     
     // 2. DEUDAS (CONTRIBUCIÓN SUGERIDA)
     const cuotaDeudasDiaria = getDailyDebtContribution();
@@ -155,7 +161,7 @@ function renderGastosFijos() {
     panelData.gastosFijosMensuales.forEach((g, index) => {
         const li = document.createElement("li"); li.style.display = "flex"; li.style.justifyContent = "space-between"; li.style.alignItems = "center"; li.style.padding = "5px 0"; li.style.borderBottom = "1px solid #eee";
         li.innerHTML = `
-            <span><strong>${g.categoria}</strong> (Día ${g.diaPago}):</span>
+            <span><strong>${g.categoria}</strong> (${g.frecuencia} - Día ${g.diaPago}):</span>
             <span>$${fmtMoney(g.monto)} 
                 <button class="btn-danger" style="padding:2px 6px; font-size:0.7rem; margin-left:10px;" onclick="eliminarGastoFijo(${index})">X</button>
             </span>
@@ -164,7 +170,7 @@ function renderGastosFijos() {
     });
 }
 window.eliminarGastoFijo = function(index) {
-    if(confirm("¿Ya no pagarás este servicio mensualmente?")) {
+    if(confirm("¿Ya no pagarás este servicio?")) {
         panelData.gastosFijosMensuales.splice(index, 1);
         recalcularMetaDiaria();
         renderGastosFijos();
@@ -201,7 +207,7 @@ function renderIndex() {
     set("proyDias", m.diasLibre);
 }
 
-// ---------- WIZARDS Y LISTENERS (Recorte por espacio) ----------
+// ---------- WIZARDS Y LISTENERS ----------
 
 function actualizarUITurno() {
   const btn = $("btnIniciarTurno"); if(!btn) return;
@@ -268,7 +274,7 @@ function setupGastosInteligentes() {
     const radios = document.getElementsByName("gastoTipoRadio");
     const select = $("gastoCategoriaSelect");
     const inputManual = $("gastoCategoriaManual"); 
-    const checkFijo = $("gastoRecurrenteCheck");
+    const selectFrecuencia = $("gastoFrecuenciaSelect"); // Nuevo ID
     const divDia = $("divDiaPago");
     
     const llenarCategorias = (tipo) => {
@@ -283,9 +289,16 @@ function setupGastosInteligentes() {
         inputManual.style.display = e.target.value.includes("Otra") ? "block" : "none";
         if(e.target.value.includes("Otra")) inputManual.focus();
     });
+    
+    // Listener para la nueva Frecuencia Select
+    if (selectFrecuencia) {
+        selectFrecuencia.addEventListener("change", (e) => {
+            // Muestra el campo Día de Pago si NO es 'No Recurrente'
+            divDia.style.display = e.target.value === 'No Recurrente' ? "none" : "block";
+        });
+    }
 
     radios.forEach(r => r.addEventListener("change", (e) => llenarCategorias(e.target.value)));
-    if(checkFijo) checkFijo.addEventListener("change", (e) => divDia.style.display = e.target.checked ? "block" : "none");
     llenarCategorias("moto");
 }
 
@@ -333,7 +346,7 @@ function setupDeudaWizard() {
         panelData.deudas.push(nuevaDeuda);
         panelData.parametros.deudaTotal += montoTotal; 
         saveData();
-        recalcularMetaDiaria(); // Recalcular meta
+        recalcularMetaDiaria();
         renderDeudas();
         
         $("deudaNombre").value = "";
@@ -359,37 +372,40 @@ function setupListeners() {
         const selectCat = $("gastoCategoriaSelect").value;
         const manualCat = $("gastoCategoriaManual").value.trim();
         const descExtra = $("gastoDescripcion").value.trim();
+        const frecuencia = $("gastoFrecuenciaSelect").value; // Nuevo campo
         
         let categoriaFinal = selectCat;
         if (selectCat.includes("Otra") && manualCat) { categoriaFinal = manualCat; }
         else if (selectCat.includes("Otra") && !manualCat) { return alert("Escribe el nombre de la categoría."); }
 
         const descCompleta = descExtra ? `${categoriaFinal}: ${descExtra}` : categoriaFinal;
-        const esFijo = $("gastoRecurrenteCheck").checked;
-        const diaPago = esFijo ? safeNumber($("gastoDiaPago").value) : null;
-
+        const esRecurrente = frecuencia !== 'No Recurrente';
+        const diaPago = esRecurrente ? safeNumber($("gastoDiaPago").value) : null;
+        
+        // 1. Guardar como gasto de HOY
         panelData.gastos.push({
             id: Date.now(), fecha: new Date().toISOString(), descripcion: descCompleta,
             categoria: categoriaFinal, monto: monto, esTrabajo: (tipoRadio === 'moto'),
-            esFijo: esFijo, diaPago: diaPago, tipo: 'Gasto'
+            esFijo: esRecurrente, frecuencia: frecuencia, diaPago: diaPago, tipo: 'Gasto'
         });
 
-        if (esFijo) {
+        // 2. SI ES RECURRENTE: Guardar en lista de obligaciones
+        if (esRecurrente) {
             panelData.gastosFijosMensuales.push({
                 id: Date.now(), categoria: categoriaFinal, descripcion: descExtra,
-                monto: monto, diaPago: diaPago || 1
+                monto: monto, diaPago: diaPago || 1, frecuencia: frecuencia
             });
             recalcularMetaDiaria();
             renderGastosFijos();
         }
 
         saveData();
-        alert(esFijo ? `Gasto registrado y agregado a Obligaciones Mensuales.` : `Gasto registrado: ${descCompleta}`);
+        alert(esRecurrente ? `Gasto registrado y agregado a Obligaciones Mensuales.` : `Gasto registrado: ${descCompleta}`);
         
         $("gastoCantidad").value = ""; $("gastoDescripcion").value = "";
         $("gastoCategoriaManual").value = ""; $("gastoCategoriaManual").style.display = "none";
         $("gastoCategoriaSelect").selectedIndex = 0;
-        $("gastoRecurrenteCheck").checked = false;
+        $("gastoFrecuenciaSelect").value = "No Recurrente"; // Resetear selector
         $("divDiaPago").style.display = "none";
     };
 
