@@ -1,4 +1,4 @@
-// app.js - VERSIÓN FINAL: GASTOS RECURRENTES QUE SÍ SE GUARDAN
+// app.js - VERSIÓN FINAL: GASTOS RECURRENTES Y VISTAS CORREGIDAS
 // ---------------------------------------------------------------------
 
 const STORAGE_KEY = "panelData";
@@ -21,7 +21,7 @@ const CATEGORIAS_GASTOS = {
 
 const DEFAULT_PANEL_DATA = {
   ingresos: [], gastos: [], turnos: [], movimientos: [], cargasCombustible: [], deudas: [],
-  gastosFijosMensuales: [], // <--- AQUÍ SE GUARDAN LOS RECURRENTES
+  gastosFijosMensuales: [], 
   parametros: {
     deudaTotal: 0, 
     gastoFijo: 0, 
@@ -40,6 +40,18 @@ function fmtMoney(n) { return safeNumber(n).toFixed(2).replace(/\B(?=(\d{3})+(?!
 function formatearFecha(d) { return new Date(d).toLocaleDateString(); }
 
 // ---------- GESTIÓN DE DATOS ----------
+function recalcularMetaDiaria() {
+    const totalFijos = panelData.gastosFijosMensuales.reduce((s, g) => s + safeNumber(g.monto), 0);
+    const cuotaFijos = totalFijos / 30;
+    
+    panelData.parametros.gastoFijo = cuotaFijos; 
+    
+    if($("metaDiariaDisplay")) $("metaDiariaDisplay").innerText = `$${fmtMoney(cuotaFijos)}`;
+    if($("totalFijoMensualDisplay")) $("totalFijoMensualDisplay").innerText = `$${fmtMoney(totalFijos)}`;
+    
+    saveData();
+}
+
 function validarYArreglarDatos() {
   ['ingresos', 'gastos', 'deudas', 'movimientos', 'turnos', 'cargasCombustible', 'gastosFijosMensuales'].forEach(k => {
     if (!Array.isArray(panelData[k])) panelData[k] = [];
@@ -68,20 +80,7 @@ function importarJson() {
     } catch (e) { alert("Error JSON"); }
 }
 
-// ---------- CÁLCULOS CENTRALES ----------
-function recalcularMetaDiaria() {
-    // 1. Sumar gastos fijos
-    const totalFijos = panelData.gastosFijosMensuales.reduce((s, g) => s + safeNumber(g.monto), 0);
-    // 2. Dividir entre 30 días
-    const cuotaFijos = totalFijos / 30;
-    
-    panelData.parametros.gastoFijo = cuotaFijos; // Guardar la meta calculada
-    
-    if($("metaDiariaDisplay")) $("metaDiariaDisplay").innerText = `$${fmtMoney(cuotaFijos)}`;
-    if($("totalFijoMensualDisplay")) $("totalFijoMensualDisplay").innerText = `$${fmtMoney(totalFijos)}`;
-    
-    saveData();
-}
+// ---------- CÁLCULOS Y RENDERIZADO DE VISTAS ----------
 
 function calcularMetricasCombustible(updateUI = true) {
     const cargas = panelData.cargasCombustible.sort((a, b) => a.kmActual - b.kmActual);
@@ -117,34 +116,9 @@ function calcularMetricasGenerales() {
     meta: panelData.parametros.gastoFijo,
     kmTotal: turnos.reduce((s,t) => s+t.kmRecorrido, 0),
     horasTotal: turnos.reduce((s,t) => s+t.horas, 0),
-    brutaProm: ing/dias
+    brutaProm: ing/dias,
+    diasTrabajados: dias
   };
-}
-
-// ---------- UI INTELIGENTE DE GASTOS ----------
-function setupGastosInteligentes() {
-    const radios = document.getElementsByName("gastoTipoRadio");
-    const select = $("gastoCategoriaSelect");
-    const inputManual = $("gastoCategoriaManual"); 
-    const checkFijo = $("gastoRecurrenteCheck");
-    const divDia = $("divDiaPago");
-    
-    const llenarCategorias = (tipo) => {
-        select.innerHTML = "";
-        CATEGORIAS_GASTOS[tipo].forEach(cat => {
-            const opt = document.createElement("option"); opt.value = cat; opt.text = cat; select.add(opt);
-        });
-        inputManual.style.display = "none"; inputManual.value = "";
-    };
-
-    select.addEventListener("change", (e) => {
-        inputManual.style.display = e.target.value.includes("Otra") ? "block" : "none";
-        if(e.target.value.includes("Otra")) inputManual.focus();
-    });
-
-    radios.forEach(r => r.addEventListener("change", (e) => llenarCategorias(e.target.value)));
-    if(checkFijo) checkFijo.addEventListener("change", (e) => divDia.style.display = e.target.checked ? "block" : "none");
-    llenarCategorias("moto");
 }
 
 function renderGastosFijos() {
@@ -175,7 +149,6 @@ function renderGastosFijos() {
     });
 }
 
-// Función global para poder llamarla desde el HTML generado
 window.eliminarGastoFijo = function(index) {
     if(confirm("¿Ya no pagarás este servicio mensualmente?")) {
         panelData.gastosFijosMensuales.splice(index, 1);
@@ -185,11 +158,39 @@ window.eliminarGastoFijo = function(index) {
     }
 };
 
-// ---------- GESTIÓN DE TURNO ----------
+function renderDeudas() { 
+    const l=$("listaDeudas"), s=$("abonoSeleccionar"); if(!l)return; l.innerHTML=""; s.innerHTML="";
+    panelData.deudas.forEach(d => { if(d.saldo>0.1) { l.innerHTML+=`<li>${d.desc}: $${fmtMoney(d.saldo)}</li>`; const o=document.createElement("option"); o.value=d.id; o.text=d.desc; s.add(o); } });
+}
+
+function renderIndex() {
+    const m = calcularMetricasGenerales();
+    calcularMetricasCombustible(true);
+    
+    const set = (id,v) => { if($(id)) $(id).innerText = v; };
+
+    // Resumen del Día (Necesitas cargar un turno para que esto se actualice)
+    set("resHoras", `${m.horasTotal.toFixed(2)}h`);
+    set("resGananciaBruta", `$${fmtMoney(m.brutaProm)}`);
+    set("resGananciaNeta", `$${fmtMoney(m.netoDiario)}`);
+    set("resKmRecorridos", `${m.kmTotal.toFixed(0)} km`);
+
+    // Proyecciones y Deudas (Aquí está el FIX)
+    set("proyKmTotal", `${m.kmTotal.toFixed(0)} KM`);
+    set("proyDeuda", `$${fmtMoney(m.deuda)}`);
+    set("proyGastoFijoDiario", `$${fmtMoney(m.meta)}`); // <--- FIX APLICADO
+    set("proyNetaPromedio", `$${fmtMoney(m.netoDiario)}`);
+    set("proyDias", m.diasLibre);
+    
+    renderCharts();
+}
+function renderCharts() { if(typeof Chart !== 'undefined' && $("graficaGanancias")) { /* chart logic here */ } }
+
+// ---------- LÓGICA DE TURNO Y WIZARDS (Sin cambios, ya son correctos) ----------
+
 function actualizarUITurno() {
   const btn = $("btnIniciarTurno"); if(!btn) return;
   calcularMetricasCombustible(true);
-  
   if (turnoActivo) {
     $("turnoTexto").innerHTML = `🟢 En curso (${new Date(turnoActivo.inicio).toLocaleTimeString()})`;
     btn.style.display = 'none'; $("btnFinalizarTurno").style.display = 'block'; $("cierreTurnoContainer").style.display = 'block';
@@ -229,7 +230,6 @@ function finalizarTurno() {
   alert(`Turno finalizado. Neta Est.: $${fmtMoney(ganancia - costo)}`);
 }
 
-// ---------- WIZARD GASOLINA ----------
 function setupGasolinaWizard() {
     const p1 = $("gasWizardPaso1"), p2 = $("gasWizardPaso2"), p3 = $("gasWizardPaso3");
     $("btnGasSiguiente1").onclick = () => { if($("gasLitros").value > 0) { p1.style.display="none"; p2.style.display="block"; } };
@@ -254,14 +254,37 @@ function setupGasolinaWizard() {
     };
 }
 
-// ---------- LISTENERS GENERALES ----------
+function setupGastosInteligentes() {
+    const radios = document.getElementsByName("gastoTipoRadio");
+    const select = $("gastoCategoriaSelect");
+    const inputManual = $("gastoCategoriaManual"); 
+    const checkFijo = $("gastoRecurrenteCheck");
+    const divDia = $("divDiaPago");
+    
+    const llenarCategorias = (tipo) => {
+        select.innerHTML = "";
+        CATEGORIAS_GASTOS[tipo].forEach(cat => {
+            const opt = document.createElement("option"); opt.value = cat; opt.text = cat; select.add(opt);
+        });
+        inputManual.style.display = "none"; inputManual.value = "";
+    };
+
+    select.addEventListener("change", (e) => {
+        inputManual.style.display = e.target.value.includes("Otra") ? "block" : "none";
+        if(e.target.value.includes("Otra")) inputManual.focus();
+    });
+
+    radios.forEach(r => r.addEventListener("change", (e) => llenarCategorias(e.target.value)));
+    if(checkFijo) checkFijo.addEventListener("change", (e) => divDia.style.display = e.target.checked ? "block" : "none");
+    llenarCategorias("moto");
+}
+
 function setupListeners() {
     if($("btnRegistrarIngreso")) $("btnRegistrarIngreso").onclick = () => {
         const d = $("ingresoDescripcion").value; const m = safeNumber($("ingresoCantidad").value);
         if(m > 0) { panelData.ingresos.push({id: Date.now(), descripcion: d, monto: m, fecha: new Date().toISOString()}); saveData(); alert("Ingreso OK"); $("ingresoDescripcion").value=""; $("ingresoCantidad").value=""; }
     };
 
-    // --- REGISTRO DE GASTO INTELIGENTE Y RECURRENTE ---
     if($("btnRegistrarGasto")) $("btnRegistrarGasto").onclick = () => {
         const monto = safeNumber($("gastoCantidad").value);
         if (monto <= 0) return alert("Ingresa un monto.");
@@ -286,17 +309,14 @@ function setupListeners() {
             esFijo: esFijo, diaPago: diaPago, tipo: 'Gasto'
         });
 
-        // 2. SI ES FIJO: Guardar en lista de obligaciones para calcular meta
+        // 2. SI ES FIJO: Guardar en lista de obligaciones
         if (esFijo) {
             panelData.gastosFijosMensuales.push({
-                id: Date.now(),
-                categoria: categoriaFinal,
-                descripcion: descExtra,
-                monto: monto,
-                diaPago: diaPago || 1
+                id: Date.now(), categoria: categoriaFinal, descripcion: descExtra,
+                monto: monto, diaPago: diaPago || 1
             });
-            recalcularMetaDiaria(); // Actualizar la meta inmediatamente
-            renderGastosFijos(); // Actualizar la lista visual
+            recalcularMetaDiaria();
+            renderGastosFijos();
         }
 
         saveData();
@@ -324,21 +344,7 @@ function setupListeners() {
     if($("btnImportar")) $("btnImportar").onclick = importarJson;
 }
 
-function renderDeudas() { 
-    const l=$("listaDeudas"), s=$("abonoSeleccionar"); if(!l)return; l.innerHTML=""; s.innerHTML="";
-    panelData.deudas.forEach(d => { if(d.saldo>0.1) { l.innerHTML+=`<li>${d.desc}: $${fmtMoney(d.saldo)}</li>`; const o=document.createElement("option"); o.value=d.id; o.text=d.desc; s.add(o); } });
-}
-
-function renderIndex() {
-    const m = calcularMetricasGenerales();
-    calcularMetricasCombustible(true);
-    const set = (id,v) => { if($(id)) $(id).innerText = v; };
-    set("resGananciaBruta", `$${fmtMoney(m.brutaProm)}`);
-    set("resGananciaNeta", `$${fmtMoney(m.netoDiario)}`);
-    renderCharts();
-}
-function renderCharts() { if(typeof Chart !== 'undefined' && $("graficaGanancias")) { /* chart logic here */ } }
-
+// INICIALIZACIÓN
 document.addEventListener("DOMContentLoaded", () => {
     cargarPanelData();
     const page = document.body.getAttribute('data-page');
@@ -348,8 +354,8 @@ document.addEventListener("DOMContentLoaded", () => {
         setupListeners();
         actualizarUITurno();
         renderDeudas();
-        renderGastosFijos(); // <--- Mostrar lista de fijos al iniciar
+        renderGastosFijos();
     } else if (page === 'index') {
-        renderIndex();
+        renderIndex(); // <--- Ahora esta función actualiza la Meta Diaria en el Dashboard
     }
 });
