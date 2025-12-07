@@ -20,20 +20,16 @@
 
   <section class="card" id="cardTurnos">
     <h2>Gestión de Turno</h2>
-    <p id="turnoTexto" style="margin-bottom:10px;">🔴 Sin turno activo</p>
+    <p id="turnoTexto" style="margin-bottom:15px; font-weight:bold;">🔴 Sin turno activo</p>
     
-    <div style="display:none;">
-        <input type="number" id="kmInicial" readonly />
-        <input type="number" id="kmFinal" />
-    </div>
+    <button id="btnIniciarTurno" class="btn-success" type="button" style="width:100%; padding:15px; font-size:1.1rem;">⏱️ Iniciar Turno</button>
 
-    <div id="divGananciaTurno" style="display:none; margin-top:10px;">
+    <div id="cierreForm" style="display:none; margin-top:15px; border-top:1px solid #eee; padding-top:15px;">
+        <h3 style="color:#dc2626; margin-bottom:10px;">Cerrar Turno</h3>
         <label>Ganancia Bruta del Turno ($):</label>
-        <input type="number" id="gananciaBruta" placeholder="0.00" />
+        <input type="number" id="gananciaCierre" placeholder="0.00" />
+        <button id="btnFinalizarTurno" class="btn-danger" type="button" style="width:100%; margin-top:10px;">💾 Guardar y Finalizar</button>
     </div>
-    
-    <button id="btnIniciarTurno" class="btn-success" type="button">Iniciar Turno</button>
-    <button id="btnFinalizarTurno" class="btn-danger" type="button" style="display:none;">Finalizar Turno</button>
     <p class="nota">Solo controla tiempo de trabajo y ganancia bruta.</p>
   </section>
 
@@ -47,7 +43,7 @@
   </section>
 
   <section class="card">
-    <h2>Registrar Gasto (Trabajo y Otros)</h2>
+    <h2>Registrar Gasto (Gastos diversos)</h2>
     <label>Descripción:</label>
     <input type="text" id="gastoDescripcion" placeholder="Ej. Peaje, Refacciones, Lavado" />
     <label>Monto:</label>
@@ -65,35 +61,50 @@
     
     <div class="projection-grid">
         <div class="projection">
-            <label>Costo Estimado por KM:</label>
+            <label>Costo Real por KM:</label>
             <span id="costoPorKmDisplay">$0.00</span>
         </div>
         <div class="projection">
-            <label>Proyección:</label>
-            <span id="proyeccionRepostaje">Calculando...</span>
+            <label>Último KM Registrado:</label>
+            <span id="ultimoKmDisplay">0</span>
         </div>
     </div>
-    <hr style="margin:15px 0;"/>
+    <hr style="margin:20px 0; border-top: 1px dashed #ccc;"/>
 
-    <h3>Registrar Carga de Combustible</h3>
-    <label>Kilometraje Actual (KM):</label>
+    <h3>🚗 Actualizar Odómetro (Sin Gasolina)</h3>
+    <div style="display:flex; gap:10px; align-items:flex-end;">
+        <div style="flex-grow:1;">
+            <label style="margin-top:0;">Lectura Actual (KM):</label>
+            <input type="number" id="kmSoloLectura" placeholder="Ej. 10100" />
+        </div>
+        <button id="btnActualizarKm" class="btn-primary" type="button" style="margin-bottom:10px;">Actualizar</button>
+    </div>
+    <p class="nota">Úsalo diario para calcular tu recorrido y actualizar alertas de mantenimiento.</p>
+
+    <hr style="margin:20px 0; border-top: 1px dashed #ccc;"/>
+
+    <h3>⛽ Registrar Carga de Gasolina</h3>
+    <label>Kilometraje al cargar (KM):</label>
     <input type="number" id="kmCarga" placeholder="Ej. 10250" />
+
+    <div style="display:flex; gap:10px;">
+        <div style="flex:1;">
+            <label>Litros:</label>
+            <input type="number" id="litrosCarga" placeholder="Ej. 5.5" />
+        </div>
+        <div style="flex:1;">
+            <label>Costo ($):</label>
+            <input type="number" id="costoCarga" placeholder="Ej. 150" />
+        </div>
+    </div>
+    <label>Descripción:</label>
+    <input type="text" id="descCarga" placeholder="Ej. Pemex Centro" />
     
-    <label>Litros Cargados:</label>
-    <input type="number" id="litrosCarga" placeholder="Ej. 5.50" />
-    
-    <label>Costo Total ($):</label>
-    <input type="number" id="costoCarga" placeholder="Ej. 150.00" />
-    
-    <label>Descripción (Opcional):</label>
-    <input type="text" id="descCarga" placeholder="Ej. Gasolinera PEMEX" />
-    
-    <button id="btnRegistrarCarga" class="btn-success" type="button">✅ Registrar Carga</button>
-    <p class="nota">Actualiza automáticamente el Costo por KM y tu Odómetro.</p>
+    <button id="btnRegistrarCarga" class="btn-success" type="button">✅ Guardar Carga</button>
   </section>
 
   <section class="card">
-    <h2>Parámetros Operativos</h2>
+    <h2>Parámetros Operativos (Mantenimiento)</h2>
     <h3>Mantenimiento Base (KM)</h3>
     <label>Aceite:</label>
     <input type="number" id="mantenimientoAceite" />
@@ -106,9 +117,8 @@
 
   <section class="card">
     <h2>Gestión de Deudas y Abonos</h2>
-    
     <div id="wizardStep1">
-      <h3>Registrar Nueva Deuda</h3>
+      <h3>Nueva Deuda</h3>
       <label>Monto Total:</label>
       <input type="number" id="deudaMontoTotal" placeholder="1000.00" />
       <label>Descripción:</label>
@@ -117,32 +127,27 @@
     </div>
 
     <div id="wizardStep2" style="display:none;">
-      <h3>Meta Diaria (Gastos Fijos + Deuda)</h3>
+      <h3>Meta Diaria (Fijos + Deuda)</h3>
       <label>Monto a cubrir DIARIO ($):</label>
       <input type="number" id="gastoFijoDiario" placeholder="100.00" />
-      <p class="nota">Gasto mínimo que debes cubrir antes de abonar a deudas.</p>
       <button id="btnFinalizarDeuda" class="btn-success" type="button">Guardar Meta</button>
       <button id="btnVolverDeuda" class="btn-secondary" type="button">Volver</button>
     </div>
 
     <hr style="margin:20px 0;" />
-
-    <h3>Registrar Abono</h3>
+    <h3>Abonar</h3>
     <label>Deuda:</label>
     <select id="abonoSeleccionar"></select>
     <label>Monto ($):</label>
     <input type="number" id="abonoMonto" placeholder="0.00" />
     <button id="btnRegistrarAbono" class="btn-success" type="button">Registrar Abono</button>
-    <p class="nota">⚠ El abono no puede ser mayor al saldo pendiente.</p>
 
-    <hr style="margin:20px 0;" />
-    <h3>Deudas Pendientes</h3>
-    <ul id="listaDeudas" class="list"></ul>
+    <ul id="listaDeudas" class="list" style="margin-top:15px;"></ul>
   </section>
 
   <section class="card">
     <h2>Datos y Respaldo</h2>
-    <button id="btnExportarExcel" class="btn-success" type="button">Descargar Excel (.xlsx)</button>
+    <button id="btnExportarExcel" class="btn-success" type="button">Descargar Excel</button>
     <button id="btnExportar" class="btn-secondary" type="button">Copiar JSON</button>
     <div style="margin-top:10px;">
       <textarea id="importJson" rows="2" placeholder="Pegar JSON..."></textarea>
