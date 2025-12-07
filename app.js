@@ -80,7 +80,7 @@ function importarJson() {
     } catch (e) { alert("Error JSON"); }
 }
 
-// ---------- CÁLCULOS CENTRALES (Recorte por espacio) ----------
+// ---------- CÁLCULOS CENTRALES ----------
 function calcularMetricasCombustible(updateUI = true) {
     const cargas = panelData.cargasCombustible.sort((a, b) => a.kmActual - b.kmActual);
     if (cargas.length >= 2) {
@@ -148,7 +148,8 @@ function renderDeudas() {
     const l=$("listaDeudas"), s=$("abonoSeleccionar"); if(!l)return; l.innerHTML=""; s.innerHTML="";
     panelData.deudas.forEach(d => { 
         if(d.saldo>0.1) { 
-            l.innerHTML+=`<li><strong>${d.desc}</strong> ($${fmtMoney(d.saldo)} restan) | Próx. Pago: ${formatearFecha(new Date(d.proximoPago))} (${d.frecuencia})</li>`; 
+            const proximo = d.proximoPago ? formatearFecha(new Date(d.proximoPago)) : 'N/A';
+            l.innerHTML+=`<li><strong>${d.desc}</strong> ($${fmtMoney(d.saldo)} restan) | Próx. Pago: ${proximo} (${d.frecuencia})</li>`; 
             const o=document.createElement("option"); o.value=d.id; o.text=d.desc; s.add(o); 
         } 
     });
@@ -168,11 +169,9 @@ function renderIndex() {
     set("proyGastoFijoDiario", `$${fmtMoney(m.meta)}`);
     set("proyNetaPromedio", `$${fmtMoney(m.netoDiario)}`);
     set("proyDias", m.diasLibre);
-    
-    // ... render charts y tablas
 }
 
-// ---------- GESTIÓN DE TURNO Y WIZARDS (Recorte por espacio) ----------
+// ---------- WIZARDS Y LISTENERS ----------
 
 function actualizarUITurno() {
   const btn = $("btnIniciarTurno"); if(!btn) return;
@@ -291,17 +290,12 @@ function setupDeudaWizard() {
         if (!proximoPago) return alert("Selecciona la fecha del próximo pago.");
         
         const nuevaDeuda = {
-            id: Date.now(),
-            desc: nombre,
-            montoOriginal: montoTotal,
-            saldo: montoTotal,
-            frecuencia: frecuencia,
-            proximoPago: proximoPago,
-            creadaEn: new Date().toISOString()
+            id: Date.now(), desc: nombre, montoOriginal: montoTotal, saldo: montoTotal,
+            frecuencia: frecuencia, proximoPago: proximoPago, creadaEn: new Date().toISOString()
         };
         
         panelData.deudas.push(nuevaDeuda);
-        panelData.parametros.deudaTotal += montoTotal; // Actualizar el total general
+        panelData.parametros.deudaTotal += montoTotal; 
         saveData();
         renderDeudas();
         
@@ -315,7 +309,6 @@ function setupDeudaWizard() {
 }
 
 
-// ---------- LISTENERS GENERALES ----------
 function setupListeners() {
     if($("btnRegistrarIngreso")) $("btnRegistrarIngreso").onclick = () => {
         const d = $("ingresoDescripcion").value; const m = safeNumber($("ingresoCantidad").value);
@@ -325,7 +318,6 @@ function setupListeners() {
     if($("btnRegistrarGasto")) $("btnRegistrarGasto").onclick = () => {
         const monto = safeNumber($("gastoCantidad").value);
         if (monto <= 0) return alert("Ingresa un monto.");
-
         const tipoRadio = document.querySelector('input[name="gastoTipoRadio"]:checked').value;
         const selectCat = $("gastoCategoriaSelect").value;
         const manualCat = $("gastoCategoriaManual").value.trim();
@@ -369,7 +361,7 @@ function setupListeners() {
         const d = panelData.deudas.find(x=>x.id==id);
         if(d && m>0 && m<=d.saldo) { 
             d.saldo-=m; 
-            panelData.parametros.deudaTotal -= m; // Restar del total general
+            panelData.parametros.deudaTotal -= m;
             panelData.gastos.push({id:Date.now(), descripcion:`Abono ${d.desc}`, monto:m, fecha:new Date().toISOString(), esTrabajo:false}); saveData(); renderDeudas(); alert("Abonado"); 
         }
     };
@@ -385,7 +377,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (page === 'admin') {
         setupGasolinaWizard();
         setupGastosInteligentes();
-        setupDeudaWizard(); // <--- INICIA EL NUEVO WIZARD
+        setupDeudaWizard(); 
         setupListeners();
         actualizarUITurno();
         renderDeudas();
