@@ -1,225 +1,345 @@
-// app.js (Parte 1/5: Estructura y Utils)
-const STORAGE_KEY = "panelData";
-const $ = id => document.getElementById(id);
-let gananciasChart = null; let kmChart = null;
+// app.js - VERSIÓN FINAL DEFINITIVA (Unificado)
+// ---------------------------------------------------------------------
 
+const STORAGE_KEY = "panelData";
+const BACKUP_KEY = "panelData_backup_v1";
+const $ = id => document.getElementById(id);
+
+let gananciasChart = null;
+let kmChart = null;
+
+// Estructura base de datos
 const DEFAULT_PANEL_DATA = {
-  ingresos: [], gastos: [], turnos: [], movimientos: [],
-  cargasCombustible: [], 
+  ingresos: [],
+  gastos: [],
+  turnos: [],
+  movimientos: [],
+  cargasCombustible: [], // Array clave para el control de KM y Costo
+  deudas: [],
   parametros: {
-    deudaTotal: 0, gastoFijo: 0, 
-    ultimoKMfinal: 0, // DATO CRÍTICO: Se actualiza con Cargas y Fin de Turno
+    deudaTotal: 0,
+    gastoFijo: 0, 
+    ultimoKMfinal: 0, // EL KM sagrado: Fin de hoy = Inicio de mañana
     costoPorKm: 0,
-    mantenimientoBase: { 'Aceite': 3000, 'Bujía': 8000, 'Llantas': 15000 }
+    mantenimientoBase: {
+      'Aceite (KM)': 3000,
+      'Bujía (KM)': 8000,
+      'Llantas (KM)': 15000
+    }
   }
 };
 
+// Inicializar estado en memoria
 let panelData = JSON.parse(JSON.stringify(DEFAULT_PANEL_DATA));
 let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || false;
 
-function safeNumber(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; }
-function fmtMoney(n) { return safeNumber(n).toFixed(2); }
-function formatearFecha(d) { return new Date(d).toLocaleDateString(); }
+// ---------- UTILIDADES ----------
 
-// app.js (Parte 2/5: Datos)
+function safeNumber(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function isObject(v) {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+function fmtMoney(num) {
+  return safeNumber(num).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function formatearFecha(date) {
+  if (!(date instanceof Date) || isNaN(date.getTime())) return "Fecha Inválida";
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+}
+
+// ---------- GESTIÓN DE DATOS (Persistencia y Validación) ----------
 
 function validarYArreglarDatos() {
-  ['ingresos', 'gastos', 'turnos', 'cargasCombustible'].forEach(k => {
+  // 1. Asegurar existencia de arrays
+  ['ingresos', 'gastos', 'deudas', 'movimientos', 'turnos', 'cargasCombustible'].forEach(k => {
     if (!Array.isArray(panelData[k])) panelData[k] = [];
   });
-  if (!panelData.parametros) panelData.parametros = DEFAULT_PANEL_DATA.parametros;
+
+  if (!isObject(panelData.parametros)) {
+    panelData.parametros = JSON.parse(JSON.stringify(DEFAULT_PANEL_DATA.parametros));
+  }
   
-  // Asegurar numéricos
-  panelData.parametros.ultimoKMfinal = safeNumber(panelData.parametros.ultimoKMfinal);
+  if (!panelData.parametros.mantenimientoBase) {
+    panelData.parametros.mantenimientoBase = DEFAULT_PANEL_DATA.parametros.mantenimientoBase;
+  }
+
+  // 2. Autocorrección de Gastos (Excluyendo 'gasolina' que tiene su propio módulo)
+  const palabrasTrabajo = ['uber', 'mottu', 'moto', 'mantenimiento', 'aceite', 'llanta', 'refaccion', 'taller', 'reparacion', 'servicio'];
   
-  // Recalcular costo real al cargar
-  calcularMetricasCombustible(false);
+  panelData.gastos = panelData.gastos.map(g => {
+    const desc = (g.descripcion || "").toLowerCase();
+    const cat = (g.categoria || "").toLowerCase();
+    let esTrabajo = g.esTrabajo === true; 
+    
+    if (!esTrabajo) {
+        const match = palabrasTrabajo.some(p => desc.includes(p) || cat.includes(p));
+        if (match) esTrabajo = true;
+    }
+    return { ...g, esTrabajo, monto: safeNumber(g.monto || g.cantidad) };
+  });
+  
+  // 3. Saneamiento numérico
+  ['deudaTotal', 'gastoFijo', 'costoPorKm', 'ultimoKMfinal'].forEach(k => {
+    panelData.parametros[k] = safeNumber(panelData.parametros[k]);
+  });
+
+  // Recalcular métricas de combustible siempre al cargar para mantener consistencia
+  calcularMetricasCombustible(false); 
+
   saveData();
 }
 
 function cargarPanelData() {
   const data = localStorage.getItem(STORAGE_KEY);
   if (data) {
-    try { panelData = { ...panelData, ...JSON.parse(data) }; } 
-    catch (e) { console.error(e); }
+    try {
+      const loaded = JSON.parse(data);
+      if (isObject(loaded)) panelData = { ...panelData, ...loaded };
+    } catch (e) {
+      console.error("Error cargando datos:", e);
+      // Intento de backup si falla el principal
+      const backup = localStorage.getItem(BACKUP_KEY);
+      if (backup) { try { panelData = { ...panelData, ...JSON.parse(backup) }; } catch (ex) {} }
+    }
   }
   validarYArreglarDatos();
 }
 
 function saveData() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(panelData));
+  try {
+    const json = JSON.stringify(panelData);
+    localStorage.setItem(STORAGE_KEY, json);
+    localStorage.setItem(BACKUP_KEY, json);
+  } catch (e) { console.error("Error guardando:", e); }
 }
 
 function exportarJson() {
-    navigator.clipboard.writeText(JSON.stringify(panelData)).then(() => alert("Copiado."));
+    try {
+        const json = JSON.stringify(panelData, null, 2);
+        navigator.clipboard.writeText(json).then(() => alert("✅ Datos copiados al portapapeles.")).catch(() => alert("⚠️ Copia manual necesaria."));
+    } catch(e) { alert("Error al exportar."); }
 }
 
 function importarJson() {
+    const input = $("importJson");
+    if (!input) return;
+    const jsonText = input.value.trim();
+    if (!jsonText) return alert("⚠️ El campo está vacío.");
+
+    if (!confirm("⚠️ Se borrarán los datos actuales. ¿Continuar?")) return;
+
     try {
-        const json = $("importJson").value;
-        if (!json) return;
-        panelData = { ...DEFAULT_PANEL_DATA, ...JSON.parse(json) };
+        const datosNuevos = JSON.parse(jsonText);
+        if (!datosNuevos || typeof datosNuevos !== 'object') throw new Error("JSON inválido.");
+        panelData = { ...JSON.parse(JSON.stringify(DEFAULT_PANEL_DATA)), ...datosNuevos };
         validarYArreglarDatos();
-        alert("Datos restaurados.");
+        saveData();
+        alert("✅ Datos restaurados.");
         window.location.reload();
-    } catch (e) { alert("Error en JSON"); }
+    } catch (e) { alert("❌ Error: " + e.message); }
 }
 
-// app.js (Parte 3/5: Cálculos de Combustible y Métricas)
+// ---------- CÁLCULOS CENTRALES (Métricas) ----------
 
 function calcularMetricasCombustible(updateUI = true) {
-    // Ordenar cargas por KM
-    const cargas = panelData.cargasCombustible.sort((a, b) => a.kmActual - b.kmActual);
+    const cargas = panelData.cargasCombustible.slice().sort((a, b) => a.kmActual - b.kmActual);
     
-    // Necesitamos al menos 2 cargas para calcular rendimiento real
+    // Necesitamos al menos 2 cargas para medir distancia y consumo entre ellas
     if (cargas.length >= 2) {
         // Tomamos las últimas 3 para promedio reciente
-        const recientes = cargas.slice(-3);
-        let litrosTotales = 0;
-        let kmRecorridos = 0;
+        const ultimasCargas = cargas.slice(-3);
+        let kmRecorridosTotal = 0;
         let costoTotal = 0;
-
-        for (let i = 1; i < recientes.length; i++) {
-            const actual = recientes[i];
-            const prev = recientes[i-1];
-            const dist = actual.kmActual - prev.kmActual;
+        
+        for (let i = 1; i < ultimasCargas.length; i++) {
+            const cargaActual = ultimasCargas[i];
+            const cargaAnterior = ultimasCargas[i - 1];
+            const kmDist = cargaActual.kmActual - cargaAnterior.kmActual;
             
-            if (dist > 0) {
-                kmRecorridos += dist;
-                // El costo y litros son lo que consumiste para llegar aquí (la carga actual repone eso)
-                litrosTotales += actual.litros;
-                costoTotal += actual.costo;
+            if (kmDist > 0) {
+                kmRecorridosTotal += kmDist;
+                // Costo y litros consumidos para recorrer esa distancia (se asume que la carga actual llena el tanque)
+                costoTotal += cargaActual.costo; 
             }
         }
-
-        if (kmRecorridos > 0) {
-            panelData.parametros.costoPorKm = costoTotal / kmRecorridos;
+        
+        if (kmRecorridosTotal > 0) {
+            panelData.parametros.costoPorKm = costoTotal / kmRecorridosTotal;
         }
     }
 
     // Proyección
+    let mensajeProyeccion = "Necesitas más datos.";
     const ultimoKM = safeNumber(panelData.parametros.ultimoKMfinal);
-    // Si no hay cargas, asumimos 0 para proyección
     const ultimaCargaKM = cargas.length > 0 ? cargas[cargas.length - 1].kmActual : ultimoKM;
     const recorridoDesdeCarga = ultimoKM - ultimaCargaKM;
     
-    const tanquePromedioKM = 350; // Ajustable
-    const restante = tanquePromedioKM - recorridoDesdeCarga;
+    // Estimación (Tanque promedio moto ~350-400km - Ajustable)
+    const AUTONOMIA = 350; 
+    const KM_RESTANTES = AUTONOMIA - recorridoDesdeCarga;
     
+    if (cargas.length < 2) {
+         mensajeProyeccion = "Registra 2 cargas para calcular.";
+    } else if (KM_RESTANTES <= 50) {
+        mensajeProyeccion = `🚨 ¡URGENTE CARGAR! Restan ~${KM_RESTANTES.toFixed(0)} km.`;
+    } else if (KM_RESTANTES <= 150) {
+        mensajeProyeccion = `⚠️ Planifica carga. Restan ~${KM_RESTANTES.toFixed(0)} km.`;
+    } else {
+        mensajeProyeccion = `Tanque OK. Restan ~${KM_RESTANTES.toFixed(0)} km.`;
+    }
+
     if (updateUI) {
-        const lblCosto = $("costoPorKmDisplay");
-        const lblProy = $("proyeccionRepostaje");
-        if(lblCosto) lblCosto.innerText = `$${fmtMoney(panelData.parametros.costoPorKm)}`;
-        if(lblProy) lblProy.innerText = restante < 50 ? "¡URGENTE CARGAR!" : `${restante.toFixed(0)} km rest.`;
+        const displayCosto = $("costoPorKmDisplay");
+        const displayProyeccion = $("proyeccionRepostaje");
+        if (displayCosto) displayCosto.textContent = `$${fmtMoney(panelData.parametros.costoPorKm)}`;
+        if (displayProyeccion) displayProyeccion.textContent = mensajeProyeccion;
     }
     saveData();
 }
 
 function calcularMetricasGenerales() {
-    const turnos = panelData.turnos;
-    const dias = new Set(turnos.map(t => t.fechaInicio.split('T')[0])).size || 1;
-    
-    // Ingresos totales
-    const ingresosExt = panelData.ingresos.reduce((s,i) => s + safeNumber(i.monto), 0);
-    const gananciaTurnos = turnos.reduce((s,t) => s + safeNumber(t.gananciaBruta), 0);
-    const totalIngresos = ingresosExt + gananciaTurnos;
+  const turnos = panelData.turnos;
+  const diasTrabajados = new Set(turnos.map(t => (t.fechaInicio || "").split('T')[0]).filter(Boolean)).size || 1;
+  
+  // Ingresos
+  const ingresosExt = panelData.ingresos.reduce((s, x) => s + safeNumber(x.monto), 0);
+  const gananciaTurnos = turnos.reduce((s, x) => s + safeNumber(x.gananciaBruta), 0);
+  const totalIngresos = ingresosExt + gananciaTurnos;
+  
+  // Gastos
+  const gastosOperativos = panelData.gastos.filter(g => g.esTrabajo).reduce((s, x) => s + safeNumber(x.monto), 0);
+  
+  const neta = totalIngresos - gastosOperativos;
+  
+  const m = {
+    netoDiarioProm: diasTrabajados > 0 ? (neta / diasTrabajados) : 0,
+    deudaPendiente: safeNumber(panelData.parametros.deudaTotal),
+    cuotaDiariaDeuda: safeNumber(panelData.parametros.gastoFijo),
+    totalKm: turnos.reduce((sum, t) => sum + safeNumber(t.kmRecorrido), 0),
+    totalHoras: turnos.reduce((sum, t) => sum + safeNumber(t.horas), 0),
+    gananciaBrutaProm: diasTrabajados > 0 ? (totalIngresos / diasTrabajados) : 0,
+    gastoTrabajoProm: diasTrabajados > 0 ? (gastosOperativos / diasTrabajados) : 0,
+    diasTrabajados
+  };
 
-    // Gastos Operativos (Combustible + Mantenimiento + Otros Trabajo)
-    const gastosOp = panelData.gastos.filter(g => g.esTrabajo).reduce((s,g) => s + safeNumber(g.monto), 0);
-    
-    const neta = totalIngresos - gastosOp;
-    
-    return {
-        netaPromedio: neta / dias,
-        kmTotal: turnos.reduce((s,t) => s + safeNumber(t.kmRecorrido), 0),
-        gananciaBruta: totalIngresos,
-        gastosTotales: gastosOp
-    };
+  const superavit = m.netoDiarioProm - m.cuotaDiariaDeuda;
+  m.diasLibre = (m.deudaPendiente > 0 && superavit > 0) ? Math.ceil(m.deudaPendiente / m.netoDiarioProm) : "N/A";
+  
+  return m;
 }
-// app.js (Parte 4/5: Turno y Wizard Gasolina)
+
+// ---------- GESTIÓN DE TURNO ----------
 
 function actualizarUITurno() {
-    const btnIni = $("btnIniciarTurno");
-    const containerCierre = $("cierreTurnoContainer");
-    
-    if (turnoActivo) {
-        $("turnoTexto").innerHTML = "🟢 En curso";
-        btnIni.style.display = "none";
-        $("btnFinalizarTurno").style.display = "block";
-        containerCierre.style.display = "block"; // Mostrar inputs para cerrar
-    } else {
-        $("turnoTexto").innerHTML = "🔴 Sin turno";
-        btnIni.style.display = "block";
-        $("btnFinalizarTurno").style.display = "none";
-        containerCierre.style.display = "none";
-    }
-    calcularMetricasCombustible(true);
+  const btnIni = $("btnIniciarTurno");
+  const containerCierre = $("cierreTurnoContainer");
+  const txtEstado = $("turnoTexto");
+  
+  if (!btnIni) return;
+
+  // Actualizar métricas de combustible al renderizar turno
+  calcularMetricasCombustible(true); 
+
+  if (turnoActivo) {
+    txtEstado.innerHTML = `🟢 En curso (Inicio: ${new Date(turnoActivo.inicio).toLocaleTimeString()})`;
+    btnIni.style.display = 'none';
+    $("btnFinalizarTurno").style.display = 'block';
+    if(containerCierre) containerCierre.style.display = 'block'; // Mostrar inputs de cierre
+  } else {
+    txtEstado.innerHTML = `🔴 Sin turno activo`;
+    btnIni.style.display = 'block';
+    $("btnFinalizarTurno").style.display = 'none';
+    if(containerCierre) containerCierre.style.display = 'none'; // Ocultar inputs
+  }
 }
 
 function iniciarTurno() {
-    const inicio = Date.now();
-    // KM Inicial es automático del sistema. No se pide.
-    const kmInicial = safeNumber(panelData.parametros.ultimoKMfinal);
-    
-    turnoActivo = { inicio, kmInicial };
-    localStorage.setItem("turnoActivo", JSON.stringify(turnoActivo));
-    actualizarUITurno();
+  // KM Inicial es automático del sistema (Último KM registrado). No se pide al usuario.
+  const kmInicial = safeNumber(panelData.parametros.ultimoKMfinal);
+  
+  // Validación de seguridad inicial
+  if (kmInicial <= 0) {
+      // Si es la primera vez que se usa la app, podría ser 0.
+      if (!confirm("El KM Inicial es 0. ¿Es tu primer uso? Si no, registra una carga de combustible primero para calibrar el odómetro.")) {
+          return;
+      }
+  }
+
+  const inicio = Date.now();
+  turnoActivo = { inicio, kmInicial };
+  
+  localStorage.setItem("turnoActivo", JSON.stringify(turnoActivo));
+  actualizarUITurno();
 }
 
 function finalizarTurno() {
-    const kmFinalInput = safeNumber($("kmFinalTurno").value);
-    const ganancia = safeNumber($("gananciaBruta").value);
-    const kmInicial = safeNumber(turnoActivo.kmInicial);
+  const kmFinalInput = $("kmFinalTurno");
+  const gananciaInput = $("gananciaBruta");
+  
+  const kmFinal = safeNumber(kmFinalInput.value);
+  const ganancia = safeNumber(gananciaInput.value);
+  const kmInicial = safeNumber(turnoActivo.kmInicial);
 
-    if (kmFinalInput <= kmInicial) return alert("El KM Final debe ser mayor al inicial.");
-    if (ganancia <= 0) return alert("Ingresa ganancia.");
+  if (kmFinal <= kmInicial) return alert(`El KM Final (${kmFinal}) debe ser mayor al KM Inicial (${kmInicial}).`);
+  if (ganancia <= 0) return alert("Ingresa la ganancia bruta del turno.");
 
-    const recorrido = kmFinalInput - kmInicial;
-    const horas = (Date.now() - turnoActivo.inicio) / 3600000;
+  const recorrido = kmFinal - kmInicial;
+  const horas = (Date.now() - turnoActivo.inicio) / 3600000;
+  
+  // Cálculo de Neta estimada usando el costo por KM real
+  const costoEst = recorrido * safeNumber(panelData.parametros.costoPorKm);
+  const neta = ganancia - costoEst;
 
-    panelData.turnos.push({
-        fechaInicio: new Date(turnoActivo.inicio).toISOString(),
-        fechaFin: new Date().toISOString(),
-        kmRecorrido: recorrido,
-        gananciaBruta: ganancia,
-        horas: horas
-    });
+  panelData.turnos.push({
+    id: Date.now(),
+    fechaInicio: new Date(turnoActivo.inicio).toISOString(),
+    fechaFin: new Date().toISOString(),
+    horas, kmInicial, kmFinal, kmRecorrido: recorrido,
+    gananciaBruta: ganancia, gananciaNeta: neta
+  });
 
-    // ACTUALIZACIÓN DEL KILOMETRAJE GLOBAL
-    panelData.parametros.ultimoKMfinal = kmFinalInput;
-
-    turnoActivo = false;
-    localStorage.removeItem("turnoActivo");
-    
-    $("kmFinalTurno").value = "";
-    $("gananciaBruta").value = "";
-    saveData();
-    actualizarUITurno();
-    alert("Turno finalizado y KM actualizado.");
+  // ACTUALIZACIÓN CRÍTICA: El fin de hoy es el inicio de mañana
+  panelData.parametros.ultimoKMfinal = kmFinal;
+  
+  turnoActivo = false;
+  localStorage.removeItem("turnoActivo");
+  
+  saveData();
+  
+  // Limpiar campos
+  kmFinalInput.value = "";
+  gananciaInput.value = "";
+  
+  actualizarUITurno();
+  alert(`Turno finalizado.\nRecorrido: ${recorrido} km\nGanancia Neta Est.: $${fmtMoney(neta)}`);
 }
 
-// --- WIZARD GASOLINA ---
+// ---------- WIZARD DE GASOLINA ----------
 
 function setupGasolinaWizard() {
     const p1 = $("gasWizardPaso1"), p2 = $("gasWizardPaso2"), p3 = $("gasWizardPaso3");
     
-    // Paso 1 -> 2
+    // Navegación Adelante
     $("btnGasSiguiente1").onclick = () => {
-        if(safeNumber($("gasLitros").value) <= 0) return alert("Ingresa litros");
+        if(safeNumber($("gasLitros").value) <= 0) return alert("Ingresa los litros.");
         p1.style.display = "none"; p2.style.display = "block";
     };
-    
-    // Paso 2 -> 3
     $("btnGasSiguiente2").onclick = () => {
-        if(safeNumber($("gasCosto").value) <= 0) return alert("Ingresa costo");
+        if(safeNumber($("gasCosto").value) <= 0) return alert("Ingresa el costo.");
         p2.style.display = "none"; p3.style.display = "block";
     };
-    
-    // Atrás
+
+    // Navegación Atrás
     $("btnGasAtras2").onclick = () => { p2.style.display = "none"; p1.style.display = "block"; };
     $("btnGasAtras3").onclick = () => { p3.style.display = "none"; p2.style.display = "block"; };
 
-    // GUARDAR CARGA
+    // GUARDAR CARGA (Acción Final)
     $("btnRegistrarCargaFinal").onclick = () => {
         const litros = safeNumber($("gasLitros").value);
         const costo = safeNumber($("gasCosto").value);
@@ -227,69 +347,79 @@ function setupGasolinaWizard() {
         const ultimoKM = safeNumber(panelData.parametros.ultimoKMfinal);
 
         if (kmActual <= ultimoKM && ultimoKM > 0) 
-            return alert(`El KM (${kmActual}) debe ser mayor al anterior (${ultimoKM})`);
+            return alert(`El KM actual (${kmActual}) debe ser mayor al último registrado (${ultimoKM}).`);
 
-        // Registrar Carga
-        const carga = { fecha: new Date().toISOString(), litros, costo, kmActual };
+        // 1. Guardar Carga
+        const carga = { id: Date.now(), fecha: new Date().toISOString(), kmActual, litros, costo };
         panelData.cargasCombustible.push(carga);
 
-        // Registrar como Gasto automáticamente
+        // 2. Registrar Gasto Automático (Descripción genérica)
         panelData.gastos.push({
-            tipo: 'Gasto', descripcion: 'Gasolina', monto: costo, 
+            id: Date.now(), tipo: 'Gasto', descripcion: 'Carga Gasolina', monto: costo, 
             fecha: new Date().toISOString(), esTrabajo: true 
         });
 
-        // ACTUALIZAR KM GLOBAL
+        // 3. ACTUALIZAR KM GLOBAL
         panelData.parametros.ultimoKMfinal = kmActual;
 
-        // Reset UI
+        // Reset UI y Guardar
         $("gasLitros").value = ""; $("gasCosto").value = ""; $("gasKmActual").value = "";
         p3.style.display = "none"; p1.style.display = "block";
         
         saveData();
         calcularMetricasCombustible(true);
-        alert("Carga registrada.");
+        actualizarUITurno(); // Para refrescar lógica de KM si hubiera turno
+        alert("⛽ Carga registrada y Kilometraje actualizado.");
     };
 }
-// app.js (Parte 5/5: Listeners e Init)
+
+// ---------- LISTENERS GENERALES E INICIALIZACIÓN ----------
 
 function setupListeners() {
-    if($("btnIniciarTurno")) $("btnIniciarTurno").onclick = iniciarTurno;
-    if($("btnFinalizarTurno")) $("btnFinalizarTurno").onclick = finalizarTurno;
-    
+    // Ingresos
     if($("btnRegistrarIngreso")) $("btnRegistrarIngreso").onclick = () => {
-        const desc = $("ingresoDescripcion").value;
+        const desc = $("ingresoDescripcion").value.trim();
         const monto = safeNumber($("ingresoCantidad").value);
-        if(monto > 0) {
-            panelData.ingresos.push({descripcion: desc, monto, fecha: new Date().toISOString()});
-            saveData(); alert("Ingreso registrado");
-            $("ingresoDescripcion").value=""; $("ingresoCantidad").value="";
-        }
+        if(!desc || monto <= 0) return alert("Datos incompletos.");
+        
+        panelData.ingresos.push({id: Date.now(), descripcion: desc, monto, fecha: new Date().toISOString()});
+        saveData(); alert("Ingreso registrado.");
+        $("ingresoDescripcion").value=""; $("ingresoCantidad").value="";
     };
 
+    // Gastos Diversos
     if($("btnRegistrarGasto")) $("btnRegistrarGasto").onclick = () => {
-        const desc = $("gastoDescripcion").value;
+        const desc = $("gastoDescripcion").value.trim();
         const monto = safeNumber($("gastoCantidad").value);
         const tipo = $("gastoTipo").value;
-        if(monto > 0) {
-            panelData.gastos.push({
-                descripcion: desc, monto, fecha: new Date().toISOString(), 
-                esTrabajo: (tipo === 'trabajo')
-            });
-            saveData(); alert("Gasto registrado");
-            $("gastoDescripcion").value=""; $("gastoCantidad").value="";
-        }
+        if(!desc || monto <= 0) return alert("Datos incompletos.");
+        
+        panelData.gastos.push({
+            id: Date.now(), descripcion: desc, monto, fecha: new Date().toISOString(), 
+            esTrabajo: (tipo === 'trabajo')
+        });
+        saveData(); alert("Gasto registrado.");
+        $("gastoDescripcion").value=""; $("gastoCantidad").value="";
     };
     
-    // Deudas
+    // Deudas (Wizard simple)
     if($("btnSiguienteDeuda")) $("btnSiguienteDeuda").onclick = () => {
         const m = safeNumber($("deudaMontoTotal").value);
-        const d = $("deudaDescripcion").value;
-        if(m > 0) {
+        const d = $("deudaDescripcion").value.trim();
+        if(m > 0 && d) {
             panelData.deudas.push({id: Date.now(), desc: d, total: m, saldo: m});
-            saveData(); renderDeudas();
+            saveData(); renderDeudas(); updateDeudaWizard();
             $("deudaMontoTotal").value=""; $("deudaDescripcion").value="";
-        }
+        } else { alert("Datos incompletos."); }
+    };
+
+    if($("btnFinalizarDeuda")) $("btnFinalizarDeuda").onclick = () => {
+         const m = safeNumber($("gastoFijoDiario").value);
+         if(m > 0) {
+             panelData.parametros.gastoFijo = m;
+             saveData(); alert("Meta diaria actualizada.");
+             updateDeudaWizard();
+         }
     };
     
     if($("btnRegistrarAbono")) $("btnRegistrarAbono").onclick = () => {
@@ -298,15 +428,37 @@ function setupListeners() {
         const deuda = panelData.deudas.find(d => d.id == id);
         if(deuda && monto > 0 && monto <= deuda.saldo) {
             deuda.saldo -= monto;
-            panelData.gastos.push({descripcion: `Abono ${deuda.desc}`, monto, fecha: new Date().toISOString(), esTrabajo: false});
-            saveData(); renderDeudas(); alert("Abono registrado");
+            // Registrar como gasto personal
+            panelData.gastos.push({id: Date.now(), descripcion: `Abono ${deuda.desc}`, monto, fecha: new Date().toISOString(), esTrabajo: false});
+            
+            if (deuda.saldo < 0.01) deuda.saldo = 0; // Limpieza flotante
+            
+            saveData(); renderDeudas(); alert("Abono registrado.");
             $("abonoMonto").value="";
-        } else { alert("Datos inválidos"); }
+        } else { alert("Abono inválido."); }
+    };
+    
+    // Mantenimiento
+    if($("btnGuardarMantenimiento")) $("btnGuardarMantenimiento").onclick = () => {
+        const b = panelData.parametros.mantenimientoBase;
+        b['Aceite (KM)'] = safeNumber($("mantenimientoAceite").value);
+        b['Bujía (KM)'] = safeNumber($("mantenimientoBujia").value);
+        b['Llantas (KM)'] = safeNumber($("mantenimientoLlantas").value);
+        saveData(); alert("Umbrales guardados.");
     };
 
     // Respaldos
     if($("btnExportar")) $("btnExportar").onclick = exportarJson;
     if($("btnImportar")) $("btnImportar").onclick = importarJson;
+}
+
+// Renderizado de UI de Deudas
+function updateDeudaWizard() {
+    const s1 = $("wizardStep1"), s2 = $("wizardStep2");
+    if(!s1 || !s2) return;
+    const hasDeuda = panelData.deudas.length > 0;
+    s1.style.display = hasDeuda ? 'none' : 'block';
+    s2.style.display = hasDeuda ? 'block' : 'none';
 }
 
 function renderDeudas() {
@@ -316,16 +468,90 @@ function renderDeudas() {
     s.innerHTML = ""; l.innerHTML = "";
     
     panelData.deudas.forEach(d => {
-        if(d.saldo > 0) {
+        if(d.saldo > 0.01) {
             const opt = document.createElement("option");
             opt.value = d.id; opt.text = d.desc;
             s.add(opt);
-            
             l.innerHTML += `<li>${d.desc}: $${fmtMoney(d.saldo)} restan</li>`;
         }
     });
 }
 
+// Renderizado Index (Simplificado)
+function renderIndex() {
+  const m = calcularMetricasGenerales();
+  calcularMetricasCombustible(true);
+  
+  const setTxt = (id, val) => { const el = $(id); if(el) el.textContent = val; };
+  setTxt("resHoras", `${m.totalHoras.toFixed(1)}h`);
+  setTxt("resGananciaBruta", `$${fmtMoney(m.gananciaBrutaProm)}`); // Promedio
+  setTxt("resGastosTrabajo", `$${fmtMoney(m.gastoTrabajoProm)}`);
+  setTxt("resGananciaNeta", `$${fmtMoney(m.netoDiarioProm)}`);
+  setTxt("resKmRecorridos", `${m.totalKm.toFixed(0)} km`);
+  setTxt("proyDeuda", `$${fmtMoney(m.deudaPendiente)}`);
+  setTxt("proyDias", m.diasLibre === "N/A" ? "¡Déficit!" : `${m.diasLibre} días`);
+  
+  // Tablas y Gráficas
+  renderTablaTurnos();
+  renderAlertas();
+  renderCharts();
+}
+
+function renderTablaTurnos() {
+    const tbody = $("tablaTurnos");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    panelData.turnos.slice().sort((a,b) => new Date(b.fechaFin) - new Date(a.fechaFin)).slice(0, 5).forEach(t => {
+        tbody.innerHTML += `<tr><td>${formatearFecha(new Date(t.fechaFin))}</td><td>${t.horas.toFixed(1)}h</td><td>${t.kmRecorrido}km</td><td>$${fmtMoney(t.gananciaNeta)}</td></tr>`;
+    });
+}
+
+function renderAlertas() {
+  const ul = $("listaAlertas");
+  if(!ul) return;
+  ul.innerHTML = "";
+  
+  const kmActual = safeNumber(panelData.parametros.ultimoKMfinal);
+  const base = panelData.parametros.mantenimientoBase;
+  const alertas = [];
+
+  if (kmActual > 0) {
+    for (const [key, val] of Object.entries(base)) {
+        const intv = safeNumber(val);
+        const mod = kmActual % intv;
+        const faltante = intv - mod;
+        if (faltante <= (intv * 0.1) || faltante < 150) alertas.push(`⚠️ ${key}: Mantenimiento en ${faltante.toFixed(0)} km.`);
+    }
+  }
+  
+  alertas.forEach(a => ul.innerHTML += `<li>${a}</li>`);
+  const card = $("cardAlertas");
+  if(card) card.classList.toggle('hidden', alertas.length === 0);
+}
+
+function renderCharts() {
+  if (typeof Chart === 'undefined') return;
+  const ctx1 = $("graficaGanancias");
+  const ctx2 = $("graficaKm");
+  if (!ctx1 || !ctx2) return;
+  
+  const data = panelData.turnos.slice().sort((a,b) => new Date(a.fechaFin) - new Date(b.fechaFin)).slice(-14);
+  const labels = data.map(t => new Date(t.fechaFin).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'}));
+  
+  if (gananciasChart) gananciasChart.destroy();
+  gananciasChart = new Chart(ctx1, {
+      type: 'line',
+      data: { labels, datasets: [{ label: 'Neta ($)', data: data.map(t => t.gananciaNeta), borderColor: '#2563eb', fill: true, backgroundColor: 'rgba(37,99,235,0.1)' }] }
+  });
+
+  if (kmChart) kmChart.destroy();
+  kmChart = new Chart(ctx2, {
+      type: 'bar',
+      data: { labels, datasets: [{ label: 'KM', data: data.map(t => t.kmRecorrido), backgroundColor: '#16a34a' }] }
+  });
+}
+
+// INICIALIZACIÓN
 document.addEventListener("DOMContentLoaded", () => {
     cargarPanelData();
     const page = document.body.getAttribute('data-page');
@@ -333,8 +559,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (page === 'admin') {
         setupGasolinaWizard();
         setupListeners();
+        
+        if($("btnIniciarTurno")) $("btnIniciarTurno").onclick = iniciarTurno;
+        if($("btnFinalizarTurno")) $("btnFinalizarTurno").onclick = finalizarTurno;
+
         actualizarUITurno();
         renderDeudas();
+        updateDeudaWizard();
+    } else if (page === 'index') {
+        renderIndex();
     }
-    // Lógica para index.html o historial.html iría aquí reutilizando calcularMetricasGenerales
 });
