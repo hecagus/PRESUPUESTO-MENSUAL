@@ -22,149 +22,128 @@
     <h2>Gestión de Turno</h2>
     <p id="turnoTexto" style="margin-bottom:10px;">🔴 Sin turno activo</p>
     
-    <div class="turno-inputs">
-        <label id="labelKmInicial" style="display:none;">KM Inicial:</label>
-        <input type="number" id="kmInicial" placeholder="0" style="display:none;" readonly />
-
-        <label id="labelKmFinal" style="display:none;">KM Final:</label>
-        <input type="number" id="kmFinal" style="display:none;" placeholder="0" />
-
-        <label id="labelGananciaBruta" style="display:none;">Ganancia Bruta del Turno ($):</label>
-        <input type="number" id="gananciaBruta" style="display:none;" placeholder="0.00" />
+    <div id="cierreTurnoContainer" style="display:none;">
+        <label>KM Final del Día:</label>
+        <input type="number" id="kmFinalTurno" placeholder="Lectura del odómetro" />
+        
+        <label>Ganancia Bruta del Turno ($):</label>
+        <input type="number" id="gananciaBruta" placeholder="0.00" />
     </div>
     
     <button id="btnIniciarTurno" class="btn-success" type="button">Iniciar Turno</button>
     <button id="btnFinalizarTurno" class="btn-danger" type="button" style="display:none;">Finalizar Turno</button>
-    <p class="nota">Solo controla tiempo de trabajo y ganancia bruta.</p>
+    <p class="nota">El KM Inicial se toma automáticamente del cierre anterior.</p>
   </section>
 
   <section class="card">
     <h2>Registrar Ingreso (Trabajo)</h2>
     <label>Descripción:</label>
-    <input type="text" id="ingresoDescripcion" placeholder="Ej. Propina extra, Pago Plataforma" />
+    <input type="text" id="ingresoDescripcion" placeholder="Ej. Propina extra" />
     <label>Monto:</label>
     <input type="number" id="ingresoCantidad" placeholder="0.00" />
     <button id="btnRegistrarIngreso" class="btn-primary" type="button">Registrar Ingreso</button>
   </section>
 
   <section class="card">
-    <h2>Registrar Gasto (Trabajo y Otros)</h2>
+    <h2>Registrar Gasto (Peajes, Lavado, etc.)</h2>
     <label>Descripción:</label>
-    <input type="text" id="gastoDescripcion" placeholder="Ej. Peaje, Refacciones, Lavado" />
+    <input type="text" id="gastoDescripcion" placeholder="Ej. Refacciones" />
     <label>Monto:</label>
     <input type="number" id="gastoCantidad" placeholder="0.00" />
-    <label>¿Es gasto fijo/hogar?</label>
+    <label>Tipo:</label>
     <select id="gastoTipo">
-      <option value="trabajo">Trabajo (Operativo)</option>
-      <option value="fijo">Fijo (Hogar/Personal)</option>
+      <option value="trabajo">Operativo (Moto)</option>
+      <option value="fijo">Personal (Hogar)</option>
     </select>
     <button id="btnRegistrarGasto" class="btn-danger" type="button">Registrar Gasto</button>
   </section>
 
   <section class="card">
-    <h2>⛽ Control de Combustible (KM y Costo Real)</h2>
+    <h2>⛽ Carga de Combustible</h2>
     
-    <h3>Métricas de Combustible</h3>
-    <div class="projection-grid">
+    <div class="projection-grid" style="margin-bottom: 15px;">
         <div class="projection">
-            <label>Costo Estimado por KM ($/km):</label>
+            <label>Costo Real por KM:</label>
             <span id="costoPorKmDisplay">$0.00</span>
         </div>
         <div class="projection">
-            <label>Proyección de Repostaje:</label>
-            <span id="proyeccionRepostaje">Necesitas 2 cargas para calcular.</span>
+            <label>Próxima Recarga:</label>
+            <span id="proyeccionRepostaje">Calculando...</span>
         </div>
     </div>
-    <p class="nota">Este valor se calcula automáticamente con tus últimas 3 cargas de combustible.</p>
-    
-    <hr style="margin:20px 0;"/>
+    <hr style="margin:15px 0;"/>
 
-    <h3>Registrar Carga de Combustible</h3>
-    <label>Kilometraje Actual (KM):</label>
-    <input type="number" id="kmCarga" placeholder="Ej. 10250" />
-    <label>Litros Cargados:</label>
-    <input type="number" id="litrosCarga" placeholder="Ej. 5.50" />
-    <label>Costo Total de la Carga ($):</label>
-    <input type="number" id="costoCarga" placeholder="Ej. 150.00" />
-    <label>Descripción (Opcional):</label>
-    <input type="text" id="descCarga" placeholder="Ej. Gasolinera PEMEX" />
+    <div id="gasWizardPaso1">
+        <label>1. Litros Cargados:</label>
+        <input type="number" id="gasLitros" placeholder="0.00" />
+        <button id="btnGasSiguiente1" class="btn-primary" type="button">Siguiente ➡</button>
+    </div>
+
+    <div id="gasWizardPaso2" style="display:none;">
+        <label>2. Costo Total ($):</label>
+        <input type="number" id="gasCosto" placeholder="$0.00" />
+        <button id="btnGasSiguiente2" class="btn-primary" type="button">Siguiente ➡</button>
+        <button id="btnGasAtras2" class="btn-secondary" type="button">⬅ Atrás</button>
+    </div>
+
+    <div id="gasWizardPaso3" style="display:none;">
+        <label>3. Kilometraje Actual (Odómetro):</label>
+        <input type="number" id="gasKmActual" placeholder="Ej. 12500" />
+        <button id="btnRegistrarCargaFinal" class="btn-success" type="button">✅ Guardar Carga</button>
+        <button id="btnGasAtras3" class="btn-secondary" type="button">⬅ Atrás</button>
+    </div>
     
-    <button id="btnRegistrarCarga" class="btn-success" type="button">Registrar Carga de Combustible</button>
-    <p class="nota">Al registrar, se actualiza el `Costo Estimado por KM` y el `Último KM final`.</p>
   </section>
 
   <section class="card">
-    <h2>Parámetros Operativos</h2>
-    <hr style="margin:20px 0;"/>
-
-    <h3>Mantenimiento Base (KM)</h3>
-    <label>Aceite:</label>
+    <h2>Mantenimiento (Alertas por KM)</h2>
+    <label>Aceite (Cada X KM):</label>
     <input type="number" id="mantenimientoAceite" />
-    <label>Bujía:</label>
+    <label>Bujía (Cada X KM):</label>
     <input type="number" id="mantenimientoBujia" />
-    <label>Llantas:</label>
+    <label>Llantas (Cada X KM):</label>
     <input type="number" id="mantenimientoLlantas" />
     <button id="btnGuardarMantenimiento" class="btn-secondary" type="button">Guardar Umbrales</button>
-    <p class="nota">Distancia máxima en KM antes de la siguiente alerta.</p>
   </section>
 
   <section class="card">
-    <h2>Gestión de Deudas y Abonos</h2>
+    <h2>Gestión de Deudas</h2>
     <div id="wizardStep1">
-      <h3>Registrar Nueva Deuda</h3>
-      <label>Monto Total de la Deuda:</label>
-      <input type="number" id="deudaMontoTotal" placeholder="1000.00" />
+      <h3>Nueva Deuda</h3>
+      <label>Monto Total:</label>
+      <input type="number" id="deudaMontoTotal" />
       <label>Descripción:</label>
-      <input type="text" id="deudaDescripcion" placeholder="Ej. Tarjeta, Préstamo personal" />
-      <button id="btnSiguienteDeuda" class="btn-primary" type="button">Siguiente</button>
+      <input type="text" id="deudaDescripcion" />
+      <button id="btnSiguienteDeuda" class="btn-primary" type="button">Guardar Deuda</button>
     </div>
-
-    <div id="wizardStep2" style="display:none;">
-      <h3>Gasto Fijo Diario (Hogar/Personal)</h3>
-      <label>Gasto Fijo Diario ($):</label>
-      <input type="number" id="gastoFijoDiario" placeholder="100.00" />
-      <p class="nota">Este es el gasto mínimo que debes cubrir antes de abonar a deudas.</p>
-      <button id="btnFinalizarDeuda" class="btn-success" type="button">Guardar Deuda y Gasto Fijo</button>
-      <button id="btnVolverDeuda" class="btn-secondary" type="button">Volver</button>
-    </div>
+    
+    <hr style="margin:20px 0;" />
+    
+    <h3>Meta Diaria (Ahorro/Deuda)</h3>
+    <label>Monto diario a cubrir ($):</label>
+    <input type="number" id="gastoFijoDiario" />
+    <button id="btnFinalizarDeuda" class="btn-success" type="button">Actualizar Meta</button>
 
     <hr style="margin:20px 0;" />
 
     <h3>Registrar Abono</h3>
-    <label>Seleccionar Deuda:</label>
     <select id="abonoSeleccionar"></select>
-    <label>Cantidad a abonar ($):</label>
-    <input type="number" id="abonoMonto" placeholder="0.00" />
-    <button id="btnRegistrarAbono" class="btn-success" type="button">Registrar Abono</button>
-    <p class="nota">⚠ El abono no puede ser mayor al saldo pendiente. (Validación automática)</p>
+    <input type="number" id="abonoMonto" placeholder="Monto del abono" style="margin-top:5px;" />
+    <button id="btnRegistrarAbono" class="btn-success" type="button">Abonar</button>
 
-    <hr style="margin:20px 0;" />
-
-    <h3>Deudas Pendientes</h3>
-    <ul id="listaDeudas" class="list"></ul>
+    <ul id="listaDeudas" class="list" style="margin-top:10px;"></ul>
   </section>
 
   <section class="card">
-    <h2>Datos y Respaldo</h2>
-    <button id="btnExportarExcel" class="btn-success" type="button">Descargar Excel (.xlsx)</button>
-    <button id="btnExportar" class="btn-secondary" type="button">Copiar JSON</button>
-    <p class="nota">El respaldo automático se guarda en <strong>localStorage</strong> con la clave <strong>panelData_backup_v1</strong>.</p>
-
-    <div style="margin-top:15px; border-top:1px solid #eee; padding-top:10px;">
-      <textarea id="importJson" rows="3" placeholder="Pega aquí el JSON para restaurar..."></textarea>
-      <button id="btnImportar" class="btn-danger" type="button">Restaurar Datos</button>
+    <h2>Respaldo</h2>
+    <button id="btnExportar" class="btn-secondary" type="button">Copiar Datos (JSON)</button>
+    <div style="margin-top:10px;">
+      <textarea id="importJson" rows="2" placeholder="Pegar JSON aquí..."></textarea>
+      <button id="btnImportar" class="btn-danger" type="button">Restaurar</button>
     </div>
   </section>
 
 </main>
-
-<div id="tutorialOverlay" class="overlay" style="display:none;"></div>
-<div id="tutorialModal" class="modal-center" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle" style="display:none;">
-  <h3 id="tutorialTitle">Bienvenido</h3>
-  <p id="tutorialText">Iniciando...</p>
-  <button id="tutorialNextBtn" class="btn-primary" type="button" style="width:100%; margin-top:10px;">Siguiente</button>
-</div>
-
 <script src="app.js"></script>
 </body>
 </html>
