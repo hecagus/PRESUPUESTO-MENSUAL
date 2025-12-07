@@ -201,7 +201,7 @@ function renderIndex() {
     set("proyDias", m.diasLibre);
 }
 
-// ---------- WIZARDS Y LISTENERS ----------
+// ---------- WIZARDS Y LISTENERS (Recorte por espacio) ----------
 
 function actualizarUITurno() {
   const btn = $("btnIniciarTurno"); if(!btn) return;
@@ -333,7 +333,7 @@ function setupDeudaWizard() {
         panelData.deudas.push(nuevaDeuda);
         panelData.parametros.deudaTotal += montoTotal; 
         saveData();
-        recalcularMetaDiaria();
+        recalcularMetaDiaria(); // Recalcular meta
         renderDeudas();
         
         $("deudaNombre").value = "";
@@ -401,7 +401,7 @@ function setupListeners() {
             panelData.parametros.deudaTotal -= m;
             panelData.gastos.push({id:Date.now(), descripcion:`Abono ${d.desc}`, monto:m, fecha:new Date().toISOString(), esTrabajo:false}); 
             saveData(); 
-            recalcularMetaDiaria(); // Recalcular meta por si el saldo afecta la recomendación
+            recalcularMetaDiaria(); 
             renderDeudas(); 
             alert("Abonado"); 
         }
