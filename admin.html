@@ -69,12 +69,21 @@
     <input type="text" id="gastoDescripcion" placeholder="Detalle extra (Ej. Marca del aceite)" />
 
     <div style="margin:10px 0; padding:10px; background:#f9f9f9; border-radius:5px; border:1px solid #ddd;">
-        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:bold; color:#2563eb;">
-            <input type="checkbox" id="gastoRecurrenteCheck"> 📅 ¿Es un gasto fijo mensual?
+        <label for="gastoFrecuenciaSelect" style="display:block; margin-bottom:5px; font-weight:bold; color:#2563eb;">
+            📅 Frecuencia del Gasto:
         </label>
+        <select id="gastoFrecuenciaSelect" style="width:100%; padding:8px; margin-bottom:10px;">
+            <option value="No Recurrente">No Recurrente (Gasto Único)</option>
+            <option value="Diario">Diario</option>
+            <option value="Semanal">Semanal</option>
+            <option value="Quincenal">Quincenal</option>
+            <option value="Mensual">Mensual</option>
+            <option value="Bimestral">Bimestral</option>
+        </select>
+        
         <div id="divDiaPago" style="display:none; margin-top:8px;">
-            <p class="nota" style="margin-bottom:5px;">Esto lo agregará a tu lista de obligaciones y ajustará tu Meta Diaria.</p>
-            <label style="font-size:0.9rem;">Día de pago (1-31):</label>
+            <p class="nota" style="margin-bottom:5px;">Día del mes (1-31) o día de la semana (1=Lunes, 7=Domingo).</p>
+            <label style="font-size:0.9rem;">Día de Pago/Facturación:</label>
             <input type="number" id="gastoDiaPago" placeholder="Ej. 15" min="1" max="31" style="width:80px;" />
         </div>
     </div>
