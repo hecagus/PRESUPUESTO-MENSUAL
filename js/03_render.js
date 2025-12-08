@@ -1,8 +1,8 @@
 // 03_render.js
 import { $, fmtMoney, CATEGORIAS_GASTOS } from './01_consts_utils.js';
-import { getState, getTurnoActivo, iniciarTurnoLogic, finalizarTurnoLogic, recalcularMetaDiaria, registrarCargaGasolina, actualizarOdometroManual, agregarDeuda, agregarGasto, agregarGastoFijo } from './02_data.js';
+import { getState, getTurnoActivo, iniciarTurnoLogic, finalizarTurnoLogic, recalcularMetaDiaria, registrarCargaGasolina, actualizarOdometroManual, agregarDeuda, agregarGasto, agregarGastoFijo, importarDatosJSON, obtenerDatosCompletos } from './02_data.js';
 
-// --- UI HELPERS: Llenar Categorías ---
+// --- HELPERS UI ---
 const llenarCategorias = (tipo) => {
     const select = $("gastoCategoriaSelect");
     const inputManual = $("gastoCategoriaManual");
@@ -10,7 +10,6 @@ const llenarCategorias = (tipo) => {
 
     select.innerHTML = "";
     inputManual.style.display = "none";
-
     const lista = CATEGORIAS_GASTOS[tipo] || [];
     lista.forEach(cat => {
         const option = document.createElement("option");
@@ -29,7 +28,7 @@ const llenarCategorias = (tipo) => {
     };
 };
 
-// --- RENDERIZADO VISUAL ---
+// --- RENDERIZADO UI ---
 export const renderTurnoUI = () => {
     const lbl = $("turnoTexto"), btnIn = $("btnIniciarTurno"), btnPreFin = $("btnPreFinalizarTurno"), divCierre = $("cierreTurnoContainer");
     if (!lbl) return; 
@@ -99,8 +98,8 @@ export const setupAdminListeners = () => {
         if(actualizarOdometroManual($("inputOdometro").value)) { renderOdometroUI(); $("inputOdometro").value = ""; alert("KM actualizado."); }
     };
 
-    // 3. Gastos Inteligentes (NUEVO)
-    llenarCategorias("moto"); // Iniciar con Moto
+    // 3. Gastos Inteligentes
+    llenarCategorias("moto"); 
     document.getElementsByName("gastoTipoRadio").forEach(r => {
         r.addEventListener("change", (e) => llenarCategorias(e.target.value));
     });
@@ -129,7 +128,7 @@ export const setupAdminListeners = () => {
         if(checkRecurrente.checked) window.location.reload();
     };
 
-    // 4. Wizards Deuda y Gasolina (Resumido para brevedad, misma lógica anterior)
+    // 4. Wizards
     const setupWizard = (ids, act) => { if($(ids[0])) ids.forEach((id,i) => { if(i<ids.length-1) $(`btn${act}Next${i+1}`).onclick=()=>{ $(ids[i]).style.display='none'; $(ids[i+1]).style.display='block'; }; if(i>0) $(`btn${act}Back${i+1}`).onclick=()=>{ $(ids[i]).style.display='none'; $(ids[i-1]).style.display='block'; }; }); };
     
     // Gasolina
@@ -150,6 +149,48 @@ export const setupAdminListeners = () => {
         $("btnDeudaBack3").onclick=()=>{$(deuIds[2]).style.display='none';$(deuIds[1]).style.display='block'};
         $("btnRegistrarDeudaFinal").onclick=()=>{ agregarDeuda({id:Date.now(), desc:$("deudaNombre").value, montoTotal:$("deudaMontoTotal").value, montoCuota:$("deudaMontoCuota").value, frecuencia:$("deudaFrecuencia").value, saldo:parseFloat($("deudaMontoTotal").value)}); alert("Deuda guardada"); window.location.reload(); };
     }
-    
-    if($("btnRegistrarIngreso")) $("btnRegistrarIngreso").onclick = () => alert("Ingreso registrado (Simulado).");
+
+    // 5. RESPALDO Y DATOS (NUEVO)
+    if($("btnExportarJSON")) {
+        $("btnExportarJSON").onclick = () => {
+            const dataStr = JSON.stringify(obtenerDatosCompletos());
+            navigator.clipboard.writeText(dataStr).then(() => alert("JSON copiado al portapapeles."));
+        };
+    }
+
+    if($("btnExportarExcel")) {
+        $("btnExportarExcel").onclick = () => {
+            const state = obtenerDatosCompletos();
+            if (typeof XLSX === 'undefined') return alert("Librería Excel no cargada.");
+            const wb = XLSX.utils.book_new();
+            
+            // Hoja Movimientos
+            if(state.movimientos.length > 0) {
+                const ws = XLSX.utils.json_to_sheet(state.movimientos);
+                XLSX.utils.book_append_sheet(wb, ws, "Movimientos");
+            }
+            // Hoja Turnos
+            if(state.turnos.length > 0) {
+                const ws = XLSX.utils.json_to_sheet(state.turnos);
+                XLSX.utils.book_append_sheet(wb, ws, "Turnos");
+            }
+
+            XLSX.writeFile(wb, "Backup_Finanzas.xlsx");
+        };
+    }
+
+    if($("btnImportarJSON")) {
+        $("btnImportarJSON").onclick = () => {
+            const json = $("importJsonArea").value;
+            if(!json) return alert("Pega el JSON primero.");
+            if(confirm("Esto sobrescribirá tus datos actuales. ¿Seguro?")) {
+                if(importarDatosJSON(json)) {
+                    alert("Datos restaurados correctamente.");
+                    window.location.reload();
+                } else {
+                    alert("Error: El JSON no es válido.");
+                }
+            }
+        };
+    }
 };
