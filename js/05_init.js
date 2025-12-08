@@ -1,15 +1,22 @@
 // 05_init.js
 import { loadData } from './02_data.js';
-import { renderTurnoUI, setupAdminListeners, renderDashboard, renderMetaDiaria } from './03_render.js';
+import { renderTurnoUI, renderOdometroUI, setupAdminListeners, renderDashboard, renderMetaDiaria } from './03_render.js';
 import { initCharts } from './04_charts.js';
 
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. Cargar Datos Globales
     loadData();
-
-    // 2. Detectar Página actual
     const page = document.body.getAttribute('data-page');
-    console.log(`[Init] Página detectada: ${page}`);
+
+    if (page === 'admin') {
+        renderTurnoUI();      
+        renderOdometroUI();   // <--- Renderizar estado KM
+        renderMetaDiaria();   
+        setupAdminListeners();
+    } 
+    else if (page === 'index') {
+        renderDashboard();    
+        initCharts();         
+    }
 
     // 3. Router de Funcionalidad
     if (page === 'admin') {
