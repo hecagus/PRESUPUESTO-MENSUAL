@@ -62,7 +62,7 @@ export const renderMetaDiaria = () => {
     if (el) el.innerText = `$${fmtMoney(recalcularMetaDiaria())}`;
 };
 
-// --- RENDERIZADO DE LISTAS EN ADMIN (NUEVAS FUNCIONES) ---
+// --- NUEVO: RENDERIZADO DE LISTAS EN ADMIN ---
 export const renderDeudasList = () => {
     const list = $("listaDeudas");
     const select = $("abonoSeleccionar");
@@ -83,7 +83,7 @@ export const renderDeudasList = () => {
         const li = document.createElement("li");
         const cuota = fmtMoney(d.montoCuota);
         const saldo = fmtMoney(d.saldo);
-        li.className = "list-item"; // Usar clase existente si la hay
+        li.className = "list-item"; 
         li.innerHTML = `
             <strong>${d.desc}</strong> (${d.frecuencia}) 
             <span style="font-size:0.9em; color:#dc2626;">($${saldo} Restan | Cuota: $${cuota})</span>
@@ -210,7 +210,7 @@ export const setupAdminListeners = () => {
         if(checkRecurrente.checked) {
             gasto.frecuencia = $("gastoFrecuenciaSelect").value;
             agregarGastoFijo(gasto);
-            renderGastosFijosList(); // <--- RENDERIZAR LISTA DE FIJOS
+            renderGastosFijosList(); 
             alert("Gasto Fijo agregado. Meta Diaria actualizada.");
         } else {
             gasto.frecuencia = "No Recurrente";
@@ -236,7 +236,7 @@ export const setupAdminListeners = () => {
         $("btnDeudaNext2").onclick=()=>{$(deuIds[1]).style.display='none';$(deuIds[2]).style.display='block'};
         $("btnDeudaBack2").onclick=()=>{$(deuIds[1]).style.display='none';$(deuIds[0]).style.display='block'};
         $("btnDeudaBack3").onclick=()=>{$(deuIds[2]).style.display='none';$(deuIds[1]).style.display='block'};
-        $("btnRegistrarDeudaFinal").onclick=()=>{ agregarDeuda({id:Date.now(), desc:$("deudaNombre").value, montoTotal:$("deudaMontoTotal").value, montoCuota:$("deudaMontoCuota").value, frecuencia:$("deudaFrecuencia").value, saldo:parseFloat($("deudaMontoTotal").value)}); alert("Deuda guardada"); renderDeudasList(); window.location.reload(); }; // <--- RENDERIZAR LISTA DE DEUDAS
+        $("btnRegistrarDeudaFinal").onclick=()=>{ agregarDeuda({id:Date.now(), desc:$("deudaNombre").value, montoTotal:$("deudaMontoTotal").value, montoCuota:$("deudaMontoCuota").value, frecuencia:$("deudaFrecuencia").value, saldo:parseFloat($("deudaMontoTotal").value)}); alert("Deuda guardada"); renderDeudasList(); window.location.reload(); }; 
     }
 
     // 5. Respaldo
@@ -244,4 +244,4 @@ export const setupAdminListeners = () => {
     if($("btnExportarExcel")) $("btnExportarExcel").onclick = () => { const state = obtenerDatosCompletos(); if (typeof XLSX === 'undefined') return alert("Librería Excel no cargada."); const wb = XLSX.utils.book_new(); if(state.movimientos.length > 0) { const ws = XLSX.utils.json_to_sheet(state.movimientos); XLSX.utils.book_append_sheet(wb, ws, "Movimientos"); } if(state.turnos.length > 0) { const ws = XLSX.utils.json_to_sheet(state.turnos); XLSX.utils.book_append_sheet(wb, ws, "Turnos"); } XLSX.writeFile(wb, "Backup_Finanzas.xlsx"); };
     if($("btnImportarJSON")) $("btnImportarJSON").onclick = () => { const json = $("importJsonArea").value; if(!json) return alert("Pega el JSON primero."); if(confirm("Esto sobrescribirá tus datos actuales. ¿Seguro?")) { if(importarDatosJSON(json)) { alert("Datos restaurados correctamente."); window.location.reload(); } else { alert("Error: El JSON no es válido."); } } };
 };
-                                                                                                                                                                                                                                                                                                                                                                                 
+            
