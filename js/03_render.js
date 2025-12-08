@@ -1,5 +1,5 @@
 // 03_render.js
-import { $, fmtMoney, CATEGORIAS_GASTOS } from './01_consts_utils.js';
+import { $, fmtMoney, CATEGORIAS_GASTOS, formatearFecha, safeNumber } from './01_consts_utils.js';
 import { getState, getTurnoActivo, iniciarTurnoLogic, finalizarTurnoLogic, recalcularMetaDiaria, registrarCargaGasolina, actualizarOdometroManual, agregarDeuda, agregarGasto, agregarGastoFijo } from './02_data.js';
 
 /* ==========================================================================
@@ -33,18 +33,13 @@ const llenarCategorias = (tipo) => {
     };
 };
 
-// --- ADMIN: INTERFAZ DE TURNO ---
+// --- RENDERIZADO GENERAL (Turno, Odómetro, Meta Diaria, Dashboard) ---
+
 export const renderTurnoUI = () => {
-    const lbl = $("turnoTexto");
-    const btnIn = $("btnIniciarTurno");
-    const btnPreFin = $("btnPreFinalizarTurno");
-    const divCierre = $("cierreTurnoContainer");
-
+    const lbl = $("turnoTexto"), btnIn = $("btnIniciarTurno"), btnPreFin = $("btnPreFinalizarTurno"), divCierre = $("cierreTurnoContainer");
     if (!lbl) return; 
-
     const activo = getTurnoActivo();
     if(divCierre) divCierre.style.display = "none";
-
     if (activo) {
         lbl.innerHTML = `🟢 Turno Activo: <b>${new Date(activo.inicio).toLocaleTimeString()}</b>`;
         lbl.style.color = "#16a34a";
@@ -58,12 +53,8 @@ export const renderTurnoUI = () => {
     }
 };
 
-// --- ADMIN: INTERFAZ DE ODÓMETRO Y COSTO POR KM ---
 export const renderOdometroUI = () => {
-    const lblKm = $("lblKmAnterior");
-    const inputKm = $("inputOdometro");
-    const costoKmDisplay = $("costoPorKmDisplay"); 
-
+    const lblKm = $("lblKmAnterior"), inputKm = $("inputOdometro"), costoKmDisplay = $("costoPorKmDisplay"); 
     if (!lblKm) return;
     const state = getState();
     lblKm.innerText = `${state.parametros.ultimoKM} km`;
@@ -72,20 +63,18 @@ export const renderOdometroUI = () => {
     if (costoKmDisplay) {
         const costo = state.parametros.costoPorKm;
         if (costo > 0.001) {
-            costoKmDisplay.innerText = `$${fmtMoney(costo)}/km`; // Añadido /km para claridad
+            costoKmDisplay.innerText = `$${fmtMoney(costo)}/km`; 
         } else {
             costoKmDisplay.innerText = "Calculando..."; 
         }
     }
 };
 
-// --- ADMIN: META DIARIA ---
 export const renderMetaDiaria = () => {
     const el = $("metaDiariaDisplay");
     if (el) el.innerText = `$${fmtMoney(recalcularMetaDiaria())}`;
 };
 
-// --- DASHBOARD (INDEX) ---
 export const renderDashboard = () => {
     const state = getState();
     const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };
@@ -104,9 +93,56 @@ export const renderDashboard = () => {
     set("proyDeuda", `$${fmtMoney(state.parametros.deudaTotal || state.deudas.reduce((a,b)=>a+b.saldo,0))}`);
 };
 
+// --- NUEVA FUNCIÓN: RENDERIZADO DEL HISTORIAL ---
+export const renderHistorial = () => {
+    const tbody = $("historialBody");
+    const resumenDiv = $("historialResumen");
+    const state = getState();
+    
+    if (!tbody || !resumenDiv) return; // Protección: si no estamos en historial, salimos
+
+    tbody.innerHTML = "";
+    
+    let ingresosTotal = 0;
+    let gastosTotal = 0;
+
+    // Recorrer movimientos (se asume que están en el orden en que se registraron)
+    state.movimientos.slice().reverse().forEach(mov => { // reverse() para ver lo más nuevo primero
+        const tr = document.createElement('tr');
+        
+        const isIngreso = mov.tipo === 'ingreso';
+        const monto = safeNumber(mov.monto);
+        
+        if (isIngreso) {
+            ingresosTotal += monto;
+            tr.style.backgroundColor = '#ecfdf5'; // verde suave
+        } else {
+            gastosTotal += monto;
+            tr.style.backgroundColor = '#fff5f5'; // rojo suave
+        }
+
+        tr.innerHTML = `
+            <td>${isIngreso ? '➕ Ingreso' : '➖ Gasto'}</td>
+            <td>${formatearFecha(mov.fecha)}</td>
+            <td>${mov.desc}</td>
+            <td style="font-weight:bold; color: ${isIngreso ? '#059669' : '#dc2626'}">$${fmtMoney(monto)}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+    
+    // RENDERIZAR RESUMEN RÁPIDO
+    const neto = ingresosTotal - gastosTotal;
+    resumenDiv.innerHTML = `
+        <p>Total Ingresos: <strong style="color:#059669;">$${fmtMoney(ingresosTotal)}</strong></p>
+        <p>Total Gastos: <strong style="color:#dc2626;">$${fmtMoney(gastosTotal)}</strong></p>
+        <hr style="margin:5px 0;">
+        <p>Balance Neto: <strong style="color:${neto >= 0 ? '#059669' : '#dc2626'}; font-size:1.1rem;">$${fmtMoney(neto)}</strong></p>
+    `;
+};
+
 
 /* ==========================================================================
-   SECCIÓN 2: LISTENERS
+   SECCIÓN 2: LISTENERS (sin cambios relevantes en la lógica)
    ========================================================================== */
 
 export const setupAdminListeners = () => {
@@ -127,7 +163,7 @@ export const setupAdminListeners = () => {
         if(actualizarOdometroManual($("inputOdometro").value)) { renderOdometroUI(); $("inputOdometro").value = ""; alert("KM actualizado."); }
     };
 
-    // 3. Gastos Inteligentes (Sin cambios)
+    // 3. Gastos Inteligentes
     llenarCategorias("moto"); 
     document.getElementsByName("gastoTipoRadio").forEach(r => {
         r.addEventListener("change", (e) => llenarCategorias(e.target.value));
@@ -156,61 +192,15 @@ export const setupAdminListeners = () => {
         if(checkRecurrente.checked) window.location.reload();
     };
 
-    // 4. WIZARD GASOLINA (CORRECCIÓN CRÍTICA DE LISTENERS)
-    const p1 = $("gasWizardPaso1");
-    const p2 = $("gasWizardPaso2");
-    const p3 = $("gasWizardPaso3");
-
-    if (p1 && p2 && p3) {
-        // Siguiente 1 -> 2
-        const btnNext1 = $("btnGasSiguiente1");
-        if (btnNext1) {
-            btnNext1.onclick = () => {
-                p1.style.display = 'none';
-                p2.style.display = 'block';
-            };
-        }
-        
-        // Siguiente 2 -> 3
-        const btnNext2 = $("btnGasSiguiente2");
-        if (btnNext2) {
-            btnNext2.onclick = () => {
-                p2.style.display = 'none';
-                p3.style.display = 'block';
-            };
-        }
-
-        // Atrás 2 -> 1
-        const btnBack2 = $("btnGasAtras2");
-        if (btnBack2) {
-            btnBack2.onclick = () => {
-                p2.style.display = 'none';
-                p1.style.display = 'block';
-            };
-        }
-        
-        // Atrás 3 -> 2
-        const btnBack3 = $("btnGasAtras3");
-        if (btnBack3) {
-            btnBack3.onclick = () => {
-                p3.style.display = 'none';
-                p2.style.display = 'block';
-            };
-        }
-
-        // Finalizar Carga
-        const btnFinal = $("btnRegistrarCargaFinal");
-        if (btnFinal) {
-            btnFinal.onclick = () => {
-                registrarCargaGasolina($("gasLitros").value, $("gasCosto").value, $("gasKmActual").value);
-                alert("Carga guardada"); 
-                window.location.reload();
-            };
-        }
+    // 4. Wizards Deuda y Gasolina (bindings)
+    const gasIds = ["gasWizardPaso1","gasWizardPaso2","gasWizardPaso3"];
+    if($(gasIds[0])) {
+        $("btnGasSiguiente1").onclick=()=>{$(gasIds[0]).style.display='none';$(gasIds[1]).style.display='block'};
+        $("btnGasSiguiente2").onclick=()=>{$(gasIds[1]).style.display='none';$(gasIds[2]).style.display='block'};
+        $("btnGasAtras2").onclick=()=>{$(gasIds[1]).style.display='none';$(gasIds[0]).style.display='block'};
+        $("btnGasAtras3").onclick=()=>{$(gasIds[2]).style.display='none';$(gasIds[1]).style.display='block'};
+        $("btnRegistrarCargaFinal").onclick=()=>{ registrarCargaGasolina($("gasLitros").value, $("gasCosto").value, $("gasKmActual").value); alert("Carga guardada"); window.location.reload(); };
     }
-
-
-    // 5. Wizards Deuda (Sin cambios)
     const deuIds = ["deudaWizardStep1","deudaWizardStep2","deudaWizardStep3"];
     if($(deuIds[0])) {
         $("btnDeudaNext1").onclick=()=>{if(!$("deudaNombre").value)return alert("Nombre?"); $(deuIds[0]).style.display='none';$(deuIds[1]).style.display='block'};
