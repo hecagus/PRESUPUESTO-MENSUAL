@@ -1,39 +1,35 @@
 // 05_init.js
 import { loadData } from './02_data.js';
-import { renderTurnoUI, renderOdometroUI, setupAdminListeners, renderDashboard, renderMetaDiaria } from './03_render.js';
+import { 
+    renderTurnoUI, 
+    renderOdometroUI, 
+    setupAdminListeners, 
+    renderDashboard, 
+    renderMetaDiaria,
+    renderDeudasList,      // <--- NUEVO
+    renderGastosFijosList, // <--- NUEVO
+    renderHistorialTable   // <--- NUEVO
+} from './03_render.js';
 import { initCharts } from './04_charts.js';
 
 document.addEventListener("DOMContentLoaded", () => {
     loadData();
     const page = document.body.getAttribute('data-page');
+    console.log(`[Init] Iniciando sistema en vista: ${page}`);
 
     if (page === 'admin') {
         renderTurnoUI();      
-        renderOdometroUI();   // <--- Renderizar estado KM
+        renderOdometroUI();   
         renderMetaDiaria();   
+        renderDeudasList();     // <--- Muestra las deudas
+        renderGastosFijosList();// <--- Muestra los gastos fijos
         setupAdminListeners();
     } 
     else if (page === 'index') {
-        renderDashboard();    
+        renderDashboard(); 
         initCharts();         
     }
-
-    // 3. Router de Funcionalidad
-    if (page === 'admin') {
-        // Lógica exclusiva de Admin
-        renderTurnoUI();      // Estado del botón iniciar/fin
-        renderMetaDiaria();   // Tu cálculo favorito
-        setupAdminListeners();// Wizards y eventos
-    } 
-    else if (page === 'index') {
-        // Lógica exclusiva de Dashboard
-        renderDashboard();    // KPIs
-        initCharts();         // Gráficas
-    }
     else if (page === 'historial') {
-        // Lógica de historial (placeholder)
+        renderHistorialTable(); // <--- Muestra la tabla de Movimientos/Gastos/Turnos
     }
-
-    // 4. Tutorial (Opcional, si decides reactivarlo)
-    // checkTutorial(); 
 });
