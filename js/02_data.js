@@ -13,17 +13,50 @@ const DEFAULT_DATA = {
 let state = JSON.parse(JSON.stringify(DEFAULT_DATA));
 let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || null;
 
+// --- LÓGICA VEHICULAR: CÁLCULO DE COSTO POR KM (NUEVO) ---
+const calcularCostoPorKm = () => {
+    const cargas = state.cargasCombustible;
+    
+    // Se necesitan al menos 2 cargas para calcular un KM recorrido entre ellas,
+    // o al menos 1 carga si asumimos que el KM inicial era 0. Usaremos 2 para robustez.
+    if (cargas.length < 2) {
+        state.parametros.costoPorKm = 0;
+        return 0;
+    }
+
+    // Ordenar cargas por KM para obtener el KM inicial y final del historial de cargas
+    cargas.sort((a, b) => a.km - b.km);
+    
+    const primerKm = safeNumber(cargas[0].km); 
+    const ultimoKm = safeNumber(cargas[cargas.length - 1].km);
+    
+    // Recorrido total entre el primer y último registro de carga
+    const kmTotalRecorrido = ultimoKm - primerKm;
+
+    if (kmTotalRecorrido <= 0) {
+        state.parametros.costoPorKm = 0;
+        return 0;
+    }
+    
+    // Suma de todos los costos registrados en las cargas
+    const costoTotal = cargas.reduce((sum, carga) => sum + safeNumber(carga.costo), 0);
+
+    const costoPorKm = costoTotal / kmTotalRecorrido;
+    state.parametros.costoPorKm = costoPorKm;
+    return costoPorKm;
+};
+
 // --- PERSISTENCIA ---
 export const loadData = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) { 
         try { state = { ...state, ...JSON.parse(raw) }; } catch (e) { console.error(e); } 
     }
-    ['ingresos','gastos','turnos','movimientos','cargasCombustible','deudas','gastosFijosMensuales'].forEach(k => { 
-        if (!Array.isArray(state[k])) state[k] = []; 
-    });
+    ['ingresos','gastos','turnos','movimientos','cargasCombustible','deudas','gastosFijosMensuales'].forEach(k => { if (!Array.isArray(state[k])) state[k] = []; });
     state.parametros.ultimoKM = safeNumber(state.parametros.ultimoKM);
     recalcularMetaDiaria();
+    
+    calcularCostoPorKm(); // <-- NUEVO: Calcula la métrica al cargar
 };
 
 export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -39,7 +72,7 @@ export const recalcularMetaDiaria = () => {
     return state.parametros.gastoFijo;
 };
 
-// --- TURNOS ---
+// --- TURNOS (sin cambios) ---
 export const iniciarTurnoLogic = () => {
     if (turnoActivo) return false;
     turnoActivo = { inicio: new Date().toISOString() };
@@ -50,27 +83,17 @@ export const iniciarTurnoLogic = () => {
 export const finalizarTurnoLogic = (ganancia) => {
     if (!turnoActivo) return;
     const fin = new Date();
-    const t = { 
-        fecha: fin.toISOString(), 
-        inicio: turnoActivo.inicio, 
-        fin: fin.toISOString(), 
-        horas: (fin - new Date(turnoActivo.inicio)) / 36e5, 
-        ganancia: safeNumber(ganancia) 
-    };
+    const t = { fecha: fin.toISOString(), inicio: turnoActivo.inicio, fin: fin.toISOString(), horas: (fin - new Date(turnoActivo.inicio)) / 36e5, ganancia: safeNumber(ganancia) };
     state.turnos.push(t);
-    if (t.ganancia > 0) {
-        state.movimientos.push({ tipo: 'ingreso', fecha: fin.toISOString(), desc: 'Cierre Turno', monto: t.ganancia });
-    }
-    turnoActivo = null; 
-    localStorage.removeItem("turnoActivo"); 
-    saveData();
+    if (t.ganancia > 0) state.movimientos.push({ tipo: 'ingreso', fecha: fin.toISOString(), desc: 'Cierre Turno', monto: t.ganancia });
+    turnoActivo = null; localStorage.removeItem("turnoActivo"); saveData();
 };
 
-// --- VEHÍCULO ---
+// --- VEHÍCULO Y ODÓMETRO ---
 export const actualizarOdometroManual = (kmInput) => {
     const nk = safeNumber(kmInput);
     if (state.parametros.ultimoKM > 0 && nk < state.parametros.ultimoKM) { 
-        alert(`Error: El odómetro no puede bajar (Actual: ${state.parametros.ultimoKM}).`); 
+        alert(`Error: El nuevo KM (${nk}) no puede ser menor al actual (${state.parametros.ultimoKM}).`); 
         return false; 
     }
     state.parametros.ultimoKM = nk; 
@@ -80,51 +103,25 @@ export const actualizarOdometroManual = (kmInput) => {
 
 export const registrarCargaGasolina = (l, c, km) => {
     actualizarOdometroManual(km);
-    state.cargasCombustible.push({ fecha: new Date().toISOString(), litros: safeNumber(l), costo: safeNumber(c), km: safeNumber(km) });
+    state.cargasCombustible.push({ 
+        fecha: new Date().toISOString(), 
+        litros: safeNumber(l), 
+        costo: safeNumber(c), 
+        km: safeNumber(km) 
+    });
+    calcularCostoPorKm(); // <-- NUEVO: Recalcula después de guardar
     saveData();
 };
 
-// --- CRUD ---
-export const agregarDeuda = (d) => { 
-    state.deudas.push(d); 
-    recalcularMetaDiaria(); 
-    saveData(); 
-};
-
+// --- DEUDAS y GASTOS (sin cambios) ---
+export const agregarDeuda = (d) => { state.deudas.push(d); recalcularMetaDiaria(); saveData(); };
 export const agregarGasto = (g) => { 
     state.gastos.push(g); 
     state.movimientos.push({ tipo: 'gasto', fecha: g.fecha, desc: `${g.categoria} (${g.desc||''})`, monto: g.monto });
     saveData(); 
 };
-
 export const agregarGastoFijo = (gf) => {
-    state.gastosFijosMensuales.push({ 
-        id: gf.id, 
-        categoria: gf.categoria, 
-        monto: gf.monto, 
-        frecuencia: gf.frecuencia, 
-        desc: gf.desc 
-    });
-    state.movimientos.push({ 
-        tipo: 'gasto', 
-        fecha: gf.fecha, 
-        desc: `Alta Fijo: ${gf.categoria}`, 
-        monto: gf.monto 
-    });
+    state.gastosFijosMensuales.push({ id: gf.id, categoria: gf.categoria, monto: gf.monto, frecuencia: gf.frecuencia, desc: gf.desc });
+    state.movimientos.push({ tipo: 'gasto', fecha: gf.fecha, desc: `Alta Fijo: ${gf.categoria}`, monto: gf.monto });
     recalcularMetaDiaria();
 };
-
-// --- IMPORTAR / EXPORTAR ---
-export const importarDatosJSON = (jsonString) => {
-    try {
-        const newData = JSON.parse(jsonString);
-        if (!newData.parametros) throw new Error("Formato inválido");
-        state = { ...DEFAULT_DATA, ...newData };
-        saveData();
-        return true;
-    } catch (e) {
-        return false;
-    }
-};
-
-export const obtenerDatosCompletos = () => state;
