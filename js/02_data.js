@@ -1,3 +1,4 @@
+// 02_data.js
 import { STORAGE_KEY, DIAS_POR_FRECUENCIA, safeNumber } from './01_consts_utils.js';
 
 const DEFAULT_DATA = {
@@ -22,7 +23,7 @@ export const loadData = () => {
     ['ingresos','gastos','turnos','movimientos','cargasCombustible','deudas','gastosFijosMensuales'].forEach(k => { 
         if (!Array.isArray(state[k])) state[k] = []; 
     });
-    // Asegurar numéricos
+    // Asegurar números
     state.parametros.ultimoKM = safeNumber(state.parametros.ultimoKM);
     recalcularMetaDiaria();
 };
@@ -31,7 +32,7 @@ export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(s
 export const getState = () => state;
 export const getTurnoActivo = () => turnoActivo;
 
-// --- META DIARIA BLINDADA ---
+// --- META DIARIA ---
 export const recalcularMetaDiaria = () => {
     const fijos = state.gastosFijosMensuales.reduce((acc, i) => acc + (safeNumber(i.monto) / (DIAS_POR_FRECUENCIA[i.frecuencia]||30)), 0);
     const deudas = state.deudas.reduce((acc, d) => (d.saldo > 0 ? acc + (safeNumber(d.montoCuota) / (DIAS_POR_FRECUENCIA[d.frecuencia]||30)) : acc), 0);
@@ -59,7 +60,6 @@ export const finalizarTurnoLogic = (ganancia) => {
         ganancia: safeNumber(ganancia) 
     };
     state.turnos.push(t);
-    // Registrar ingreso
     if (t.ganancia > 0) {
         state.movimientos.push({ tipo: 'ingreso', fecha: fin.toISOString(), desc: 'Cierre Turno', monto: t.ganancia });
     }
@@ -68,17 +68,13 @@ export const finalizarTurnoLogic = (ganancia) => {
     saveData();
 };
 
-// --- VEHÍCULO Y ODÓMETRO (AQUÍ ESTABA EL ERROR) ---
-// Esta es la función que 03_render.js estaba buscando y no encontraba:
+// --- VEHÍCULO ---
 export const actualizarOdometroManual = (kmInput) => {
     const nk = safeNumber(kmInput);
-    
-    // Validación: No permitir bajar el odómetro (salvo corrección inicial)
     if (state.parametros.ultimoKM > 0 && nk < state.parametros.ultimoKM) { 
-        alert(`Error: El nuevo KM (${nk}) no puede ser menor al actual (${state.parametros.ultimoKM}).`); 
+        alert(`Error: El odómetro no puede bajar (Actual: ${state.parametros.ultimoKM}).`); 
         return false; 
     }
-    
     state.parametros.ultimoKM = nk; 
     saveData(); 
     return true;
@@ -86,47 +82,34 @@ export const actualizarOdometroManual = (kmInput) => {
 
 export const registrarCargaGasolina = (l, c, km) => {
     actualizarOdometroManual(km);
-    state.cargasCombustible.push({ 
-        fecha: new Date().toISOString(), 
-        litros: safeNumber(l), 
-        costo: safeNumber(c), 
-        km: safeNumber(km) 
-    });
+    state.cargasCombustible.push({ fecha: new Date().toISOString(), litros: safeNumber(l), costo: safeNumber(c), km: safeNumber(km) });
     saveData();
 };
 
-// --- DEUDAS ---
-export const agregarDeuda = (d) => { 
-    state.deudas.push(d); 
-    recalcularMetaDiaria(); 
-    saveData(); 
-};
-
-// --- GASTOS INTELIGENTES ---
+// --- CRUD ---
+export const agregarDeuda = (d) => { state.deudas.push(d); recalcularMetaDiaria(); saveData(); };
 export const agregarGasto = (g) => { 
     state.gastos.push(g); 
-    state.movimientos.push({ 
-        tipo: 'gasto', 
-        fecha: g.fecha, 
-        desc: `${g.categoria} (${g.desc||''})`, 
-        monto: g.monto 
-    });
+    state.movimientos.push({ tipo: 'gasto', fecha: g.fecha, desc: `${g.categoria} (${g.desc||''})`, monto: g.monto });
     saveData(); 
 };
-
 export const agregarGastoFijo = (gf) => {
-    state.gastosFijosMensuales.push({ 
-        id: gf.id, 
-        categoria: gf.categoria, 
-        monto: gf.monto, 
-        frecuencia: gf.frecuencia, 
-        desc: gf.desc 
-    });
-    state.movimientos.push({ 
-        tipo: 'gasto', 
-        fecha: gf.fecha, 
-        desc: `Alta Fijo: ${gf.categoria}`, 
-        monto: gf.monto 
-    });
+    state.gastosFijosMensuales.push({ id: gf.id, categoria: gf.categoria, monto: gf.monto, frecuencia: gf.frecuencia, desc: gf.desc });
+    state.movimientos.push({ tipo: 'gasto', fecha: gf.fecha, desc: `Alta Fijo: ${gf.categoria}`, monto: gf.monto });
     recalcularMetaDiaria();
 };
+
+// --- IMPORTAR / EXPORTAR (NUEVO) ---
+export const importarDatosJSON = (jsonString) => {
+    try {
+        const newData = JSON.parse(jsonString);
+        if (!newData.parametros) throw new Error("Formato inválido");
+        state = { ...DEFAULT_DATA, ...newData }; // Merge seguro
+        saveData();
+        return true;
+    } catch (e) {
+        return false;
+    }
+};
+
+export const obtenerDatosCompletos = () => state;
