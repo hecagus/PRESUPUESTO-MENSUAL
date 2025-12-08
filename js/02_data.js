@@ -19,11 +19,9 @@ export const loadData = () => {
     if (raw) { 
         try { state = { ...state, ...JSON.parse(raw) }; } catch (e) { console.error(e); } 
     }
-    // Asegurar arrays
     ['ingresos','gastos','turnos','movimientos','cargasCombustible','deudas','gastosFijosMensuales'].forEach(k => { 
         if (!Array.isArray(state[k])) state[k] = []; 
     });
-    // Asegurar números
     state.parametros.ultimoKM = safeNumber(state.parametros.ultimoKM);
     recalcularMetaDiaria();
 };
@@ -32,7 +30,7 @@ export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(s
 export const getState = () => state;
 export const getTurnoActivo = () => turnoActivo;
 
-// --- META DIARIA ---
+// --- META DIARIA BLINDADA ---
 export const recalcularMetaDiaria = () => {
     const fijos = state.gastosFijosMensuales.reduce((acc, i) => acc + (safeNumber(i.monto) / (DIAS_POR_FRECUENCIA[i.frecuencia]||30)), 0);
     const deudas = state.deudas.reduce((acc, d) => (d.saldo > 0 ? acc + (safeNumber(d.montoCuota) / (DIAS_POR_FRECUENCIA[d.frecuencia]||30)) : acc), 0);
@@ -87,24 +85,41 @@ export const registrarCargaGasolina = (l, c, km) => {
 };
 
 // --- CRUD ---
-export const agregarDeuda = (d) => { state.deudas.push(d); recalcularMetaDiaria(); saveData(); };
+export const agregarDeuda = (d) => { 
+    state.deudas.push(d); 
+    recalcularMetaDiaria(); 
+    saveData(); 
+};
+
 export const agregarGasto = (g) => { 
     state.gastos.push(g); 
     state.movimientos.push({ tipo: 'gasto', fecha: g.fecha, desc: `${g.categoria} (${g.desc||''})`, monto: g.monto });
     saveData(); 
 };
+
 export const agregarGastoFijo = (gf) => {
-    state.gastosFijosMensuales.push({ id: gf.id, categoria: gf.categoria, monto: gf.monto, frecuencia: gf.frecuencia, desc: gf.desc });
-    state.movimientos.push({ tipo: 'gasto', fecha: gf.fecha, desc: `Alta Fijo: ${gf.categoria}`, monto: gf.monto });
+    state.gastosFijosMensuales.push({ 
+        id: gf.id, 
+        categoria: gf.categoria, 
+        monto: gf.monto, 
+        frecuencia: gf.frecuencia, 
+        desc: gf.desc 
+    });
+    state.movimientos.push({ 
+        tipo: 'gasto', 
+        fecha: gf.fecha, 
+        desc: `Alta Fijo: ${gf.categoria}`, 
+        monto: gf.monto 
+    });
     recalcularMetaDiaria();
 };
 
-// --- IMPORTAR / EXPORTAR (NUEVO) ---
+// --- IMPORTAR / EXPORTAR ---
 export const importarDatosJSON = (jsonString) => {
     try {
         const newData = JSON.parse(jsonString);
         if (!newData.parametros) throw new Error("Formato inválido");
-        state = { ...DEFAULT_DATA, ...newData }; // Merge seguro
+        state = { ...DEFAULT_DATA, ...newData };
         saveData();
         return true;
     } catch (e) {
