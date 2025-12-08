@@ -1,14 +1,17 @@
 // 05_init.js
 import { loadData } from './02_data.js';
-// La clave aquí es que renderDashboard se importa correctamente:
-import { renderTurnoUI, renderOdometroUI, setupAdminListeners, renderDashboard, renderMetaDiaria } from './03_render.js';
+import { renderTurnoUI, renderOdometroUI, setupAdminListeners, renderDashboard, renderMetaDiaria, renderHistorial } from './03_render.js';
 import { initCharts } from './04_charts.js';
 
 document.addEventListener("DOMContentLoaded", () => {
+    // 1. Cargar Estado Global
     loadData();
+
+    // 2. Detectar Página
     const page = document.body.getAttribute('data-page');
     console.log(`[Init] Iniciando sistema en vista: ${page}`);
 
+    // 3. Router de Vistas
     if (page === 'admin') {
         renderTurnoUI();      
         renderOdometroUI();   
@@ -18,5 +21,8 @@ document.addEventListener("DOMContentLoaded", () => {
     else if (page === 'index') {
         renderDashboard(); 
         initCharts();         
+    }
+    else if (page === 'historial') {
+        renderHistorial(); // <-- ¡Llamada agregada!
     }
 });
