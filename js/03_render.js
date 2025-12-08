@@ -2,25 +2,33 @@
 import { $, fmtMoney } from './01_consts_utils.js';
 import { getState, getTurnoActivo, iniciarTurnoLogic, finalizarTurnoLogic, recalcularMetaDiaria, registrarCargaGasolina, actualizarOdometroManual, agregarDeuda } from './02_data.js';
 
-// --- ADMIN: UI TURNO ---
+/* ==========================================================================
+   SECCIÓN 1: RENDERIZADO DE ELEMENTOS (UI)
+   ========================================================================== */
+
+// --- ADMIN: INTERFAZ DE TURNO ---
 export const renderTurnoUI = () => {
     const lbl = $("turnoTexto");
     const btnIn = $("btnIniciarTurno");
     const btnPreFin = $("btnPreFinalizarTurno");
     const divCierre = $("cierreTurnoContainer");
 
+    // Guard Clause: Si no estamos en Admin, salimos.
     if (!lbl) return; 
 
     const activo = getTurnoActivo();
     
-    // Reset visual al renderizar
+    // Reseteamos visualmente el contenedor de cierre (oculto por defecto)
     if(divCierre) divCierre.style.display = "none";
 
     if (activo) {
         lbl.innerHTML = `🟢 Turno Activo: <b>${new Date(activo.inicio).toLocaleTimeString()}</b>`;
         lbl.style.color = "#16a34a";
         if(btnIn) btnIn.style.display = "none";
-        if(btnPreFin) btnPreFin.style.display = "inline-block"; 
+        if(btnPreFin) {
+            btnPreFin.style.display = "inline-block"; 
+            btnPreFin.innerText = "Finalizar Turno"; // Restaurar texto
+        }
     } else {
         lbl.innerHTML = `🔴 Sin turno activo`;
         lbl.style.color = "#dc2626";
@@ -29,11 +37,12 @@ export const renderTurnoUI = () => {
     }
 };
 
-// --- ADMIN: ODÓMETRO ---
+// --- ADMIN: INTERFAZ DE ODÓMETRO ---
 export const renderOdometroUI = () => {
     const lblKm = $("lblKmAnterior");
     const inputKm = $("inputOdometro");
-    if (!lblKm) return;
+    
+    if (!lblKm) return; // Guard Clause
 
     const state = getState();
     lblKm.innerText = `${state.parametros.ultimoKM} km`;
@@ -45,48 +54,57 @@ export const renderOdometroUI = () => {
     }
 };
 
-// --- ADMIN: META DIARIA ---
+// --- ADMIN: META DIARIA (BLINDADA) ---
 export const renderMetaDiaria = () => {
     const el = $("metaDiariaDisplay");
-    // Protección: Si no existe el elemento, no hacemos nada
-    if (el) el.innerText = `$${fmtMoney(recalcularMetaDiaria())}`;
+    if (!el) return;
+    // Recupera el cálculo puro desde 02_data.js
+    el.innerText = `$${fmtMoney(recalcularMetaDiaria())}`;
 };
 
-// --- DASHBOARD (INDEX): ESTA ES LA FUNCIÓN QUE FALTABA ---
+// --- DASHBOARD (INDEX): LA FUNCIÓN QUE FALTABA ---
 export const renderDashboard = () => {
     const state = getState();
+    // Helper local para asignar texto solo si el elemento existe
     const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };
 
-    // 1. Calcular Totales de "Hoy"
+    // 1. Cálculos rápidos para "HOY"
     const hoyStr = new Date().toLocaleDateString();
     
-    // Filtramos turnos que coincidan con la fecha de hoy (simplificado)
+    // Filtramos turnos de hoy
     const turnosHoy = state.turnos.filter(t => new Date(t.fecha).toLocaleDateString() === hoyStr);
     
     const gananciaHoy = turnosHoy.reduce((acc, t) => acc + t.ganancia, 0);
     const horasHoy = turnosHoy.reduce((acc, t) => acc + t.horas, 0);
 
-    // 2. Renderizar KPIs
+    // 2. Actualizar KPIs en el DOM
     set("resHoras", `${horasHoy.toFixed(2)}h`);
     set("resGananciaBruta", `$${fmtMoney(gananciaHoy)}`);
-    // Nota: "Neta" requiere restar gastos, por ahora mostramos bruta o calculamos simple
-    set("resGananciaNeta", `$${fmtMoney(gananciaHoy)}`); 
+    set("resGananciaNeta", `$${fmtMoney(gananciaHoy)}`); // (Aquí podrías restar gastos de hoy si quisieras)
     
     set("resKmRecorridos", `${state.parametros.ultimoKM} km`);
     set("proyKmTotal", `${state.parametros.ultimoKM} KM`);
     
     set("proyGastoFijoDiario", `$${fmtMoney(state.parametros.gastoFijo)}`);
-    set("proyDeuda", `$${fmtMoney(state.deudas.reduce((acc, d) => acc + d.saldo, 0))}`);
+    set("proyDeuda", `$${fmtMoney(state.parametros.deudaTotal || state.deudas.reduce((a,b)=>a+b.saldo,0))}`);
 };
 
-// --- LISTENERS ADMIN ---
+
+/* ==========================================================================
+   SECCIÓN 2: LISTENERS (MANEJO DE EVENTOS)
+   ========================================================================== */
+
 export const setupAdminListeners = () => {
-    // Si no estamos en Admin (no existe botón turno), salimos.
+    // PROTECCIÓN CRÍTICA: Si no existe el botón de turno, NO estamos en Admin.
+    // Detenemos la ejecución para evitar errores en el Index.
     if (!$("btnIniciarTurno")) return; 
 
-    // 1. GESTIÓN TURNO
-    $("btnIniciarTurno").onclick = () => { if(iniciarTurnoLogic()) renderTurnoUI(); };
+    // --- A. GESTIÓN DE TURNO ---
+    $("btnIniciarTurno").onclick = () => { 
+        if(iniciarTurnoLogic()) renderTurnoUI(); 
+    };
     
+    // Botón "Finalizar" (Paso 1: Muestra formulario)
     const btnPre = $("btnPreFinalizarTurno");
     if(btnPre) {
         btnPre.onclick = () => {
@@ -95,6 +113,7 @@ export const setupAdminListeners = () => {
         };
     }
     
+    // Botón "Cancelar" (Oculta formulario)
     const btnCancel = $("btnCancelarCierre");
     if(btnCancel) {
         btnCancel.onclick = () => {
@@ -104,19 +123,22 @@ export const setupAdminListeners = () => {
         };
     }
 
+    // Botón "Confirmar" (Paso 2: Guarda datos)
     const btnConfirm = $("btnConfirmarFinalizar");
     if(btnConfirm) {
         btnConfirm.onclick = () => {
             const monto = $("gananciaBruta").value;
             if(monto === "") return alert("Ingresa el monto (o 0 si no hubo ganancia).");
+            
             finalizarTurnoLogic(monto);
+            
             $("gananciaBruta").value = "";
             renderTurnoUI();
             alert("Turno cerrado correctamente.");
         };
     }
 
-    // 2. CONTROL ODÓMETRO
+    // --- B. CONTROL ODÓMETRO ---
     const btnOdo = $("btnActualizarOdometro");
     if(btnOdo) {
         btnOdo.onclick = () => {
@@ -129,14 +151,17 @@ export const setupAdminListeners = () => {
         };
     }
 
-    // 3. WIZARD DEUDAS
+    // --- C. WIZARD DEUDAS ---
     const d1 = $("deudaWizardStep1"), d2 = $("deudaWizardStep2"), d3 = $("deudaWizardStep3");
     if(d1 && d2 && d3) {
         $("btnDeudaNext1").onclick = () => { 
-            if(!$("deudaNombre").value) return alert("Pon un nombre");
+            if(!$("deudaNombre").value) return alert("Ingresa un nombre para la deuda");
             d1.style.display='none'; d2.style.display='block'; 
         };
-        $("btnDeudaNext2").onclick = () => { d2.style.display='none'; d3.style.display='block'; };
+        $("btnDeudaNext2").onclick = () => { 
+            if(!$("deudaMontoTotal").value) return alert("Ingresa el monto total");
+            d2.style.display='none'; d3.style.display='block'; 
+        };
         $("btnDeudaBack2").onclick = () => { d2.style.display='none'; d1.style.display='block'; };
         $("btnDeudaBack3").onclick = () => { d3.style.display='none'; d2.style.display='block'; };
         
@@ -147,23 +172,33 @@ export const setupAdminListeners = () => {
                 montoTotal: $("deudaMontoTotal").value,
                 montoCuota: $("deudaMontoCuota").value,
                 frecuencia: $("deudaFrecuencia").value,
-                saldo: $("deudaMontoTotal").value
+                saldo: parseFloat($("deudaMontoTotal").value) // Guardamos saldo inicial
             });
-            alert("Deuda registrada");
+            alert("Deuda registrada. Meta Diaria actualizada.");
             window.location.reload();
         };
     }
 
-    // 4. WIZARD GASOLINA
+    // --- D. WIZARD GASOLINA ---
     const p1=$("gasWizardPaso1"), p2=$("gasWizardPaso2"), p3=$("gasWizardPaso3");
     if(p1) {
         $("btnGasSiguiente1").onclick=()=>{p1.style.display='none';p2.style.display='block'};
         $("btnGasSiguiente2").onclick=()=>{p2.style.display='none';p3.style.display='block'};
         $("btnGasAtras2").onclick=()=>{p2.style.display='none';p1.style.display='block'};
         $("btnGasAtras3").onclick=()=>{p3.style.display='none';p2.style.display='block'};
+        
         $("btnRegistrarCargaFinal").onclick=()=>{
             registrarCargaGasolina($("gasLitros").value, $("gasCosto").value, $("gasKmActual").value);
-            alert("Carga guardada"); window.location.reload();
+            alert("Carga guardada"); 
+            window.location.reload();
+        };
+    }
+    
+    // --- E. GASTOS E INGRESOS SIMPLES ---
+    if($("btnRegistrarIngreso")) {
+        $("btnRegistrarIngreso").onclick = () => {
+            // Aquí llamarías a una función en 02_data para guardar ingreso extra
+            alert("Función de ingreso extra pendiente de conectar en lógica");
         };
     }
 };
