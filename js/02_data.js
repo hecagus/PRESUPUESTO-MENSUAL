@@ -1,4 +1,3 @@
-// 02_data.js
 import { STORAGE_KEY, DIAS_POR_FRECUENCIA, safeNumber } from './01_consts_utils.js';
 
 const DEFAULT_DATA = {
@@ -23,7 +22,7 @@ export const loadData = () => {
     ['ingresos','gastos','turnos','movimientos','cargasCombustible','deudas','gastosFijosMensuales'].forEach(k => { 
         if (!Array.isArray(state[k])) state[k] = []; 
     });
-    // Asegurar número
+    // Asegurar numéricos
     state.parametros.ultimoKM = safeNumber(state.parametros.ultimoKM);
     recalcularMetaDiaria();
 };
@@ -60,7 +59,7 @@ export const finalizarTurnoLogic = (ganancia) => {
         ganancia: safeNumber(ganancia) 
     };
     state.turnos.push(t);
-    // Registrar Ingreso Automático
+    // Registrar ingreso
     if (t.ganancia > 0) {
         state.movimientos.push({ tipo: 'ingreso', fecha: fin.toISOString(), desc: 'Cierre Turno', monto: t.ganancia });
     }
@@ -69,21 +68,23 @@ export const finalizarTurnoLogic = (ganancia) => {
     saveData();
 };
 
-// --- VEHÍCULO Y ODÓMETRO (AQUÍ ESTABA EL ERROR: ESTA FUNCIÓN FALTABA) ---
+// --- VEHÍCULO Y ODÓMETRO (AQUÍ ESTABA EL ERROR) ---
+// Esta es la función que 03_render.js estaba buscando y no encontraba:
 export const actualizarOdometroManual = (kmInput) => {
     const nk = safeNumber(kmInput);
-    // Validación: No permitir bajar KM (a menos que sea 0 el actual)
+    
+    // Validación: No permitir bajar el odómetro (salvo corrección inicial)
     if (state.parametros.ultimoKM > 0 && nk < state.parametros.ultimoKM) { 
-        alert(`Error: El odómetro no puede bajar (Actual: ${state.parametros.ultimoKM}).`); 
+        alert(`Error: El nuevo KM (${nk}) no puede ser menor al actual (${state.parametros.ultimoKM}).`); 
         return false; 
     }
+    
     state.parametros.ultimoKM = nk; 
     saveData(); 
     return true;
 };
 
 export const registrarCargaGasolina = (l, c, km) => {
-    // Actualizamos el odómetro usando la misma lógica
     actualizarOdometroManual(km);
     state.cargasCombustible.push({ 
         fecha: new Date().toISOString(), 
@@ -121,7 +122,6 @@ export const agregarGastoFijo = (gf) => {
         frecuencia: gf.frecuencia, 
         desc: gf.desc 
     });
-    // Opcional: Registrar el primer pago hoy
     state.movimientos.push({ 
         tipo: 'gasto', 
         fecha: gf.fecha, 
