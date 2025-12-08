@@ -58,7 +58,7 @@ export const renderTurnoUI = () => {
     }
 };
 
-// --- ADMIN: INTERFAZ DE ODÓMETRO ---
+// --- ADMIN: INTERFAZ DE ODÓMETRO Y COSTO POR KM ---
 export const renderOdometroUI = () => {
     const lblKm = $("lblKmAnterior");
     const inputKm = $("inputOdometro");
@@ -72,7 +72,7 @@ export const renderOdometroUI = () => {
     if (costoKmDisplay) {
         const costo = state.parametros.costoPorKm;
         if (costo > 0.001) {
-            costoKmDisplay.innerText = `$${fmtMoney(costo)}`;
+            costoKmDisplay.innerText = `$${fmtMoney(costo)}/km`; // Añadido /km para claridad
         } else {
             costoKmDisplay.innerText = "Calculando..."; 
         }
@@ -85,8 +85,8 @@ export const renderMetaDiaria = () => {
     if (el) el.innerText = `$${fmtMoney(recalcularMetaDiaria())}`;
 };
 
-// --- DASHBOARD (INDEX): FUNCIÓN REQUERIDA ---
-export const renderDashboard = () => { // <-- EXPORT FALTANTE
+// --- DASHBOARD (INDEX) ---
+export const renderDashboard = () => {
     const state = getState();
     const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };
 
@@ -127,7 +127,7 @@ export const setupAdminListeners = () => {
         if(actualizarOdometroManual($("inputOdometro").value)) { renderOdometroUI(); $("inputOdometro").value = ""; alert("KM actualizado."); }
     };
 
-    // 3. Gastos Inteligentes
+    // 3. Gastos Inteligentes (Sin cambios)
     llenarCategorias("moto"); 
     document.getElementsByName("gastoTipoRadio").forEach(r => {
         r.addEventListener("change", (e) => llenarCategorias(e.target.value));
@@ -156,16 +156,61 @@ export const setupAdminListeners = () => {
         if(checkRecurrente.checked) window.location.reload();
     };
 
-    // 4. Wizards Deuda y Gasolina (bindings)
-    const setupWizard = (ids, act) => { if($(ids[0])) ids.forEach((id,i) => { if(i<ids.length-1) $(`btn${act}Next${i+1}`).onclick=()=>{ $(ids[i]).style.display='none'; $(ids[i+1]).style.display='block'; }; if(i>0) $(`btn${act}Back${i+1}`).onclick=()=>{ $(ids[i]).style.display='none'; $(ids[i-1]).style.display='block'; }; }); };
-    const gasIds = ["gasWizardPaso1","gasWizardPaso2","gasWizardPaso3"];
-    if($(gasIds[0])) {
-        $("btnGasSiguiente1").onclick=()=>{$(gasIds[0]).style.display='none';$(gasIds[1]).style.display='block'};
-        $("btnGasSiguiente2").onclick=()=>{$(gasIds[1]).style.display='none';$(gasIds[2]).style.display='block'};
-        $("btnGasAtras2").onclick=()=>{$(gasIds[1]).style.display='none';$(gasIds[0]).style.display='block'};
-        $("btnGasAtras3").onclick=()=>{$(gasIds[2]).style.display='none';$(gasIds[1]).style.display='block'};
-        $("btnRegistrarCargaFinal").onclick=()=>{ registrarCargaGasolina($("gasLitros").value, $("gasCosto").value, $("gasKmActual").value); alert("Carga guardada"); window.location.reload(); };
+    // 4. WIZARD GASOLINA (CORRECCIÓN CRÍTICA DE LISTENERS)
+    const p1 = $("gasWizardPaso1");
+    const p2 = $("gasWizardPaso2");
+    const p3 = $("gasWizardPaso3");
+
+    if (p1 && p2 && p3) {
+        // Siguiente 1 -> 2
+        const btnNext1 = $("btnGasSiguiente1");
+        if (btnNext1) {
+            btnNext1.onclick = () => {
+                p1.style.display = 'none';
+                p2.style.display = 'block';
+            };
+        }
+        
+        // Siguiente 2 -> 3
+        const btnNext2 = $("btnGasSiguiente2");
+        if (btnNext2) {
+            btnNext2.onclick = () => {
+                p2.style.display = 'none';
+                p3.style.display = 'block';
+            };
+        }
+
+        // Atrás 2 -> 1
+        const btnBack2 = $("btnGasAtras2");
+        if (btnBack2) {
+            btnBack2.onclick = () => {
+                p2.style.display = 'none';
+                p1.style.display = 'block';
+            };
+        }
+        
+        // Atrás 3 -> 2
+        const btnBack3 = $("btnGasAtras3");
+        if (btnBack3) {
+            btnBack3.onclick = () => {
+                p3.style.display = 'none';
+                p2.style.display = 'block';
+            };
+        }
+
+        // Finalizar Carga
+        const btnFinal = $("btnRegistrarCargaFinal");
+        if (btnFinal) {
+            btnFinal.onclick = () => {
+                registrarCargaGasolina($("gasLitros").value, $("gasCosto").value, $("gasKmActual").value);
+                alert("Carga guardada"); 
+                window.location.reload();
+            };
+        }
     }
+
+
+    // 5. Wizards Deuda (Sin cambios)
     const deuIds = ["deudaWizardStep1","deudaWizardStep2","deudaWizardStep3"];
     if($(deuIds[0])) {
         $("btnDeudaNext1").onclick=()=>{if(!$("deudaNombre").value)return alert("Nombre?"); $(deuIds[0]).style.display='none';$(deuIds[1]).style.display='block'};
