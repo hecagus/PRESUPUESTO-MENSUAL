@@ -6,9 +6,9 @@ import {
     setupAdminListeners, 
     renderDashboard, 
     renderMetaDiaria,
-    renderDeudasList,      // <--- NUEVO
-    renderGastosFijosList, // <--- NUEVO
-    renderHistorialTable   // <--- NUEVO
+    renderDeudasList,      // <--- AÑADIDO
+    renderGastosFijosList, // <--- AÑADIDO
+    renderHistorialTable   // <--- AÑADIDO
 } from './03_render.js';
 import { initCharts } from './04_charts.js';
 
@@ -21,8 +21,8 @@ document.addEventListener("DOMContentLoaded", () => {
         renderTurnoUI();      
         renderOdometroUI();   
         renderMetaDiaria();   
-        renderDeudasList();     // <--- Muestra las deudas
-        renderGastosFijosList();// <--- Muestra los gastos fijos
+        renderDeudasList();     // Muestra la lista de Deudas
+        renderGastosFijosList();// Muestra la lista de Gastos Fijos
         setupAdminListeners();
     } 
     else if (page === 'index') {
@@ -30,6 +30,6 @@ document.addEventListener("DOMContentLoaded", () => {
         initCharts();         
     }
     else if (page === 'historial') {
-        renderHistorialTable(); // <--- Muestra la tabla de Movimientos/Gastos/Turnos
+        renderHistorialTable(); // Muestra la tabla completa de Movimientos
     }
 });
