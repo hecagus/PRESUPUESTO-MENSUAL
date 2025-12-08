@@ -132,31 +132,47 @@ function actualizarOdometro() {
     alert(`Odómetro actualizado a ${lectura}.\nRecorrido registrado: ${recorrido} KM.`);
 }
 
+// REEMPLAZA SOLO LA FUNCIÓN registrarCarga POR ESTA:
+
 function registrarCarga() {
     const km = safeNumber($("kmCarga").value);
     const l = safeNumber($("litrosCarga").value);
     const dinero = safeNumber($("costoCarga").value);
-    const desc = $("descCarga").value.trim() || "Carga Gasolina";
+    
+    // Como borramos el input de descripción, definimos una automática
+    const desc = "Carga Gasolina"; 
     const anterior = safeNumber(panelData.parametros.ultimoKMfinal);
 
     if (km <= anterior && anterior > 0) return alert(`El KM debe ser mayor a ${anterior}.`);
     if (l <= 0 || dinero <= 0) return alert("Faltan datos de litros o costo.");
 
-    // Guardar carga
+    // 1. Guardar carga en historial de combustible
     const carga = { id: Date.now(), fecha: new Date().toISOString(), kmCarga: km, litros: l, monto: dinero };
     panelData.cargasCombustible.push(carga);
 
-    // Guardar como gasto
-    const gasto = { id: Date.now(), tipo: 'Gasto', descripcion: `Gasolina (${l}L) - ${desc}`, monto: dinero, fecha: carga.fecha, esTrabajo: true };
+    // 2. Guardar también como Gasto (para que cuadren las cuentas)
+    const gasto = { 
+        id: Date.now(), 
+        tipo: 'Gasto', 
+        descripcion: `Gasolina (${l}L)`, // Descripción automática
+        monto: dinero, 
+        fecha: carga.fecha, 
+        esTrabajo: true 
+    };
     panelData.gastos.push(gasto); 
     panelData.movimientos.push(gasto);
 
-    // Actualizar odómetro
+    // 3. Actualizar odómetro global
     panelData.parametros.ultimoKMfinal = km;
 
     saveData();
     calcularMetricasCombustible(true);
-    $("kmCarga").value=""; $("litrosCarga").value=""; $("costoCarga").value=""; $("descCarga").value="";
+    
+    // Limpiar inputs (Ya no limpiamos descCarga porque no existe)
+    $("kmCarga").value = ""; 
+    $("litrosCarga").value = ""; 
+    $("costoCarga").value = ""; 
+    
     alert("Carga registrada exitosamente.");
 }
 // app.js - PARTE 4: OTROS MOVIMIENTOS Y DEUDAS
