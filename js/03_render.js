@@ -155,4 +155,15 @@ export const setupAdminListeners = () => {
     }
 
     // 4. WIZARD GASOLINA
-    const p1=$("gasWizardP
+    const p1=$("gasWizardPaso1"), p2=$("gasWizardPaso2"), p3=$("gasWizardPaso3");
+    if(p1) {
+        $("btnGasSiguiente1").onclick=()=>{p1.style.display='none';p2.style.display='block'};
+        $("btnGasSiguiente2").onclick=()=>{p2.style.display='none';p3.style.display='block'};
+        $("btnGasAtras2").onclick=()=>{p2.style.display='none';p1.style.display='block'};
+        $("btnGasAtras3").onclick=()=>{p3.style.display='none';p2.style.display='block'};
+        $("btnRegistrarCargaFinal").onclick=()=>{
+            registrarCargaGasolina($("gasLitros").value, $("gasCosto").value, $("gasKmActual").value);
+            alert("Carga guardada"); window.location.reload();
+        };
+    }
+};
