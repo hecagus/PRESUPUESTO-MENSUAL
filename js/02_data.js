@@ -5,7 +5,7 @@ const DEFAULT_DATA = {
     ingresos: [], gastos: [], turnos: [], movimientos: [], 
     cargasCombustible: [], deudas: [], gastosFijosMensuales: [],
     parametros: {
-        deudaTotal: 0, gastoFijo: 0, ultimoKM: 0, costoPorKm: 0,
+        deudaTotal: 0, gastoFijo: 0, ultimoKM: 0, costoPorKm: 0, // <-- costoPorKm se actualizará aquí
         mantenimientoBase: { 'Aceite': 3000, 'Bujía': 8000, 'Llantas': 15000 }
     }
 };
@@ -13,24 +13,22 @@ const DEFAULT_DATA = {
 let state = JSON.parse(JSON.stringify(DEFAULT_DATA));
 let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || null;
 
-// --- LÓGICA VEHICULAR: CÁLCULO DE COSTO POR KM (NUEVO) ---
+// --- LÓGICA VEHICULAR: CÁLCULO DE COSTO POR KM (BLINDADO) ---
 const calcularCostoPorKm = () => {
     const cargas = state.cargasCombustible;
     
-    // Se necesitan al menos 2 cargas para calcular un KM recorrido entre ellas,
-    // o al menos 1 carga si asumimos que el KM inicial era 0. Usaremos 2 para robustez.
     if (cargas.length < 2) {
         state.parametros.costoPorKm = 0;
         return 0;
     }
 
-    // Ordenar cargas por KM para obtener el KM inicial y final del historial de cargas
-    cargas.sort((a, b) => a.km - b.km);
+    // 1. Obtener rango de KM (Copiamos y ordenamos para no alterar el estado original)
+    // El cálculo se hace tomando el costo total del historial entre el KM más bajo y el más alto registrado.
+    const cargasOrdenadas = [...cargas].sort((a, b) => safeNumber(a.km) - safeNumber(b.km));
     
-    const primerKm = safeNumber(cargas[0].km); 
-    const ultimoKm = safeNumber(cargas[cargas.length - 1].km);
+    const primerKm = safeNumber(cargasOrdenadas[0].km); 
+    const ultimoKm = safeNumber(cargasOrdenadas[cargasOrdenadas.length - 1].km);
     
-    // Recorrido total entre el primer y último registro de carga
     const kmTotalRecorrido = ultimoKm - primerKm;
 
     if (kmTotalRecorrido <= 0) {
@@ -38,9 +36,10 @@ const calcularCostoPorKm = () => {
         return 0;
     }
     
-    // Suma de todos los costos registrados en las cargas
+    // 2. Sumar Costo Total
     const costoTotal = cargas.reduce((sum, carga) => sum + safeNumber(carga.costo), 0);
 
+    // 3. Calcular y Guardar
     const costoPorKm = costoTotal / kmTotalRecorrido;
     state.parametros.costoPorKm = costoPorKm;
     return costoPorKm;
@@ -54,9 +53,9 @@ export const loadData = () => {
     }
     ['ingresos','gastos','turnos','movimientos','cargasCombustible','deudas','gastosFijosMensuales'].forEach(k => { if (!Array.isArray(state[k])) state[k] = []; });
     state.parametros.ultimoKM = safeNumber(state.parametros.ultimoKM);
-    recalcularMetaDiaria();
     
-    calcularCostoPorKm(); // <-- NUEVO: Calcula la métrica al cargar
+    recalcularMetaDiaria();
+    calcularCostoPorKm(); // <-- EJECUCIÓN AL CARGAR (¡Corregido!)
 };
 
 export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -109,7 +108,7 @@ export const registrarCargaGasolina = (l, c, km) => {
         costo: safeNumber(c), 
         km: safeNumber(km) 
     });
-    calcularCostoPorKm(); // <-- NUEVO: Recalcula después de guardar
+    calcularCostoPorKm(); // <-- EJECUCIÓN DESPUÉS DE LA CARGA (¡Corregido!)
     saveData();
 };
 
