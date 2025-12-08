@@ -3,9 +3,9 @@ export const STORAGE_KEY = "panelData";
 export const TUTORIAL_VIEWED_KEY = "tutorialViewed";
 export const $ = (id) => document.getElementById(id);
 
-// AQUÍ AGREGAMOS 'Diario': 1
+// CONFIGURACIÓN DE FRECUENCIAS
 export const DIAS_POR_FRECUENCIA = {
-    'Diario': 1,        // <--- NUEVO: Divide el monto entre 1
+    'Diario': 1,        // <--- NUEVO: Divide el monto entre 1 (Impacto total diario)
     'Semanal': 7,       // Divide entre 7
     'Quincenal': 15,    // Divide entre 15
     'Mensual': 30,      // Divide entre 30
@@ -29,6 +29,7 @@ export const CATEGORIAS_GASTOS = {
     ]
 };
 
+// Helpers de formato
 export const safeNumber = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 export const fmtMoney = (n) => safeNumber(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 export const formatearFecha = (d) => new Date(d).toLocaleDateString();
