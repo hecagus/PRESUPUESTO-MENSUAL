@@ -3,9 +3,15 @@ export const STORAGE_KEY = "panelData";
 export const TUTORIAL_VIEWED_KEY = "tutorialViewed";
 export const $ = (id) => document.getElementById(id);
 
+// AQUÍ AGREGAMOS 'Diario': 1
 export const DIAS_POR_FRECUENCIA = {
-    'Diario': 1, 'Semanal': 7, 'Quincenal': 15,
-    'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'No Recurrente': 0
+    'Diario': 1,        // <--- NUEVO: Divide el monto entre 1
+    'Semanal': 7,       // Divide entre 7
+    'Quincenal': 15,    // Divide entre 15
+    'Mensual': 30,      // Divide entre 30
+    'Bimestral': 60,    // Divide entre 60
+    'Anual': 365,       // Divide entre 365
+    'No Recurrente': 0
 };
 
 export const CATEGORIAS_GASTOS = {
