@@ -1,21 +1,17 @@
 // 03_render.js
-import { $, fmtMoney, CATEGORIAS_GASTOS } from './01_consts_utils.js'; // <--- IMPORTANTE: CATEGORIAS_GASTOS AÑADIDO
-import { getState, getTurnoActivo, iniciarTurnoLogic, finalizarTurnoLogic, recalcularMetaDiaria, registrarCargaGasolina, actualizarOdometroManual, agregarDeuda, agregarGasto, agregarGastoFijo } from './02_data.js'; // <--- IMPORTANTE: agregarGasto y agregarGastoFijo AÑADIDOS
+import { $, fmtMoney, CATEGORIAS_GASTOS } from './01_consts_utils.js';
+import { getState, getTurnoActivo, iniciarTurnoLogic, finalizarTurnoLogic, recalcularMetaDiaria, registrarCargaGasolina, actualizarOdometroManual, agregarDeuda, agregarGasto, agregarGastoFijo } from './02_data.js';
 
-// ... (Tus funciones renderTurnoUI, renderOdometroUI, renderMetaDiaria, renderDashboard siguen igual) ...
-
-// --- NUEVA FUNCIÓN: Llenar Select de Categorías ---
+// --- UI HELPERS: Llenar Categorías ---
 const llenarCategorias = (tipo) => {
     const select = $("gastoCategoriaSelect");
     const inputManual = $("gastoCategoriaManual");
     if (!select) return;
 
-    select.innerHTML = ""; // Limpiar
-    inputManual.style.display = "none"; // Ocultar manual por defecto
+    select.innerHTML = "";
+    inputManual.style.display = "none";
 
-    // Obtener lista según tipo (moto/hogar)
     const lista = CATEGORIAS_GASTOS[tipo] || [];
-
     lista.forEach(cat => {
         const option = document.createElement("option");
         option.value = cat;
@@ -23,7 +19,6 @@ const llenarCategorias = (tipo) => {
         select.appendChild(option);
     });
 
-    // Detectar si seleccionan "Otro/Nuevo"
     select.onchange = () => {
         if (select.value.includes("Otro / Nuevo")) {
             inputManual.style.display = "block";
@@ -34,84 +29,127 @@ const llenarCategorias = (tipo) => {
     };
 };
 
+// --- RENDERIZADO VISUAL ---
+export const renderTurnoUI = () => {
+    const lbl = $("turnoTexto"), btnIn = $("btnIniciarTurno"), btnPreFin = $("btnPreFinalizarTurno"), divCierre = $("cierreTurnoContainer");
+    if (!lbl) return; 
 
+    const activo = getTurnoActivo();
+    if(divCierre) divCierre.style.display = "none";
+
+    if (activo) {
+        lbl.innerHTML = `🟢 Turno Activo: <b>${new Date(activo.inicio).toLocaleTimeString()}</b>`;
+        lbl.style.color = "#16a34a";
+        if(btnIn) btnIn.style.display = "none";
+        if(btnPreFin) { btnPreFin.style.display = "inline-block"; btnPreFin.innerText = "Finalizar Turno"; }
+    } else {
+        lbl.innerHTML = `🔴 Sin turno activo`;
+        lbl.style.color = "#dc2626";
+        if(btnIn) btnIn.style.display = "inline-block"; 
+        if(btnPreFin) btnPreFin.style.display = "none";
+    }
+};
+
+export const renderOdometroUI = () => {
+    const lblKm = $("lblKmAnterior"), inputKm = $("inputOdometro");
+    if (!lblKm) return;
+    const state = getState();
+    lblKm.innerText = `${state.parametros.ultimoKM} km`;
+    inputKm.placeholder = state.parametros.ultimoKM > 0 ? `Mayor a ${state.parametros.ultimoKM}` : "Ingresa KM Inicial";
+};
+
+export const renderMetaDiaria = () => {
+    const el = $("metaDiariaDisplay");
+    if (el) el.innerText = `$${fmtMoney(recalcularMetaDiaria())}`;
+};
+
+export const renderDashboard = () => {
+    const state = getState();
+    const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };
+    const hoyStr = new Date().toLocaleDateString();
+    const turnosHoy = state.turnos.filter(t => new Date(t.fecha).toLocaleDateString() === hoyStr);
+    const gananciaHoy = turnosHoy.reduce((acc, t) => acc + t.ganancia, 0);
+    const horasHoy = turnosHoy.reduce((acc, t) => acc + t.horas, 0);
+
+    set("resHoras", `${horasHoy.toFixed(2)}h`);
+    set("resGananciaBruta", `$${fmtMoney(gananciaHoy)}`);
+    set("resGananciaNeta", `$${fmtMoney(gananciaHoy)}`); 
+    set("resKmRecorridos", `${state.parametros.ultimoKM} km`);
+    set("proyKmTotal", `${state.parametros.ultimoKM} KM`);
+    set("proyGastoFijoDiario", `$${fmtMoney(state.parametros.gastoFijo)}`);
+    set("proyDeuda", `$${fmtMoney(state.parametros.deudaTotal || state.deudas.reduce((a,b)=>a+b.saldo,0))}`);
+};
+
+// --- LISTENERS ---
 export const setupAdminListeners = () => {
     if (!$("btnIniciarTurno")) return; 
 
-    // ... (Listeners de Turno y Odómetro siguen igual) ...
-
-    // === LÓGICA DE GASTOS INTELIGENTES (NUEVA) ===
-    
-    // 1. Inicializar Select (Por defecto Moto)
-    llenarCategorias("moto");
-
-    // 2. Cambio de Radio (Moto vs Hogar)
-    const radiosTipo = document.getElementsByName("gastoTipoRadio");
-    radiosTipo.forEach(radio => {
-        radio.addEventListener("change", (e) => {
-            llenarCategorias(e.target.value);
-        });
-    });
-
-    // 3. Checkbox "Es Recurrente"
-    const checkRecurrente = $("checkEsRecurrente");
-    const divFrecuencia = $("divFrecuenciaGasto");
-    if (checkRecurrente) {
-        checkRecurrente.onchange = () => {
-            divFrecuencia.style.display = checkRecurrente.checked ? "block" : "none";
-        };
-    }
-
-    // 4. Botón Guardar Gasto
-    $("btnRegistrarGasto").onclick = () => {
-        const selectCat = $("gastoCategoriaSelect");
-        const inputManual = $("gastoCategoriaManual");
-        const monto = $("gastoCantidad").value;
-        const desc = $("gastoDescripcion").value;
-        const esRecurrente = $("checkEsRecurrente").checked;
-        
-        // Validar categoría final
-        let categoriaFinal = selectCat.value;
-        if (categoriaFinal.includes("Otro") && inputManual.value.trim() !== "") {
-            categoriaFinal = inputManual.value.trim(); // Usar lo que escribió el usuario
-        }
-
-        if (!monto || Number(monto) <= 0) return alert("Ingresa un monto válido.");
-
-        const datosGasto = {
-            id: Date.now(),
-            fecha: new Date().toISOString(),
-            categoria: categoriaFinal,
-            monto: Number(monto),
-            desc: desc,
-            tipo: document.querySelector('input[name="gastoTipoRadio"]:checked').value // 'moto' o 'hogar'
-        };
-
-        if (esRecurrente) {
-            // SI ES RECURRENTE (Luz, Renta, etc.) -> Va a Gastos Fijos y Recalcula Meta
-            datosGasto.frecuencia = $("gastoFrecuenciaSelect").value;
-            // Importante: agregarGastoFijo debe estar exportada en 02_data.js
-            agregarGastoFijo(datosGasto); 
-            alert(`Gasto Fijo "${categoriaFinal}" agregado. Tu Meta Diaria ha subido.`);
-        } else {
-            // SI ES ESPORÁDICO (Talachero, Coca, etc.) -> Gasto simple
-            datosGasto.frecuencia = "No Recurrente";
-            agregarGasto(datosGasto);
-            alert("Gasto registrado.");
-        }
-
-        // Limpiar formulario
-        $("gastoCantidad").value = "";
-        $("gastoDescripcion").value = "";
-        $("gastoCategoriaManual").value = "";
-        inputManual.style.display = "none";
-        checkRecurrente.checked = false;
-        divFrecuencia.style.display = "none";
-        selectCat.selectedIndex = 0;
-        
-        // Actualizar visualización de Meta Diaria por si cambió
-        if(esRecurrente) window.location.reload(); 
+    // 1. Turno
+    $("btnIniciarTurno").onclick = () => { if(iniciarTurnoLogic()) renderTurnoUI(); };
+    if($("btnPreFinalizarTurno")) $("btnPreFinalizarTurno").onclick = () => { $("btnPreFinalizarTurno").style.display = "none"; $("cierreTurnoContainer").style.display = "block"; };
+    if($("btnCancelarCierre")) $("btnCancelarCierre").onclick = () => { $("cierreTurnoContainer").style.display = "none"; $("btnPreFinalizarTurno").style.display = "inline-block"; $("gananciaBruta").value = ""; };
+    if($("btnConfirmarFinalizar")) $("btnConfirmarFinalizar").onclick = () => {
+        const monto = $("gananciaBruta").value;
+        if(monto === "") return alert("Ingresa el monto.");
+        finalizarTurnoLogic(monto); $("gananciaBruta").value = ""; renderTurnoUI(); alert("Turno cerrado.");
     };
 
-    // ... (Listeners de Deudas y Gasolina siguen igual) ...
+    // 2. Odómetro
+    if($("btnActualizarOdometro")) $("btnActualizarOdometro").onclick = () => {
+        if(actualizarOdometroManual($("inputOdometro").value)) { renderOdometroUI(); $("inputOdometro").value = ""; alert("KM actualizado."); }
+    };
+
+    // 3. Gastos Inteligentes (NUEVO)
+    llenarCategorias("moto"); // Iniciar con Moto
+    document.getElementsByName("gastoTipoRadio").forEach(r => {
+        r.addEventListener("change", (e) => llenarCategorias(e.target.value));
+    });
+    const checkRecurrente = $("checkEsRecurrente");
+    if (checkRecurrente) checkRecurrente.onchange = () => { $("divFrecuenciaGasto").style.display = checkRecurrente.checked ? "block" : "none"; };
+
+    $("btnRegistrarGasto").onclick = () => {
+        const select = $("gastoCategoriaSelect"), inputMan = $("gastoCategoriaManual"), monto = $("gastoCantidad").value;
+        let cat = select.value;
+        if(cat.includes("Otro") && inputMan.value.trim()) cat = inputMan.value.trim();
+        
+        if(!monto) return alert("Falta el monto");
+
+        const gasto = { id: Date.now(), fecha: new Date().toISOString(), categoria: cat, monto: Number(monto), desc: $("gastoDescripcion").value, tipo: document.querySelector('input[name="gastoTipoRadio"]:checked').value };
+        
+        if(checkRecurrente.checked) {
+            gasto.frecuencia = $("gastoFrecuenciaSelect").value;
+            agregarGastoFijo(gasto);
+            alert("Gasto Fijo agregado. Meta Diaria actualizada.");
+        } else {
+            gasto.frecuencia = "No Recurrente";
+            agregarGasto(gasto);
+            alert("Gasto guardado.");
+        }
+        $("gastoCantidad").value=""; $("gastoDescripcion").value=""; $("gastoCategoriaManual").value=""; inputMan.style.display="none"; checkRecurrente.checked=false; $("divFrecuenciaGasto").style.display="none"; select.selectedIndex=0;
+        if(checkRecurrente.checked) window.location.reload();
+    };
+
+    // 4. Wizards Deuda y Gasolina (Resumido para brevedad, misma lógica anterior)
+    const setupWizard = (ids, act) => { if($(ids[0])) ids.forEach((id,i) => { if(i<ids.length-1) $(`btn${act}Next${i+1}`).onclick=()=>{ $(ids[i]).style.display='none'; $(ids[i+1]).style.display='block'; }; if(i>0) $(`btn${act}Back${i+1}`).onclick=()=>{ $(ids[i]).style.display='none'; $(ids[i-1]).style.display='block'; }; }); };
+    
+    // Gasolina
+    const gasIds = ["gasWizardPaso1","gasWizardPaso2","gasWizardPaso3"];
+    if($(gasIds[0])) {
+        $("btnGasSiguiente1").onclick=()=>{$(gasIds[0]).style.display='none';$(gasIds[1]).style.display='block'};
+        $("btnGasSiguiente2").onclick=()=>{$(gasIds[1]).style.display='none';$(gasIds[2]).style.display='block'};
+        $("btnGasAtras2").onclick=()=>{$(gasIds[1]).style.display='none';$(gasIds[0]).style.display='block'};
+        $("btnGasAtras3").onclick=()=>{$(gasIds[2]).style.display='none';$(gasIds[1]).style.display='block'};
+        $("btnRegistrarCargaFinal").onclick=()=>{ registrarCargaGasolina($("gasLitros").value, $("gasCosto").value, $("gasKmActual").value); alert("Carga guardada"); window.location.reload(); };
+    }
+    // Deuda
+    const deuIds = ["deudaWizardStep1","deudaWizardStep2","deudaWizardStep3"];
+    if($(deuIds[0])) {
+        $("btnDeudaNext1").onclick=()=>{if(!$("deudaNombre").value)return alert("Nombre?"); $(deuIds[0]).style.display='none';$(deuIds[1]).style.display='block'};
+        $("btnDeudaNext2").onclick=()=>{$(deuIds[1]).style.display='none';$(deuIds[2]).style.display='block'};
+        $("btnDeudaBack2").onclick=()=>{$(deuIds[1]).style.display='none';$(deuIds[0]).style.display='block'};
+        $("btnDeudaBack3").onclick=()=>{$(deuIds[2]).style.display='none';$(deuIds[1]).style.display='block'};
+        $("btnRegistrarDeudaFinal").onclick=()=>{ agregarDeuda({id:Date.now(), desc:$("deudaNombre").value, montoTotal:$("deudaMontoTotal").value, montoCuota:$("deudaMontoCuota").value, frecuencia:$("deudaFrecuencia").value, saldo:parseFloat($("deudaMontoTotal").value)}); alert("Deuda guardada"); window.location.reload(); };
+    }
+    
+    if($("btnRegistrarIngreso")) $("btnRegistrarIngreso").onclick = () => alert("Ingreso registrado (Simulado).");
 };
