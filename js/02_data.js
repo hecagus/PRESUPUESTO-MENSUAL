@@ -5,7 +5,7 @@ const DEFAULT_DATA = {
     ingresos: [], gastos: [], turnos: [], movimientos: [], 
     cargasCombustible: [], deudas: [], gastosFijosMensuales: [],
     parametros: {
-        deudaTotal: 0, gastoFijo: 0, ultimoKM: 0, costoPorKm: 0, // <-- costoPorKm se actualizará aquí
+        deudaTotal: 0, gastoFijo: 0, ultimoKM: 0, costoPorKm: 0,
         mantenimientoBase: { 'Aceite': 3000, 'Bujía': 8000, 'Llantas': 15000 }
     }
 };
@@ -13,33 +13,14 @@ const DEFAULT_DATA = {
 let state = JSON.parse(JSON.stringify(DEFAULT_DATA));
 let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || null;
 
-// --- LÓGICA VEHICULAR: CÁLCULO DE COSTO POR KM (BLINDADO) ---
+// --- CÁLCULO DE COSTO POR KM (Interno) ---
 const calcularCostoPorKm = () => {
     const cargas = state.cargasCombustible;
-    
-    if (cargas.length < 2) {
-        state.parametros.costoPorKm = 0;
-        return 0;
-    }
-
-    // 1. Obtener rango de KM (Copiamos y ordenamos para no alterar el estado original)
-    // El cálculo se hace tomando el costo total del historial entre el KM más bajo y el más alto registrado.
+    if (cargas.length < 2) { state.parametros.costoPorKm = 0; return 0; }
     const cargasOrdenadas = [...cargas].sort((a, b) => safeNumber(a.km) - safeNumber(b.km));
-    
-    const primerKm = safeNumber(cargasOrdenadas[0].km); 
-    const ultimoKm = safeNumber(cargasOrdenadas[cargasOrdenadas.length - 1].km);
-    
-    const kmTotalRecorrido = ultimoKm - primerKm;
-
-    if (kmTotalRecorrido <= 0) {
-        state.parametros.costoPorKm = 0;
-        return 0;
-    }
-    
-    // 2. Sumar Costo Total
+    const kmTotalRecorrido = safeNumber(cargasOrdenadas[cargasOrdenadas.length - 1].km) - safeNumber(cargasOrdenadas[0].km);
+    if (kmTotalRecorrido <= 0) { state.parametros.costoPorKm = 0; return 0; }
     const costoTotal = cargas.reduce((sum, carga) => sum + safeNumber(carga.costo), 0);
-
-    // 3. Calcular y Guardar
     const costoPorKm = costoTotal / kmTotalRecorrido;
     state.parametros.costoPorKm = costoPorKm;
     return costoPorKm;
@@ -48,14 +29,11 @@ const calcularCostoPorKm = () => {
 // --- PERSISTENCIA ---
 export const loadData = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) { 
-        try { state = { ...state, ...JSON.parse(raw) }; } catch (e) { console.error(e); } 
-    }
+    if (raw) { try { state = { ...state, ...JSON.parse(raw) }; } catch (e) { console.error(e); } }
     ['ingresos','gastos','turnos','movimientos','cargasCombustible','deudas','gastosFijosMensuales'].forEach(k => { if (!Array.isArray(state[k])) state[k] = []; });
     state.parametros.ultimoKM = safeNumber(state.parametros.ultimoKM);
-    
     recalcularMetaDiaria();
-    calcularCostoPorKm(); // <-- EJECUCIÓN AL CARGAR (¡Corregido!)
+    calcularCostoPorKm(); 
 };
 
 export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -71,7 +49,7 @@ export const recalcularMetaDiaria = () => {
     return state.parametros.gastoFijo;
 };
 
-// --- TURNOS (sin cambios) ---
+// --- TURNOS ---
 export const iniciarTurnoLogic = () => {
     if (turnoActivo) return false;
     turnoActivo = { inicio: new Date().toISOString() };
@@ -89,30 +67,20 @@ export const finalizarTurnoLogic = (ganancia) => {
 };
 
 // --- VEHÍCULO Y ODÓMETRO ---
-export const actualizarOdometroManual = (kmInput) => {
+export const actualizarOdometroManual = (kmInput) => { // <-- EXPORTACIÓN PRESENTE
     const nk = safeNumber(kmInput);
-    if (state.parametros.ultimoKM > 0 && nk < state.parametros.ultimoKM) { 
-        alert(`Error: El nuevo KM (${nk}) no puede ser menor al actual (${state.parametros.ultimoKM}).`); 
-        return false; 
-    }
-    state.parametros.ultimoKM = nk; 
-    saveData(); 
-    return true;
+    if (state.parametros.ultimoKM > 0 && nk < state.parametros.ultimoKM) { alert(`Error: El nuevo KM (${nk}) no puede ser menor al actual (${state.parametros.ultimoKM}).`); return false; }
+    state.parametros.ultimoKM = nk; saveData(); return true;
 };
 
 export const registrarCargaGasolina = (l, c, km) => {
     actualizarOdometroManual(km);
-    state.cargasCombustible.push({ 
-        fecha: new Date().toISOString(), 
-        litros: safeNumber(l), 
-        costo: safeNumber(c), 
-        km: safeNumber(km) 
-    });
-    calcularCostoPorKm(); // <-- EJECUCIÓN DESPUÉS DE LA CARGA (¡Corregido!)
+    state.cargasCombustible.push({ fecha: new Date().toISOString(), litros: safeNumber(l), costo: safeNumber(c), km: safeNumber(km) });
+    calcularCostoPorKm();
     saveData();
 };
 
-// --- DEUDAS y GASTOS (sin cambios) ---
+// --- DEUDAS y GASTOS ---
 export const agregarDeuda = (d) => { state.deudas.push(d); recalcularMetaDiaria(); saveData(); };
 export const agregarGasto = (g) => { 
     state.gastos.push(g); 
