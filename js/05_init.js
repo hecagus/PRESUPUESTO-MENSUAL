@@ -1,27 +1,32 @@
+// 05_init.js
 import { loadData } from './02_data.js';
 import { renderTurnoUI, setupAdminListeners, renderDashboard, renderMetaDiaria } from './03_render.js';
 import { initCharts } from './04_charts.js';
 
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. Cargar Datos
+    // 1. Cargar Datos Globales
     loadData();
 
-    // 2. Detectar Página
+    // 2. Detectar Página actual
     const page = document.body.getAttribute('data-page');
+    console.log(`[Init] Página detectada: ${page}`);
 
-    console.log("Iniciando módulo para página:", page);
-
-    // 3. Router
+    // 3. Router de Funcionalidad
     if (page === 'admin') {
-        renderTurnoUI();      // UI de estado del turno
-        renderMetaDiaria();   // UI de tu meta calculada
-        setupAdminListeners();// Botones y Wizards
+        // Lógica exclusiva de Admin
+        renderTurnoUI();      // Estado del botón iniciar/fin
+        renderMetaDiaria();   // Tu cálculo favorito
+        setupAdminListeners();// Wizards y eventos
     } 
     else if (page === 'index') {
-        renderDashboard();    // Resumen y KPIs
+        // Lógica exclusiva de Dashboard
+        renderDashboard();    // KPIs
         initCharts();         // Gráficas
     }
     else if (page === 'historial') {
-        // renderHistorial(); // Futura implementación
+        // Lógica de historial (placeholder)
     }
+
+    // 4. Tutorial (Opcional, si decides reactivarlo)
+    // checkTutorial(); 
 });
