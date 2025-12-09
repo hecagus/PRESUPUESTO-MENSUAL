@@ -1,29 +1,42 @@
 // 05_init.js
 import { loadData } from './02_data.js';
-// Importamos la nueva función
-import { renderTurnoUI, renderOdometroUI, setupAdminListeners, renderDashboard, renderMetaDiaria, renderHistorial, renderMantenimientoUI } from './03_render.js';
+import {
+    renderTurnoUI,
+    renderOdometroUI,
+    renderMetaDiaria,
+    renderMantenimientoUI,
+    renderDashboard,
+    renderHistorial,
+    setupAdminListeners
+} from './03_render.js';
 import { initCharts } from './04_charts.js';
 
 document.addEventListener("DOMContentLoaded", () => {
     loadData();
-    const page = document.body.getAttribute('data-page');
 
-    if (page === 'admin') {
-        renderTurnoUI();      
-        renderOdometroUI();   
-        renderMetaDiaria();
-        
-        // ¡AQUÍ ESTÁ LA MAGIA!
-        // Ahora renderizamos mantenimiento de forma segura
-        renderMantenimientoUI();
-           
-        setupAdminListeners();
-    } 
-    else if (page === 'index') {
-        renderDashboard(); 
-        initCharts();         
-    }
-    else if (page === 'historial') {
-        renderHistorial(); 
+    const page = document.body.dataset.page;
+
+    switch (page) {
+
+        case 'admin':
+            renderTurnoUI?.();
+            renderOdometroUI?.();
+            renderMetaDiaria?.();
+            renderMantenimientoUI?.();
+            setupAdminListeners?.();
+            break;
+
+        case 'index':
+            renderDashboard?.();
+            initCharts?.();
+            break;
+
+        case 'historial':
+            renderHistorial?.();
+            break;
+
+        default:
+            console.warn("Página sin inicializador.");
+            break;
     }
 });
