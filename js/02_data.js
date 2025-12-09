@@ -52,10 +52,9 @@ export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(s
 export const getState = () => state;
 export const getTurnoActivo = () => turnoActivo;
 
-// --- LÓGICA CRÍTICA: RESPALDO (EXPORTABLES) ---
+// --- LÓGICA CRÍTICA: RESPALDO ---
 
 export const exportarJsonLogic = () => {
-    // Exporta el estado completo
     return JSON.stringify(state);
 };
 
@@ -66,7 +65,7 @@ export const importarJsonLogic = (jsonString) => {
             console.error("Estructura JSON no válida.");
             return false;
         }
-        setState(newData); // Sobrescribe estado y recalcula
+        setState(newData); 
         return true;
     } catch (e) {
         console.error("Error al parsear JSON:", e);
@@ -147,4 +146,3 @@ export const agregarGastoFijo = (gf) => {
     state.movimientos.push({ tipo: 'gasto', fecha: gf.fecha, desc: `Alta Fijo: ${gf.categoria}`, monto: gf.monto });
     recalcularMetaDiaria();
 };
-                            
