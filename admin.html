@@ -125,6 +125,13 @@
         <div class="projection"><label>Costo/KM:</label><span id="costoPorKmDisplay">$0.00</span></div>
     </div>
     
+    <div style="background:#fefce8; padding:15px; border-radius:8px; margin-bottom:15px; border: 1px solid #fde047;">
+        <h4 style="margin-top:0; color:#b45309;">Gasto Operativo Acumulado</h4>
+        <p class="nota">Desde KM <span id="kmInicialAcumulado">0</span> hasta el KM actual (<span id="kmActualOperativo">0</span>):</p>
+        <h1 id="gastoAcumuladoDisplay" style="margin:5px 0; color:#d97706; font-size:1.8rem;">$0.00</h1>
+        <p class="nota" style="font-size:0.8rem; margin-top: 0;">Fórmula: (<span id="kmRecorridoDisplay">0</span> KM) x Costo/KM</p>
+    </div>
+
     <div id="gasWizardPaso1">
         <label>1. Litros:</label>
         <input type="number" id="gasLitros" placeholder="0.00" />
@@ -149,13 +156,22 @@
   </section>
 
   <section class="card">
-    <h2>🔧 Mantenimiento</h2>
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-        <div><label>Aceite (KM):</label><input type="number" id="mantenimientoAceite" /></div>
-        <div><label>Bujía (KM):</label><input type="number" id="mantenimientoBujia" /></div>
-        <div style="grid-column: span 2;"><label>Llantas (KM):</label><input type="number" id="mantenimientoLlantas" /></div>
-    </div>
-    <button id="btnGuardarMantenimiento" class="btn-secondary" type="button" style="width:100%;">Guardar Config</button>
+    <h2>🔧 Mantenimiento (Umbrales)</h2>
+    <p class="nota">Configura cada cuántos kilómetros se debe realizar el servicio. El sistema te alertará en el Dashboard.</p>
+    
+    <label>Aceite (Cambio cada X KM):</label>
+    <input type="number" id="mantenimientoAceite" placeholder="Ej. 3000" />
+    <label>Bujía (Cambio cada X KM):</label>
+    <input type="number" id="mantenimientoBujia" placeholder="Ej. 8000" />
+    <label>Llantas (Cambio cada X KM):</label>
+    <input type="number" id="mantenimientoLlantas" placeholder="Ej. 15000" />
+    
+    <button id="btnGuardarMantenimiento" class="btn-secondary" type="button" style="width:100%; margin-top:10px;">Guardar Config</button>
+    
+    <hr style="margin: 15px 0;">
+    <p class="nota">Último KM registrado: <strong id="maintLastKm">0</strong></p>
+    <ul id="listaAlertasMantenimiento" class="alert-list">
+        </ul>
   </section>
 
   <section class="card">
