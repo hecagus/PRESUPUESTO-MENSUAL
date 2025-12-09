@@ -27,7 +27,7 @@
 
     <div id="cierreTurnoContainer" style="display:none; margin-top:15px; padding:15px; background:#fff5f5; border:1px solid #fca5a5; border-radius:8px;">
         <label style="color:#dc2626; font-weight:bold;">💰 Cierre de Caja (Dinero):</label>
-        <p class="nota">Ingresa tu ganancia total del día (Apps + Propinas).</p>
+        <p class="nota">Ingresa tu ganancia total del día.</p>
         <input type="number" id="gananciaBruta" placeholder="$ 0.00" />
         
         <div style="display:flex; gap:10px; margin-top:10px;">
@@ -82,7 +82,7 @@
 
     <label>Categoría:</label>
     <select id="gastoCategoriaSelect" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ccc; border-radius:5px; background:white;">
-        </select>
+    </select>
     
     <input type="text" id="gastoCategoriaManual" placeholder="✍️ Escribe el nombre del nuevo gasto..." style="display:none; margin-bottom:10px; border:2px solid #2563eb; background:#eff6ff;" />
 
@@ -102,12 +102,11 @@
             <input type="checkbox" id="checkEsRecurrente" style="transform:scale(1.5);">
             ¿Es un Gasto Fijo / Recurrente?
         </label>
-        <p class="nota" style="margin-left:28px; margin-bottom:10px;">(Ej. Renta, Luz, Suscripciones). Si lo marcas, se sumará a tu Meta Diaria.</p>
+        <p class="nota" style="margin-left:28px; margin-bottom:10px;">(Ej. Renta, Luz, Suscripciones).</p>
 
         <div id="divFrecuenciaGasto" style="display:none; margin-left:28px; border-top:1px solid #eee; padding-top:10px;">
             <label style="color:#2563eb; font-weight:bold;">📅 ¿Cada cuándo se paga?</label>
             <select id="gastoFrecuenciaSelect" style="width:100%; padding:8px;">
-                <option value="Diario">Diario (Todos los días)</option>
                 <option value="Semanal">Semanal</option>
                 <option value="Quincenal">Quincenal</option>
                 <option value="Mensual" selected>Mensual</option>
@@ -161,11 +160,13 @@
 
   <section class="card">
     <h2>📉 Deudas y Metas</h2>
+    
     <div id="deudaWizardStep1">
       <label>1. Nombre de la Deuda:</label>
       <input type="text" id="deudaNombre" placeholder="Ej. Moto" />
       <button id="btnDeudaNext1" class="btn-primary" type="button" style="width:100%; margin-top:10px;">Siguiente ➡</button>
     </div>
+
     <div id="deudaWizardStep2" style="display:none;">
       <label>2. Total a Pagar ($):</label>
       <input type="number" id="deudaMontoTotal" placeholder="15000" />
@@ -176,6 +177,7 @@
           <button id="btnDeudaNext2" class="btn-primary" type="button" style="flex:1;">Siguiente ➡</button>
       </div>
     </div>
+
     <div id="deudaWizardStep3" style="display:none;">
       <label>4. Frecuencia:</label>
       <select id="deudaFrecuencia">
@@ -188,6 +190,7 @@
           <button id="btnRegistrarDeudaFinal" class="btn-success" type="button" style="flex:1;">Registrar</button>
       </div>
     </div>
+
     <hr style="margin:20px 0;" />
     
     <div style="background:#ecfdf5; padding:15px; border-radius:8px; border:1px solid #6ee7b7; text-align:center;">
@@ -195,22 +198,23 @@
         <h1 id="metaDiariaDisplay" style="color:#059669; font-size:2rem; margin:10px 0;">$0.00</h1>
         <p class="nota">Calculado: (Gastos Fijos Diarios) + (Aporte Diaria a Deudas)</p>
     </div>
+
   </section>
 
   <section class="card">
     <h2>💾 Respaldo y Datos</h2>
     <p class="nota">Guarda una copia de tus datos o impórtalos en otro dispositivo.</p>
     
-    <div style="display:flex; gap:10px; margin-bottom:15px;">
-        <button id="btnExportarJSON" class="btn-secondary" type="button" style="flex:1;">📋 Copiar JSON</button>
-        <button id="btnExportarExcel" class="btn-success" type="button" style="flex:1;">📊 Bajar Excel</button>
+    <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button id="btnExportarJson" class="btn-secondary" type="button" style="flex: 1;">📋 Copiar JSON</button>
+        <button id="btnBajarExcel" class="btn-secondary" type="button" style="flex: 1;">📊 Bajar Excel</button>
     </div>
 
-    <hr style="margin:10px 0; border:0; border-top:1px dashed #ccc;" />
-
-    <label>Restaurar datos (Pegar JSON):</label>
-    <textarea id="importJsonArea" rows="2" placeholder='Pega aquí el código JSON...' style="width:100%; border:1px solid #ccc; border-radius:5px; padding:5px;"></textarea>
-    <button id="btnImportarJSON" class="btn-danger" type="button" style="width:100%; margin-top:10px;">⚠️ Restaurar Datos</button>
+    <div style="margin-top:15px;">
+      <label>Restaurar datos (Pegar JSON):</label>
+      <textarea id="importJson" rows="3" placeholder="Pegar el JSON aquí..." style="margin-bottom: 5px;"></textarea>
+      <button id="btnRestaurarDatos" class="btn-danger" type="button" style="width: 100%;">⚠️ Restaurar Datos</button>
+    </div>
   </section>
 
 </main>
