@@ -29,8 +29,7 @@ const calcularCostoPorKm = () => {
 
 // --- SETTER DE ESTADO ---
 const setState = (newData) => {
-    state = { ...DEFAULT_DATA, ...newData }; // Aseguramos que se inicie con la estructura default
-    // Recalcular métricas después de sobreescribir el estado
+    state = { ...DEFAULT_DATA, ...newData };
     recalcularMetaDiaria();
     calcularCostoPorKm();
     saveData();
@@ -42,9 +41,8 @@ export const loadData = () => {
     if (raw) { 
         try { setState(JSON.parse(raw)); } catch (e) { console.error("Error al cargar JSON", e); } 
     } else {
-        // Inicializar arrays si no hay datos
         ['ingresos','gastos','turnos','movimientos','cargasCombustible','deudas','gastosFijosMensuales'].forEach(k => { if (!Array.isArray(state[k])) state[k] = []; });
-        recalcularMetaDiaria(); // Calcular la primera meta
+        recalcularMetaDiaria(); 
         calcularCostoPorKm(); 
     }
     state.parametros.ultimoKM = safeNumber(state.parametros.ultimoKM);
@@ -57,6 +55,7 @@ export const getTurnoActivo = () => turnoActivo;
 // --- LÓGICA CRÍTICA: RESPALDO (EXPORTABLES) ---
 
 export const exportarJsonLogic = () => {
+    // Exporta el estado completo
     return JSON.stringify(state);
 };
 
@@ -67,7 +66,7 @@ export const importarJsonLogic = (jsonString) => {
             console.error("Estructura JSON no válida.");
             return false;
         }
-        setState(newData); // Sobrescribir estado
+        setState(newData); // Sobrescribe estado y recalcula
         return true;
     } catch (e) {
         console.error("Error al parsear JSON:", e);
@@ -75,7 +74,7 @@ export const importarJsonLogic = (jsonString) => {
     }
 };
 
-// --- FUNCIONES DE MANTENIMIENTO ---
+// --- FUNCIONES DE MANTENIMIENTO Y CÁLCULO ---
 export const calcularGastoOperativoAcumulado = () => {
     const cargas = state.cargasCombustible;
     const ultimoKM = state.parametros.ultimoKM;
@@ -148,3 +147,4 @@ export const agregarGastoFijo = (gf) => {
     state.movimientos.push({ tipo: 'gasto', fecha: gf.fecha, desc: `Alta Fijo: ${gf.categoria}`, monto: gf.monto });
     recalcularMetaDiaria();
 };
+                            
