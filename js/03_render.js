@@ -1,14 +1,7 @@
-// 03_render.js
 import { $, fmtMoney, CATEGORIAS_GASTOS, formatearFecha, safeNumber } from './01_consts_utils.js';
 import { getState, getTurnoActivo, iniciarTurnoLogic, finalizarTurnoLogic, recalcularMetaDiaria, registrarCargaGasolina, actualizarOdometroManual, agregarDeuda, agregarGasto, agregarGastoFijo, guardarConfigMantenimiento } from './02_data.js';
 
-// --- UTILIDAD: CONECTOR SEGURO DE EVENTOS ---
-const safeClick = (id, fn) => {
-    const el = $(id);
-    if (el) el.onclick = fn;
-};
-
-// --- HELPERS ---
+// --- HELPERS VISUALES ---
 const llenarCategorias = (tipo) => {
     const select = $("gastoCategoriaSelect");
     const inputManual = $("gastoCategoriaManual");
@@ -35,13 +28,11 @@ const llenarCategorias = (tipo) => {
     };
 };
 
-/* ==========================================================================
-   RENDERIZADO UI (VISUALIZACIÓN)
-   ========================================================================== */
+// --- RENDERIZADO UI ---
 
 export const renderTurnoUI = () => {
     const lbl = $("turnoTexto");
-    if (!lbl) return; // Si no hay label, no estamos en la sección correcta
+    if (!lbl) return; 
 
     const activo = getTurnoActivo();
     const btnIn = $("btnIniciarTurno");
@@ -66,7 +57,6 @@ export const renderTurnoUI = () => {
 export const renderOdometroUI = () => {
     const lblKm = $("lblKmAnterior");
     if (!lblKm) return;
-
     const state = getState();
     lblKm.innerText = `${state.parametros.ultimoKM} km`;
     
@@ -87,7 +77,8 @@ export const renderMetaDiaria = () => {
 
 export const renderMantenimientoUI = () => {
     const state = getState();
-    const config = state.parametros?.mantenimientoBase || {}; 
+    const config = state.parametros && state.parametros.mantenimientoBase ? state.parametros.mantenimientoBase : {};
+    
     const setVal = (id, key) => { const el = $(id); if (el) el.value = config[key] || 0; };
     setVal("mantenimientoAceite", "Aceite");
     setVal("mantenimientoBujia", "Bujía");
@@ -96,7 +87,6 @@ export const renderMantenimientoUI = () => {
 
 export const renderDashboard = () => {
     const state = getState();
-    // Helper local que no rompe si el ID no existe
     const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };
 
     const hoyStr = new Date().toLocaleDateString();
@@ -116,7 +106,7 @@ export const renderDashboard = () => {
 export const renderHistorial = () => {
     const tbody = $("historialBody");
     const resumenDiv = $("historialResumen");
-    if (!tbody || !resumenDiv) return; // Protección estricta
+    if (!tbody || !resumenDiv) return;
 
     const state = getState();
     tbody.innerHTML = "";
@@ -133,112 +123,146 @@ export const renderHistorial = () => {
     resumenDiv.innerHTML = `<p>Ing: <b style="color:#059669">$${fmtMoney(ing)}</b> | Gas: <b style="color:#dc2626">$${fmtMoney(gas)}</b> | Neto: <b>$${fmtMoney(ing-gas)}</b></p>`;
 };
 
-
-/* ==========================================================================
-   LISTENERS (CONTROLADORES)
-   ========================================================================== */
+// --- LISTENERS (CONTROLADORES) ---
 
 export const setupAdminListeners = () => {
-    // PROTECCIÓN SUPREMA: Si no estamos en la página admin, abortamos inmediatamente.
-    if (document.body.getAttribute('data-page') !== 'admin') return;
+    // Si no encuentra el botón de turno, asumimos que no es admin y salimos
+    const btnIniciar = $("btnIniciarTurno");
+    if (!btnIniciar) return; 
 
-    console.log("Configurando Listeners de Admin...");
+    console.log("Activando botones de Admin...");
 
-    // --- TURNO ---
-    safeClick("btnIniciarTurno", () => { if(iniciarTurnoLogic()) renderTurnoUI(); });
-    
-    safeClick("btnPreFinalizarTurno", () => { 
-        const btn = $("btnPreFinalizarTurno"); if(btn) btn.style.display="none"; 
-        const cont = $("cierreTurnoContainer"); if(cont) cont.style.display="block"; 
-    });
-    
-    safeClick("btnCancelarCierre", () => { 
-        const cont = $("cierreTurnoContainer"); if(cont) cont.style.display="none"; 
-        const btn = $("btnPreFinalizarTurno"); if(btn) btn.style.display="inline-block"; 
-    });
-    
-    safeClick("btnConfirmarFinalizar", () => {
+    // 1. TURNO
+    btnIniciar.onclick = () => { 
+        if(iniciarTurnoLogic()) renderTurnoUI(); 
+    };
+
+    const btnPre = $("btnPreFinalizarTurno");
+    if(btnPre) btnPre.onclick = () => { 
+        btnPre.style.display="none"; 
+        $("cierreTurnoContainer").style.display="block"; 
+    };
+
+    const btnCancel = $("btnCancelarCierre");
+    if(btnCancel) btnCancel.onclick = () => { 
+        $("cierreTurnoContainer").style.display="none"; 
+        btnPre.style.display="inline-block"; 
+        $("gananciaBruta").value=""; 
+    };
+
+    const btnFin = $("btnConfirmarFinalizar");
+    if(btnFin) btnFin.onclick = () => {
         const m = $("gananciaBruta").value;
-        if(m==="") return alert("Monto?");
+        if(m === "") return alert("Ingresa el monto.");
         finalizarTurnoLogic(m); 
         $("gananciaBruta").value=""; 
         renderTurnoUI(); 
-        alert("Cerrado.");
-    });
+        alert("Turno cerrado.");
+    };
 
-    // --- ODÓMETRO ---
-    safeClick("btnActualizarOdometro", () => {
+    // 2. ODÓMETRO
+    const btnOdo = $("btnActualizarOdometro");
+    if(btnOdo) btnOdo.onclick = () => {
         if(actualizarOdometroManual($("inputOdometro").value)) { 
             renderOdometroUI(); 
             $("inputOdometro").value=""; 
             alert("KM actualizado."); 
         }
-    });
+    };
 
-    // --- GASTOS ---
-    if($("gastoTipoRadio")) {
+    // 3. GASTOS
+    const radioGroup = document.getElementsByName("gastoTipoRadio");
+    if(radioGroup.length > 0) {
         llenarCategorias("moto");
-        document.getElementsByName("gastoTipoRadio").forEach(r => r.addEventListener("change", (e)=>llenarCategorias(e.target.value)));
+        radioGroup.forEach(r => r.addEventListener("change", (e)=>llenarCategorias(e.target.value)));
     }
-
-    const chkRec = $("checkEsRecurrente");
-    if(chkRec) chkRec.onchange = () => { $("divFrecuenciaGasto").style.display = chkRec.checked ? "block" : "none"; };
     
-    safeClick("btnRegistrarGasto", () => {
+    const chkRec = $("checkEsRecurrente");
+    if(chkRec) chkRec.onchange = () => { 
+        $("divFrecuenciaGasto").style.display = chkRec.checked ? "block" : "none"; 
+    };
+
+    const btnGasto = $("btnRegistrarGasto");
+    if(btnGasto) btnGasto.onclick = () => {
         const sel=$("gastoCategoriaSelect"), inpMan=$("gastoCategoriaManual"), m=$("gastoCantidad").value;
         let cat = sel.value;
         if(cat.includes("Otro") && inpMan.value.trim()) cat = inpMan.value.trim();
-        if(!m) return alert("Monto?");
         
+        if(!m) return alert("Falta el monto");
+
         const g = { id:Date.now(), fecha:new Date().toISOString(), categoria:cat, monto:Number(m), desc:$("gastoDescripcion").value, tipo:document.querySelector('input[name="gastoTipoRadio"]:checked').value };
         
         if(chkRec && chkRec.checked) { 
             g.frecuencia = $("gastoFrecuenciaSelect").value; 
             agregarGastoFijo(g); 
-            alert("Fijo agregado."); 
+            alert("Gasto Fijo agregado."); 
         } else { 
-            g.frecuencia="No Recurrente"; 
+            g.frecuencia = "No Recurrente"; 
             agregarGasto(g); 
             alert("Gasto guardado."); 
         }
         
         $("gastoCantidad").value=""; $("gastoDescripcion").value=""; inpMan.value=""; inpMan.style.display="none"; 
-        if(chkRec) { chkRec.checked=false; window.location.reload(); }
-    });
+        if(chkRec) { chkRec.checked=false; $("divFrecuenciaGasto").style.display="none"; window.location.reload(); }
+    };
 
-    // --- WIZARD GASOLINA ---
-    safeClick("btnGasSiguiente1", () => { $("gasWizardPaso1").style.display='none'; $("gasWizardPaso2").style.display='block'; });
-    safeClick("btnGasSiguiente2", () => { $("gasWizardPaso2").style.display='none'; $("gasWizardPaso3").style.display='block'; });
-    safeClick("btnGasAtras2", () => { $("gasWizardPaso2").style.display='none'; $("gasWizardPaso1").style.display='block'; });
-    safeClick("btnGasAtras3", () => { $("gasWizardPaso3").style.display='none'; $("gasWizardPaso2").style.display='block'; });
-    safeClick("btnRegistrarCargaFinal", () => {
+    // 4. GASOLINA (Directo por ID)
+    const btnGasNext1 = $("btnGasSiguiente1");
+    if(btnGasNext1) btnGasNext1.onclick = () => { $("gasWizardPaso1").style.display='none'; $("gasWizardPaso2").style.display='block'; };
+    
+    const btnGasNext2 = $("btnGasSiguiente2");
+    if(btnGasNext2) btnGasNext2.onclick = () => { $("gasWizardPaso2").style.display='none'; $("gasWizardPaso3").style.display='block'; };
+    
+    const btnGasBack2 = $("btnGasAtras2");
+    if(btnGasBack2) btnGasBack2.onclick = () => { $("gasWizardPaso2").style.display='none'; $("gasWizardPaso1").style.display='block'; };
+    
+    const btnGasBack3 = $("btnGasAtras3");
+    if(btnGasBack3) btnGasBack3.onclick = () => { $("gasWizardPaso3").style.display='none'; $("gasWizardPaso2").style.display='block'; };
+    
+    const btnGasFin = $("btnRegistrarCargaFinal");
+    if(btnGasFin) btnGasFin.onclick = () => {
         registrarCargaGasolina($("gasLitros").value, $("gasCosto").value, $("gasKmActual").value);
         alert("Carga guardada"); window.location.reload();
-    });
+    };
 
-    // --- WIZARD DEUDA ---
-    safeClick("btnDeudaNext1", () => { if(!$("deudaNombre").value)return alert("Nombre?"); $("deudaWizardStep1").style.display='none'; $("deudaWizardStep2").style.display='block'; });
-    safeClick("btnDeudaNext2", () => { $("deudaWizardStep2").style.display='none'; $("deudaWizardStep3").style.display='block'; });
-    safeClick("btnDeudaBack2", () => { $("deudaWizardStep2").style.display='none'; $("deudaWizardStep1").style.display='block'; });
-    safeClick("btnDeudaBack3", () => { $("deudaWizardStep3").style.display='none'; $("deudaWizardStep2").style.display='block'; });
-    safeClick("btnRegistrarDeudaFinal", () => {
+    // 5. DEUDA
+    const btnDeudaNext1 = $("btnDeudaNext1");
+    if(btnDeudaNext1) btnDeudaNext1.onclick = () => { if(!$("deudaNombre").value)return alert("Nombre?"); $("deudaWizardStep1").style.display='none'; $("deudaWizardStep2").style.display='block'; };
+    
+    const btnDeudaNext2 = $("btnDeudaNext2");
+    if(btnDeudaNext2) btnDeudaNext2.onclick = () => { $("deudaWizardStep2").style.display='none'; $("deudaWizardStep3").style.display='block'; };
+    
+    const btnDeudaBack2 = $("btnDeudaBack2");
+    if(btnDeudaBack2) btnDeudaBack2.onclick = () => { $("deudaWizardStep2").style.display='none'; $("deudaWizardStep1").style.display='block'; };
+    
+    const btnDeudaBack3 = $("btnDeudaBack3");
+    if(btnDeudaBack3) btnDeudaBack3.onclick = () => { $("deudaWizardStep3").style.display='none'; $("deudaWizardStep2").style.display='block'; };
+    
+    const btnDeudaFin = $("btnRegistrarDeudaFinal");
+    if(btnDeudaFin) btnDeudaFin.onclick = () => {
         agregarDeuda({id:Date.now(), desc:$("deudaNombre").value, montoTotal:$("deudaMontoTotal").value, montoCuota:$("deudaMontoCuota").value, frecuencia:$("deudaFrecuencia").value, saldo:parseFloat($("deudaMontoTotal").value)});
         alert("Deuda guardada"); window.location.reload();
-    });
+    };
 
-    // --- OTROS ---
-    safeClick("btnRegistrarIngreso", () => alert("Ingreso registrado (Simulado)."));
-    safeClick("btnGuardarMantenimiento", () => {
+    // 6. MANTENIMIENTO
+    const btnMant = $("btnGuardarMantenimiento");
+    if(btnMant) btnMant.onclick = () => {
         guardarConfigMantenimiento($("mantenimientoAceite").value, $("mantenimientoBujia").value, $("mantenimientoLlantas").value);
         alert("Mantenimiento guardado.");
-    });
+    };
+
+    // 7. DATOS
+    const btnExp = $("btnExportar");
+    if(btnExp) btnExp.onclick = () => { navigator.clipboard.writeText(JSON.stringify(getState())).then(()=>alert("Copiado")); };
     
-    // --- DATOS ---
-    safeClick("btnExportar", () => { navigator.clipboard.writeText(JSON.stringify(getState())).then(()=>alert("Copiado")); });
-    safeClick("btnImportar", () => {
+    const btnImp = $("btnImportar");
+    if(btnImp) btnImp.onclick = () => {
         const json = $("importJson").value;
         if(!json) return;
         localStorage.setItem("panelData", json);
         alert("Restaurado."); window.location.reload();
-    });
+    };
+    
+    const btnIng = $("btnRegistrarIngreso");
+    if(btnIng) btnIng.onclick = () => alert("Ingreso registrado (Simulado).");
 };
