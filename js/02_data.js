@@ -34,8 +34,9 @@ export const loadData = () => {
     }
 
     // Arrays obligatorios
-    ['ingresos', 'gastos', 'turnos', 'movimientos',
-     'cargasCombustible', 'deudas', 'gastosFijosMensuales'
+    [
+        'ingresos', 'gastos', 'turnos', 'movimientos',
+        'cargasCombustible', 'deudas', 'gastosFijosMensuales'
     ].forEach(k => {
         if (!Array.isArray(state[k])) state[k] = [];
     });
@@ -102,11 +103,11 @@ const calcularCostoPorKm = () => {
         (a, b) => safeNumber(a.km) - safeNumber(b.km)
     );
 
-    const kmTotalRecorrido =
+    const kmRecorrido =
         safeNumber(cargasOrdenadas[cargasOrdenadas.length - 1].km) -
         safeNumber(cargasOrdenadas[0].km);
 
-    if (kmTotalRecorrido <= 0) {
+    if (kmRecorrido <= 0) {
         state.parametros.costoPorKm = 0;
         return 0;
     }
@@ -115,7 +116,7 @@ const calcularCostoPorKm = () => {
         (sum, c) => sum + safeNumber(c.costo), 0
     );
 
-    const costoPorKm = costoTotal / kmTotalRecorrido;
+    const costoPorKm = costoTotal / kmRecorrido;
     state.parametros.costoPorKm = costoPorKm;
 
     return costoPorKm;
@@ -153,7 +154,7 @@ export const finalizarTurnoLogic = (ganancia) => {
     if (t.ganancia > 0) {
         state.movimientos.push({
             tipo: 'ingreso',
-            fecha: fin.toISOString(),
+            fecha: t.fecha,
             desc: 'Cierre Turno',
             monto: t.ganancia
         });
