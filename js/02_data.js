@@ -1,6 +1,8 @@
 import { STORAGE_KEY, DIAS_POR_FRECUENCIA, safeNumber } from './01_consts_utils.js';
 
-// --- ESTADO INICIAL ---
+/* ==========================================================================
+   ESTADO GLOBAL Y DATOS POR DEFECTO
+   ========================================================================== */
 const DEFAULT_DATA = {
     ingresos: [], gastos: [], turnos: [], movimientos: [], 
     cargasCombustible: [], deudas: [], gastosFijosMensuales: [],
@@ -13,14 +15,16 @@ const DEFAULT_DATA = {
 let state = JSON.parse(JSON.stringify(DEFAULT_DATA));
 let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || null;
 
-// --- FUNCIÓN INTERNA: CÁLCULO DE COSTO POR KM ---
+/* ==========================================================================
+   LÓGICA INTERNA (PRIVATE HELPER)
+   ========================================================================== */
 const calcularCostoPorKm = () => {
     const cargas = state.cargasCombustible;
     if (cargas.length < 2) {
         state.parametros.costoPorKm = 0;
         return 0;
     }
-    // Ordenar por KM para asegurar consistencia
+    // Ordenar historial por KM
     const cargasOrdenadas = [...cargas].sort((a, b) => safeNumber(a.km) - safeNumber(b.km));
     
     const primerKm = safeNumber(cargasOrdenadas[0].km);
@@ -39,27 +43,29 @@ const calcularCostoPorKm = () => {
     return costo;
 };
 
-// --- PERSISTENCIA Y CARGA ---
+/* ==========================================================================
+   PERSISTENCIA (CARGA Y GUARDADO)
+   ========================================================================== */
 export const loadData = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) { 
         try { state = { ...state, ...JSON.parse(raw) }; } catch (e) { console.error(e); } 
     }
     
-    // Asegurar arrays y objetos
+    // Asegurar integridad de Arrays
     ['ingresos','gastos','turnos','movimientos','cargasCombustible','deudas','gastosFijosMensuales'].forEach(k => { 
         if (!Array.isArray(state[k])) state[k] = []; 
     });
     
+    // Asegurar Parámetros
     if (!state.parametros) state.parametros = DEFAULT_DATA.parametros;
-    // Migración de mantenimiento si no existe
     if (!state.parametros.mantenimientoBase) {
         state.parametros.mantenimientoBase = DEFAULT_DATA.parametros.mantenimientoBase;
     }
 
     state.parametros.ultimoKM = safeNumber(state.parametros.ultimoKM);
     
-    // Recálculos al inicio
+    // Recálculos iniciales
     recalcularMetaDiaria();
     calcularCostoPorKm();
 };
@@ -68,8 +74,11 @@ export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(s
 export const getState = () => state;
 export const getTurnoActivo = () => turnoActivo;
 
-// --- LÓGICA DE NEGOCIO ---
+/* ==========================================================================
+   LÓGICA DE NEGOCIO (EXPORTADA)
+   ========================================================================== */
 
+// --- METAS Y FINANZAS ---
 export const recalcularMetaDiaria = () => {
     const fijos = state.gastosFijosMensuales.reduce((acc, i) => acc + (safeNumber(i.monto) / (DIAS_POR_FRECUENCIA[i.frecuencia]||30)), 0);
     const deudas = state.deudas.reduce((acc, d) => (d.saldo > 0 ? acc + (safeNumber(d.montoCuota) / (DIAS_POR_FRECUENCIA[d.frecuencia]||30)) : acc), 0);
@@ -78,6 +87,7 @@ export const recalcularMetaDiaria = () => {
     return state.parametros.gastoFijo;
 };
 
+// --- TURNOS ---
 export const iniciarTurnoLogic = () => {
     if (turnoActivo) return false;
     turnoActivo = { inicio: new Date().toISOString() };
@@ -104,10 +114,11 @@ export const finalizarTurnoLogic = (ganancia) => {
     saveData();
 };
 
+// --- VEHÍCULO ---
 export const actualizarOdometroManual = (kmInput) => {
     const nk = safeNumber(kmInput);
     if (state.parametros.ultimoKM > 0 && nk < state.parametros.ultimoKM) { 
-        alert("Error: El KM no puede ser menor al actual."); 
+        alert("Error: El KM no puede bajar."); 
         return false; 
     }
     state.parametros.ultimoKM = nk; 
@@ -136,7 +147,7 @@ export const guardarConfigMantenimiento = (aceite, bujia, llantas) => {
     saveData();
 };
 
-// --- CRUD ---
+// --- CRUD GENÉRICO ---
 export const agregarDeuda = (d) => { 
     state.deudas.push(d); 
     recalcularMetaDiaria(); 
@@ -154,6 +165,7 @@ export const agregarGasto = (g) => {
     saveData(); 
 };
 
+// --- ¡ESTA ES LA FUNCIÓN QUE FALTABA! ---
 export const agregarGastoFijo = (gf) => {
     state.gastosFijosMensuales.push(gf);
     state.movimientos.push({ 
