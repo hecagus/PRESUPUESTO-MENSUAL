@@ -7,7 +7,6 @@ const DEFAULT_DATA = {
     parametros: {
         deudaTotal: 0, gastoFijo: 0, ultimoKM: 0, costoPorKm: 0,
         mantenimientoBase: { 'Aceite': 3000, 'Bujía': 8000, 'Llantas': 15000 },
-        // Registro de los últimos servicios (Inicializar a 0)
         ultimoServicio: { 'Aceite': 0, 'Bujía': 0, 'Llantas': 0 } 
     }
 };
@@ -16,8 +15,6 @@ let state = JSON.parse(JSON.stringify(DEFAULT_DATA));
 let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || null;
 
 // --- Funciones Internas de Cálculo ---
-
-// 1. Cálculo de Costo por KM (Mismo código funcional)
 const calcularCostoPorKm = () => {
     const cargas = state.cargasCombustible;
     if (cargas.length < 2) { state.parametros.costoPorKm = 0; return 0; }
@@ -30,31 +27,70 @@ const calcularCostoPorKm = () => {
     return costoPorKm;
 };
 
-// 2. Cálculo de Gasto Operativo Acumulado (NUEVO)
+// --- SETTER DE ESTADO ---
+const setState = (newData) => {
+    state = { ...DEFAULT_DATA, ...newData }; // Aseguramos que se inicie con la estructura default
+    // Recalcular métricas después de sobreescribir el estado
+    recalcularMetaDiaria();
+    calcularCostoPorKm();
+    saveData();
+};
+
+// --- PERSISTENCIA Y GETTERS ---
+export const loadData = () => {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) { 
+        try { setState(JSON.parse(raw)); } catch (e) { console.error("Error al cargar JSON", e); } 
+    } else {
+        // Inicializar arrays si no hay datos
+        ['ingresos','gastos','turnos','movimientos','cargasCombustible','deudas','gastosFijosMensuales'].forEach(k => { if (!Array.isArray(state[k])) state[k] = []; });
+        recalcularMetaDiaria(); // Calcular la primera meta
+        calcularCostoPorKm(); 
+    }
+    state.parametros.ultimoKM = safeNumber(state.parametros.ultimoKM);
+};
+
+export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+export const getState = () => state;
+export const getTurnoActivo = () => turnoActivo;
+
+// --- LÓGICA CRÍTICA: RESPALDO (EXPORTABLES) ---
+
+export const exportarJsonLogic = () => {
+    return JSON.stringify(state);
+};
+
+export const importarJsonLogic = (jsonString) => {
+    try {
+        const newData = JSON.parse(jsonString);
+        if (typeof newData !== 'object' || !newData.parametros) {
+            console.error("Estructura JSON no válida.");
+            return false;
+        }
+        setState(newData); // Sobrescribir estado
+        return true;
+    } catch (e) {
+        console.error("Error al parsear JSON:", e);
+        return false;
+    }
+};
+
+// --- FUNCIONES DE MANTENIMIENTO ---
 export const calcularGastoOperativoAcumulado = () => {
     const cargas = state.cargasCombustible;
     const ultimoKM = state.parametros.ultimoKM;
     const costoPorKm = state.parametros.costoPorKm;
     
-    // Obtener KM de la última carga
     const kmUltimaCarga = cargas.length > 0 
         ? safeNumber(cargas[cargas.length - 1].km) 
-        : (ultimoKM || 0); // Si no hay cargas, usamos el KM inicial
+        : (ultimoKM || 0);
         
     const kmRecorrido = ultimoKM - kmUltimaCarga;
-    
-    // El costo operativo solo aplica si ya tenemos un costo/km válido
     const gastoAcumulado = kmRecorrido * costoPorKm;
     
-    return {
-        kmInicial: kmUltimaCarga,
-        kmActual: ultimoKM,
-        kmRecorrido: kmRecorrido,
-        gastoAcumulado: safeNumber(gastoAcumulado)
-    };
+    return { kmInicial: kmUltimaCarga, kmActual: ultimoKM, kmRecorrido: kmRecorrido, gastoAcumulado: safeNumber(gastoAcumulado) };
 };
 
-// --- ALMACENAMIENTO DE PARÁMETROS DE MANTENIMIENTO (NUEVO) ---
 export const guardarParametrosMantenimiento = (aceite, bujia, llantas) => {
     state.parametros.mantenimientoBase.Aceite = safeNumber(aceite);
     state.parametros.mantenimientoBase.Bujia = safeNumber(bujia);
@@ -62,28 +98,7 @@ export const guardarParametrosMantenimiento = (aceite, bujia, llantas) => {
     saveData();
 };
 
-// --- SETTER DE ESTADO y PERSISTENCIA (mismo código) ---
-const setState = (newData) => {
-    state = { ...state, ...newData };
-    recalcularMetaDiaria();
-    calcularCostoPorKm();
-    saveData();
-};
-
-export const loadData = () => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) { try { setState(JSON.parse(raw)); } catch (e) { console.error("Error al cargar JSON", e); } } else { ['ingresos','gastos','turnos','movimientos','cargasCombustible','deudas','gastosFijosMensuales'].forEach(k => { if (!Array.isArray(state[k])) state[k] = []; }); }
-    state.parametros.ultimoKM = safeNumber(state.parametros.ultimoKM);
-    recalcularMetaDiaria();
-    calcularCostoPorKm();
-};
-
-export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-export const getState = () => state;
-export const getTurnoActivo = () => turnoActivo;
-
-
-// --- RESTO DE LÓGICA (se mantienen igual) ---
+// --- RESTO DE LÓGICA (se mantiene igual) ---
 
 export const recalcularMetaDiaria = () => {
     const fijos = state.gastosFijosMensuales.reduce((acc, i) => acc + (safeNumber(i.monto) / (DIAS_POR_FRECUENCIA[i.frecuencia]||30)), 0);
