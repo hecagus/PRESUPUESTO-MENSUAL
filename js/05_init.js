@@ -1,42 +1,40 @@
 // 05_init.js
 import { loadData } from './02_data.js';
-import {
-    renderTurnoUI,
-    renderOdometroUI,
-    renderMetaDiaria,
-    renderMantenimientoUI,
-    renderDashboard,
-    renderHistorial,
-    setupAdminListeners
+import { 
+    renderTurnoUI, renderOdometroUI, setupAdminListeners, renderDashboard, 
+    renderMetaDiaria, renderHistorial, renderMantenimientoUI 
 } from './03_render.js';
 import { initCharts } from './04_charts.js';
 
 document.addEventListener("DOMContentLoaded", () => {
+    // 1. Cargar Datos Globales
     loadData();
 
-    const page = document.body.dataset.page;
+    // 2. Detectar Página
+    const page = document.body.getAttribute('data-page');
+    console.log(`[Init] Sistema iniciado en vista: ${page}`);
 
-    switch (page) {
+    // 3. Router de Vistas (EJECUCIÓN BLINDADA CON ?.)
 
-        case 'admin':
-            renderTurnoUI?.();
-            renderOdometroUI?.();
-            renderMetaDiaria?.();
-            renderMantenimientoUI?.();
-            setupAdminListeners?.();
-            break;
-
-        case 'index':
-            renderDashboard?.();
-            initCharts?.();
-            break;
-
-        case 'historial':
-            renderHistorial?.();
-            break;
-
-        default:
-            console.warn("Página sin inicializador.");
-            break;
+    if (page === 'admin') {
+        // Solo ejecutamos lógica de admin
+        renderTurnoUI?.();      
+        renderOdometroUI?.();   
+        renderMetaDiaria?.();
+        renderMantenimientoUI?.();
+        
+        setupAdminListeners?.(); // Esta función tiene su propio chequeo interno también
+    } 
+    else if (page === 'index') {
+        // Solo lógica de dashboard
+        renderDashboard?.(); 
+        initCharts?.();         
     }
+    else if (page === 'historial') {
+        // Solo lógica de historial
+        renderHistorial?.(); 
+    }
+    
+    // Si tuvieras tutorial:
+    // if (page === 'tutorial') { ... }
 });
