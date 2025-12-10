@@ -94,7 +94,6 @@ export const renderHistorial = () => {
 
 /* --- LISTENERS ADMIN (CONFIGURACIÓN DE BOTONES) --- */
 export const setupAdminListeners = () => {
-    // Si NO estamos en Admin, salimos. Esto evita errores en Index/Historial.
     if (document.body.getAttribute("data-page") !== "admin") return; 
 
     // Turno
@@ -112,39 +111,104 @@ export const setupAdminListeners = () => {
         if(Data.actualizarOdometroManual($("inputOdometro").value)) { renderOdometroUI(); $("inputOdometro").value=""; alert("Ok"); }
     });
 
-    // Gastos y Categorías
+    // --- CORRECCIÓN AQUÍ: GASTOS Y CATEGORÍAS ---
     const llenarCats = (tipo) => {
         const sel = $("gastoCategoriaSelect");
+        const manualInput = $("gastoCategoriaManual");
+        
         if(!sel) return;
+        
+        // Limpiar
         sel.innerHTML="";
+        
+        // Ocultar manual por defecto al cambiar tipo
+        if(manualInput) manualInput.style.display = "none";
+
+        // Llenar opciones
         (CATEGORIAS_GASTOS[tipo]||[]).forEach(c => {
-            const o = document.createElement("option"); o.value=c; o.text=c; sel.appendChild(o);
+            const o = document.createElement("option"); 
+            o.value = c; 
+            o.text = c; 
+            sel.appendChild(o);
         });
+
+        // Evento al cambiar selección dentro del Select
+        sel.onchange = () => {
+            if (sel.value.includes("➕")) { // Si selecciona "Otro / Nuevo"
+                if(manualInput) {
+                    manualInput.style.display = "block";
+                    manualInput.value = ""; // Limpiar para que escriba
+                    manualInput.focus();
+                }
+            } else {
+                if(manualInput) manualInput.style.display = "none";
+            }
+        };
     };
 
-    if($("gastoTipoRadio")) {
+    // Inicializar Categorías (Por defecto Moto)
+    if($("gastoCategoriaSelect")) {
         llenarCats("moto");
-        document.getElementsByName("gastoTipoRadio").forEach(r => r.addEventListener("change", (e)=>llenarCats(e.target.value)));
+        
+        // Escuchar cambios en los Radio Buttons
+        const radios = document.getElementsByName("gastoTipoRadio");
+        radios.forEach(r => {
+            r.addEventListener("change", (e) => llenarCats(e.target.value));
+        });
     }
     
     const chkRec = $("checkEsRecurrente");
     if(chkRec) chkRec.onchange = () => $("divFrecuenciaGasto").style.display = chkRec.checked ? "block" : "none";
     
+    // GUARDAR GASTO
     safeClick("btnRegistrarGasto", () => {
-        const sel=$("gastoCategoriaSelect"), man=$("gastoCategoriaManual"), m=$("gastoCantidad").value;
-        let cat = sel.value.includes("Otro") && man.value ? man.value : sel.value;
+        const sel = $("gastoCategoriaSelect");
+        const manualInput = $("gastoCategoriaManual");
+        const m = $("gastoCantidad").value;
+        const desc = $("gastoDescripcion").value;
+        
+        // Determinar categoría final
+        let catFinal = sel.value;
+        if(catFinal.includes("➕") && manualInput && manualInput.value.trim() !== "") {
+            catFinal = manualInput.value.trim(); // Usar lo que escribió el usuario
+        }
+
         if(!m) return alert("Falta monto");
         
-        const g = { id:Date.now(), fecha:new Date().toISOString(), categoria:cat, monto:Number(m), desc:$("gastoDescripcion").value, tipo:"moto" }; 
+        // Obtener tipo (Moto o Hogar)
+        const tipoRadio = document.querySelector('input[name="gastoTipoRadio"]:checked');
+        const tipoVal = tipoRadio ? tipoRadio.value : "moto";
+
+        const g = { 
+            id: Date.now(), 
+            fecha: new Date().toISOString(), 
+            categoria: catFinal, 
+            monto: Number(m), 
+            desc: desc, 
+            tipo: tipoVal 
+        }; 
         
-        if(chkRec.checked) { 
+        if(chkRec && chkRec.checked) { 
             g.frecuencia = $("gastoFrecuenciaSelect").value; 
             Data.agregarGastoFijo(g); 
         } else { 
             g.frecuencia = "No Recurrente"; 
             Data.agregarGasto(g); 
         }
-        alert("Gasto Guardado"); window.location.reload();
+        
+        alert("Gasto Guardado"); 
+        
+        // Reset UI
+        $("gastoCantidad").value=""; 
+        $("gastoDescripcion").value=""; 
+        if(manualInput) { manualInput.value=""; manualInput.style.display="none"; }
+        if(sel) sel.selectedIndex = 0;
+        
+        if(chkRec && chkRec.checked) { 
+            chkRec.checked=false; 
+            $("divFrecuenciaGasto").style.display="none"; 
+            window.location.reload(); 
+        }
     });
 
     // Wizards y Otros
@@ -182,4 +246,3 @@ export const setupAdminListeners = () => {
     safeClick("btnExportar", () => { navigator.clipboard.writeText(JSON.stringify(Data.getState())).then(()=>alert("Copiado")); });
     safeClick("btnImportar", () => { localStorage.setItem("panelData_v3", $("importJson").value); location.reload(); });
 };
-          
