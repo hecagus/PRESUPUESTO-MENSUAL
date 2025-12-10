@@ -4,7 +4,9 @@ import * as Data from './02_data.js';
 // --- HERRAMIENTA ANTI-CRASH (Safe Click) ---
 const safeClick = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
 
-/* --- RENDERIZADO VISUAL --- */
+/* ==========================================================================
+   RENDERIZADO UI (VISUALIZACIÓN)
+   ========================================================================== */
 
 export const renderTurnoUI = () => {
     const lbl = $("turnoTexto");
@@ -56,8 +58,9 @@ export const renderMantenimientoUI = () => {
 
 export const renderDashboard = () => {
     const state = Data.getState();
-    const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };
     
+    // 1. TARJETAS DE RESUMEN
+    const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };
     const hoy = new Date().toLocaleDateString();
     const turnosHoy = state.turnos.filter(t => new Date(t.fecha).toLocaleDateString() === hoy);
     const ganancia = turnosHoy.reduce((a,b)=>a+b.ganancia,0);
@@ -67,6 +70,48 @@ export const renderDashboard = () => {
     set("resGananciaBruta", `$${fmtMoney(ganancia)}`);
     set("resKmRecorridos", `${state.parametros.ultimoKM}`);
     set("proyGastoFijoDiario", `$${fmtMoney(state.parametros.gastoFijo)}`);
+
+    // 2. TABLA ÚLTIMOS TURNOS (¡ESTO FALTABA!)
+    const tbodyTurnos = $("tablaTurnos");
+    if (tbodyTurnos) {
+        tbodyTurnos.innerHTML = "";
+        const ultimos = state.turnos.slice().reverse().slice(0, 5); // Mostrar solo últimos 5
+        
+        if (ultimos.length === 0) {
+            tbodyTurnos.innerHTML = "<tr><td colspan='4' style='text-align:center'>Sin registros aún</td></tr>";
+        } else {
+            ultimos.forEach(t => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${formatearFecha(t.fecha)}</td>
+                    <td>${t.horas.toFixed(2)}h</td>
+                    <td>$${fmtMoney(t.ganancia)}</td>
+                `;
+                tbodyTurnos.appendChild(tr);
+            });
+        }
+    }
+
+    // 3. TABLA HISTÓRICO GASOLINA (¡ESTO FALTABA!)
+    const divGas = $("tablaKmMensual");
+    if (divGas) {
+        const cargas = state.cargasCombustible.slice().reverse().slice(0, 5);
+        if (cargas.length === 0) {
+            divGas.innerHTML = "<p style='text-align:center; padding:10px; color:#666'>Sin cargas registradas</p>";
+        } else {
+            let html = `<table class="tabla"><thead><tr><th>Fecha</th><th>Litros</th><th>Costo</th><th>KM Reg.</th></tr></thead><tbody>`;
+            cargas.forEach(c => {
+                html += `<tr>
+                    <td>${formatearFecha(c.fecha)}</td>
+                    <td>${c.litros} L</td>
+                    <td>$${fmtMoney(c.costo)}</td>
+                    <td>${c.km}</td>
+                </tr>`;
+            });
+            html += `</tbody></table>`;
+            divGas.innerHTML = html;
+        }
+    }
 };
 
 export const renderHistorial = () => {
@@ -92,11 +137,13 @@ export const renderHistorial = () => {
     resumen.innerHTML = `<p>Ingresos: <b style="color:green">$${fmtMoney(ing)}</b> | Gastos: <b style="color:red">$${fmtMoney(gas)}</b> | Neto: <b>$${fmtMoney(ing-gas)}</b></p>`;
 };
 
-/* --- LISTENERS ADMIN (CONFIGURACIÓN DE BOTONES) --- */
+/* ==========================================================================
+   LISTENERS ADMIN (BOTONES)
+   ========================================================================== */
 export const setupAdminListeners = () => {
     if (document.body.getAttribute("data-page") !== "admin") return; 
 
-    // Turno
+    // --- TURNOS ---
     safeClick("btnIniciarTurno", () => { if(Data.iniciarTurnoLogic()) renderTurnoUI(); });
     safeClick("btnPreFinalizarTurno", () => { $("btnPreFinalizarTurno").style.display="none"; $("cierreTurnoContainer").style.display="block"; });
     safeClick("btnCancelarCierre", () => { $("cierreTurnoContainer").style.display="none"; $("btnPreFinalizarTurno").style.display="inline-block"; });
@@ -106,112 +153,61 @@ export const setupAdminListeners = () => {
         Data.finalizarTurnoLogic(m); renderTurnoUI(); $("gananciaBruta").value=""; alert("Hecho");
     });
 
-    // Odómetro
+    // --- ODÓMETRO ---
     safeClick("btnActualizarOdometro", () => {
         if(Data.actualizarOdometroManual($("inputOdometro").value)) { renderOdometroUI(); $("inputOdometro").value=""; alert("Ok"); }
     });
 
-    // --- CORRECCIÓN AQUÍ: GASTOS Y CATEGORÍAS ---
+    // --- GASTOS Y CATEGORÍAS ---
     const llenarCats = (tipo) => {
         const sel = $("gastoCategoriaSelect");
         const manualInput = $("gastoCategoriaManual");
-        
         if(!sel) return;
-        
-        // Limpiar
         sel.innerHTML="";
-        
-        // Ocultar manual por defecto al cambiar tipo
         if(manualInput) manualInput.style.display = "none";
 
-        // Llenar opciones
         (CATEGORIAS_GASTOS[tipo]||[]).forEach(c => {
-            const o = document.createElement("option"); 
-            o.value = c; 
-            o.text = c; 
-            sel.appendChild(o);
+            const o = document.createElement("option"); o.value=c; o.text=c; sel.appendChild(o);
         });
 
-        // Evento al cambiar selección dentro del Select
         sel.onchange = () => {
-            if (sel.value.includes("➕")) { // Si selecciona "Otro / Nuevo"
-                if(manualInput) {
-                    manualInput.style.display = "block";
-                    manualInput.value = ""; // Limpiar para que escriba
-                    manualInput.focus();
-                }
-            } else {
-                if(manualInput) manualInput.style.display = "none";
+            if (sel.value.includes("➕") && manualInput) { 
+                manualInput.style.display = "block"; manualInput.focus();
+            } else if (manualInput) {
+                manualInput.style.display = "none";
             }
         };
     };
 
-    // Inicializar Categorías (Por defecto Moto)
-    if($("gastoCategoriaSelect")) {
+    if($("gastoTipoRadio")) {
         llenarCats("moto");
-        
-        // Escuchar cambios en los Radio Buttons
-        const radios = document.getElementsByName("gastoTipoRadio");
-        radios.forEach(r => {
-            r.addEventListener("change", (e) => llenarCats(e.target.value));
-        });
+        document.getElementsByName("gastoTipoRadio").forEach(r => r.addEventListener("change", (e)=>llenarCats(e.target.value)));
     }
     
     const chkRec = $("checkEsRecurrente");
     if(chkRec) chkRec.onchange = () => $("divFrecuenciaGasto").style.display = chkRec.checked ? "block" : "none";
     
-    // GUARDAR GASTO
     safeClick("btnRegistrarGasto", () => {
-        const sel = $("gastoCategoriaSelect");
-        const manualInput = $("gastoCategoriaManual");
-        const m = $("gastoCantidad").value;
-        const desc = $("gastoDescripcion").value;
-        
-        // Determinar categoría final
-        let catFinal = sel.value;
-        if(catFinal.includes("➕") && manualInput && manualInput.value.trim() !== "") {
-            catFinal = manualInput.value.trim(); // Usar lo que escribió el usuario
-        }
-
+        const sel=$("gastoCategoriaSelect"), man=$("gastoCategoriaManual"), m=$("gastoCantidad").value;
+        let cat = (sel.value.includes("➕") && man && man.value.trim()) ? man.value.trim() : sel.value;
         if(!m) return alert("Falta monto");
         
-        // Obtener tipo (Moto o Hogar)
-        const tipoRadio = document.querySelector('input[name="gastoTipoRadio"]:checked');
-        const tipoVal = tipoRadio ? tipoRadio.value : "moto";
-
-        const g = { 
-            id: Date.now(), 
-            fecha: new Date().toISOString(), 
-            categoria: catFinal, 
-            monto: Number(m), 
-            desc: desc, 
-            tipo: tipoVal 
-        }; 
+        const g = { id:Date.now(), fecha:new Date().toISOString(), categoria:cat, monto:Number(m), desc:$("gastoDescripcion").value, tipo:"moto" }; 
         
-        if(chkRec && chkRec.checked) { 
+        if(chkRec.checked) { 
             g.frecuencia = $("gastoFrecuenciaSelect").value; 
             Data.agregarGastoFijo(g); 
         } else { 
             g.frecuencia = "No Recurrente"; 
             Data.agregarGasto(g); 
         }
-        
         alert("Gasto Guardado"); 
-        
-        // Reset UI
-        $("gastoCantidad").value=""; 
-        $("gastoDescripcion").value=""; 
-        if(manualInput) { manualInput.value=""; manualInput.style.display="none"; }
-        if(sel) sel.selectedIndex = 0;
-        
-        if(chkRec && chkRec.checked) { 
-            chkRec.checked=false; 
-            $("divFrecuenciaGasto").style.display="none"; 
-            window.location.reload(); 
-        }
+        $("gastoCantidad").value=""; $("gastoDescripcion").value="";
+        if(man) { man.value=""; man.style.display="none"; }
+        if(chkRec.checked) { window.location.reload(); }
     });
 
-    // Wizards y Otros
+    // --- WIZARDS ---
     safeClick("btnGasSiguiente1", () => { $("gasWizardPaso1").style.display='none'; $("gasWizardPaso2").style.display='block'; });
     safeClick("btnGasSiguiente2", () => { $("gasWizardPaso2").style.display='none'; $("gasWizardPaso3").style.display='block'; });
     safeClick("btnGasAtras2", () => { $("gasWizardPaso2").style.display='none'; $("gasWizardPaso1").style.display='block'; });
@@ -222,7 +218,6 @@ export const setupAdminListeners = () => {
         alert("Gasolina Guardada"); window.location.reload();
     });
     
-    // Deudas Wizard
     safeClick("btnDeudaNext1", () => { if(!$("deudaNombre").value)return alert("Nombre?"); $("deudaWizardStep1").style.display='none'; $("deudaWizardStep2").style.display='block'; });
     safeClick("btnDeudaNext2", () => { $("deudaWizardStep2").style.display='none'; $("deudaWizardStep3").style.display='block'; });
     safeClick("btnDeudaBack2", () => { $("deudaWizardStep2").style.display='none'; $("deudaWizardStep1").style.display='block'; });
@@ -237,12 +232,44 @@ export const setupAdminListeners = () => {
         alert("Deuda Guardada"); window.location.reload();
     });
 
-    // Mantenimiento y Datos
     safeClick("btnGuardarMantenimiento", () => {
         Data.guardarConfigMantenimiento($("mantenimientoAceite").value, $("mantenimientoBujia").value, $("mantenimientoLlantas").value);
         alert("Config Guardada");
     });
 
-    safeClick("btnExportar", () => { navigator.clipboard.writeText(JSON.stringify(Data.getState())).then(()=>alert("Copiado")); });
-    safeClick("btnImportar", () => { localStorage.setItem("panelData_v3", $("importJson").value); location.reload(); });
+    // --- EXPORTAR A EXCEL (FUNCIÓN NUEVA) ---
+    safeClick("btnExportar", () => { 
+        // Verificamos si la librería XLSX está cargada (desde el CDN en admin.html)
+        if (typeof XLSX === 'undefined') {
+            alert("Error: Librería Excel no cargada. Conéctate a internet para la primera carga.");
+            return;
+        }
+        
+        const state = Data.getState();
+        const wb = XLSX.utils.book_new();
+
+        // Hoja 1: Turnos
+        if(state.turnos.length > 0) {
+            const wsTurnos = XLSX.utils.json_to_sheet(state.turnos);
+            XLSX.utils.book_append_sheet(wb, wsTurnos, "Turnos");
+        }
+        // Hoja 2: Movimientos
+        if(state.movimientos.length > 0) {
+            const wsMovs = XLSX.utils.json_to_sheet(state.movimientos);
+            XLSX.utils.book_append_sheet(wb, wsMovs, "Movimientos");
+        }
+        // Hoja 3: Gasolina
+        if(state.cargasCombustible.length > 0) {
+            const wsGas = XLSX.utils.json_to_sheet(state.cargasCombustible);
+            XLSX.utils.book_append_sheet(wb, wsGas, "Gasolina");
+        }
+
+        XLSX.writeFile(wb, "Respaldo_Tracker.xlsx");
+    });
+
+    safeClick("btnImportar", () => { 
+        if(!$("importJson").value) return;
+        localStorage.setItem("panelData_vFinal", $("importJson").value); 
+        location.reload(); 
+    });
 };
