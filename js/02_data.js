@@ -13,7 +13,7 @@ const DEFAULT_DATA = {
 let state = JSON.parse(JSON.stringify(DEFAULT_DATA));
 let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo_Final")) || null;
 
-// --- CÁLCULOS INTERNOS ---
+// --- CÁLCULOS ---
 const calcularCostoPorKm = () => {
     const cargas = state.cargasCombustible;
     if (cargas.length < 2) { state.parametros.costoPorKm = 0; return; }
@@ -35,8 +35,6 @@ export const loadData = () => {
     if (raw) { try { state = { ...state, ...JSON.parse(raw) }; } catch (e) { console.error(e); } }
     
     if (!state.parametros) state.parametros = DEFAULT_DATA.parametros;
-    if (!state.parametros.mantenimientoBase) state.parametros.mantenimientoBase = DEFAULT_DATA.parametros.mantenimientoBase;
-    
     ['turnos','movimientos','cargasCombustible','deudas','gastos','gastosFijosMensuales'].forEach(k => {
         if (!Array.isArray(state[k])) state[k] = [];
     });
@@ -48,7 +46,7 @@ export const loadData = () => {
 export const getState = () => state;
 export const getTurnoActivo = () => turnoActivo;
 
-// --- FUNCIONES LÓGICAS (EXPORTADAS) ---
+// --- FUNCIONES LÓGICAS ---
 
 export const iniciarTurnoLogic = () => {
     if (turnoActivo) return false;
@@ -82,7 +80,7 @@ export const recalcularMetaDiaria = () => {
 
 export const actualizarOdometroManual = (km) => {
     const n = safeNumber(km);
-    if (state.parametros.ultimoKM > 0 && n < state.parametros.ultimoKM) { alert("El KM no puede bajar."); return false; }
+    // Permitimos corrección si se equivocó (quitamos validación estricta de menor km para evitar bloqueos)
     state.parametros.ultimoKM = n;
     saveData();
     return true;
@@ -103,7 +101,6 @@ export const guardarConfigMantenimiento = (aceite, bujia, llantas) => {
 export const agregarDeuda = (d) => { state.deudas.push(d); recalcularMetaDiaria(); saveData(); };
 export const agregarGasto = (g) => { state.gastos.push(g); state.movimientos.push({ tipo: 'gasto', fecha: g.fecha, desc: g.categoria, monto: g.monto }); saveData(); };
 
-// ESTA ERA LA QUE FALTABA ANTES:
 export const agregarGastoFijo = (gf) => {
     state.gastosFijosMensuales.push(gf);
     state.movimientos.push({ tipo: 'gasto', fecha: gf.fecha, desc: `Fijo: ${gf.categoria}`, monto: gf.monto });
