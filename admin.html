@@ -19,19 +19,23 @@
 <main class="container">
 
   <section class="card" id="cardTurnos">
-    <h2>Gestión de Turno</h2>
+    <h2>⏱️ Gestión de Turno</h2>
     <p id="turnoTexto" style="margin-bottom:10px;">🔴 Sin turno activo</p>
     
+    <button id="btnIniciarTurno" class="btn-success" type="button" style="width:100%;">Iniciar Turno</button>
+    <button id="btnFinalizarTurno" class="btn-danger" type="button" style="display:none; width:100%;">Finalizar Turno</button>
+
     <div id="cierreTurnoContainer" style="display:none; margin-top:15px; padding-top:10px; border-top:1px solid #eee;">
         <label style="color:#dc2626; font-weight:bold;">Cierre de Día:</label>
         <label>KM Final (incluyendo regreso a casa):</label>
         <input type="number" id="kmFinalTurno" placeholder="Lectura del odómetro" />
         <label>Ganancia Bruta del Turno ($):</label>
         <input type="number" id="gananciaBruta" placeholder="0.00" />
+        <div style="margin-top:10px; display:flex; gap:10px;">
+             <button id="btnCancelarCierre" class="btn-secondary" style="flex:1;">Cancelar</button>
+             <button id="btnConfirmarFinalizar" class="btn-danger" style="flex:1;">Confirmar</button>
+        </div>
     </div>
-    
-    <button id="btnIniciarTurno" class="btn-success" type="button">Iniciar Turno</button>
-    <button id="btnFinalizarTurno" class="btn-danger" type="button" style="display:none;">Finalizar Turno</button>
     <p class="nota">El KM Inicial se toma automáticamente del cierre anterior.</p>
   </section>
 
@@ -57,8 +61,7 @@
     </div>
 
     <label>Categoría:</label>
-    <select id="gastoCategoriaSelect" style="width:100%; padding:8px; margin-bottom:10px;">
-        </select>
+    <select id="gastoCategoriaSelect" style="width:100%; padding:8px; margin-bottom:10px;"></select>
     
     <input type="text" id="gastoCategoriaManual" placeholder="✍️ Escribe el nombre de la categoría..." style="display:none; margin-bottom:10px; border:2px solid #2563eb;" />
 
@@ -81,11 +84,9 @@
             <option value="Bimestral">Bimestral</option>
         </select>
         
-        <div id="divDiaPago" style="display:none; margin-top:8px;">
-            <p class="nota" style="margin-bottom:5px;">Día del mes (1-31) o día de la semana (1=Lunes, 7=Domingo).</p>
-            <label style="font-size:0.9rem;">Día de Pago/Facturación:</label>
-            <input type="number" id="gastoDiaPago" placeholder="Ej. 15" min="1" max="31" style="width:80px;" />
-        </div>
+        <label style="font-size:0.8rem; color:#666;">
+            <input type="checkbox" id="checkEsRecurrente"> Marcar como Gasto Fijo Recurrente
+        </label>
     </div>
 
     <button id="btnRegistrarGasto" class="btn-danger" type="button">Registrar Gasto</button>
@@ -98,10 +99,6 @@
         <div class="projection">
             <label>Costo Real por KM:</label>
             <span id="costoPorKmDisplay">$0.00</span>
-        </div>
-        <div class="projection">
-            <label>Próxima Recarga:</label>
-            <span id="proyeccionRepostaje">Calculando...</span>
         </div>
     </div>
     <hr style="margin:15px 0;"/>
