@@ -8,7 +8,7 @@ export const DIAS_POR_FRECUENCIA = {
 
 export const CATEGORIAS_GASTOS = {
     moto: [
-        "Gasolina Extra", "Mecánico / Reparación", "Llantas / Talacha", 
+        "Gasolina Extra", "Refacciones", "Mecánico / Reparación", "Llantas / Talacha", 
         "Equipo", "Seguro", "Lavado", 
         "➕ Otro / Nuevo..." 
     ],
