@@ -1,31 +1,22 @@
 import { loadData } from './02_data.js';
 import { 
     renderTurnoUI, renderOdometroUI, setupAdminListeners, 
-    renderDashboard, renderMetaDiaria, renderHistorial, renderMantenimientoUI 
+    renderMetaDiaria, renderMantenimientoUI, renderListasAdmin
 } from './03_render.js';
-import { initCharts } from './04_charts.js';
+// No importamos initCharts ni renderDashboard aquí porque es solo para admin.html según tu lógica
 
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. Cargar Datos
     loadData();
 
-    // 2. Detectar Página
     const page = document.body.getAttribute('data-page');
-    console.log(`[Init] App V3.0 en: ${page}`);
+    console.log(`[Init] App V-Final en: ${page}`);
 
-    // 3. Router Seguro (Cada bloque es independiente)
     if (page === 'admin') {
         renderTurnoUI?.();
         renderOdometroUI?.();
         renderMetaDiaria?.();
         renderMantenimientoUI?.();
+        renderListasAdmin?.(); // <--- Agregado para ver las listas
         setupAdminListeners?.();
-    }
-    else if (page === 'index') {
-        renderDashboard?.();
-        initCharts?.();
-    }
-    else if (page === 'historial') {
-        renderHistorial?.();
     }
 });
