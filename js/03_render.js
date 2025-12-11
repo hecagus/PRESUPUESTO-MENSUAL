@@ -3,7 +3,7 @@ import * as Data from './02_data.js';
 
 const safeClick = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
 
-/* --- RENDERIZADO --- */
+/* --- RENDERIZADO UI --- */
 
 export const renderTurnoUI = () => {
     const lbl = $("turnoTexto");
@@ -11,36 +11,45 @@ export const renderTurnoUI = () => {
 
     const activo = Data.getTurnoActivo();
     const btnIn = $("btnIniciarTurno");
-    const btnPre = $("btnFinalizarTurno"); // Nota: En tu HTML es btnFinalizarTurno
+    const btnFin = $("btnFinalizarTurno");
     const divCierre = $("cierreTurnoContainer");
 
+    // Reset visual
     if (divCierre) divCierre.style.display = "none";
 
     if (activo) {
         lbl.innerHTML = `🟢 Turno Activo: <b>${new Date(activo.inicio).toLocaleTimeString()}</b>`;
         lbl.style.color = "#16a34a";
         if (btnIn) btnIn.style.display = "none";
-        if (btnPre) { btnPre.style.display = "inline-block"; btnPre.onclick = () => {
-             // Lógica para mostrar el contenedor de cierre
-             btnPre.style.display = "none";
-             divCierre.style.display = "block";
-        };}
+        
+        // Mostrar botón finalizar si no estamos ya cerrando
+        if (btnFin) {
+            btnFin.style.display = "inline-block";
+            btnFin.onclick = () => {
+                btnFin.style.display = "none";
+                if(divCierre) divCierre.style.display = "block";
+            };
+        }
     } else {
         lbl.innerHTML = `🔴 Sin turno activo`;
         lbl.style.color = "#dc2626";
         if (btnIn) btnIn.style.display = "inline-block";
-        if (btnPre) btnPre.style.display = "none";
+        if (btnFin) btnFin.style.display = "none";
     }
 };
 
 export const renderOdometroUI = () => {
-    const lbl = $("lblKmAnterior");
-    if (!lbl) return;
-    const state = Data.getState();
-    lbl.innerText = `${state.parametros.ultimoKM} km`;
-    
+    // Si existe la etiqueta de odómetro (puede que no esté en este HTML exacto, pero lo protejemos)
+    const lbl = $("lblKmAnterior"); // En tu HTML no veo este ID exacto en la sección 4, pero lo dejamos por compatibilidad
+    if (lbl) {
+        const state = Data.getState();
+        lbl.innerText = `${state.parametros.ultimoKM} km`;
+    }
     const costo = $("costoPorKmDisplay");
-    if (costo) costo.innerText = state.parametros.costoPorKm > 0 ? `$${fmtMoney(state.parametros.costoPorKm)}/km` : "Calculando...";
+    if (costo) {
+        const state = Data.getState();
+        costo.innerText = state.parametros.costoPorKm > 0 ? `$${fmtMoney(state.parametros.costoPorKm)}/km` : "Calculando...";
+    }
 };
 
 export const renderMetaDiaria = () => {
@@ -57,33 +66,54 @@ export const renderMantenimientoUI = () => {
     set("mantenimientoLlantas", "Llantas");
 };
 
-export const renderDashboard = () => {
-    // (Esta función es para el index.html, no afecta al admin)
-};
+export const renderListasAdmin = () => {
+    // Gastos Fijos
+    const ul = $("listaGastosFijos");
+    if (ul) {
+        ul.innerHTML = "";
+        const fijos = Data.getState().gastosFijosMensuales;
+        fijos.forEach(g => {
+            ul.innerHTML += `<li>${g.categoria} (${g.frecuencia}) - $${fmtMoney(g.monto)}</li>`;
+        });
+        const totalDisp = $("totalFijoMensualDisplay");
+        if(totalDisp) totalDisp.innerText = `$${fmtMoney(Data.getState().parametros.gastoFijo * 30)}`; // Estimado mensual
+    }
 
-export const renderHistorial = () => {
-    // (Esta función es para historial.html)
+    // Deudas
+    const ulDeudas = $("listaDeudas");
+    const selAbono = $("abonoSeleccionar");
+    if(ulDeudas) {
+        ulDeudas.innerHTML = "";
+        if(selAbono) selAbono.innerHTML = "";
+        Data.getState().deudas.forEach(d => {
+            if(d.saldo > 0) {
+                ulDeudas.innerHTML += `<li>${d.desc}: $${fmtMoney(d.saldo)}</li>`;
+                if(selAbono) {
+                    const o = document.createElement("option"); o.value=d.id; o.text=d.desc; selAbono.add(o);
+                }
+            }
+        });
+    }
 };
 
 /* --- LISTENERS --- */
 export const setupAdminListeners = () => {
     if (document.body.getAttribute("data-page") !== "admin") return; 
 
-    // Turnos
+    // Turno
     safeClick("btnIniciarTurno", () => { if(Data.iniciarTurnoLogic()) renderTurnoUI(); });
-    safeClick("btnCancelarCierre", () => { $("cierreTurnoContainer").style.display="none"; $("btnFinalizarTurno").style.display="inline-block"; });
+    safeClick("btnCancelarCierre", () => { renderTurnoUI(); }); // Resetea la vista
     safeClick("btnConfirmarFinalizar", () => {
         const m = $("gananciaBruta").value;
-        if(!m) return alert("Ingresa la ganancia del turno");
-        Data.finalizarTurnoLogic(m); renderTurnoUI(); $("gananciaBruta").value=""; alert("Turno Finalizado");
+        const km = $("kmFinalTurno").value;
+        if(!m) return alert("Ingresa ganancia");
+        Data.finalizarTurnoLogic(m, km); 
+        renderTurnoUI(); 
+        $("gananciaBruta").value=""; $("kmFinalTurno").value=""; 
+        alert("Turno Finalizado");
     });
 
-    // Odómetro
-    safeClick("btnActualizarOdometro", () => {
-        if(Data.actualizarOdometroManual($("inputOdometro").value)) { renderOdometroUI(); $("inputOdometro").value=""; alert("KM Actualizado"); }
-    });
-
-    // Gastos
+    // Gastos - Llenar Categorias
     const llenarCats = (tipo) => {
         const sel = $("gastoCategoriaSelect");
         const manualInput = $("gastoCategoriaManual");
@@ -110,33 +140,24 @@ export const setupAdminListeners = () => {
             r.addEventListener("change", (e) => llenarCats(e.target.value));
         });
     }
-    
-    const chkRec = $("checkEsRecurrente");
-    // Ajuste visual para el divFrecuenciaGasto según tu HTML
-    if(chkRec) chkRec.onchange = () => {
-         const divFreq = $("divFrecuenciaGasto"); // Tu HTML usa este ID en un div, o directamente el select
-         // En tu HTML, el select está dentro de un div con ID "divFrecuenciaGasto" o similar?
-         // Revisando tu HTML: <div style="... display:none;" id="divFrecuenciaGasto"> está oculto.
-         // El checkbox controla ese div.
-         const divContainer = document.getElementById("gastoFrecuenciaSelect").parentElement;
-         // Simplificación basada en tu estructura:
-         const selectFreq = $("gastoFrecuenciaSelect");
-         if(selectFreq) selectFreq.parentElement.style.display = chkRec.checked ? "block" : "none"; // Ocultar/Mostrar el contenedor si tiene style
-    };
-    
+
+    // Registrar Gasto
     safeClick("btnRegistrarGasto", () => {
         const sel=$("gastoCategoriaSelect"), man=$("gastoCategoriaManual"), m=$("gastoCantidad").value;
         let cat = (sel.value.includes("➕") && man && man.value.trim()) ? man.value.trim() : sel.value;
         if(!m) return alert("Falta monto");
-        
-        // En tu HTML el checkbox es "checkEsRecurrente"
-        const esFijo = $("checkEsRecurrente").checked;
-        const g = { id:Date.now(), fecha:new Date().toISOString(), categoria:cat, monto:Number(m), desc:$("gastoDescripcion").value, tipo:"moto" }; // Default moto, ajusta según radio
-        
-        // Detectar tipo seleccionado
-        const radios = document.getElementsByName("gastoTipoRadio");
-        for(let r of radios) { if(r.checked) g.tipo = r.value; }
 
+        // Verificamos si marcó checkbox de recurrente
+        const checkRec = $("checkEsRecurrente");
+        const esFijo = checkRec ? checkRec.checked : false;
+
+        // Tipo (Moto/Hogar)
+        let tipo = "moto";
+        const radios = document.getElementsByName("gastoTipoRadio");
+        for(let r of radios) if(r.checked) tipo = r.value;
+
+        const g = { id:Date.now(), fecha:new Date().toISOString(), categoria:cat, monto:Number(m), desc:$("gastoDescripcion").value, tipo:tipo }; 
+        
         if(esFijo) { 
             g.frecuencia = $("gastoFrecuenciaSelect").value; 
             Data.agregarGastoFijo(g); 
@@ -149,7 +170,9 @@ export const setupAdminListeners = () => {
         
         $("gastoCantidad").value=""; $("gastoDescripcion").value="";
         if(man) { man.value=""; man.style.display="none"; }
-        if(esFijo) window.location.reload(); 
+        renderListasAdmin(); 
+        renderMetaDiaria();
+        if(esFijo) window.location.reload();
     });
 
     // Ingreso
@@ -171,9 +194,15 @@ export const setupAdminListeners = () => {
         Data.registrarCargaGasolina($("gasLitros").value, $("gasCosto").value, $("gasKmActual").value);
         alert("Gasolina Guardada"); window.location.reload();
     });
-    
-    // Deudas
-    safeClick("btnDeudaNext1", () => { $("deudaWizardStep1").style.display='none'; $("deudaWizardStep2").style.display='block'; });
+
+    // Mantenimiento
+    safeClick("btnGuardarMantenimiento", () => {
+        Data.guardarConfigMantenimiento($("mantenimientoAceite").value, $("mantenimientoBujia").value, $("mantenimientoLlantas").value);
+        alert("Config Guardada");
+    });
+
+    // Deudas Wizards
+    safeClick("btnDeudaNext1", () => { if(!$("deudaNombre").value)return alert("Nombre?"); $("deudaWizardStep1").style.display='none'; $("deudaWizardStep2").style.display='block'; });
     safeClick("btnDeudaNext2", () => { $("deudaWizardStep2").style.display='none'; $("deudaWizardStep3").style.display='block'; });
     safeClick("btnDeudaBack2", () => { $("deudaWizardStep2").style.display='none'; $("deudaWizardStep1").style.display='block'; });
     safeClick("btnDeudaBack3", () => { $("deudaWizardStep3").style.display='none'; $("deudaWizardStep2").style.display='block'; });
@@ -186,8 +215,8 @@ export const setupAdminListeners = () => {
         });
         alert("Deuda Guardada"); window.location.reload();
     });
-    
-    // Abono Deuda (Faltaba este listener)
+
+    // Abono
     safeClick("btnRegistrarAbono", () => {
         const idDeuda = $("abonoSeleccionar").value; const m = $("abonoMonto").value;
         if(m && idDeuda) {
@@ -201,54 +230,19 @@ export const setupAdminListeners = () => {
         }
     });
 
-    safeClick("btnGuardarMantenimiento", () => {
-        Data.guardarConfigMantenimiento($("mantenimientoAceite").value, $("mantenimientoBujia").value, $("mantenimientoLlantas").value);
-        alert("Config Guardada");
-    });
-
-    // Excel
+    // Exportar
     safeClick("btnExportar", () => { 
-        if (typeof XLSX === 'undefined') { return alert("Error: Librería XLSX no cargada."); }
+        if (typeof XLSX === 'undefined') {
+            alert("Error: Librería Excel no cargada.");
+            return;
+        }
         const state = Data.getState();
         const wb = XLSX.utils.book_new();
-        if(state.turnos.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.turnos), "Turnos");
-        if(state.movimientos.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.movimientos), "Movimientos");
-        if(state.cargasCombustible.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.cargasCombustible), "Gasolina");
+
+        if(state.turnos.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.turnos), "Turnos");
+        if(state.movimientos.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.movimientos), "Movimientos");
+        if(state.cargasCombustible.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.cargasCombustible), "Gasolina");
+
         XLSX.writeFile(wb, "Respaldo_Tracker.xlsx");
     });
-
-    safeClick("btnImportar", () => { 
-        if(!$("importJson").value) return;
-        localStorage.setItem("panelData_vFinal", $("importJson").value); 
-        location.reload(); 
-    });
 };
-
-/* --- RENDERIZADO DE LISTAS --- */
-export const renderListasAdmin = () => {
-    // Gastos Fijos
-    const ulFijos = $("listaGastosFijos");
-    if(ulFijos) {
-        ulFijos.innerHTML = "";
-        const fijos = Data.getState().gastosFijosMensuales;
-        fijos.forEach(g => {
-            ulFijos.innerHTML += `<li>${g.categoria} (${g.frecuencia}) - $${fmtMoney(g.monto)}</li>`;
-        });
-        $("totalFijoMensualDisplay").innerText = `$${fmtMoney(Data.getState().parametros.gastoFijo)}`; // Aprox
-    }
-
-    // Deudas (Select y Lista)
-    const ulDeudas = $("listaDeudas");
-    const selAbono = $("abonoSeleccionar");
-    if(ulDeudas && selAbono) {
-        ulDeudas.innerHTML = "";
-        selAbono.innerHTML = "";
-        Data.getState().deudas.forEach(d => {
-            if(d.saldo > 0) {
-                ulDeudas.innerHTML += `<li>${d.desc}: $${fmtMoney(d.saldo)}</li>`;
-                const o = document.createElement("option"); o.value = d.id; o.text = d.desc; selAbono.add(o);
-            }
-        });
-    }
-};
-   
