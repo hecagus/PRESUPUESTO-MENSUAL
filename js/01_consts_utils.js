@@ -6,18 +6,17 @@ export const DIAS_POR_FRECUENCIA = {
     'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'No Recurrente': 0
 };
 
-// AQUÍ ESTÁN TUS CATEGORÍAS
 export const CATEGORIAS_GASTOS = {
     moto: [
-        "refacciones", "Mecánico / Reparación", "Llantas / Talacha", 
-        "Equipo ", "Seguro", "Lavado", 
-        "➕ Otro / Nuevo..." // <--- Esta opción activa el campo de texto
+        "Gasolina Extra", "Mecánico / Reparación", "Llantas / Talacha", 
+        "Equipo", "Seguro", "Lavado", 
+        "➕ Otro / Nuevo..." 
     ],
     hogar: [
         "Comida / Despensa", "Renta", "Luz / Agua / Gas", 
         "Internet / Teléfono", "Deudas Personales", "Salud / Farmacia", 
         "Plataformas (Uber/Rappi)",
-        "➕ Otro / Nuevo..." // <--- Esta opción activa el campo de texto
+        "➕ Otro / Nuevo..." 
     ]
 };
 
