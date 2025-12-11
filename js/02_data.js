@@ -6,14 +6,14 @@ const DEFAULT_DATA = {
     deudas: [], gastos: [], gastosFijosMensuales: [],
     parametros: {
         gastoFijo: 0, ultimoKM: 0, costoPorKm: 0,
-        mantenimientoBase: { 'Aceite': 3000, 'Bujía': 8000, 'Llantas': 15000 }
+        mantenimientoBase: { 'Aceite': 5000, 'Bujía': 5000, 'Llantas': 15000 }
     }
 };
 
 let state = JSON.parse(JSON.stringify(DEFAULT_DATA));
 let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo_Final")) || null;
 
-// --- CÁLCULOS ---
+// --- CÁLCULOS INTERNOS ---
 const calcularCostoPorKm = () => {
     const cargas = state.cargasCombustible;
     if (cargas.length < 2) { state.parametros.costoPorKm = 0; return; }
@@ -35,6 +35,8 @@ export const loadData = () => {
     if (raw) { try { state = { ...state, ...JSON.parse(raw) }; } catch (e) { console.error(e); } }
     
     if (!state.parametros) state.parametros = DEFAULT_DATA.parametros;
+    if (!state.parametros.mantenimientoBase) state.parametros.mantenimientoBase = DEFAULT_DATA.parametros.mantenimientoBase;
+    
     ['turnos','movimientos','cargasCombustible','deudas','gastos','gastosFijosMensuales'].forEach(k => {
         if (!Array.isArray(state[k])) state[k] = [];
     });
@@ -55,15 +57,21 @@ export const iniciarTurnoLogic = () => {
     return true;
 };
 
-export const finalizarTurnoLogic = (ganancia) => {
+export const finalizarTurnoLogic = (ganancia, kmFinal) => {
     if (!turnoActivo) return;
     const fin = new Date();
     const t = { 
         fecha: fin.toISOString(), inicio: turnoActivo.inicio, fin: fin.toISOString(), 
-        horas: (fin - new Date(turnoActivo.inicio)) / 36e5, ganancia: safeNumber(ganancia) 
+        horas: (fin - new Date(turnoActivo.inicio)) / 36e5, ganancia: safeNumber(ganancia),
+        kmFinal: safeNumber(kmFinal)
     };
     state.turnos.push(t);
     if(t.ganancia > 0) state.movimientos.push({ tipo: 'ingreso', fecha: fin.toISOString(), desc: 'Turno', monto: t.ganancia });
+    
+    // Si mandan KM final, actualizamos odometro
+    if(kmFinal) {
+        state.parametros.ultimoKM = safeNumber(kmFinal);
+    }
     
     turnoActivo = null; 
     localStorage.removeItem("turnoActivo_Final"); 
@@ -80,7 +88,6 @@ export const recalcularMetaDiaria = () => {
 
 export const actualizarOdometroManual = (km) => {
     const n = safeNumber(km);
-    // Permitimos corrección si se equivocó (quitamos validación estricta de menor km para evitar bloqueos)
     state.parametros.ultimoKM = n;
     saveData();
     return true;
@@ -100,7 +107,6 @@ export const guardarConfigMantenimiento = (aceite, bujia, llantas) => {
 
 export const agregarDeuda = (d) => { state.deudas.push(d); recalcularMetaDiaria(); saveData(); };
 export const agregarGasto = (g) => { state.gastos.push(g); state.movimientos.push({ tipo: 'gasto', fecha: g.fecha, desc: g.categoria, monto: g.monto }); saveData(); };
-
 export const agregarGastoFijo = (gf) => {
     state.gastosFijosMensuales.push(gf);
     state.movimientos.push({ tipo: 'gasto', fecha: gf.fecha, desc: `Fijo: ${gf.categoria}`, monto: gf.monto });
