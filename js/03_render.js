@@ -71,11 +71,11 @@ export const renderDashboard = () => {
     set("resKmRecorridos", `${state.parametros.ultimoKM}`);
     set("proyGastoFijoDiario", `$${fmtMoney(state.parametros.gastoFijo)}`);
 
-    // 2. TABLA ÚLTIMOS TURNOS (¡ESTO FALTABA!)
+    // 2. TABLA ÚLTIMOS TURNOS
     const tbodyTurnos = $("tablaTurnos");
     if (tbodyTurnos) {
         tbodyTurnos.innerHTML = "";
-        const ultimos = state.turnos.slice().reverse().slice(0, 5); // Mostrar solo últimos 5
+        const ultimos = state.turnos.slice().reverse().slice(0, 5); 
         
         if (ultimos.length === 0) {
             tbodyTurnos.innerHTML = "<tr><td colspan='4' style='text-align:center'>Sin registros aún</td></tr>";
@@ -92,7 +92,7 @@ export const renderDashboard = () => {
         }
     }
 
-    // 3. TABLA HISTÓRICO GASOLINA (¡ESTO FALTABA!)
+    // 3. TABLA HISTÓRICO GASOLINA
     const divGas = $("tablaKmMensual");
     if (divGas) {
         const cargas = state.cargasCombustible.slice().reverse().slice(0, 5);
@@ -158,7 +158,7 @@ export const setupAdminListeners = () => {
         if(Data.actualizarOdometroManual($("inputOdometro").value)) { renderOdometroUI(); $("inputOdometro").value=""; alert("Ok"); }
     });
 
-    // --- GASTOS Y CATEGORÍAS ---
+    // --- GASTOS Y CATEGORÍAS (CORREGIDO) ---
     const llenarCats = (tipo) => {
         const sel = $("gastoCategoriaSelect");
         const manualInput = $("gastoCategoriaManual");
@@ -179,9 +179,14 @@ export const setupAdminListeners = () => {
         };
     };
 
-    if($("gastoTipoRadio")) {
-        llenarCats("moto");
-        document.getElementsByName("gastoTipoRadio").forEach(r => r.addEventListener("change", (e)=>llenarCats(e.target.value)));
+    // CORRECCIÓN: Verificamos si existe el SELECT en lugar del RadioButton por ID
+    if($("gastoCategoriaSelect")) {
+        llenarCats("moto"); // Inicializa con moto
+        
+        // Asignamos el evento a TODOS los radios con ese nombre
+        document.getElementsByName("gastoTipoRadio").forEach(r => {
+            r.addEventListener("change", (e) => llenarCats(e.target.value));
+        });
     }
     
     const chkRec = $("checkEsRecurrente");
@@ -237,32 +242,19 @@ export const setupAdminListeners = () => {
         alert("Config Guardada");
     });
 
-    // --- EXPORTAR A EXCEL (FUNCIÓN NUEVA) ---
+    // --- EXPORTAR A EXCEL ---
     safeClick("btnExportar", () => { 
-        // Verificamos si la librería XLSX está cargada (desde el CDN en admin.html)
         if (typeof XLSX === 'undefined') {
-            alert("Error: Librería Excel no cargada. Conéctate a internet para la primera carga.");
+            alert("Error: Librería Excel no cargada. Conéctate a internet.");
             return;
         }
         
         const state = Data.getState();
         const wb = XLSX.utils.book_new();
 
-        // Hoja 1: Turnos
-        if(state.turnos.length > 0) {
-            const wsTurnos = XLSX.utils.json_to_sheet(state.turnos);
-            XLSX.utils.book_append_sheet(wb, wsTurnos, "Turnos");
-        }
-        // Hoja 2: Movimientos
-        if(state.movimientos.length > 0) {
-            const wsMovs = XLSX.utils.json_to_sheet(state.movimientos);
-            XLSX.utils.book_append_sheet(wb, wsMovs, "Movimientos");
-        }
-        // Hoja 3: Gasolina
-        if(state.cargasCombustible.length > 0) {
-            const wsGas = XLSX.utils.json_to_sheet(state.cargasCombustible);
-            XLSX.utils.book_append_sheet(wb, wsGas, "Gasolina");
-        }
+        if(state.turnos.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.turnos), "Turnos");
+        if(state.movimientos.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.movimientos), "Movimientos");
+        if(state.cargasCombustible.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.cargasCombustible), "Gasolina");
 
         XLSX.writeFile(wb, "Respaldo_Tracker.xlsx");
     });
