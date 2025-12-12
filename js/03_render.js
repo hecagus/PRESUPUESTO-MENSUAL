@@ -3,7 +3,9 @@ import * as Data from './02_data.js';
 
 const safeClick = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
 
-/* --- RENDERIZADO UI --- */
+/* ==========================================================================
+   RENDERIZADO UI (VISUALIZACIÓN)
+   ========================================================================== */
 
 export const renderTurnoUI = () => {
     const lbl = $("turnoTexto");
@@ -22,9 +24,9 @@ export const renderTurnoUI = () => {
         lbl.style.color = "#16a34a";
         if (btnIn) btnIn.style.display = "none";
         
-        // Mostrar botón finalizar si no estamos ya cerrando
         if (btnFin) {
             btnFin.style.display = "inline-block";
+            // Al hacer clic en "Finalizar Turno", mostramos el formulario de cierre
             btnFin.onclick = () => {
                 btnFin.style.display = "none";
                 if(divCierre) divCierre.style.display = "block";
@@ -39,16 +41,13 @@ export const renderTurnoUI = () => {
 };
 
 export const renderOdometroUI = () => {
-    // Si existe la etiqueta de odómetro (puede que no esté en este HTML exacto, pero lo protejemos)
-    const lbl = $("lblKmAnterior"); // En tu HTML no veo este ID exacto en la sección 4, pero lo dejamos por compatibilidad
-    if (lbl) {
-        const state = Data.getState();
-        lbl.innerText = `${state.parametros.ultimoKM} km`;
-    }
+    const lbl = $("lblKmAnterior"); // Si existe
     const costo = $("costoPorKmDisplay");
-    if (costo) {
+    
+    if (lbl || costo) {
         const state = Data.getState();
-        costo.innerText = state.parametros.costoPorKm > 0 ? `$${fmtMoney(state.parametros.costoPorKm)}/km` : "Calculando...";
+        if (lbl) lbl.innerText = `${state.parametros.ultimoKM} km`;
+        if (costo) costo.innerText = state.parametros.costoPorKm > 0 ? `$${fmtMoney(state.parametros.costoPorKm)}/km` : "Calculando...";
     }
 };
 
@@ -76,7 +75,7 @@ export const renderListasAdmin = () => {
             ul.innerHTML += `<li>${g.categoria} (${g.frecuencia}) - $${fmtMoney(g.monto)}</li>`;
         });
         const totalDisp = $("totalFijoMensualDisplay");
-        if(totalDisp) totalDisp.innerText = `$${fmtMoney(Data.getState().parametros.gastoFijo * 30)}`; // Estimado mensual
+        if(totalDisp) totalDisp.innerText = `$${fmtMoney(Data.getState().parametros.gastoFijo * 30)}`;
     }
 
     // Deudas
@@ -96,24 +95,39 @@ export const renderListasAdmin = () => {
     }
 };
 
-/* --- LISTENERS --- */
+// Funciones vacías para index/historial
+export const renderDashboard = () => {};
+export const renderHistorial = () => {};
+
+
+/* ==========================================================================
+   LISTENERS ADMIN (BOTONES)
+   ========================================================================== */
 export const setupAdminListeners = () => {
     if (document.body.getAttribute("data-page") !== "admin") return; 
 
-    // Turno
+    // --- TURNOS ---
     safeClick("btnIniciarTurno", () => { if(Data.iniciarTurnoLogic()) renderTurnoUI(); });
     safeClick("btnCancelarCierre", () => { renderTurnoUI(); }); // Resetea la vista
+    
+    // CORRECCIÓN CLAVE: Solo valida la ganancia (m), el KM es opcional (km)
     safeClick("btnConfirmarFinalizar", () => {
         const m = $("gananciaBruta").value;
-        const km = $("kmFinalTurno").value;
-        if(!m) return alert("Ingresa ganancia");
-        Data.finalizarTurnoLogic(m, km); 
+        const km = $("kmFinalTurno").value; 
+        if(!m) return alert("Ingresa la ganancia del turno");
+        
+        Data.finalizarTurnoLogic(m, km); // Manda el KM, pero la lógica ya no lo exige
         renderTurnoUI(); 
         $("gananciaBruta").value=""; $("kmFinalTurno").value=""; 
         alert("Turno Finalizado");
     });
 
-    // Gastos - Llenar Categorias
+    // --- ODÓMETRO ---
+    safeClick("btnActualizarOdometro", () => {
+        if(Data.actualizarOdometroManual($("inputOdometro").value)) { renderOdometroUI(); $("inputOdometro").value=""; alert("KM Actualizado"); }
+    });
+
+    // --- GASTOS Y CATEGORÍAS ---
     const llenarCats = (tipo) => {
         const sel = $("gastoCategoriaSelect");
         const manualInput = $("gastoCategoriaManual");
@@ -147,11 +161,9 @@ export const setupAdminListeners = () => {
         let cat = (sel.value.includes("➕") && man && man.value.trim()) ? man.value.trim() : sel.value;
         if(!m) return alert("Falta monto");
 
-        // Verificamos si marcó checkbox de recurrente
         const checkRec = $("checkEsRecurrente");
         const esFijo = checkRec ? checkRec.checked : false;
-
-        // Tipo (Moto/Hogar)
+        
         let tipo = "moto";
         const radios = document.getElementsByName("gastoTipoRadio");
         for(let r of radios) if(r.checked) tipo = r.value;
@@ -236,6 +248,7 @@ export const setupAdminListeners = () => {
             alert("Error: Librería Excel no cargada.");
             return;
         }
+        
         const state = Data.getState();
         const wb = XLSX.utils.book_new();
 
