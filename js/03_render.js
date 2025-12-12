@@ -16,7 +16,6 @@ export const renderTurnoUI = () => {
     const btnFin = $("btnFinalizarTurno");
     const divCierre = $("cierreTurnoContainer");
 
-    // Reset visual
     if (divCierre) divCierre.style.display = "none";
 
     if (activo) {
@@ -26,7 +25,6 @@ export const renderTurnoUI = () => {
         
         if (btnFin) {
             btnFin.style.display = "inline-block";
-            // Al hacer clic en "Finalizar Turno", mostramos el formulario de cierre
             btnFin.onclick = () => {
                 btnFin.style.display = "none";
                 if(divCierre) divCierre.style.display = "block";
@@ -41,12 +39,20 @@ export const renderTurnoUI = () => {
 };
 
 export const renderOdometroUI = () => {
-    const lbl = $("lblKmAnterior"); // Si existe
-    const costo = $("costoPorKmDisplay");
-    
-    if (lbl || costo) {
+    const kmInicialDisplay = $("kmInicialDisplay");
+    const kmActualDisplay = $("kmActualDisplay");
+
+    if (kmActualDisplay) {
         const state = Data.getState();
-        if (lbl) lbl.innerText = `${state.parametros.ultimoKM} km`;
+        const ultimoKM = state.parametros.ultimoKM;
+        
+        // Muestra el último KM registrado como el valor actual del odómetro
+        kmActualDisplay.innerText = `${ultimoKM} km`;
+        
+        // El KM Inicial del día es el último KM registrado
+        if (kmInicialDisplay) kmInicialDisplay.innerText = `${ultimoKM} km`; 
+        
+        const costo = $("costoPorKmDisplay");
         if (costo) costo.innerText = state.parametros.costoPorKm > 0 ? `$${fmtMoney(state.parametros.costoPorKm)}/km` : "Calculando...";
     }
 };
@@ -66,7 +72,6 @@ export const renderMantenimientoUI = () => {
 };
 
 export const renderListasAdmin = () => {
-    // Gastos Fijos
     const ul = $("listaGastosFijos");
     if (ul) {
         ul.innerHTML = "";
@@ -78,7 +83,6 @@ export const renderListasAdmin = () => {
         if(totalDisp) totalDisp.innerText = `$${fmtMoney(Data.getState().parametros.gastoFijo * 30)}`;
     }
 
-    // Deudas
     const ulDeudas = $("listaDeudas");
     const selAbono = $("abonoSeleccionar");
     if(ulDeudas) {
@@ -95,10 +99,55 @@ export const renderListasAdmin = () => {
     }
 };
 
-// Funciones vacías para index/historial
-export const renderDashboard = () => {};
-export const renderHistorial = () => {};
+/* --- FUNCIONES PARA INDEX Y HISTORIAL (Para cumplir requerimiento #2) --- */
 
+export const renderDashboard = () => {
+    const state = Data.getState();
+    if (!state) return; 
+
+    // Asumo que esta tabla o sección existe en index.html
+    const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };
+
+    // Ganancia Neta Hoy (Implementación asumiendo campos)
+    const hoy = new Date().toLocaleDateString();
+    const turnosHoy = state.turnos.filter(t => new Date(t.fecha).toLocaleDateString() === hoy);
+    const gananciaBrutaHoy = turnosHoy.reduce((a, b) => a + b.ganancia, 0);
+    
+    // Aquí necesitarías restar gastos del día, pero sin una función de filtro de gastos diarios en Data.js, 
+    // solo reportamos la Ganancia Bruta para evitar errores.
+    set("resGananciaBruta", `$${fmtMoney(gananciaBrutaHoy)}`); 
+    set("resGananciaNeta", `$${fmtMoney(gananciaBrutaHoy)}`); // Placeholder
+    set("resHorasTrabajadas", `${turnosHoy.reduce((a,b)=>a+b.horas,0).toFixed(2)}h`);
+    set("resKmRecorridos", `${state.parametros.ultimoKM} km`);
+
+    // El resto de los KPIs (Gastos Trabajo, Ganancia Neta Prom, Tiempo libre de deudas) requieren lógica en 02_data.js
+    // que no me has proporcionado, así que los dejamos en 0 o "Calculando..." para evitar errores.
+    set("resGastosTrabajo", "$0.00");
+    set("resGananciaNetaProm", "$0.00/h");
+};
+
+export const renderHistorial = () => {
+    const tbody = $("historialBody");
+    const resumen = $("historialResumen");
+    if (!tbody || !resumen) return;
+
+    tbody.innerHTML = "";
+    const movs = Data.getState().movimientos.slice().reverse();
+    let ing = 0, gas = 0;
+
+    movs.forEach(m => {
+        const tr = document.createElement("tr");
+        const isIng = m.tipo === 'ingreso';
+        const monto = safeNumber(m.monto);
+        if (isIng) { ing += monto; tr.style.backgroundColor = "#ecfdf5"; } 
+        else { gas += monto; tr.style.backgroundColor = "#fff5f5"; }
+        
+        tr.innerHTML = `<td>${isIng?'➕':'➖'}</td><td>${formatearFecha(m.fecha)}</td><td>${m.desc}</td><td style="color:${isIng?'green':'red'}">$${fmtMoney(monto)}</td>`;
+        tbody.appendChild(tr);
+    });
+
+    resumen.innerHTML = `<p>Ingresos: <b style="color:green">$${fmtMoney(ing)}</b> | Gastos: <b style="color:red">$${fmtMoney(gas)}</b> | Neto: <b>$${fmtMoney(ing-gas)}</b></p>`;
+};
 
 /* ==========================================================================
    LISTENERS ADMIN (BOTONES)
@@ -106,28 +155,40 @@ export const renderHistorial = () => {};
 export const setupAdminListeners = () => {
     if (document.body.getAttribute("data-page") !== "admin") return; 
 
-    // --- TURNOS ---
+    // Turno
     safeClick("btnIniciarTurno", () => { if(Data.iniciarTurnoLogic()) renderTurnoUI(); });
-    safeClick("btnCancelarCierre", () => { renderTurnoUI(); }); // Resetea la vista
+    safeClick("btnCancelarCierre", () => { renderTurnoUI(); }); 
     
-    // CORRECCIÓN CLAVE: Solo valida la ganancia (m), el KM es opcional (km)
     safeClick("btnConfirmarFinalizar", () => {
         const m = $("gananciaBruta").value;
         const km = $("kmFinalTurno").value; 
         if(!m) return alert("Ingresa la ganancia del turno");
         
-        Data.finalizarTurnoLogic(m, km); // Manda el KM, pero la lógica ya no lo exige
+        Data.finalizarTurnoLogic(m, km); 
         renderTurnoUI(); 
+        renderOdometroUI(); // Actualizar el KM en la sección detalle
         $("gananciaBruta").value=""; $("kmFinalTurno").value=""; 
         alert("Turno Finalizado");
     });
 
-    // --- ODÓMETRO ---
+    // Odómetro
     safeClick("btnActualizarOdometro", () => {
-        if(Data.actualizarOdometroManual($("inputOdometro").value)) { renderOdometroUI(); $("inputOdometro").value=""; alert("KM Actualizado"); }
+        // En tu HTML, la sección 4 de gasolina tiene la entrada. Usamos gasKmActual si no hay otro ID
+        const inputKm = $("gasKmActual") ? $("gasKmActual").value : null; 
+        if(inputKm && Data.actualizarOdometroManual(inputKm)) { 
+            renderOdometroUI(); 
+            $("inputOdometro").value=""; // Asumo que inputOdometro es la entrada en el HTML que se actualiza
+            alert("KM Actualizado"); 
+        } else if($("inputOdometro")) { // Para el input visible en admin
+             if(Data.actualizarOdometroManual($("inputOdometro").value)) {
+                 renderOdometroUI();
+                 $("inputOdometro").value = "";
+                 alert("KM Actualizado");
+             }
+        }
     });
 
-    // --- GASTOS Y CATEGORÍAS ---
+    // Gastos - Llenar Categorias
     const llenarCats = (tipo) => {
         const sel = $("gastoCategoriaSelect");
         const manualInput = $("gastoCategoriaManual");
@@ -163,7 +224,7 @@ export const setupAdminListeners = () => {
 
         const checkRec = $("checkEsRecurrente");
         const esFijo = checkRec ? checkRec.checked : false;
-        
+
         let tipo = "moto";
         const radios = document.getElementsByName("gastoTipoRadio");
         for(let r of radios) if(r.checked) tipo = r.value;
@@ -204,6 +265,7 @@ export const setupAdminListeners = () => {
 
     safeClick("btnRegistrarCargaFinal", () => {
         Data.registrarCargaGasolina($("gasLitros").value, $("gasCosto").value, $("gasKmActual").value);
+        renderOdometroUI(); // Actualizar KM después de la carga
         alert("Gasolina Guardada"); window.location.reload();
     });
 
@@ -259,3 +321,4 @@ export const setupAdminListeners = () => {
         XLSX.writeFile(wb, "Respaldo_Tracker.xlsx");
     });
 };
+       
