@@ -232,7 +232,11 @@
 
   <section class="card">
     <h2>Respaldo</h2>
-    <button id="btnExportar" class="btn-secondary" type="button">Copiar Datos (JSON)</button>
+    <div style="display:flex; gap:10px;">
+        <button id="btnCopiarJSON" class="btn-secondary" type="button" style="flex:1;">📋 Copiar Datos (JSON)</button>
+        <button id="btnExportar" class="btn-secondary" type="button" style="flex:1;">⬇ Descargar Excel (.xlsx)</button>
+    </div>
+
     <div style="margin-top:10px;">
       <textarea id="importJson" rows="2" placeholder="Pegar JSON aquí..."></textarea>
       <button id="btnImportar" class="btn-danger" type="button">Restaurar</button>
