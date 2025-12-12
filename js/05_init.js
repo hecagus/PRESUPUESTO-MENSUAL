@@ -19,11 +19,10 @@ document.addEventListener("DOMContentLoaded", () => {
         renderOdometroUI?.();
         renderMetaDiaria?.();
         renderMantenimientoUI?.();
-        renderListasAdmin?.(); // Muestra las listas de Deudas y Fijos
+        renderListasAdmin?.(); 
         setupAdminListeners?.();
     }
     else if (page === 'index') {
         initCharts?.();
-        // Si tienes funciones de dashboard, van aqui
     }
 });
