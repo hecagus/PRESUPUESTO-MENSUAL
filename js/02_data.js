@@ -6,7 +6,7 @@ const DEFAULT_DATA = {
     deudas: [], gastos: [], gastosFijosMensuales: [],
     parametros: {
         gastoFijo: 0, ultimoKM: 0, costoPorKm: 0,
-        mantenimientoBase: { 'Aceite': 5000, 'Bujía': 5000, 'Llantas': 15000 }
+        mantenimientoBase: { 'Aceite': 3000, 'Bujía': 8000, 'Llantas': 15000 }
     }
 };
 
@@ -57,7 +57,8 @@ export const iniciarTurnoLogic = () => {
     return true;
 };
 
-export const finalizarTurnoLogic = (ganancia, kmFinal) => {
+// CORRECCIÓN CLAVE: kmFinal es opcional.
+export const finalizarTurnoLogic = (ganancia, kmFinal = 0) => {
     if (!turnoActivo) return;
     const fin = new Date();
     const t = { 
@@ -68,8 +69,8 @@ export const finalizarTurnoLogic = (ganancia, kmFinal) => {
     state.turnos.push(t);
     if(t.ganancia > 0) state.movimientos.push({ tipo: 'ingreso', fecha: fin.toISOString(), desc: 'Turno', monto: t.ganancia });
     
-    // Si mandan KM final, actualizamos odometro
-    if(kmFinal) {
+    // Solo actualiza el odómetro si se proporcionó un valor
+    if(safeNumber(kmFinal) > 0) {
         state.parametros.ultimoKM = safeNumber(kmFinal);
     }
     
