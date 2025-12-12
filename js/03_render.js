@@ -1,4 +1,4 @@
-import { $, fmtMoney, CATEGORIAS_GASTOS, formatearFecha, safeNumber } from './01_consts_utils.js';
+import { $, fmtMoney, CATEGORIAS_GASTOS, formatearFecha, safeNumber, STORAGE_KEY } from './01_consts_utils.js';
 import * as Data from './02_data.js'; 
 
 const safeClick = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
@@ -46,10 +46,8 @@ export const renderOdometroUI = () => {
         const state = Data.getState();
         const ultimoKM = state.parametros.ultimoKM;
         
-        // Muestra el último KM registrado como el valor actual del odómetro
         kmActualDisplay.innerText = `${ultimoKM} km`;
         
-        // El KM Inicial del día es el último KM registrado
         if (kmInicialDisplay) kmInicialDisplay.innerText = `${ultimoKM} km`; 
         
         const costo = $("costoPorKmDisplay");
@@ -105,23 +103,16 @@ export const renderDashboard = () => {
     const state = Data.getState();
     if (!state) return; 
 
-    // Asumo que esta tabla o sección existe en index.html
     const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };
 
-    // Ganancia Neta Hoy (Implementación asumiendo campos)
     const hoy = new Date().toLocaleDateString();
     const turnosHoy = state.turnos.filter(t => new Date(t.fecha).toLocaleDateString() === hoy);
     const gananciaBrutaHoy = turnosHoy.reduce((a, b) => a + b.ganancia, 0);
     
-    // Aquí necesitarías restar gastos del día, pero sin una función de filtro de gastos diarios en Data.js, 
-    // solo reportamos la Ganancia Bruta para evitar errores.
     set("resGananciaBruta", `$${fmtMoney(gananciaBrutaHoy)}`); 
-    set("resGananciaNeta", `$${fmtMoney(gananciaBrutaHoy)}`); // Placeholder
+    set("resGananciaNeta", `$${fmtMoney(gananciaBrutaHoy)}`);
     set("resHorasTrabajadas", `${turnosHoy.reduce((a,b)=>a+b.horas,0).toFixed(2)}h`);
     set("resKmRecorridos", `${state.parametros.ultimoKM} km`);
-
-    // El resto de los KPIs (Gastos Trabajo, Ganancia Neta Prom, Tiempo libre de deudas) requieren lógica en 02_data.js
-    // que no me has proporcionado, así que los dejamos en 0 o "Calculando..." para evitar errores.
     set("resGastosTrabajo", "$0.00");
     set("resGananciaNetaProm", "$0.00/h");
 };
@@ -166,25 +157,18 @@ export const setupAdminListeners = () => {
         
         Data.finalizarTurnoLogic(m, km); 
         renderTurnoUI(); 
-        renderOdometroUI(); // Actualizar el KM en la sección detalle
+        renderOdometroUI();
         $("gananciaBruta").value=""; $("kmFinalTurno").value=""; 
         alert("Turno Finalizado");
     });
 
-    // Odómetro
+    // Odómetro (Simulación de actualización manual)
     safeClick("btnActualizarOdometro", () => {
-        // En tu HTML, la sección 4 de gasolina tiene la entrada. Usamos gasKmActual si no hay otro ID
-        const inputKm = $("gasKmActual") ? $("gasKmActual").value : null; 
-        if(inputKm && Data.actualizarOdometroManual(inputKm)) { 
-            renderOdometroUI(); 
-            $("inputOdometro").value=""; // Asumo que inputOdometro es la entrada en el HTML que se actualiza
-            alert("KM Actualizado"); 
-        } else if($("inputOdometro")) { // Para el input visible en admin
-             if(Data.actualizarOdometroManual($("inputOdometro").value)) {
-                 renderOdometroUI();
-                 $("inputOdometro").value = "";
-                 alert("KM Actualizado");
-             }
+        const inputKm = $("inputOdometro");
+        if(inputKm && Data.actualizarOdometroManual(inputKm.value)) {
+             renderOdometroUI();
+             inputKm.value = "";
+             alert("KM Actualizado");
         }
     });
 
@@ -265,7 +249,7 @@ export const setupAdminListeners = () => {
 
     safeClick("btnRegistrarCargaFinal", () => {
         Data.registrarCargaGasolina($("gasLitros").value, $("gasCosto").value, $("gasKmActual").value);
-        renderOdometroUI(); // Actualizar KM después de la carga
+        renderOdometroUI();
         alert("Gasolina Guardada"); window.location.reload();
     });
 
@@ -304,7 +288,7 @@ export const setupAdminListeners = () => {
         }
     });
 
-    // Exportar
+    // --- RESPALDO (Excel) ---
     safeClick("btnExportar", () => { 
         if (typeof XLSX === 'undefined') {
             alert("Error: Librería Excel no cargada.");
@@ -319,6 +303,25 @@ export const setupAdminListeners = () => {
         if(state.cargasCombustible.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.cargasCombustible), "Gasolina");
 
         XLSX.writeFile(wb, "Respaldo_Tracker.xlsx");
+    });
+
+    // --- RESPALDO (JSON) ---
+    safeClick("btnCopiarJSON", async () => {
+        try {
+            const json = localStorage.getItem(STORAGE_KEY);
+            await navigator.clipboard.writeText(json);
+            alert("JSON copiado al portapapeles. ¡Guárdalo!");
+        } catch (err) {
+            alert("Error al copiar JSON: La API de Clipboard puede no estar disponible. Usa el campo de texto.");
+        }
+    });
+    
+    // --- RESTAURAR ---
+    safeClick("btnImportar", () => { 
+        const jsonArea = $("importJson");
+        if(!jsonArea.value) return;
+        localStorage.setItem(STORAGE_KEY, jsonArea.value); 
+        location.reload(); 
     });
 };
        
