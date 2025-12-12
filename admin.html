@@ -127,6 +127,24 @@
         </div>
     </div>
   </section>
+  
+  <hr style="border: 2px solid #3b82f6; margin: 20px 0;"/>
+
+  <section class="card" id="cardDetalleKm">
+    <h2>🏎️ Detalle de Kilometraje</h2>
+    <div class="projection-grid" style="grid-template-columns: 1fr; gap:10px;">
+        <div style="padding: 10px; background:#f9f9f9; border-left: 3px solid #10b981;">
+            <label style="font-size:0.8rem; color:#666;">Kilometraje Inicial (Ayer):</label>
+            <strong id="kmInicialDisplay" style="display:block; font-size:1.2rem;">0 km</strong>
+            <p class="nota">El kilometraje inicial de hoy es el final de ayer.</p>
+        </div>
+        <div style="padding: 10px; background:#f9f9f9; border-left: 3px solid #f97316;">
+            <label style="font-size:0.8rem; color:#666;">Kilometraje Actual (Odómetro):</label>
+            <strong id="kmActualDisplay" style="display:block; font-size:1.2rem;">0 km</strong>
+            <p class="nota">Este campo no es editable, se actualiza con la carga de gasolina o al finalizar turno.</p>
+        </div>
+    </div>
+  </section>
 
   <section class="card">
     <h2>Mantenimiento (Alertas por KM)</h2>
