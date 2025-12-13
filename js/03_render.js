@@ -4,7 +4,7 @@ import * as Data from './02_data.js';
 const safeClick = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
 
 /* ==========================================================================
-   RENDERIZADO UI (VISUALIZACIÓN)
+   RENDERIZADO UI (VISTAS DE ADMINISTRACIÓN)
    ========================================================================== */
 
 export const renderTurnoUI = () => {
@@ -97,24 +97,80 @@ export const renderListasAdmin = () => {
     }
 };
 
-/* --- FUNCIONES PARA INDEX Y HISTORIAL (Para cumplir requerimiento #2) --- */
+
+/* ==========================================================================
+   RENDERIZADO DASHBOARD (INDEX.HTML) Y HISTORIAL
+   ========================================================================== */
 
 export const renderDashboard = () => {
     const state = Data.getState();
     if (!state) return; 
 
     const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };
-
     const hoy = new Date().toLocaleDateString();
+
+    // 1. CÁLCULOS DEL DÍA
     const turnosHoy = state.turnos.filter(t => new Date(t.fecha).toLocaleDateString() === hoy);
-    const gananciaBrutaHoy = turnosHoy.reduce((a, b) => a + b.ganancia, 0);
+    const gananciaBrutaHoy = turnosHoy.reduce((a, b) => a + safeNumber(b.ganancia), 0);
+    const horasHoy = turnosHoy.reduce((a, b) => a + safeNumber(b.horas), 0);
     
-    set("resGananciaBruta", `$${fmtMoney(gananciaBrutaHoy)}`); 
-    set("resGananciaNeta", `$${fmtMoney(gananciaBrutaHoy)}`);
-    set("resHorasTrabajadas", `${turnosHoy.reduce((a,b)=>a+b.horas,0).toFixed(2)}h`);
-    set("resKmRecorridos", `${state.parametros.ultimoKM} km`);
-    set("resGastosTrabajo", "$0.00");
-    set("resGananciaNetaProm", "$0.00/h");
+    // Asumiendo que los gastos del día (que no son fijos) también se registran en movimientos con tipo 'gasto'
+    const gastosHoy = state.movimientos.filter(m => m.tipo === 'gasto' && new Date(m.fecha).toLocaleDateString() === hoy).reduce((a,b)=>a+safeNumber(b.monto), 0);
+    
+    const gananciaNetaHoy = gananciaBrutaHoy - gastosHoy;
+    const gananciaPorHora = horasHoy > 0 ? gananciaNetaHoy / horasHoy : 0;
+
+    // 2. RENDERING DE KPIS
+    set("resHorasTrabajadas", `${horasHoy.toFixed(2)}h`); // Horas Trabajadas
+    set("resGananciaBruta", `$${fmtMoney(gananciaBrutaHoy)}`); // Ganancia Bruta
+    set("resGastosTrabajo", `$${fmtMoney(gastosHoy)}`); // Gastos Trabajo (hoy)
+    set("resGananciaNeta", `$${fmtMoney(gananciaNetaHoy)}`); // Ganancia Neta
+    set("resKmRecorridos", `${state.parametros.ultimoKM} km`); // KM Recorridos (Usando el odómetro final)
+    set("resGananciaPorHora", `$${fmtMoney(gananciaPorHora)}/h`); // Ganancia por Hora
+    
+    // 3. RENDERING TABLA ÚLTIMOS TURNOS
+    const tbodyTurnos = $("tablaUltimosTurnosBody"); // ID asumido para el tbody
+    if (tbodyTurnos) {
+        tbodyTurnos.innerHTML = "";
+        const ultimos = state.turnos.slice().reverse().slice(0, 5); 
+        
+        if (ultimos.length === 0) {
+            tbodyTurnos.innerHTML = "<tr><td colspan='4' style='text-align:center'>Sin registros aún</td></tr>";
+        } else {
+            ultimos.forEach(t => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${formatearFecha(t.fecha)}</td>
+                    <td>${t.horas.toFixed(2)}h</td>
+                    <td>${t.kmFinal ? t.kmFinal : '-'}</td> 
+                    <td>$${fmtMoney(t.ganancia)}</td>
+                `;
+                tbodyTurnos.appendChild(tr);
+            });
+        }
+    }
+
+    // 4. RENDERING CONTROL GASOLINA / KM (Ejemplo de tabla de histórico)
+    const divGas = $("tablaKmMensual"); // ID asumido para el contenedor de la tabla
+    if (divGas) {
+        const cargas = state.cargasCombustible.slice().reverse().slice(0, 5);
+        
+        if (cargas.length === 0) {
+            divGas.innerHTML = "<p style='text-align:center; padding:10px; color:#666'>Sin cargas registradas</p>";
+        } else {
+            let html = `<table class="tabla"><thead><tr><th>Fecha</th><th>Litros</th><th>Costo</th><th>KM Reg.</th></tr></thead><tbody>`;
+            cargas.forEach(c => {
+                html += `<tr>
+                    <td>${formatearFecha(c.fecha)}</td>
+                    <td>${c.litros} L</td>
+                    <td>$${fmtMoney(c.costo)}</td>
+                    <td>${c.km}</td>
+                </tr>`;
+            });
+            html += `</tbody></table>`;
+            divGas.innerHTML = html;
+        }
+    }
 };
 
 export const renderHistorial = () => {
@@ -139,6 +195,7 @@ export const renderHistorial = () => {
 
     resumen.innerHTML = `<p>Ingresos: <b style="color:green">$${fmtMoney(ing)}</b> | Gastos: <b style="color:red">$${fmtMoney(gas)}</b> | Neto: <b>$${fmtMoney(ing-gas)}</b></p>`;
 };
+
 
 /* ==========================================================================
    LISTENERS ADMIN (BOTONES)
@@ -288,7 +345,7 @@ export const setupAdminListeners = () => {
         }
     });
 
-    // --- RESPALDO (Excel) ---
+    // Exportar (Excel)
     safeClick("btnExportar", () => { 
         if (typeof XLSX === 'undefined') {
             alert("Error: Librería Excel no cargada.");
@@ -305,7 +362,7 @@ export const setupAdminListeners = () => {
         XLSX.writeFile(wb, "Respaldo_Tracker.xlsx");
     });
 
-    // --- RESPALDO (JSON) ---
+    // Copiar JSON
     safeClick("btnCopiarJSON", async () => {
         try {
             const json = localStorage.getItem(STORAGE_KEY);
@@ -316,7 +373,7 @@ export const setupAdminListeners = () => {
         }
     });
     
-    // --- RESTAURAR ---
+    // Restaurar
     safeClick("btnImportar", () => { 
         const jsonArea = $("importJson");
         if(!jsonArea.value) return;
@@ -324,4 +381,4 @@ export const setupAdminListeners = () => {
         location.reload(); 
     });
 };
-       
+                 
