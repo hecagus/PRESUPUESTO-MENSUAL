@@ -6,7 +6,9 @@ const DEFAULT_DATA = {
     deudas: [], gastos: [], gastosFijosMensuales: [],
     parametros: {
         gastoFijo: 0, ultimoKM: 0, costoPorKm: 0,
-        mantenimientoBase: { 'Aceite': 3000, 'Bujía': 8000, 'Llantas': 15000 }
+        mantenimientoBase: { 'Aceite': 3000, 'Bujía': 8000, 'Llantas': 15000 },
+        // NUEVOS CAMPOS DE ESTADO DE MANTENIMIENTO
+        ultimoServicio: { 'Aceite': 0, 'Bujía': 0, 'Llantas': 0 } 
     }
 };
 
@@ -34,8 +36,10 @@ export const loadData = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) { try { state = { ...state, ...JSON.parse(raw) }; } catch (e) { console.error(e); } }
     
+    // Asegurar que los campos existen al cargar datos antiguos
     if (!state.parametros) state.parametros = DEFAULT_DATA.parametros;
     if (!state.parametros.mantenimientoBase) state.parametros.mantenimientoBase = DEFAULT_DATA.parametros.mantenimientoBase;
+    if (!state.parametros.ultimoServicio) state.parametros.ultimoServicio = DEFAULT_DATA.parametros.ultimoServicio; 
     
     ['turnos','movimientos','cargasCombustible','deudas','gastos','gastosFijosMensuales'].forEach(k => {
         if (!Array.isArray(state[k])) state[k] = [];
@@ -57,7 +61,6 @@ export const iniciarTurnoLogic = () => {
     return true;
 };
 
-// CORRECCIÓN CLAVE: kmFinal es opcional.
 export const finalizarTurnoLogic = (ganancia, kmFinal = 0) => {
     if (!turnoActivo) return;
     const fin = new Date();
@@ -69,7 +72,6 @@ export const finalizarTurnoLogic = (ganancia, kmFinal = 0) => {
     state.turnos.push(t);
     if(t.ganancia > 0) state.movimientos.push({ tipo: 'ingreso', fecha: fin.toISOString(), desc: 'Turno', monto: t.ganancia });
     
-    // Solo actualiza el odómetro si se proporcionó un valor
     if(safeNumber(kmFinal) > 0) {
         state.parametros.ultimoKM = safeNumber(kmFinal);
     }
@@ -106,6 +108,45 @@ export const guardarConfigMantenimiento = (aceite, bujia, llantas) => {
     saveData();
 };
 
+// NUEVA FUNCIÓN: Registrar el KM en que se hizo el servicio
+export const registrarServicio = (aceiteKM, bujiaKM, llantasKM) => {
+    state.parametros.ultimoServicio = {
+        'Aceite': safeNumber(aceiteKM),
+        'Bujía': safeNumber(bujiaKM),
+        'Llantas': safeNumber(llantasKM)
+    };
+    saveData();
+};
+
+// NUEVA FUNCIÓN: Lógica para verificar el estado de los mantenimientos
+export const checkMantenimiento = () => {
+    const { ultimoKM, mantenimientoBase, ultimoServicio } = state.parametros;
+    
+    let alerta = { Aceite: false, Bujía: false, Llantas: false };
+    let kmRestantes = {};
+    let alertaActiva = false;
+    
+    for (const item in mantenimientoBase) {
+        const umbral = safeNumber(mantenimientoBase[item]);
+        const ultimoKMRegistro = safeNumber(ultimoServicio[item]);
+        
+        if (umbral > 0 && ultimoKMRegistro > 0) {
+            const kmRecorridosDesdeServicio = ultimoKM - ultimoKMRegistro;
+            const kmFaltantes = umbral - kmRecorridosDesdeServicio;
+            
+            kmRestantes[item] = kmFaltantes;
+            
+            // Si falta menos del 10% para el servicio (o ya se pasó)
+            if (kmFaltantes <= umbral * 0.1) {
+                alerta[item] = true;
+                alertaActiva = true;
+            }
+        }
+    }
+    
+    return { alerta, kmRestantes, alertaActiva };
+};
+
 export const agregarDeuda = (d) => { state.deudas.push(d); recalcularMetaDiaria(); saveData(); };
 export const agregarGasto = (g) => { state.gastos.push(g); state.movimientos.push({ tipo: 'gasto', fecha: g.fecha, desc: g.categoria, monto: g.monto }); saveData(); };
 export const agregarGastoFijo = (gf) => {
@@ -113,3 +154,4 @@ export const agregarGastoFijo = (gf) => {
     state.movimientos.push({ tipo: 'gasto', fecha: gf.fecha, desc: `Fijo: ${gf.categoria}`, monto: gf.monto });
     recalcularMetaDiaria();
 };
+
