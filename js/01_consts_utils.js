@@ -23,3 +23,13 @@ export const CATEGORIAS_GASTOS = {
 export const safeNumber = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 export const fmtMoney = (n) => safeNumber(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 export const formatearFecha = (d) => new Date(d).toLocaleDateString();
+
+// NUEVA FUNCIÓN: Compara si dos fechas caen en el mismo día (Año, Mes, Día)
+export const isSameDay = (d1, d2) => {
+    const date1 = new Date(d1);
+    const date2 = new Date(d2);
+    return date1.getFullYear() === date2.getFullYear() &&
+           date1.getMonth() === date2.getMonth() &&
+           date1.getDate() === date2.getDate();
+};
+
