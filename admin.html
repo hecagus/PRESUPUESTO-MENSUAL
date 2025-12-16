@@ -147,7 +147,12 @@
   </section>
 
   <section class="card">
-    <h2>Mantenimiento (Alertas por KM)</h2>
+    <h2>🔧 Mantenimiento (Alertas por KM)</h2>
+    <div id="mantenimientoAlerta" style="padding:10px; margin-bottom:10px; border-radius:6px; text-align:center; font-weight:bold; background: #fffbe8; border: 1px solid #fde047;">
+        Estado: 🟢 OK. ¡Sigue así!
+    </div>
+    
+    <h3>Umbrales (Cada X KM)</h3>
     <label>Aceite (Cada X KM):</label>
     <input type="number" id="mantenimientoAceite" />
     <label>Bujía (Cada X KM):</label>
@@ -155,6 +160,28 @@
     <label>Llantas (Cada X KM):</label>
     <input type="number" id="mantenimientoLlantas" />
     <button id="btnGuardarMantenimiento" class="btn-secondary" type="button">Guardar Umbrales</button>
+
+    <hr style="margin:20px 0;"/>
+
+    <h3>Último Servicio Registrado</h3>
+    <p class="nota">Registra el KM actual cuando realizaste el último servicio de cada componente.</p>
+
+    <div class="projection-grid" style="grid-template-columns: 1fr 1fr; gap:10px;">
+        <div>
+            <label>Aceite (KM):</label>
+            <input type="number" id="ultimoAceiteKM" placeholder="KM al cambiar aceite" />
+        </div>
+        <div>
+            <label>Bujía (KM):</label>
+            <input type="number" id="ultimoBujiaKM" placeholder="KM al cambiar bujía" />
+        </div>
+        <div style="grid-column: span 2;">
+            <label>Llantas (KM):</label>
+            <input type="number" id="ultimoLlantasKM" placeholder="KM al cambiar llantas" />
+        </div>
+    </div>
+
+    <button id="btnRegistrarServicio" class="btn-success" type="button" style="width:100%; margin-top:10px;">✅ Registrar Servicio(s)</button>
   </section>
 
   <section class="card">
@@ -247,3 +274,4 @@
 <script type="module" src="js/05_init.js"></script>
 </body>
 </html>
+
