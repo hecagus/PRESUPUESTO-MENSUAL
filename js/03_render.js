@@ -1,7 +1,8 @@
-import { $, fmtMoney, CATEGORIAS_GASTOS, formatearFecha, safeNumber, STORAGE_KEY } from './01_consts_utils.js';
+import { $, fmtMoney, CATEGORIAS_GASTOS, formatearFecha, safeNumber, STORAGE_KEY, isSameDay } from './01_consts_utils.js';
 import * as Data from './02_data.js'; 
 
 const safeClick = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
+const TODAY = new Date(); // Definimos la fecha de "hoy" una sola vez
 
 /* ==========================================================================
    RENDERIZADO UI (VISTAS DE ADMINISTRACIÓN)
@@ -78,7 +79,7 @@ export const renderMantenimientoUI = () => {
     setServicio("ultimoBujiaKM", "Bujía");
     setServicio("ultimoLlantasKM", "Llantas");
     
-    // 3. Renderizar Alerta (NUEVA LÓGICA)
+    // 3. Renderizar Alerta
     if (alertaDiv) {
         const resultado = Data.checkMantenimiento();
         
@@ -131,19 +132,23 @@ export const renderListasAdmin = () => {
     }
 };
 
+/* ==========================================================================
+   RENDERIZADO DASHBOARD (INDEX.HTML) Y HISTORIAL
+   ========================================================================== */
+
 export const renderDashboard = () => {
     const state = Data.getState();
     if (!state) return; 
 
     const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };
-    const hoy = new Date().toLocaleDateString();
 
-    // 1. CÁLCULOS DEL DÍA
-    const turnosHoy = state.turnos.filter(t => new Date(t.fecha).toLocaleDateString() === hoy);
+    // 1. CÁLCULOS DEL DÍA (USANDO isSameDay)
+    const turnosHoy = state.turnos.filter(t => isSameDay(t.fecha, TODAY));
     const gananciaBrutaHoy = turnosHoy.reduce((a, b) => a + safeNumber(b.ganancia), 0);
     const horasHoy = turnosHoy.reduce((a, b) => a + safeNumber(b.horas), 0);
     
-    const gastosHoy = state.movimientos.filter(m => m.tipo === 'gasto' && new Date(m.fecha).toLocaleDateString() === hoy).reduce((a,b)=>a+safeNumber(b.monto), 0);
+    // Filtrado de gastos para el día de hoy
+    const gastosHoy = state.movimientos.filter(m => m.tipo === 'gasto' && isSameDay(m.fecha, TODAY)).reduce((a,b)=>a+safeNumber(b.monto), 0);
     
     const gananciaNetaHoy = gananciaBrutaHoy - gastosHoy;
     const gananciaPorHora = (horasHoy > 0) ? (gananciaNetaHoy / horasHoy) : 0;
@@ -344,14 +349,14 @@ export const setupAdminListeners = () => {
         alert("Umbrales Guardados");
     });
     
-    // Mantenimiento - Registrar Servicio (NUEVO LISTENER)
+    // Mantenimiento - Registrar Servicio
     safeClick("btnRegistrarServicio", () => {
         const aceiteKM = $("ultimoAceiteKM").value;
         const bujiaKM = $("ultimoBujiaKM").value;
         const llantasKM = $("ultimoLlantasKM").value;
         
         Data.registrarServicio(aceiteKM, bujiaKM, llantasKM);
-        renderMantenimientoUI(); // Vuelve a renderizar la alerta
+        renderMantenimientoUI();
         alert("Servicios registrados en KM actual");
     });
 
@@ -420,4 +425,4 @@ export const setupAdminListeners = () => {
         location.reload(); 
     });
 };
-   
+
