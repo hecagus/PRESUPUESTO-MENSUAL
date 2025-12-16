@@ -62,11 +62,45 @@ export const renderMetaDiaria = () => {
 
 export const renderMantenimientoUI = () => {
     const state = Data.getState();
-    const cfg = state.parametros?.mantenimientoBase || {};
-    const set = (id, k) => { const el = $(id); if(el) el.value = cfg[k]||0; };
-    set("mantenimientoAceite", "Aceite");
-    set("mantenimientoBujia", "Bujía");
-    set("mantenimientoLlantas", "Llantas");
+    const cfgBase = state.parametros?.mantenimientoBase || {};
+    const cfgServicio = state.parametros?.ultimoServicio || {};
+    const alertaDiv = $("mantenimientoAlerta");
+    
+    // 1. Cargar Umbrales
+    const setBase = (id, k) => { const el = $(id); if(el) el.value = cfgBase[k]||0; };
+    setBase("mantenimientoAceite", "Aceite");
+    setBase("mantenimientoBujia", "Bujía");
+    setBase("mantenimientoLlantas", "Llantas");
+
+    // 2. Cargar Últimos KM de Servicio
+    const setServicio = (id, k) => { const el = $(id); if(el) el.value = cfgServicio[k]||''; };
+    setServicio("ultimoAceiteKM", "Aceite");
+    setServicio("ultimoBujiaKM", "Bujía");
+    setServicio("ultimoLlantasKM", "Llantas");
+    
+    // 3. Renderizar Alerta (NUEVA LÓGICA)
+    if (alertaDiv) {
+        const resultado = Data.checkMantenimiento();
+        
+        if (!resultado.alertaActiva) {
+            alertaDiv.style.cssText = "background: #ecfdf5; border: 1px solid #34d399;"; // Verde
+            alertaDiv.innerHTML = "Estado: 🟢 OK. ¡Servicios al día!";
+        } else {
+            let mensaje = "⚠️ SERVICIO PENDIENTE o PRÓXIMO: ";
+            let pendientes = [];
+            
+            for (const item in resultado.alerta) {
+                if (resultado.alerta[item]) {
+                    const kmRestantes = safeNumber(resultado.kmRestantes[item]);
+                    const simbolo = kmRestantes <= 0 ? '🔴' : '🟠';
+                    pendientes.push(`${simbolo} ${item} (${kmRestantes <= 0 ? 'Excedido' : kmRestantes + ' KM restantes'})`);
+                }
+            }
+            
+            alertaDiv.style.cssText = "background: #fee2e2; border: 1px solid #f87171;"; // Rojo/Naranja
+            alertaDiv.innerHTML = mensaje + pendientes.join('; ');
+        }
+    }
 };
 
 export const renderListasAdmin = () => {
@@ -97,10 +131,6 @@ export const renderListasAdmin = () => {
     }
 };
 
-/* ==========================================================================
-   RENDERIZADO DASHBOARD (INDEX.HTML) Y HISTORIAL
-   ========================================================================== */
-
 export const renderDashboard = () => {
     const state = Data.getState();
     if (!state) return; 
@@ -116,17 +146,15 @@ export const renderDashboard = () => {
     const gastosHoy = state.movimientos.filter(m => m.tipo === 'gasto' && new Date(m.fecha).toLocaleDateString() === hoy).reduce((a,b)=>a+safeNumber(b.monto), 0);
     
     const gananciaNetaHoy = gananciaBrutaHoy - gastosHoy;
-    
-    // MEJORA DE ESTABILIDAD: Evitar NaN/Infinity
     const gananciaPorHora = (horasHoy > 0) ? (gananciaNetaHoy / horasHoy) : 0;
 
     // 2. RENDERING DE KPIS
-    set("resHorasTrabajadas", `${horasHoy.toFixed(2)}h`); // Horas Trabajadas
-    set("resGananciaBruta", `$${fmtMoney(gananciaBrutaHoy)}`); // Ganancia Bruta
-    set("resGastosTrabajo", `$${fmtMoney(gastosHoy)}`); // Gastos Trabajo (hoy)
-    set("resGananciaNeta", `$${fmtMoney(gananciaNetaHoy)}`); // Ganancia Neta
-    set("resKmRecorridos", `${state.parametros.ultimoKM} km`); // KM Recorridos (Usando el odómetro final)
-    set("resGananciaPorHora", `$${fmtMoney(gananciaPorHora)}/h`); // Ganancia por Hora
+    set("resHorasTrabajadas", `${horasHoy.toFixed(2)}h`);
+    set("resGananciaBruta", `$${fmtMoney(gananciaBrutaHoy)}`);
+    set("resGastosTrabajo", `$${fmtMoney(gastosHoy)}`);
+    set("resGananciaNeta", `$${fmtMoney(gananciaNetaHoy)}`);
+    set("resKmRecorridos", `${state.parametros.ultimoKM} km`);
+    set("resGananciaPorHora", `$${fmtMoney(gananciaPorHora)}/h`);
     
     // 3. RENDERING TABLA ÚLTIMOS TURNOS (ID asumido: tablaUltimosTurnosBody)
     const tbodyTurnos = $("tablaUltimosTurnosBody"); 
@@ -309,10 +337,22 @@ export const setupAdminListeners = () => {
         alert("Gasolina Guardada"); window.location.reload();
     });
 
-    // Mantenimiento
+    // Mantenimiento - Guardar Umbrales
     safeClick("btnGuardarMantenimiento", () => {
         Data.guardarConfigMantenimiento($("mantenimientoAceite").value, $("mantenimientoBujia").value, $("mantenimientoLlantas").value);
-        alert("Config Guardada");
+        renderMantenimientoUI();
+        alert("Umbrales Guardados");
+    });
+    
+    // Mantenimiento - Registrar Servicio (NUEVO LISTENER)
+    safeClick("btnRegistrarServicio", () => {
+        const aceiteKM = $("ultimoAceiteKM").value;
+        const bujiaKM = $("ultimoBujiaKM").value;
+        const llantasKM = $("ultimoLlantasKM").value;
+        
+        Data.registrarServicio(aceiteKM, bujiaKM, llantasKM);
+        renderMantenimientoUI(); // Vuelve a renderizar la alerta
+        alert("Servicios registrados en KM actual");
     });
 
     // Deudas Wizards
@@ -380,4 +420,4 @@ export const setupAdminListeners = () => {
         location.reload(); 
     });
 };
-                 
+   
