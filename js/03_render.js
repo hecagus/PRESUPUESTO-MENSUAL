@@ -97,7 +97,6 @@ export const renderListasAdmin = () => {
     }
 };
 
-
 /* ==========================================================================
    RENDERIZADO DASHBOARD (INDEX.HTML) Y HISTORIAL
    ========================================================================== */
@@ -114,11 +113,12 @@ export const renderDashboard = () => {
     const gananciaBrutaHoy = turnosHoy.reduce((a, b) => a + safeNumber(b.ganancia), 0);
     const horasHoy = turnosHoy.reduce((a, b) => a + safeNumber(b.horas), 0);
     
-    // Asumiendo que los gastos del día (que no son fijos) también se registran en movimientos con tipo 'gasto'
     const gastosHoy = state.movimientos.filter(m => m.tipo === 'gasto' && new Date(m.fecha).toLocaleDateString() === hoy).reduce((a,b)=>a+safeNumber(b.monto), 0);
     
     const gananciaNetaHoy = gananciaBrutaHoy - gastosHoy;
-    const gananciaPorHora = horasHoy > 0 ? gananciaNetaHoy / horasHoy : 0;
+    
+    // MEJORA DE ESTABILIDAD: Evitar NaN/Infinity
+    const gananciaPorHora = (horasHoy > 0) ? (gananciaNetaHoy / horasHoy) : 0;
 
     // 2. RENDERING DE KPIS
     set("resHorasTrabajadas", `${horasHoy.toFixed(2)}h`); // Horas Trabajadas
@@ -128,8 +128,8 @@ export const renderDashboard = () => {
     set("resKmRecorridos", `${state.parametros.ultimoKM} km`); // KM Recorridos (Usando el odómetro final)
     set("resGananciaPorHora", `$${fmtMoney(gananciaPorHora)}/h`); // Ganancia por Hora
     
-    // 3. RENDERING TABLA ÚLTIMOS TURNOS
-    const tbodyTurnos = $("tablaUltimosTurnosBody"); // ID asumido para el tbody
+    // 3. RENDERING TABLA ÚLTIMOS TURNOS (ID asumido: tablaUltimosTurnosBody)
+    const tbodyTurnos = $("tablaUltimosTurnosBody"); 
     if (tbodyTurnos) {
         tbodyTurnos.innerHTML = "";
         const ultimos = state.turnos.slice().reverse().slice(0, 5); 
@@ -141,8 +141,8 @@ export const renderDashboard = () => {
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
                     <td>${formatearFecha(t.fecha)}</td>
-                    <td>${t.horas.toFixed(2)}h</td>
-                    <td>${t.kmFinal ? t.kmFinal : '-'}</td> 
+                    <td>${safeNumber(t.horas).toFixed(2)}h</td>
+                    <td>${safeNumber(t.kmFinal)}</td> 
                     <td>$${fmtMoney(t.ganancia)}</td>
                 `;
                 tbodyTurnos.appendChild(tr);
@@ -150,8 +150,8 @@ export const renderDashboard = () => {
         }
     }
 
-    // 4. RENDERING CONTROL GASOLINA / KM (Ejemplo de tabla de histórico)
-    const divGas = $("tablaKmMensual"); // ID asumido para el contenedor de la tabla
+    // 4. RENDERING CONTROL GASOLINA / KM (ID asumido: tablaKmMensual)
+    const divGas = $("tablaKmMensual"); 
     if (divGas) {
         const cargas = state.cargasCombustible.slice().reverse().slice(0, 5);
         
@@ -195,7 +195,6 @@ export const renderHistorial = () => {
 
     resumen.innerHTML = `<p>Ingresos: <b style="color:green">$${fmtMoney(ing)}</b> | Gastos: <b style="color:red">$${fmtMoney(gas)}</b> | Neto: <b>$${fmtMoney(ing-gas)}</b></p>`;
 };
-
 
 /* ==========================================================================
    LISTENERS ADMIN (BOTONES)
