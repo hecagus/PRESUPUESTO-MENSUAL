@@ -4,6 +4,7 @@ import {
     renderMetaDiaria, renderMantenimientoUI, renderDashboard, 
     renderListasAdmin 
 } from './03_render.js';
+import { initCharts } from './04_charts.js';
 
 document.addEventListener("DOMContentLoaded", () => {
     // 1. Cargar datos del almacenamiento
@@ -12,7 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // 2. Identificar la página actual
     const page = document.body.getAttribute('data-page');
 
-    // 3. Ejecutar renderizado según la vista
+    // 3. Ejecutar renderizado y eventos según la vista
     if (page === 'admin') {
         renderTurnoUI();
         renderOdometroUI();
@@ -22,6 +23,9 @@ document.addEventListener("DOMContentLoaded", () => {
         setupAdminListeners();
     } else if (page === 'index') {
         renderDashboard();
+        initCharts(); // Inicialización de gráficas en el Dashboard
     }
+    
+    console.log(`Sistema inicializado en página: ${page}`);
 });
 
