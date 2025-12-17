@@ -15,8 +15,14 @@ let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo_Final")) || null;
 
 export const loadData = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) { try { state = { ...state, ...JSON.parse(raw) }; } catch (e) { console.error(e); } }
-    if (!state.parametros) state.parametros = DEFAULT_DATA.parametros;
+    if (raw) { 
+        try { 
+            const parsed = JSON.parse(raw);
+            state = { ...DEFAULT_DATA, ...parsed }; 
+        } catch (e) { 
+            console.error("Error al cargar datos", e); 
+        } 
+    }
     recalcularMetaDiaria();
 };
 
@@ -35,8 +41,11 @@ export const finalizarTurnoLogic = (ganancia, kmFinal = 0) => {
     if (!turnoActivo) return;
     const fin = new Date();
     const t = { 
-        fecha: fin.toISOString(), inicio: turnoActivo.inicio, fin: fin.toISOString(), 
-        horas: (fin - new Date(turnoActivo.inicio)) / 36e5, ganancia: safeNumber(ganancia),
+        fecha: fin.toISOString(), 
+        inicio: turnoActivo.inicio, 
+        fin: fin.toISOString(), 
+        horas: (fin - new Date(turnoActivo.inicio)) / 36e5, 
+        ganancia: safeNumber(ganancia),
         kmFinal: safeNumber(kmFinal)
     };
     state.turnos.push(t);
