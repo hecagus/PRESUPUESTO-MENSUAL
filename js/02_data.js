@@ -14,7 +14,7 @@ let state = JSON.parse(JSON.stringify(DEFAULT_DATA));
 let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo_Final")) || null;
 
 const calcularCostoPorKm = () => {
-    const cargas = state.cargasCombustible;
+    const cargas = state.cargasCombustible || [];
     if (cargas.length < 2) { state.parametros.costoPorKm = 0; return; }
     const ordenadas = [...cargas].sort((a,b) => safeNumber(a.km) - safeNumber(b.km));
     const kmTotal = safeNumber(ordenadas[ordenadas.length-1].km) - safeNumber(ordenadas[0].km);
@@ -27,7 +27,7 @@ export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(s
 
 export const loadData = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) { try { state = { ...state, ...JSON.parse(raw) }; } catch (e) { console.error(e); } }
+    if (raw) { try { state = { ...state, ...JSON.parse(raw) }; } catch (e) { console.error("Error cargando JSON", e); } }
     if (!state.parametros) state.parametros = DEFAULT_DATA.parametros;
     ['turnos','movimientos','cargasCombustible','deudas','gastos','gastosFijosMensuales'].forEach(k => {
         if (!Array.isArray(state[k])) state[k] = [];
@@ -39,31 +39,25 @@ export const loadData = () => {
 export const getState = () => state;
 export const getTurnoActivo = () => turnoActivo;
 
-// --- LÓGICA DE PROYECCIONES ---
 export const getGananciaNetaPromedio = () => {
+    if (!state.turnos || state.turnos.length === 0) return 0;
     const sieteDiasAtras = new Date();
     sieteDiasAtras.setDate(sieteDiasAtras.getDate() - 7);
     const turnosRecientes = state.turnos.filter(t => new Date(t.fecha) >= sieteDiasAtras);
     if (turnosRecientes.length === 0) return 0;
     const totalNeta = turnosRecientes.reduce((acc, t) => acc + safeNumber(t.ganancia), 0);
-    return totalNeta / 7; // Promedio diario en la última semana
-};
-
-export const getDeudaTotalPendiente = () => {
-    return state.deudas.reduce((acc, d) => acc + safeNumber(d.saldo), 0);
+    return totalNeta / 7;
 };
 
 export const calcularTiempoLibreDeudas = () => {
     const promNetaDiaria = getGananciaNetaPromedio();
-    const gastoDiario = state.parametros.gastoFijo;
-    const deudaTotal = getDeudaTotalPendiente();
+    const gastoDiario = safeNumber(state.parametros.gastoFijo);
+    const deudaTotal = state.deudas.reduce((acc, d) => acc + safeNumber(d.saldo), 0);
     const capacidadPago = promNetaDiaria - gastoDiario;
     if (capacidadPago <= 0 || deudaTotal <= 0) return "Indefinido";
-    const dias = Math.ceil(deudaTotal / capacidadPago);
-    return `${dias} días`;
+    return `${Math.ceil(deudaTotal / capacidadPago)} días`;
 };
 
-// --- RESTO DE FUNCIONES LÓGICAS ---
 export const iniciarTurnoLogic = () => {
     if (turnoActivo) return false;
     const kmInicial = state.parametros.ultimoKM; 
@@ -81,7 +75,7 @@ export const finalizarTurnoLogic = (ganancia, kmFinal = 0) => {
         kmFinal: safeNumber(kmFinal), kmInicial: safeNumber(turnoActivo.kmInicial || 0) 
     };
     state.turnos.push(t);
-    if(t.ganancia > 0) state.movimientos.push({ tipo: 'ingreso', fecha: fin.toISOString(), desc: 'Turno', monto: t.ganancia });
+    state.movimientos.push({ tipo: 'ingreso', fecha: fin.toISOString(), desc: 'Turno', monto: safeNumber(ganancia) });
     if(safeNumber(kmFinal) > 0) state.parametros.ultimoKM = safeNumber(kmFinal);
     turnoActivo = null; 
     localStorage.removeItem("turnoActivo_Final"); 
@@ -90,7 +84,7 @@ export const finalizarTurnoLogic = (ganancia, kmFinal = 0) => {
 
 export const recalcularMetaDiaria = () => {
     const fijos = state.gastosFijosMensuales.reduce((acc, i) => acc + (safeNumber(i.monto) / (DIAS_POR_FRECUENCIA[i.frecuencia]||30)), 0);
-    const deudas = state.deudas.reduce((acc, d) => (d.saldo > 0 ? acc + (safeNumber(d.montoCuota) / (DIAS_POR_FRECUENCIA[d.frecuencia]||30)) : acc), 0);
+    const deudas = state.deudas.reduce((acc, d) => (safeNumber(d.saldo) > 0 ? acc + (safeNumber(d.montoCuota) / (DIAS_POR_FRECUENCIA[d.frecuencia]||30)) : acc), 0);
     state.parametros.gastoFijo = fijos + deudas;
     saveData();
     return state.parametros.gastoFijo;
@@ -109,11 +103,6 @@ export const registrarCargaGasolina = (l, c, km) => {
     saveData();
 };
 
-export const guardarConfigMantenimiento = (aceite, bujia, llantas) => {
-    state.parametros.mantenimientoBase = { 'Aceite': safeNumber(aceite), 'Bujía': safeNumber(bujia), 'Llantas': safeNumber(llantas) };
-    saveData();
-};
-
 export const registrarServicio = (aceiteKM, bujiaKM, llantasKM) => {
     state.parametros.ultimoServicio = { 'Aceite': safeNumber(aceiteKM), 'Bujía': safeNumber(bujiaKM), 'Llantas': safeNumber(llantasKM) };
     saveData();
@@ -126,9 +115,9 @@ export const checkMantenimiento = () => {
     let alertaActiva = false;
     for (const item in mantenimientoBase) {
         const umbral = safeNumber(mantenimientoBase[item]);
-        const ultimoKMRegistro = safeNumber(ultimoServicio[item]);
-        if (umbral > 0 && ultimoKMRegistro > 0) {
-            const kmRecorridos = ultimoKM - ultimoKMRegistro;
+        const ultimoKMRegistro = safeNumber(ultimoServicio?.[item]);
+        if (umbral > 0) {
+            const kmRecorridos = ultimoKM - (ultimoKMRegistro || 0);
             const kmFaltantes = umbral - kmRecorridos;
             kmRestantes[item] = kmFaltantes;
             if (kmFaltantes <= umbral * 0.1) { alerta[item] = true; alertaActiva = true; }
@@ -138,10 +127,14 @@ export const checkMantenimiento = () => {
 };
 
 export const agregarDeuda = (d) => { state.deudas.push(d); recalcularMetaDiaria(); saveData(); };
-export const agregarGasto = (g) => { state.gastos.push(g); state.movimientos.push({ tipo: 'gasto', fecha: g.fecha, desc: g.categoria, monto: g.monto }); saveData(); };
+export const agregarGasto = (g) => { 
+    state.gastos.push(g); 
+    state.movimientos.push({ tipo: 'gasto', fecha: g.fecha, desc: g.categoria, monto: safeNumber(g.monto) }); 
+    saveData(); 
+};
 export const agregarGastoFijo = (gf) => {
     state.gastosFijosMensuales.push(gf);
-    state.movimientos.push({ tipo: 'gasto', fecha: gf.fecha, desc: `Fijo: ${gf.categoria}`, monto: gf.monto });
-    recalculateMetaDiaria();
+    state.movimientos.push({ tipo: 'gasto', fecha: gf.fecha, desc: `Fijo: ${gf.categoria}`, monto: safeNumber(gf.monto) });
+    recalcularMetaDiaria();
 };
 
