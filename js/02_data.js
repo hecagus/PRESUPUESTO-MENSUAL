@@ -49,7 +49,40 @@ export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(s
 export const getState = () => state;
 export const getTurnoActivo = () => turnoActivo;
 
-// --- PROYECCIONES FINANCIERAS (Lógica Wallet/Calendario) ---
+// --- NUEVA FUNCIÓN: KM RECORRIDOS HOY ---
+export const getKmRecorridosHoy = () => {
+    // Ordenar turnos cronológicamente
+    const todos = [...state.turnos].sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
+    
+    // Identificar turnos de hoy
+    const hoyStr = new Date().toLocaleDateString();
+    const turnosHoy = todos.filter(t => new Date(t.fecha).toLocaleDateString() === hoyStr);
+    
+    if (turnosHoy.length === 0) return 0;
+
+    // El KM final de hoy es el del último turno registrado hoy
+    const kmFinalHoy = safeNumber(turnosHoy[turnosHoy.length - 1].kmFinal);
+    
+    // El KM inicial de hoy es el KM final del último turno ANTES de hoy
+    // Buscamos el índice del primer turno de hoy
+    const primerTurnoHoy = turnosHoy[0];
+    const index = todos.indexOf(primerTurnoHoy);
+    
+    let kmInicioDia = 0;
+    if (index > 0) {
+        kmInicioDia = safeNumber(todos[index - 1].kmFinal);
+    } else {
+        // Es el primer turno de la historia de la app. 
+        // Si no hay referencia anterior, asumimos que el recorrido es (Final - Inicio del turno)
+        // Pero no guardamos Inicio. Retornamos 0 para evitar mostrar 11,000 km.
+        // O podríamos estimar 0.
+        return 0; 
+    }
+
+    return kmFinalHoy - kmInicioDia;
+};
+
+// --- PROYECCIONES FINANCIERAS ---
 
 export const getGananciaNetaPromedio7Dias = () => {
     const hoy = new Date();
@@ -65,19 +98,14 @@ export const getDeudaTotalPendiente = () => {
     return state.deudas.reduce((acc, d) => acc + safeNumber(d.saldo), 0);
 };
 
-// NUEVA LÓGICA: Calendario de Pagos Real (Opción B)
 export const calcularDiasParaLiquidarDeuda = () => {
     const deudasActivas = state.deudas.filter(d => d.saldo > 0);
     if (deudasActivas.length === 0) return "¡Libre!";
 
     let maxDias = 0;
-
-    // Calculamos cuánto tarda CADA deuda individualmente según su cuota pactada
     deudasActivas.forEach(d => {
         const cuota = safeNumber(d.montoCuota);
         const frecuenciaDias = DIAS_POR_FRECUENCIA[d.frecuencia] || 30;
-        
-        // Cuánto pagas por día teóricamente en esa deuda
         const pagoDiario = frecuenciaDias > 0 ? (cuota / frecuenciaDias) : 0;
 
         if (pagoDiario > 0) {
@@ -88,7 +116,6 @@ export const calcularDiasParaLiquidarDeuda = () => {
 
     if (maxDias === 0) return "---";
 
-    // Convertimos a una unidad legible (Meses si es > 60 días, Semanas si es menos)
     if (maxDias > 60) {
         return `${Math.ceil(maxDias / 30)} Meses (Cal.)`;
     } else {
@@ -96,15 +123,10 @@ export const calcularDiasParaLiquidarDeuda = () => {
     }
 };
 
-// Análisis de Cobertura (Alcancía)
 export const getAnalisisCobertura = () => {
-    const metaDiaria = state.parametros.gastoFijo; // Lo que DEBES guardar (Alcancía)
-    const realPromedio = getGananciaNetaPromedio7Dias(); // Lo que realmente entra
-    
-    return {
-        cubre: realPromedio >= metaDiaria,
-        diferencia: realPromedio - metaDiaria
-    };
+    const metaDiaria = state.parametros.gastoFijo; 
+    const realPromedio = getGananciaNetaPromedio7Dias();
+    return { cubre: realPromedio >= metaDiaria, diferencia: realPromedio - metaDiaria };
 };
 
 // --- GESTIÓN OPERATIVA ---
