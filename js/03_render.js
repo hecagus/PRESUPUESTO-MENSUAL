@@ -1,3 +1,4 @@
+
 import { $, fmtMoney, CATEGORIAS_GASTOS, formatearFecha, safeNumber, STORAGE_KEY, isSameDay } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 
@@ -119,15 +120,28 @@ export const renderDashboard = () => {
     const turnosHoy = state.turnos.filter(t => isSameDay(t.fecha, TODAY));  
     const gananciaBrutaHoy = turnosHoy.reduce((a, b) => a + safeNumber(b.ganancia), 0);  
     const horasHoy = turnosHoy.reduce((a, b) => a + safeNumber(b.horas), 0);  
-    const gastosHoy = state.movimientos.filter(m => m.tipo === 'gasto' && isSameDay(m.fecha, TODAY)).reduce((a,b)=>a+safeNumber(b.monto), 0);  
-    const gananciaNetaHoy = gananciaBrutaHoy - gastosHoy;  
-    const gananciaPorHora = (horasHoy > 0) ? (gananciaNetaHoy / horasHoy) : 0;  
+    const kmHoy = Data.getKmRecorridosHoy(); // Nueva función lógica
+    
+    // Gastos Manuales
+    const gastosManualesHoy = state.movimientos.filter(m => m.tipo === 'gasto' && isSameDay(m.fecha, TODAY)).reduce((a,b)=>a+safeNumber(b.monto), 0);  
+    
+    // Cálculo Dinámico de Gasolina (Costo Variable)
+    const costoGasolinaHoy = kmHoy * state.parametros.costoPorKm;
+    
+    // Total Gastos (Manuales + Gasolina por KM)
+    // NOTA: Si el usuario registra gasolina manual, se duplica. Asumimos que usa el sistema "Automático".
+    const gastosTotalesHoy = gastosManualesHoy + costoGasolinaHoy;
+    
+    const gananciaNetaHoy = gananciaBrutaHoy - gastosTotalesHoy;  
+    
+    // CORRECCIÓN: Ganancia por Hora basada en BRUTO (Eficiencia)
+    const gananciaPorHora = (horasHoy > 0) ? (gananciaBrutaHoy / horasHoy) : 0;  
     
     set("resHoras", `${horasHoy.toFixed(2)}h`);  
     set("resGananciaBruta", `$${fmtMoney(gananciaBrutaHoy)}`);  
-    set("resGastosTrabajo", `$${fmtMoney(gastosHoy)}`);  
+    set("resGastosTrabajo", `$${fmtMoney(gastosTotalesHoy)}`); // Incluye el costo por KM  
     set("resGananciaNeta", `$${fmtMoney(gananciaNetaHoy)}`);  
-    set("resKmRecorridos", `${state.parametros.ultimoKM} km`);  
+    set("resKmRecorridos", `${kmHoy} km`); // Muestra el Delta, no el Odómetro  
     set("resGananciaPorHora", `$${fmtMoney(gananciaPorHora)}/h`);  
     
     // 2. Proyecciones (Lógica Alcancía/Wallet)
@@ -135,19 +149,16 @@ export const renderDashboard = () => {
     set("proyDeuda", `$${fmtMoney(Data.getDeudaTotalPendiente())}`);
     set("proyGastoFijoDiario", `$${fmtMoney(state.parametros.gastoFijo)}`);
     
-    // Aquí implementamos el "Semáforo Financiero" sin tocar HTML
     const analisis = Data.getAnalisisCobertura();
     const promedioReal = Data.getGananciaNetaPromedio7Dias();
     const elPromedio = $("proyNetaPromedio");
     
     if (elPromedio) {
-        // Mostramos el promedio real
         elPromedio.innerText = `$${fmtMoney(promedioReal)}`;
-        // Color visual para indicar si estamos cubriendo la "Alcancía"
         if (analisis.cubre) {
-            elPromedio.style.color = "#16a34a"; // Verde (Sobran recursos)
+            elPromedio.style.color = "#16a34a"; 
         } else {
-            elPromedio.style.color = "#dc2626"; // Rojo (Faltan recursos para la alcancía)
+            elPromedio.style.color = "#dc2626"; 
         }
     }
 
