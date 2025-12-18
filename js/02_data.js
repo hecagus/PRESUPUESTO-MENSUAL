@@ -13,6 +13,27 @@ const DEFAULT_DATA = {
 let state = JSON.parse(JSON.stringify(DEFAULT_DATA));
 let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo_Final")) || null;
 
+// Lógica de precisión para combustible
+const calcularCostoPorKm = () => {
+    const cargas = state.cargasCombustible || [];
+    if (cargas.length < 2) {
+        state.parametros.costoPorKm = 0;
+        return;
+    }
+    // Ordenar por kilometraje para asegurar cálculo correcto
+    const ordenadas = [...cargas].sort((a, b) => safeNumber(a.km) - safeNumber(b.km));
+    const kmTotal = safeNumber(ordenadas[ordenadas.length - 1].km) - safeNumber(ordenadas[0].km);
+    
+    if (kmTotal <= 0) {
+        state.parametros.costoPorKm = 0;
+        return;
+    }
+
+    // Sumamos el costo de todas las cargas excepto la primera (ya que el KM es inicial)
+    const costoTotal = ordenadas.slice(1).reduce((acc, c) => acc + safeNumber(c.costo), 0);
+    state.parametros.costoPorKm = costoTotal / kmTotal;
+};
+
 export const loadData = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) { 
@@ -24,21 +45,20 @@ export const loadData = () => {
         } 
     }
     recalcularMetaDiaria();
+    calcularCostoPorKm();
 };
 
 export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 export const getState = () => state;
 export const getTurnoActivo = () => turnoActivo;
 
-// --- LÓGICA DE PROYECCIONES ---
+// Proyecciones
 export const getGananciaNetaPromedio7Dias = () => {
     const hoy = new Date();
     const hace7Dias = new Date();
     hace7Dias.setDate(hoy.getDate() - 7);
-    
     const turnosRecientes = state.turnos.filter(t => new Date(t.fecha) >= hace7Dias);
     if (turnosRecientes.length === 0) return 0;
-    
     const sumaNeta = turnosRecientes.reduce((acc, t) => acc + safeNumber(t.ganancia), 0);
     return sumaNeta / 7;
 };
@@ -51,14 +71,12 @@ export const calcularDiasParaLiquidarDeuda = () => {
     const netaDiaria = getGananciaNetaPromedio7Dias();
     const gastoFijoDiario = state.parametros.gastoFijo;
     const deudaTotal = getDeudaTotalPendiente();
-    
     const capacidadPago = netaDiaria - gastoFijoDiario;
     if (capacidadPago <= 0 || deudaTotal <= 0) return "---";
-    
     return `${Math.ceil(deudaTotal / capacidadPago)} días`;
 };
 
-// --- TURNOS ---
+// Turnos
 export const iniciarTurnoLogic = () => {
     if (turnoActivo) return false;
     turnoActivo = { inicio: new Date().toISOString() };
@@ -70,11 +88,8 @@ export const finalizarTurnoLogic = (ganancia, kmFinal = 0) => {
     if (!turnoActivo) return;
     const fin = new Date();
     const t = { 
-        fecha: fin.toISOString(), 
-        inicio: turnoActivo.inicio, 
-        fin: fin.toISOString(), 
-        horas: (fin - new Date(turnoActivo.inicio)) / 36e5, 
-        ganancia: safeNumber(ganancia),
+        fecha: fin.toISOString(), inicio: turnoActivo.inicio, fin: fin.toISOString(), 
+        horas: (fin - new Date(turnoActivo.inicio)) / 36e5, ganancia: safeNumber(ganancia),
         kmFinal: safeNumber(kmFinal)
     };
     state.turnos.push(t);
@@ -85,7 +100,6 @@ export const finalizarTurnoLogic = (ganancia, kmFinal = 0) => {
     saveData();
 };
 
-// --- MÉTODOS DE NEGOCIO ---
 export const recalcularMetaDiaria = () => {
     const fijos = state.gastosFijosMensuales.reduce((acc, i) => acc + (safeNumber(i.monto) / (DIAS_POR_FRECUENCIA[i.frecuencia]||30)), 0);
     const deudas = state.deudas.reduce((acc, d) => (d.saldo > 0 ? acc + (safeNumber(d.montoCuota) / (DIAS_POR_FRECUENCIA[d.frecuencia]||30)) : acc), 0);
@@ -103,6 +117,7 @@ export const actualizarOdometroManual = (km) => {
 export const registrarCargaGasolina = (l, c, km) => {
     actualizarOdometroManual(km);
     state.cargasCombustible.push({ fecha: new Date().toISOString(), litros: safeNumber(l), costo: safeNumber(c), km: safeNumber(km) });
+    calcularCostoPorKm();
     saveData();
 };
 
@@ -136,4 +151,4 @@ export const checkMantenimiento = () => {
 export const agregarDeuda = (d) => { state.deudas.push(d); recalcularMetaDiaria(); saveData(); };
 export const agregarGasto = (g) => { state.gastos.push(g); state.movimientos.push({ tipo: 'gasto', fecha: g.fecha, desc: g.categoria, monto: g.monto }); saveData(); };
 export const agregarGastoFijo = (gf) => { state.gastosFijosMensuales.push(gf); recalcularMetaDiaria(); };
-                                          
+
