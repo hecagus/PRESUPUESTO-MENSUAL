@@ -2,7 +2,7 @@ import { loadData } from './02_data.js';
 import { 
     renderTurnoUI, renderOdometroUI, setupAdminListeners, 
     renderMetaDiaria, renderMantenimientoUI, renderDashboard, 
-    renderListasAdmin 
+    renderListasAdmin, renderHistorial 
 } from './03_render.js';
 import { initCharts } from './04_charts.js';
 
@@ -23,7 +23,9 @@ document.addEventListener("DOMContentLoaded", () => {
         setupAdminListeners();
     } else if (page === 'index') {
         renderDashboard();
-        initCharts(); // Inicialización de gráficas en el Dashboard
+        initCharts();
+    } else if (page === 'historial') {
+        renderHistorial();
     }
     
     console.log(`Sistema inicializado en página: ${page}`);
