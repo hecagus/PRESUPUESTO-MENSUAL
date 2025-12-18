@@ -20,7 +20,6 @@ const calcularCostoPorKm = () => {
         state.parametros.costoPorKm = 0;
         return;
     }
-    // Ordenar por kilometraje para asegurar cálculo correcto
     const ordenadas = [...cargas].sort((a, b) => safeNumber(a.km) - safeNumber(b.km));
     const kmTotal = safeNumber(ordenadas[ordenadas.length - 1].km) - safeNumber(ordenadas[0].km);
     
@@ -28,8 +27,6 @@ const calcularCostoPorKm = () => {
         state.parametros.costoPorKm = 0;
         return;
     }
-
-    // Sumamos el costo de todas las cargas excepto la primera (ya que el KM es inicial)
     const costoTotal = ordenadas.slice(1).reduce((acc, c) => acc + safeNumber(c.costo), 0);
     state.parametros.costoPorKm = costoTotal / kmTotal;
 };
@@ -52,7 +49,8 @@ export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(s
 export const getState = () => state;
 export const getTurnoActivo = () => turnoActivo;
 
-// Proyecciones
+// --- PROYECCIONES FINANCIERAS (Lógica Wallet/Calendario) ---
+
 export const getGananciaNetaPromedio7Dias = () => {
     const hoy = new Date();
     const hace7Dias = new Date();
@@ -67,16 +65,49 @@ export const getDeudaTotalPendiente = () => {
     return state.deudas.reduce((acc, d) => acc + safeNumber(d.saldo), 0);
 };
 
+// NUEVA LÓGICA: Calendario de Pagos Real (Opción B)
 export const calcularDiasParaLiquidarDeuda = () => {
-    const netaDiaria = getGananciaNetaPromedio7Dias();
-    const gastoFijoDiario = state.parametros.gastoFijo;
-    const deudaTotal = getDeudaTotalPendiente();
-    const capacidadPago = netaDiaria - gastoFijoDiario;
-    if (capacidadPago <= 0 || deudaTotal <= 0) return "---";
-    return `${Math.ceil(deudaTotal / capacidadPago)} días`;
+    const deudasActivas = state.deudas.filter(d => d.saldo > 0);
+    if (deudasActivas.length === 0) return "¡Libre!";
+
+    let maxDias = 0;
+
+    // Calculamos cuánto tarda CADA deuda individualmente según su cuota pactada
+    deudasActivas.forEach(d => {
+        const cuota = safeNumber(d.montoCuota);
+        const frecuenciaDias = DIAS_POR_FRECUENCIA[d.frecuencia] || 30;
+        
+        // Cuánto pagas por día teóricamente en esa deuda
+        const pagoDiario = frecuenciaDias > 0 ? (cuota / frecuenciaDias) : 0;
+
+        if (pagoDiario > 0) {
+            const diasFaltantes = d.saldo / pagoDiario;
+            if (diasFaltantes > maxDias) maxDias = diasFaltantes;
+        }
+    });
+
+    if (maxDias === 0) return "---";
+
+    // Convertimos a una unidad legible (Meses si es > 60 días, Semanas si es menos)
+    if (maxDias > 60) {
+        return `${Math.ceil(maxDias / 30)} Meses (Cal.)`;
+    } else {
+        return `${Math.ceil(maxDias / 7)} Semanas (Cal.)`;
+    }
 };
 
-// Turnos
+// Análisis de Cobertura (Alcancía)
+export const getAnalisisCobertura = () => {
+    const metaDiaria = state.parametros.gastoFijo; // Lo que DEBES guardar (Alcancía)
+    const realPromedio = getGananciaNetaPromedio7Dias(); // Lo que realmente entra
+    
+    return {
+        cubre: realPromedio >= metaDiaria,
+        diferencia: realPromedio - metaDiaria
+    };
+};
+
+// --- GESTIÓN OPERATIVA ---
 export const iniciarTurnoLogic = () => {
     if (turnoActivo) return false;
     turnoActivo = { inicio: new Date().toISOString() };
