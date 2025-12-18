@@ -114,23 +114,46 @@ export const renderDashboard = () => {
     const state = Data.getState();
     if (!state) return;
     const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };  
+    
+    // 1. Datos Operativos (Hoy)
     const turnosHoy = state.turnos.filter(t => isSameDay(t.fecha, TODAY));  
     const gananciaBrutaHoy = turnosHoy.reduce((a, b) => a + safeNumber(b.ganancia), 0);  
     const horasHoy = turnosHoy.reduce((a, b) => a + safeNumber(b.horas), 0);  
     const gastosHoy = state.movimientos.filter(m => m.tipo === 'gasto' && isSameDay(m.fecha, TODAY)).reduce((a,b)=>a+safeNumber(b.monto), 0);  
     const gananciaNetaHoy = gananciaBrutaHoy - gastosHoy;  
     const gananciaPorHora = (horasHoy > 0) ? (gananciaNetaHoy / horasHoy) : 0;  
+    
     set("resHoras", `${horasHoy.toFixed(2)}h`);  
     set("resGananciaBruta", `$${fmtMoney(gananciaBrutaHoy)}`);  
     set("resGastosTrabajo", `$${fmtMoney(gastosHoy)}`);  
     set("resGananciaNeta", `$${fmtMoney(gananciaNetaHoy)}`);  
     set("resKmRecorridos", `${state.parametros.ultimoKM} km`);  
     set("resGananciaPorHora", `$${fmtMoney(gananciaPorHora)}/h`);  
+    
+    // 2. Proyecciones (Lógica Alcancía/Wallet)
     set("proyKmTotal", `${state.parametros.ultimoKM} KM`);
     set("proyDeuda", `$${fmtMoney(Data.getDeudaTotalPendiente())}`);
     set("proyGastoFijoDiario", `$${fmtMoney(state.parametros.gastoFijo)}`);
-    set("proyNetaPromedio", `$${fmtMoney(Data.getGananciaNetaPromedio7Dias())}`);
+    
+    // Aquí implementamos el "Semáforo Financiero" sin tocar HTML
+    const analisis = Data.getAnalisisCobertura();
+    const promedioReal = Data.getGananciaNetaPromedio7Dias();
+    const elPromedio = $("proyNetaPromedio");
+    
+    if (elPromedio) {
+        // Mostramos el promedio real
+        elPromedio.innerText = `$${fmtMoney(promedioReal)}`;
+        // Color visual para indicar si estamos cubriendo la "Alcancía"
+        if (analisis.cubre) {
+            elPromedio.style.color = "#16a34a"; // Verde (Sobran recursos)
+        } else {
+            elPromedio.style.color = "#dc2626"; // Rojo (Faltan recursos para la alcancía)
+        }
+    }
+
     set("proyDias", Data.calcularDiasParaLiquidarDeuda());
+
+    // 3. Tabla Turnos
     const tbodyTurnos = $("tablaTurnos");   
     if (tbodyTurnos) {  
         tbodyTurnos.innerHTML = "";  
@@ -143,6 +166,8 @@ export const renderDashboard = () => {
             });  
         }  
     }  
+
+    // 4. Gasolina
     const divGas = $("tablaKmMensual");   
     if (divGas) {  
         const cargas = state.cargasCombustible.slice().reverse().slice(0, 5);  
@@ -237,18 +262,4 @@ export const setupAdminListeners = () => {
     safeClick("btnCopiarJSON", async () => { try { await navigator.clipboard.writeText(localStorage.getItem(STORAGE_KEY)); alert("JSON copiado"); } catch (err) { alert("Error al copiar"); } });  
     safeClick("btnImportar", () => { const json = $("importJson").value; if(!json) return; localStorage.setItem(STORAGE_KEY, json); location.reload(); });
 };
-        safeClick("btnRegistrarIngreso", () => {  
-    const d = $("ingresoDescripcion").value;  
-    const m = $("ingresoCantidad").value;  
-    if (m) {  
-        Data.getState().movimientos.push({  
-            tipo: 'ingreso',  
-            fecha: new Date().toISOString(),  
-            desc: d || "Ingreso Extra",  
-            monto: safeNumber(m)  
-        });  
-        Data.saveData();  
-        alert("Ingreso registrado");  
-        $("ingresoCantidad").value = "";  
-    }  
-});
+        
