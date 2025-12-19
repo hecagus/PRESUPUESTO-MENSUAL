@@ -2,7 +2,7 @@ import { loadData } from './02_data.js';
 import { 
     renderTurnoUI, renderOdometroUI, setupAdminListeners, 
     renderMetaDiaria, renderMantenimientoUI, renderDashboard, 
-    renderListasAdmin, renderHistorial, renderWalletUI, renderGlobalMenu
+    renderListasAdmin, renderHistorial, renderWalletUI, setupMobileMenu 
 } from './03_render.js';
 import { initCharts } from './04_charts.js';
 
@@ -10,13 +10,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // 1. Cargar datos
     loadData();
     
-    // 2. Renderizar Menú Global (Hamburguesa) en TODAS las páginas
-    renderGlobalMenu();
+    // 2. Setup Global (Menú Hamburguesa)
+    setupMobileMenu();
     
-    // 3. Identificar página específica
+    // 3. Identificar página
     const page = document.body.getAttribute('data-page');
 
-    // 4. Ejecutar renderizado específico
+    // 4. Ejecutar renderizado
     if (page === 'admin') {
         renderTurnoUI(); renderOdometroUI(); renderMetaDiaria();
         renderMantenimientoUI(); renderListasAdmin(); setupAdminListeners();
