@@ -32,37 +32,31 @@ export const renderGlobalHeader = () => {
     `;
 
     // Inyección Inteligente:
-    // Busca si ya existe un <header>, si no, lo crea al principio del body
     let header = document.querySelector('header');
     if (!header) {
         header = document.createElement('header');
-        header.className = 'header'; // Asegura la clase para el CSS
+        header.className = 'header'; 
         document.body.prepend(header);
     }
-    
-    // Reemplaza el contenido para asegurar que sea el menú correcto
     header.innerHTML = headerHTML;
 
     // Activa el listener del botón hamburguesa inmediatamente
     setupMobileMenu();
 };
 
-// Lógica interna del menú móvil
 const setupMobileMenu = () => {
     const btn = document.getElementById('menuToggle');
     const nav = document.getElementById('navMenu');
     
     if (btn && nav) {
-        // Clonar botón para eliminar listeners viejos y evitar duplicados
         const newBtn = btn.cloneNode(true);
         btn.parentNode.replaceChild(newBtn, btn);
         
         newBtn.onclick = (e) => {
-            e.stopPropagation(); // Evita que el click cierre el menú inmediatamente
+            e.stopPropagation();
             nav.classList.toggle('active');
         };
         
-        // Cerrar al hacer click fuera
         document.addEventListener('click', (e) => {
             if (nav.classList.contains('active') && !nav.contains(e.target) && !newBtn.contains(e.target)) {
                 nav.classList.remove('active');
@@ -96,7 +90,6 @@ export const renderWalletUI = () => {
         container.innerHTML = "";
         data.sobres.forEach(s => {
             const div = document.createElement("div");
-            // Estilos en línea para asegurar consistencia visual
             div.style.cssText = "background:white; padding:15px; border-radius:8px; border-left:4px solid #3b82f6; box-shadow:0 1px 3px rgba(0,0,0,0.1); margin-bottom:10px;";
             
             const textoAcumulado = s.dias === 0 ? "Reiniciado (Pago hoy)" : `Acumulado (${s.dias} días)`;
@@ -140,7 +133,7 @@ export const renderWalletUI = () => {
 };
 
 /* ==========================================================================
-   3. OTROS RENDERS (ADMIN, DASHBOARD, ETC)
+   3. OTROS RENDERS
    ========================================================================== */
 export const renderTurnoUI = () => {
     const lbl = $("turnoTexto"); if (!lbl) return;
@@ -205,7 +198,6 @@ export const renderListasAdmin = () => {
     }
 };
 
-// Función global expuesta para los botones generados dinámicamente
 window.eliminarFijo = (index) => {
     if(confirm("¿Eliminar este gasto fijo permanentemente?")) {
         Data.eliminarGastoFijo(index);
@@ -242,7 +234,7 @@ export const renderHistorial = () => {
 };
 
 /* ==========================================================================
-   4. LISTENERS (LIMPIO Y SIN BASURA)
+   4. LISTENERS (SOLO LÓGICA DE EVENTOS)
    ========================================================================== */
 export const setupAdminListeners = () => {
     if (document.body.getAttribute("data-page") !== "admin") return;
