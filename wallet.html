@@ -1,61 +1,27 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Wallet – Uber Eats Tracker</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wallet</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body data-page="wallet">
+<body>
+
+<nav class="nav">
+  <a href="index.html">Dashboard</a>
+  <a href="admin.html">Admin</a>
+  <a class="active" href="wallet.html">Wallet</a>
+  <a href="historial.html">Historial</a>
+</nav>
 
 <main class="container">
-  <section class="card" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white;">
-    <h2>Estado de la Billetera</h2>
-    <p class="nota" style="color: #94a3b8;">Diferencia entre efectivo disponible y obligaciones acumuladas.</p>
-    
-    <div class="stats-grid" style="grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
-        <div class="stat">
-            <label style="color: #cbd5e1;">Total Obligado (Sobres)</label>
-            <span id="walletTotalObligado" style="color: #fca5a5; font-size: 1.8rem;">$0.00</span>
-        </div>
-        <div class="stat">
-            <label style="color: #cbd5e1;">Efectivo Disponible</label>
-            <span id="walletCashFlow" style="color: #86efac; font-size: 1.8rem;">$0.00</span>
-        </div>
-    </div>
-    <div id="walletHealth" style="margin-top: 20px; font-weight: bold; text-align: center; font-size: 1.1rem; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05);">
-        Calculando salud financiera...
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>⛽ Sobre de Gasolina</h2>
-    <div class="projection-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 15px;">
-        <div class="projection"><label>KM Recorridos:</label> <span id="walletGasKm">0 km</span></div>
-        <div class="projection"><label>Costo/KM Actual:</label> <span id="walletGasCosto">$0.00</span></div>
-    </div>
-    <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0;">
-        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-            <span>Ahorro Teórico:</span> <strong id="walletGasNecesario">$0.00</strong>
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-            <span>Gasto Real:</span> <strong id="walletGasGastado" style="color:#dc2626;">-$0.00</strong>
-        </div>
-        <hr style="margin:10px 0; border:0; border-top:1px solid #eee;">
-        <div style="display:flex; justify-content:space-between; font-size:1.2rem;">
-            <span>Saldo en Sobre:</span> <strong id="walletGasSaldo">$0.00</strong>
-        </div>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>📅 Sobres Acumulados</h2>
-    <p class="nota" style="margin-bottom:15px;">Dinero que debes separar hoy para pagos futuros.</p>
-    <div id="walletFixedContainer">
-        </div>
-  </section>
+  <div class="card">
+    <h2>Wallet</h2>
+    <div id="walletInfo"></div>
+  </div>
 </main>
 
-<script type="module" src="./js/05_init.js"></script>
+<script type="module" src="./js/wallet.js"></script>
 </body>
 </html>
