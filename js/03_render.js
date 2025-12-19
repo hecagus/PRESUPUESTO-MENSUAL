@@ -5,13 +5,54 @@ const safeClick = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
 const TODAY = new Date(); 
 
 /* ==========================================================================
+   RENDER GLOBAL MENU (Hamburguesa)
+   ========================================================================== */
+export const renderGlobalMenu = () => {
+    const header = document.querySelector('header');
+    if (!header) return;
+    if (document.getElementById('globalMenuBtn')) return;
+
+    const div = document.createElement('div');
+    div.style.cssText = "position:relative; display:inline-block;";
+    div.innerHTML = `
+        <button id="globalMenuBtn" style="background:none; border:none; font-size:1.8rem; cursor:pointer; color:white; margin-left:10px;">☰</button>
+        <div id="globalMenuDropdown" style="display:none; position:absolute; top:40px; right:0; background:white; padding:10px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.2); z-index:1000; min-width:160px; text-align:left;">
+            <a href="index.html" style="display:block; padding:8px; text-decoration:none; color:#1e293b; border-bottom:1px solid #f1f5f9;">📊 Dashboard</a>
+            <a href="wallet.html" style="display:block; padding:8px; text-decoration:none; color:#1e293b; border-bottom:1px solid #f1f5f9;">💰 Wallet (Alcancía)</a>
+            <a href="historial.html" style="display:block; padding:8px; text-decoration:none; color:#1e293b; border-bottom:1px solid #f1f5f9;">📜 Historial</a>
+            <a href="admin.html" style="display:block; padding:8px; text-decoration:none; color:#1e293b;">⚙️ Admin</a>
+        </div>
+    `;
+    
+    // Insertar en las acciones del header o al final
+    const actions = header.querySelector('.header-actions');
+    if (actions) {
+        actions.appendChild(div);
+    } else {
+        header.appendChild(div);
+    }
+
+    const btn = document.getElementById('globalMenuBtn');
+    const drop = document.getElementById('globalMenuDropdown');
+    
+    if (btn && drop) {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            drop.style.display = drop.style.display === 'block' ? 'none' : 'block';
+        };
+        document.addEventListener('click', () => { drop.style.display = 'none'; });
+        drop.onclick = (e) => e.stopPropagation();
+    }
+};
+
+/* ==========================================================================
    RENDER WALLET UI
    ========================================================================== */
 export const renderWalletUI = () => {
     const data = Data.getWalletData();
     const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };
 
-    // 1. GASOLINA (Dinámico)
+    // 1. GASOLINA
     set("walletGasKm", `${data.gasolina.kmTotal} km (Hist.)`);
     set("walletGasCosto", `$${fmtMoney(data.gasolina.costoKm)}/km`);
     set("walletGasNecesario", `$${fmtMoney(data.gasolina.necesario)}`);
@@ -31,8 +72,7 @@ export const renderWalletUI = () => {
             const div = document.createElement("div");
             div.style.cssText = "background:white; padding:15px; border-radius:8px; border-left:4px solid #3b82f6; box-shadow:0 1px 3px rgba(0,0,0,0.1);";
             
-            // Texto dinámico: si dias es 0, muestra "Reiniciado (Pago reciente)"
-            const textoAcumulado = s.dias === 0 ? "Reiniciado (Pago hoy)" : `Acumulado (${s.dias} días)`;
+            const textoAcumulado = s.dias === 0 ? "Reiniciado (Pago hoy/reciente)" : `Acumulado (${s.dias} días)`;
             
             div.innerHTML = `
                 <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
@@ -112,7 +152,6 @@ export const renderMantenimientoUI = () => {
     }
 };
 
-// MODIFICADO: Agregado botón de eliminar para "Gasolina Extra" u otros errores
 export const renderListasAdmin = () => {
     const ul = $("listaGastosFijos"); 
     if (ul) { 
@@ -120,7 +159,7 @@ export const renderListasAdmin = () => {
         Data.getState().gastosFijosMensuales.forEach((g, index) => { 
             ul.innerHTML += `<li style="display:flex; justify-content:space-between; align-items:center;">
                 <span>${g.categoria} (${g.frecuencia}) - $${fmtMoney(g.monto)}</span>
-                <button class="btn-danger-small" onclick="window.eliminarFijo(${index})" style="background:#fee2e2; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">🗑️</button>
+                <button onclick="window.eliminarFijo(${index})" style="background:#fee2e2; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; color:#dc2626;">🗑️</button>
             </li>`; 
         }); 
         const t = $("totalFijoMensualDisplay"); 
@@ -139,7 +178,6 @@ export const renderListasAdmin = () => {
     }
 };
 
-// Exponer globalmente para el onclick del HTML generado
 window.eliminarFijo = (index) => {
     if(confirm("¿Eliminar este gasto fijo permanentemente?")) {
         Data.eliminarGastoFijo(index);
@@ -176,7 +214,7 @@ export const renderHistorial = () => {
 };
 
 /* ==========================================================================
-   LISTENERS (CÓDIGO LIMPIO - SIN BASURA AL FINAL)
+   LISTENERS (Limpio)
    ========================================================================== */
 export const setupAdminListeners = () => {
     if (document.body.getAttribute("data-page") !== "admin") return;
