@@ -16,14 +16,14 @@ export const renderGlobalHeader = () => {
     if(!document.querySelector('header')) document.body.prepend(h);
 
     const btn = $("menuToggle"); const nav = $("navMenu");
-    if(btn && nav) btn.onclick = () => nav.classList.toggle('active');
+    if(btn && nav) btn.onclick = (e) => { e.stopPropagation(); nav.classList.toggle('active'); };
 };
 
 export const renderTurnoUI = () => {
     const activo = Data.getTurnoActivo();
     const lbl = $("turnoTexto");
     if (lbl) {
-        lbl.innerText = activo ? `🟢 Turno Iniciado` : "🔴 Sin turno activo";
+        lbl.innerText = activo ? `🟢 Turno Activo` : "🔴 Sin turno activo";
         if($("btnIniciarTurno")) $("btnIniciarTurno").style.display = activo ? "none" : "block";
         if($("btnFinalizarTurno")) $("btnFinalizarTurno").style.display = activo ? "block" : "none";
     }
@@ -40,9 +40,7 @@ export const setupAdminListeners = () => {
 
 export const renderListasAdmin = () => {
     const ul = $("listaGastosFijos");
-    if (ul) {
-        ul.innerHTML = Data.getState().gastosFijosMensuales.map((g, i) => `<li>${g.categoria} - $${fmtMoney(g.monto)}</li>`).join('');
-    }
+    if (ul) ul.innerHTML = Data.getState().gastosFijosMensuales.map((g, i) => `<li>${g.categoria} - $${fmtMoney(g.monto)}</li>`).join('');
 };
 
 window.eliminarFijo = (i) => { Data.eliminarGastoFijo(i); renderListasAdmin(); };
