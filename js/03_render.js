@@ -5,32 +5,6 @@ const safeClick = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
 const TODAY = new Date(); 
 
 /* ==========================================================================
-   NAVEGACIÓN GLOBAL (MENÚ HAMBURGUESA)
-   ========================================================================== */
-export const renderGlobalMenu = () => {
-    // Buscamos el contenedor de acciones del header en cualquier HTML
-    const container = document.querySelector(".header-actions");
-    if (!container) return;
-
-    // Limpiamos los botones viejos (para que no se dupliquen o mezclen)
-    container.innerHTML = "";
-
-    // Inyectamos el HTML del menú
-    container.innerHTML = `
-        <div class="nav-dropdown">
-            <button class="btn-hamburger" type="button">☰ Menú</button>
-            <div class="nav-content">
-                <a href="index.html">📊 Panel Principal</a>
-                <a href="wallet.html">💰 Mi Alcancía (Wallet)</a>
-                <a href="admin.html">⚙️ Administración</a>
-                <a href="historial.html">📜 Historial</a>
-                <a href="tutorial.html">🎓 Tutorial / Ayuda</a>
-            </div>
-        </div>
-    `;
-};
-
-/* ==========================================================================
    RENDER WALLET UI
    ========================================================================== */
 export const renderWalletUI = () => {
@@ -38,7 +12,7 @@ export const renderWalletUI = () => {
     const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };
 
     // 1. GASOLINA (Dinámico)
-    set("walletGasKm", `${data.gasolina.kmTotal} km`);
+    set("walletGasKm", `${data.gasolina.kmTotal} km (Hist.)`);
     set("walletGasCosto", `$${fmtMoney(data.gasolina.costoKm)}/km`);
     set("walletGasNecesario", `$${fmtMoney(data.gasolina.necesario)}`);
     set("walletGasGastado", `-$${fmtMoney(data.gasolina.gastado)}`);
@@ -65,12 +39,16 @@ export const renderWalletUI = () => {
                     Guardar diario: <b>$${fmtMoney(s.diario)}</b>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px; border-radius:5px;">
-                    <span>Acumulado (Mes):</span>
+                    <span>Acumulado (${s.dias} días):</span>
                     <strong style="color:#2563eb;">$${fmtMoney(s.acumulado)}</strong>
                 </div>
             `;
             container.appendChild(div);
         });
+        
+        if (data.sobres.length === 0) {
+            container.innerHTML = "<p class='nota' style='text-align:center;'>No hay sobres activos o están recién pagados.</p>";
+        }
     }
 
     // 3. TOTALES / SALUD
@@ -93,7 +71,6 @@ export const renderWalletUI = () => {
 /* ==========================================================================
    OTROS RENDERS
    ========================================================================== */
-
 export const renderTurnoUI = () => {
     const lbl = $("turnoTexto"); if (!lbl) return;
     const activo = Data.getTurnoActivo();  
@@ -108,6 +85,7 @@ export const renderTurnoUI = () => {
         if (btnIn) btnIn.style.display = "inline-block"; if (btnFin) btnFin.style.display = "none";  
     }
 };
+
 export const renderOdometroUI = () => {
     const kmI = $("kmInicialDisplay"); const kmA = $("kmActualDisplay");
     if (kmA) {  
@@ -115,7 +93,9 @@ export const renderOdometroUI = () => {
         const c = $("costoPorKmDisplay"); if (c) c.innerText = s.parametros.costoPorKm > 0 ? `$${fmtMoney(s.parametros.costoPorKm)}/km` : "Calculando...";  
     }
 };
+
 export const renderMetaDiaria = () => { const el = $("metaDiariaDisplay"); if (el) el.innerText = `$${fmtMoney(Data.recalcularMetaDiaria())}`; };
+
 export const renderMantenimientoUI = () => {
     const s = Data.getState(); const b = s.parametros?.mantenimientoBase || {}; const sv = s.parametros?.ultimoServicio || {};
     const div = $("mantenimientoAlerta");
@@ -127,10 +107,44 @@ export const renderMantenimientoUI = () => {
         else { let m = "⚠️ SERVICIO PENDIENTE: "; let p = []; for (const i in r.alerta) { if (r.alerta[i]) { const k = safeNumber(r.kmRestantes[i]); const sim = k <= 0 ? '🔴' : '🟠'; p.push(`${sim} ${i} (${k <= 0 ? 'Excedido' : k + ' KM restantes'})`); } } div.style.cssText = "background: #fee2e2; border: 1px solid #f87171;"; div.innerHTML = m + p.join('; '); }  
     }
 };
+
+// FIX 4: Agregado botón de eliminar para borrar "Gasolina Extra"
 export const renderListasAdmin = () => {
-    const ul = $("listaGastosFijos"); if (ul) { ul.innerHTML = ""; Data.getState().gastosFijosMensuales.forEach(g => { ul.innerHTML += `<li>${g.categoria} (${g.frecuencia}) - $${fmtMoney(g.monto)}</li>`; }); const t = $("totalFijoMensualDisplay"); if(t) t.innerText = `$${fmtMoney(Data.getState().parametros.gastoFijo * 30)}`; }
-    const ulD = $("listaDeudas"); const sel = $("abonoSeleccionar"); if(ulD) { ulD.innerHTML = ""; if(sel) sel.innerHTML = ""; Data.getState().deudas.forEach(d => { if(d.saldo > 0) { ulD.innerHTML += `<li>${d.desc}: $${fmtMoney(d.saldo)}</li>`; if(sel) { const o = document.createElement("option"); o.value=d.id; o.text=d.desc; sel.add(o); } } }); }
+    const ul = $("listaGastosFijos"); 
+    if (ul) { 
+        ul.innerHTML = ""; 
+        Data.getState().gastosFijosMensuales.forEach((g, index) => { 
+            // Botón de eliminar con data-index
+            ul.innerHTML += `<li style="display:flex; justify-content:space-between; align-items:center;">
+                <span>${g.categoria} (${g.frecuencia}) - $${fmtMoney(g.monto)}</span>
+                <button class="btn-danger-small" onclick="window.eliminarFijo(${index})" style="padding:2px 6px; font-size:0.7rem; margin-left:10px;">🗑️</button>
+            </li>`; 
+        }); 
+        const t = $("totalFijoMensualDisplay"); 
+        if(t) t.innerText = `$${fmtMoney(Data.getState().parametros.gastoFijo * 30)}`; 
+    }
+    const ulD = $("listaDeudas"); const sel = $("abonoSeleccionar"); 
+    if(ulD) { 
+        ulD.innerHTML = ""; 
+        if(sel) sel.innerHTML = ""; 
+        Data.getState().deudas.forEach(d => { 
+            if(d.saldo > 0) { 
+                ulD.innerHTML += `<li>${d.desc}: $${fmtMoney(d.saldo)}</li>`; 
+                if(sel) { const o = document.createElement("option"); o.value=d.id; o.text=d.desc; sel.add(o); } 
+            } 
+        }); 
+    }
 };
+
+// Exponer función global para el onclick del HTML generado
+window.eliminarFijo = (index) => {
+    if(confirm("¿Eliminar este gasto fijo permanentemente?")) {
+        Data.eliminarGastoFijo(index);
+        renderListasAdmin();
+        renderMetaDiaria();
+    }
+};
+
 export const renderDashboard = () => {
     const s = Data.getState(); if (!s) return; const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };  
     const turnosHoy = s.turnos.filter(t => isSameDay(t.fecha, TODAY));  
@@ -151,6 +165,7 @@ export const renderDashboard = () => {
     const tb = $("tablaTurnos"); if (tb) { tb.innerHTML = ""; const ult = s.turnos.slice().reverse().slice(0, 5); if (ult.length === 0) { tb.innerHTML = "<tr><td colspan='4' style='text-align:center'>Sin registros aún</td></tr>"; } else { ult.forEach(t => { tb.innerHTML += `<tr><td>${formatearFecha(t.fecha)}</td><td>${safeNumber(t.horas).toFixed(2)}h</td><td>${safeNumber(t.kmFinal)}</td><td>$${fmtMoney(t.ganancia)}</td></tr>`; }); } }  
     const dg = $("tablaKmMensual"); if (dg) { const c = s.cargasCombustible.slice().reverse().slice(0, 5); if (c.length === 0) { dg.innerHTML = "<p style='text-align:center; padding:10px; color:#666'>Sin cargas registradas</p>"; } else { let h = `<table class="tabla"><thead><tr><th>Fecha</th><th>Litros</th><th>Costo</th><th>KM Reg.</th></tr></thead><tbody>`; c.forEach(x => { h += `<tr><td>${formatearFecha(x.fecha)}</td><td>${x.litros} L</td><td>$${fmtMoney(x.costo)}</td><td>${x.km}</td></tr>`; }); dg.innerHTML = h + `</tbody></table>`; } }
 };
+
 export const renderHistorial = () => {
     const tb = $("historialBody"); const r = $("historialResumen"); if (!tb || !r) return; tb.innerHTML = "";  
     const movs = Data.getState().movimientos.slice().reverse(); let i = 0, g = 0;  
