@@ -9,11 +9,14 @@
 <body data-page="wallet">
 
 <header class="header">
-  <h1>💰 Mi Alcancía (Wallet)</h1>
-  <div class="header-actions">
-    <a href="index.html" class="btn-admin" type="button">⬅ Panel</a>
-    <a href="admin.html" class="btn-admin" type="button">⚙ Admin</a>
-  </div>
+  <div class="logo">💰 Mi Alcancía</div>
+  <button id="menuToggle" class="menu-toggle">☰</button>
+  <nav id="navMenu" class="nav-menu">
+    <a href="index.html">Dashboard</a>
+    <a href="admin.html">Administrar</a>
+    <a href="wallet.html" class="active">Wallet</a>
+    <a href="historial.html">Historial</a>
+  </nav>
 </header>
 
 <main class="container">
@@ -75,7 +78,7 @@
 
   <section class="card">
     <h2>📅 Sobres de Gastos Fijos</h2>
-    <p class="nota">Acumulación diaria basada en el mes actual (Día 1 a Hoy).</p>
+    <p class="nota">Acumulación diaria basada en tu último pago.</p>
     <div id="walletFixedContainer" style="display:flex; flex-direction:column; gap:10px;">
         </div>
   </section>
