@@ -2,30 +2,27 @@ import { loadData } from './02_data.js';
 import { 
     renderTurnoUI, renderOdometroUI, setupAdminListeners, 
     renderMetaDiaria, renderMantenimientoUI, renderDashboard, 
-    renderListasAdmin, renderHistorial 
+    renderListasAdmin, renderHistorial, renderWalletUI 
 } from './03_render.js';
 import { initCharts } from './04_charts.js';
 
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. Cargar datos del almacenamiento
+    // 1. Cargar datos
     loadData();
     
-    // 2. Identificar la página actual
+    // 2. Identificar página
     const page = document.body.getAttribute('data-page');
 
-    // 3. Ejecutar renderizado y eventos según la vista
+    // 3. Ejecutar renderizado
     if (page === 'admin') {
-        renderTurnoUI();
-        renderOdometroUI();
-        renderMetaDiaria();
-        renderMantenimientoUI();
-        renderListasAdmin();
-        setupAdminListeners();
+        renderTurnoUI(); renderOdometroUI(); renderMetaDiaria();
+        renderMantenimientoUI(); renderListasAdmin(); setupAdminListeners();
     } else if (page === 'index') {
-        renderDashboard();
-        initCharts();
+        renderDashboard(); initCharts();
     } else if (page === 'historial') {
         renderHistorial();
+    } else if (page === 'wallet') {
+        renderWalletUI();
     }
     
     console.log(`Sistema inicializado en página: ${page}`);
