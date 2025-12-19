@@ -30,6 +30,10 @@ export const renderWalletUI = () => {
         data.sobres.forEach(s => {
             const div = document.createElement("div");
             div.style.cssText = "background:white; padding:15px; border-radius:8px; border-left:4px solid #3b82f6; box-shadow:0 1px 3px rgba(0,0,0,0.1);";
+            
+            // Texto dinámico: si dias es 0, muestra "Reiniciado (Pago reciente)"
+            const textoAcumulado = s.dias === 0 ? "Reiniciado (Pago hoy)" : `Acumulado (${s.dias} días)`;
+            
             div.innerHTML = `
                 <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
                     <strong style="color:#1e293b;">${s.nombre}</strong>
@@ -39,7 +43,7 @@ export const renderWalletUI = () => {
                     Guardar diario: <b>$${fmtMoney(s.diario)}</b>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px; border-radius:5px;">
-                    <span>Acumulado (${s.dias} días):</span>
+                    <span>${textoAcumulado}:</span>
                     <strong style="color:#2563eb;">$${fmtMoney(s.acumulado)}</strong>
                 </div>
             `;
@@ -47,7 +51,7 @@ export const renderWalletUI = () => {
         });
         
         if (data.sobres.length === 0) {
-            container.innerHTML = "<p class='nota' style='text-align:center;'>No hay sobres activos o están recién pagados.</p>";
+            container.innerHTML = "<p class='nota' style='text-align:center;'>No hay sobres activos. (Comida y Gasolina se gestionan aparte)</p>";
         }
     }
 
@@ -108,16 +112,15 @@ export const renderMantenimientoUI = () => {
     }
 };
 
-// FIX 4: Agregado botón de eliminar para borrar "Gasolina Extra"
+// MODIFICADO: Agregado botón de eliminar para "Gasolina Extra" u otros errores
 export const renderListasAdmin = () => {
     const ul = $("listaGastosFijos"); 
     if (ul) { 
         ul.innerHTML = ""; 
         Data.getState().gastosFijosMensuales.forEach((g, index) => { 
-            // Botón de eliminar con data-index
             ul.innerHTML += `<li style="display:flex; justify-content:space-between; align-items:center;">
                 <span>${g.categoria} (${g.frecuencia}) - $${fmtMoney(g.monto)}</span>
-                <button class="btn-danger-small" onclick="window.eliminarFijo(${index})" style="padding:2px 6px; font-size:0.7rem; margin-left:10px;">🗑️</button>
+                <button class="btn-danger-small" onclick="window.eliminarFijo(${index})" style="background:#fee2e2; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">🗑️</button>
             </li>`; 
         }); 
         const t = $("totalFijoMensualDisplay"); 
@@ -136,12 +139,11 @@ export const renderListasAdmin = () => {
     }
 };
 
-// Exponer función global para el onclick del HTML generado
+// Exponer globalmente para el onclick del HTML generado
 window.eliminarFijo = (index) => {
     if(confirm("¿Eliminar este gasto fijo permanentemente?")) {
         Data.eliminarGastoFijo(index);
         renderListasAdmin();
-        renderMetaDiaria();
     }
 };
 
@@ -174,7 +176,7 @@ export const renderHistorial = () => {
 };
 
 /* ==========================================================================
-   LISTENERS
+   LISTENERS (CÓDIGO LIMPIO - SIN BASURA AL FINAL)
    ========================================================================== */
 export const setupAdminListeners = () => {
     if (document.body.getAttribute("data-page") !== "admin") return;
