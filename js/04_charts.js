@@ -10,6 +10,7 @@ export const initCharts = () => {
         data: {
             labels: data.map(t => new Date(t.fecha).toLocaleDateString()),
             datasets: [{ label: 'Ganancia', data: data.map(t => t.ganancia), backgroundColor: '#10b981' }]
-        }
+        },
+        options: { responsive: true, maintainAspectRatio: false }
     });
 };
