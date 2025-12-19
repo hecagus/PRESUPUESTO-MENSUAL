@@ -1,44 +1,46 @@
-import { $, fmtMoney, isSameDay } from './01_consts_utils.js';
+import { $, fmtMoney, log } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 
+// -------- HEADER --------
 export const renderGlobalHeader = () => {
-    const page = document.body.getAttribute('data-page') || 'index';
-    const titulos = { 'index': '📊 Dashboard', 'admin': '⚙️ Admin', 'wallet': '💰 Wallet', 'historial': '📜 Historial' };
-    const headerHTML = `
-        <div class="logo">${titulos[page]}</div>
-        <button id="menuToggle" class="menu-toggle">☰</button>
-        <nav id="navMenu" class="nav-menu">
-            <a href="index.html">Dashboard</a> <a href="admin.html">Administrar</a>
-            <a href="wallet.html">Wallet</a> <a href="historial.html">Historial</a>
+    const page = document.body?.dataset.page || 'index';
+    const h = document.querySelector('header') || document.createElement('header');
+    h.className = 'header';
+    h.innerHTML = `
+        <strong>${page.toUpperCase()}</strong>
+        <nav>
+            <a href="index.html">Dashboard</a>
+            <a href="admin.html">Admin</a>
         </nav>`;
-    let h = document.querySelector('header') || document.createElement('header');
-    h.className = 'header'; h.innerHTML = headerHTML;
-    if(!document.querySelector('header')) document.body.prepend(h);
-
-    const btn = $("menuToggle"); const nav = $("navMenu");
-    if(btn && nav) btn.onclick = () => nav.classList.toggle('active');
+    if (!document.querySelector('header')) document.body.prepend(h);
 };
 
+// -------- ADMIN --------
 export const renderTurnoUI = () => {
-    const activo = Data.getTurnoActivo();
     const lbl = $("turnoTexto");
-    if (lbl) {
-        lbl.innerText = activo ? `🟢 Turno Activo` : "🔴 Sin turno activo";
-        if($("btnIniciarTurno")) $("btnIniciarTurno").style.display = activo ? "none" : "block";
-        if($("btnFinalizarTurno")) $("btnFinalizarTurno").style.display = activo ? "block" : "none";
-    }
+    if (!lbl) return;
+    lbl.textContent = Data.getTurnoActivo()
+        ? "🟢 Turno activo"
+        : "🔴 Sin turno";
 };
 
 export const setupAdminListeners = () => {
-    if ($("btnIniciarTurno")) $("btnIniciarTurno").onclick = () => { if(Data.iniciarTurnoLogic()) renderTurnoUI(); };
-    if ($("btnFinalizarTurno")) $("btnFinalizarTurno").onclick = () => {
-        const m = prompt("Ganancia Bruta:");
-        const k = prompt("KM Actual (Odómetro):");
-        if(m) { Data.finalizarTurnoLogic(m, k); location.reload(); }
-    };
+    const btnI = $("btnIniciarTurno");
+    const btnF = $("btnFinalizarTurno");
+    if (btnI) btnI.onclick = () => Data.iniciarTurnoLogic() && renderTurnoUI();
+    if (btnF)
+        btnF.onclick = () => {
+            const g = prompt("Ganancia:");
+            const k = prompt("KM:");
+            Data.finalizarTurnoLogic(g, k);
+            location.reload();
+        };
 };
 
 export const renderListasAdmin = () => {
     const ul = $("listaGastosFijos");
-    if (ul) ul.innerHTML = Data.getState().gastosFijosMensuales.map(g => `<li>${g.categoria}: $${fmtMoney(g.monto)}</li>`).join('');
+    if (!ul) return;
+    ul.innerHTML = Data.getState().gastosFijosMensuales
+        .map(g => `<li>${g.categoria}: $${fmtMoney(g.monto)}</li>`)
+        .join('');
 };
