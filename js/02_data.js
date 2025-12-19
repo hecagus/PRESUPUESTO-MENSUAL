@@ -48,10 +48,8 @@ export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(s
 export const getState = () => state;
 export const getTurnoActivo = () => turnoActivo;
 
-// --- LÓGICA DE WALLET ROBUSTA ---
-
+// --- WALLET LOGIC ---
 const getDiasDesdeUltimoPago = (nombreConcepto) => {
-    // Buscar el pago más reciente en los movimientos
     const pagos = state.movimientos
         .filter(m => m.tipo === 'gasto' && m.desc.toLowerCase().includes(nombreConcepto.toLowerCase()))
         .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
@@ -64,17 +62,15 @@ const getDiasDesdeUltimoPago = (nombreConcepto) => {
         const diffDays = diffTime / (1000 * 60 * 60 * 24); 
         return Math.floor(diffDays);
     } else {
-        return hoy.getDate(); // Si no hay pagos, asumimos días desde el inicio de mes
+        return hoy.getDate();
     }
 };
 
 export const getWalletData = () => {
     const costoKm = state.parametros.costoPorKm || 0;
 
-    // 1. GASOLINA (Cálculo Histórico vs Real)
+    // 1. GASOLINA
     let kmTotalHistorico = 0;
-    
-    // Calcular KM totales rodados desde el primer registro
     const cargasOrd = [...state.cargasCombustible].sort((a,b) => safeNumber(a.km) - safeNumber(b.km));
     if (cargasOrd.length > 0) {
         kmTotalHistorico = state.parametros.ultimoKM - safeNumber(cargasOrd[0].km);
@@ -82,11 +78,9 @@ export const getWalletData = () => {
         const turnosOrd = [...state.turnos].sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
         kmTotalHistorico = state.parametros.ultimoKM - safeNumber(turnosOrd[0].kmFinal);
     }
-    
     if (kmTotalHistorico < 0) kmTotalHistorico = 0;
     
     const ahorroGasolinaTeorico = kmTotalHistorico * costoKm;
-
     const gastoGasolinaReal = state.movimientos
         .filter(m => m.tipo === 'gasto' && (m.desc.toLowerCase().includes('gasolina') || m.desc.toLowerCase().includes('carga')))
         .reduce((acc, m) => acc + safeNumber(m.monto), 0);
@@ -96,18 +90,14 @@ export const getWalletData = () => {
     // 2. SOBRES FIJOS
     const sobres = [];
     
-    // A. Gastos Fijos (Filtrando Comida y Gasolina Extra)
     state.gastosFijosMensuales.forEach(g => {
         const cat = g.categoria.toLowerCase();
-        // FILTROS:
         if (cat.includes('comida') || cat.includes('despensa') || cat.includes('alimentos')) return;
         if (cat.includes('gasolina')) return; 
 
         const monto = safeNumber(g.monto);
         const diasFreq = DIAS_POR_FRECUENCIA[g.frecuencia] || 30;
         const costoDiario = monto / diasFreq;
-        
-        // REINICIO AUTOMÁTICO
         const diasAcumulados = getDiasDesdeUltimoPago(g.categoria);
         
         let acumulado = costoDiario * diasAcumulados;
@@ -122,18 +112,14 @@ export const getWalletData = () => {
         });
     });
 
-    // B. Deudas
     state.deudas.forEach(d => {
         if (d.saldo > 0) {
             const cuota = safeNumber(d.montoCuota);
             const diasFreq = DIAS_POR_FRECUENCIA[d.frecuencia] || 30;
             const costoDiario = cuota / diasFreq;
-            
             const diasAcumulados = getDiasDesdeUltimoPago(d.desc);
-            
             let acumulado = costoDiario * diasAcumulados;
             if (acumulado > cuota) acumulado = cuota;
-
             sobres.push({
                 nombre: d.desc,
                 diario: costoDiario,
@@ -144,26 +130,15 @@ export const getWalletData = () => {
         }
     });
 
-    // 3. Totales
     const totalObligadoSobres = sobres.reduce((acc, s) => acc + s.acumulado, 0) + (saldoGasolina > 0 ? saldoGasolina : 0);
     const totalIngresos = state.movimientos.filter(m => m.tipo === 'ingreso').reduce((a,b)=>a+safeNumber(b.monto), 0);
     const totalGastos = state.movimientos.filter(m => m.tipo === 'gasto').reduce((a,b)=>a+safeNumber(b.monto), 0);
     const efectivoDisponible = totalIngresos - totalGastos;
 
     return {
-        gasolina: {
-            kmTotal: kmTotalHistorico,
-            costoKm: costoKm,
-            necesario: ahorroGasolinaTeorico,
-            gastado: gastoGasolinaReal,
-            saldo: saldoGasolina
-        },
+        gasolina: { kmTotal: kmTotalHistorico, costoKm: costoKm, necesario: ahorroGasolinaTeorico, gastado: gastoGasolinaReal, saldo: saldoGasolina },
         sobres: sobres,
-        totales: {
-            obligado: totalObligadoSobres,
-            efectivo: efectivoDisponible,
-            salud: efectivoDisponible - totalObligadoSobres
-        }
+        totales: { obligado: totalObligadoSobres, efectivo: efectivoDisponible, salud: efectivoDisponible - totalObligadoSobres }
     };
 };
 
@@ -173,7 +148,7 @@ export const eliminarGastoFijo = (index) => {
     saveData();
 };
 
-// --- CORE FUNCTIONS ---
+// --- CORE ---
 export const getKmRecorridosHoy = () => {
     const todos = [...state.turnos].sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
     const hoyStr = new Date().toLocaleDateString();
