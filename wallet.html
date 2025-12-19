@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mi Alcancía (Wallet) – Uber Eats Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="wallet">
+
+<header class="header">
+  <h1>💰 Mi Alcancía (Wallet)</h1>
+  <div class="header-actions">
+    <a href="index.html" class="btn-admin" type="button">⬅ Panel</a>
+    <a href="admin.html" class="btn-admin" type="button">⚙ Admin</a>
+  </div>
+</header>
+
+<main class="container">
+
+  <section class="card" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white;">
+    <h2>Estado de la Billetera</h2>
+    <p class="nota" style="color: #94a3b8;">Dinero que deberías tener físico vs. Obligaciones acumuladas.</p>
+    
+    <div class="stats-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="stat">
+            <label style="color: #cbd5e1;">Total Obligado (Sobres)</label>
+            <span id="walletTotalObligado" style="color: #fca5a5;">$0.00</span>
+        </div>
+        <div class="stat">
+            <label style="color: #cbd5e1;">Efectivo Disponible (Teórico)</label>
+            <span id="walletCashFlow" style="color: #86efac;">$0.00</span>
+        </div>
+    </div>
+    <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #334155; text-align: center;">
+        <label style="display:block; font-size: 0.9rem; margin-bottom: 5px;">Salud Financiera:</label>
+        <span id="walletHealth" style="font-size: 1.5rem; font-weight: bold;">---</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2>⛽ Sobre de Gasolina</h2>
+        <span style="font-size:0.8rem; background:#eff6ff; color:#3b82f6; padding:2px 8px; border-radius:10px;">Dinámico</span>
+    </div>
+    <p class="nota">Se llena según los KM que recorres cada día.</p>
+    
+    <div class="projection-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="projection">
+            <label>Recorrido Histórico:</label>
+            <span id="walletGasKm">0 KM</span>
+        </div>
+        <div class="projection">
+            <label>Costo Promedio:</label>
+            <span id="walletGasCosto">$0.00/km</span>
+        </div>
+    </div>
+
+    <div style="margin-top:15px; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <span>Ahorro Necesario (Acumulado):</span>
+            <strong id="walletGasNecesario">$0.00</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <span>Gasto Real (Gasolineras):</span>
+            <strong id="walletGasGastado" style="color:#dc2626;">-$0.00</strong>
+        </div>
+        <hr style="margin:10px 0;">
+        <div style="display:flex; justify-content:space-between; font-size:1.2rem;">
+            <span>Saldo en Sobre:</span>
+            <strong id="walletGasSaldo">$0.00</strong>
+        </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>📅 Sobres de Gastos Fijos</h2>
+    <p class="nota">Acumulación diaria basada en el mes actual (Día 1 a Hoy).</p>
+    <div id="walletFixedContainer" style="display:flex; flex-direction:column; gap:10px;">
+        </div>
+  </section>
+
+</main>
+<script type="module" src="js/05_init.js"></script>
+</body>
+</html>
