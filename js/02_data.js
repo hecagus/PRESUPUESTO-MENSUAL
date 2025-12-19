@@ -13,7 +13,6 @@ const DEFAULT_DATA = {
 let state = JSON.parse(JSON.stringify(DEFAULT_DATA));
 let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo_Final")) || null;
 
-// Lógica de precisión para combustible
 const calcularCostoPorKm = () => {
     const cargas = state.cargasCombustible || [];
     if (cargas.length < 2) {
@@ -49,71 +48,120 @@ export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(s
 export const getState = () => state;
 export const getTurnoActivo = () => turnoActivo;
 
-// --- LÓGICA DE WALLET (ALCANCÍA) ---
-export const getWalletData = () => {
+// --- NUEVA LÓGICA DE WALLET (CORREGIDA) ---
+
+// Helper: Encuentra cuántos días han pasado desde el último pago de este concepto
+const getDiasDesdeUltimoPago = (nombreConcepto) => {
+    // Buscamos en movimientos (gastos) que coincidan con el nombre
+    // Ordenamos del más reciente al más antiguo
+    const pagos = state.movimientos
+        .filter(m => m.tipo === 'gasto' && m.desc.toLowerCase().includes(nombreConcepto.toLowerCase()))
+        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
     const hoy = new Date();
-    const diaDelMes = hoy.getDate(); // Ej: 18
+    
+    if (pagos.length > 0) {
+        // Si hay un pago, calculamos días desde ese pago hasta hoy
+        const ultimoPago = new Date(pagos[0].fecha);
+        const diffTime = Math.abs(hoy - ultimoPago);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        // Si pagaste hoy (0 días), el acumulado debe ser 0 o 1 día dependiendo de la lógica. 
+        // Asumiremos que si pagaste hoy, el sobre empieza a llenarse para mañana (0 acumulado).
+        return diffDays > 0 ? diffDays - 1 : 0; // Restamos 1 porque el día de pago "vacía" el sobre
+    } else {
+        // Si nunca has pagado, usamos el día del mes actual como fallback
+        return hoy.getDate();
+    }
+};
+
+export const getWalletData = () => {
     const costoKm = state.parametros.costoPorKm || 0;
 
-    // 1. CÁLCULO DE SOBRE GASOLINA (Dinámico histórico)
-    // Sumamos todos los KM recorridos en la historia de los turnos para saber cuánto "debimos guardar"
+    // 1. GASOLINA (Running Balance)
+    // Créditos: KM recorridos en cada turno * CostoKM vigente
+    let creditoGasolina = 0;
+    state.turnos.forEach(t => {
+        const kmRecorrido = safeNumber(t.kmFinal) - (safeNumber(t.kmFinal) > 0 && t.kmInicio ? safeNumber(t.kmInicio) : 0); 
+        // Nota: Como no guardamos kmInicio histórico en turnos viejos, usamos una aproximación o el delta si existe.
+        // MEJORA: Usaremos la lógica de getKmRecorridosHoy pero acumulada.
+        // Para simplificar y corregir el error "Histórico":
+        // Sumamos (KM Final del ultimo turno - KM Inicial del primer turno registrado) * Costo Actual
+    });
+    
+    // Método Simplificado y Robusto para Gasolina:
+    // Saldo = (Total Litros Cargados * Costo Promedio) - (Total Dinero Gastado en Gasolina)
+    // Espera, la lógica de "Alcancía" es: 
+    // Entra dinero al sobre cuando recorro KM. Sale dinero del sobre cuando cargo gasolina.
+    
+    // A. ¿Cuánto debí guardar? (Total KM Históricos * Costo Actual)
     let kmTotalHistorico = 0;
-    // Ordenamos turnos para calcular deltas reales
     const turnosOrd = [...state.turnos].sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
-    
-    // Estimación simple de KM acumulado por turnos (suma de diferencias)
-    // Nota: Para precisión absoluta, usamos la diferencia entre el primer y ultimo turno registrado
     if (turnosOrd.length > 1) {
-        const primero = safeNumber(turnosOrd[0].kmFinal);
-        const ultimo = safeNumber(turnosOrd[turnosOrd.length-1].kmFinal);
-        kmTotalHistorico = ultimo - primero;
+        // Buscamos el mínimo KM registrado y el máximo
+        const kms = state.cargasCombustible.map(c => safeNumber(c.km)).filter(k => k > 0);
+        const minKm = kms.length > 0 ? Math.min(...kms) : 0;
+        const maxKm = state.parametros.ultimoKM;
+        kmTotalHistorico = maxKm - minKm;
     }
-
     const ahorroGasolinaTeorico = kmTotalHistorico * costoKm;
-    
-    // Cuánto hemos gastado realmente en gasolina (Tickets)
+
+    // B. ¿Cuánto he gastado? (Suma de movimientos tipo Gasto que sean Gasolina)
     const gastoGasolinaReal = state.movimientos
-        .filter(m => m.tipo === 'gasto' && (m.desc.includes('Gasolina') || m.desc.includes('Carga')))
+        .filter(m => m.tipo === 'gasto' && (m.desc.toLowerCase().includes('gasolina') || m.desc.toLowerCase().includes('carga')))
         .reduce((acc, m) => acc + safeNumber(m.monto), 0);
 
     const saldoGasolina = ahorroGasolinaTeorico - gastoGasolinaReal;
 
-    // 2. CÁLCULO DE SOBRES FIJOS (Proporcional al mes actual)
-    // Asumimos que la "Alcancía" se reinicia cada mes o ciclo. 
-    // Calculamos cuánto debiste juntar desde el día 1 del mes hasta hoy.
-    
+    // 2. SOBRES FIJOS (Con lógica de Reinicio por Pago)
     const sobres = [];
     
-    // A. Gastos Fijos (Hogar/Moto recurrente)
+    // A. Gastos Fijos
     state.gastosFijosMensuales.forEach(g => {
+        // FIX 4: Filtramos "Gasolina Extra" si el usuario no la ha borrado aún
+        if (g.categoria.toLowerCase().includes('gasolina')) return;
+        
+        // FIX 2: Filtramos "Comida" / "Despensa" (No son sobres de ahorro)
+        if (g.categoria.toLowerCase().includes('comida') || g.categoria.toLowerCase().includes('despensa')) return;
+
         const monto = safeNumber(g.monto);
         const diasFreq = DIAS_POR_FRECUENCIA[g.frecuencia] || 30;
         const costoDiario = monto / diasFreq;
         
-        // Acumulado en este "ciclo" (ej. en estos 18 días)
-        const acumulado = costoDiario * diaDelMes; 
+        // FIX 3: Días desde el último pago real
+        const diasAcumulados = getDiasDesdeUltimoPago(g.categoria);
+        const acumulado = costoDiario * diasAcumulados;
         
+        // Tope visual: No pedir más del monto total de la renta/pago
+        const acumuladoReal = acumulado > monto ? monto : acumulado;
+
         sobres.push({
             nombre: g.categoria,
             diario: costoDiario,
-            acumulado: acumulado,
+            acumulado: acumuladoReal,
+            dias: diasAcumulados, // Debug info
             tipo: 'Fijo'
         });
     });
 
-    // B. Deudas (Las tratamos como sobres fijos también)
+    // B. Deudas (FIX 5 y 6)
     state.deudas.forEach(d => {
         if (d.saldo > 0) {
             const cuota = safeNumber(d.montoCuota);
             const diasFreq = DIAS_POR_FRECUENCIA[d.frecuencia] || 30;
             const costoDiario = cuota / diasFreq;
             
-            const acumulado = costoDiario * diaDelMes;
+            // Días desde el último abono a esta deuda
+            const diasAcumulados = getDiasDesdeUltimoPago(d.desc);
+            const acumulado = costoDiario * diasAcumulados;
             
+            // Tope: No pedir más de la cuota completa
+            const acumuladoReal = acumulado > cuota ? cuota : acumulado;
+
             sobres.push({
                 nombre: d.desc,
                 diario: costoDiario,
-                acumulado: acumulado,
+                acumulado: acumuladoReal,
+                dias: diasAcumulados,
                 tipo: 'Deuda'
             });
         }
@@ -122,7 +170,6 @@ export const getWalletData = () => {
     // 3. Totales
     const totalObligadoSobres = sobres.reduce((acc, s) => acc + s.acumulado, 0) + (saldoGasolina > 0 ? saldoGasolina : 0);
     
-    // Efectivo Real (Ingresos - Gastos Totales Históricos)
     const totalIngresos = state.movimientos.filter(m => m.tipo === 'ingreso').reduce((a,b)=>a+safeNumber(b.monto), 0);
     const totalGastos = state.movimientos.filter(m => m.tipo === 'gasto').reduce((a,b)=>a+safeNumber(b.monto), 0);
     const efectivoDisponible = totalIngresos - totalGastos;
@@ -139,12 +186,17 @@ export const getWalletData = () => {
         totales: {
             obligado: totalObligadoSobres,
             efectivo: efectivoDisponible,
-            salud: efectivoDisponible - totalObligadoSobres // Superávit o Déficit
+            salud: efectivoDisponible - totalObligadoSobres
         }
     };
 };
 
-// --- CORE FUNCTIONS (Sin cambios lógicos, solo persistencia) ---
+export const eliminarGastoFijo = (index) => {
+    state.gastosFijosMensuales.splice(index, 1);
+    recalcularMetaDiaria();
+};
+
+// --- CORE FUNCTIONS ---
 export const getKmRecorridosHoy = () => {
     const todos = [...state.turnos].sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
     const hoyStr = new Date().toLocaleDateString();
@@ -228,4 +280,3 @@ export const checkMantenimiento = () => {
 export const agregarDeuda = (d) => { state.deudas.push(d); recalcularMetaDiaria(); saveData(); };
 export const agregarGasto = (g) => { state.gastos.push(g); state.movimientos.push({ tipo: 'gasto', fecha: g.fecha, desc: g.categoria, monto: g.monto }); saveData(); };
 export const agregarGastoFijo = (gf) => { state.gastosFijosMensuales.push(gf); recalcularMetaDiaria(); };
-
