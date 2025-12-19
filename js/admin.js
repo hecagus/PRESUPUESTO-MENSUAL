@@ -1,50 +1,25 @@
+import './menu.js';
 import { load, save } from './02_data.js';
 import { fmtMoney } from './01_consts_utils.js';
 
-let data = load();
+let d = load();
 
 const estado = document.getElementById('estadoTurno');
 const btnTurno = document.getElementById('btnTurno');
-const gastoMonto = document.getElementById('gastoMonto');
-const btnGasto = document.getElementById('btnGasto');
-const listaGastos = document.getElementById('listaGastos');
-const selectDeuda = document.getElementById('selectDeuda');
-const abonoMonto = document.getElementById('abonoMonto');
-const btnAbono = document.getElementById('btnAbono');
-const meta = document.getElementById('metaDiaria');
-
-render();
+const lista = document.getElementById('listaGastos');
+const monto = document.getElementById('gastoMonto');
 
 btnTurno.onclick = () => {
-  data.turno = data.turno ? null : { inicio: Date.now() };
-  save(data); data = load(); render();
+  d.turno = d.turno ? null : { inicio: Date.now() };
+  save(d); location.reload();
 };
 
-btnGasto.onclick = () => {
-  if (!gastoMonto.value) return;
-  data.gastos.push({ monto: Number(gastoMonto.value) });
-  save(data); data = load();
-  gastoMonto.value = '';
-  render();
+document.getElementById('btnGasto').onclick = () => {
+  if (!monto.value) return;
+  d.gastos.push({ monto: +monto.value });
+  save(d); location.reload();
 };
 
-btnAbono.onclick = () => {
-  const d = data.deudas.find(x => x.id == selectDeuda.value);
-  if (!d || !abonoMonto.value) return;
-  d.saldo -= Number(abonoMonto.value);
-  save(data); data = load();
-  abonoMonto.value = '';
-  render();
-};
-
-function render() {
-  estado.textContent = data.turno ? '🟢 Turno activo' : '🔴 Sin turno';
-  btnTurno.textContent = data.turno ? 'Finalizar Turno' : 'Iniciar Turno';
-
-  listaGastos.innerHTML = data.gastos.map(g => fmtMoney(g.monto)).join('<br>');
-  selectDeuda.innerHTML = data.deudas.map(d =>
-    `<option value="${d.id}">${d.nombre} (${fmtMoney(d.saldo)})</option>`
-  ).join('');
-
-  meta.textContent = fmtMoney(data.gastos.reduce((a,b)=>a+b.monto,0));
-}
+estado.textContent = d.turno ? '🟢 Turno activo' : '🔴 Sin turno';
+btnTurno.textContent = d.turno ? 'Finalizar Turno' : 'Iniciar Turno';
+lista.innerHTML = d.gastos.map(g => fmtMoney(g.monto)).join('<br>');
