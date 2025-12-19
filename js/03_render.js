@@ -1,4 +1,4 @@
-import { $, fmtMoney, CATEGORIAS_GASTOS, formatearFecha, safeNumber, isSameDay } from './01_consts_utils.js';
+import { $, fmtMoney, isSameDay } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 
 export const renderGlobalHeader = () => {
@@ -16,7 +16,7 @@ export const renderGlobalHeader = () => {
     if(!document.querySelector('header')) document.body.prepend(h);
 
     const btn = $("menuToggle"); const nav = $("navMenu");
-    if(btn && nav) btn.onclick = (e) => { e.stopPropagation(); nav.classList.toggle('active'); };
+    if(btn && nav) btn.onclick = () => nav.classList.toggle('active');
 };
 
 export const renderTurnoUI = () => {
@@ -33,14 +33,12 @@ export const setupAdminListeners = () => {
     if ($("btnIniciarTurno")) $("btnIniciarTurno").onclick = () => { if(Data.iniciarTurnoLogic()) renderTurnoUI(); };
     if ($("btnFinalizarTurno")) $("btnFinalizarTurno").onclick = () => {
         const m = prompt("Ganancia Bruta:");
-        const k = prompt("KM Final:");
+        const k = prompt("KM Actual (Odómetro):");
         if(m) { Data.finalizarTurnoLogic(m, k); location.reload(); }
     };
 };
 
 export const renderListasAdmin = () => {
     const ul = $("listaGastosFijos");
-    if (ul) ul.innerHTML = Data.getState().gastosFijosMensuales.map((g, i) => `<li>${g.categoria} - $${fmtMoney(g.monto)}</li>`).join('');
+    if (ul) ul.innerHTML = Data.getState().gastosFijosMensuales.map(g => `<li>${g.categoria}: $${fmtMoney(g.monto)}</li>`).join('');
 };
-
-window.eliminarFijo = (i) => { Data.eliminarGastoFijo(i); renderListasAdmin(); };
