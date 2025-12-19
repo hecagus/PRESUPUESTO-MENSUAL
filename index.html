@@ -2,26 +2,14 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Dashboard – Uber Eats Tracker</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body data-page="index">
 
-<header class="header">
-  <div class="logo">📊 Dashboard</div>
-  <button id="menuToggle" class="menu-toggle">☰</button>
-  <nav id="navMenu" class="nav-menu">
-    <a href="index.html" class="active">Dashboard</a>
-    <a href="admin.html">Administrar</a>
-    <a href="wallet.html">Wallet</a>
-    <a href="historial.html">Historial</a>
-  </nav>
-</header>
-
 <main class="container">
-
   <div class="dashboard-grid">
     <section class="card stats-card">
       <h3>Ganancia Neta (Hoy)</h3>
@@ -31,71 +19,44 @@
 
     <section class="card stats-card">
       <h3>Rendimiento</h3>
-      <div class="grid-2-mini">
-        <div>
-          <span class="label">$/Hora</span>
-          <div class="value" id="resGananciaPorHora">$0.00</div>
-        </div>
-        <div>
-          <span class="label">Horas</span>
-          <div class="value" id="resHoras">0.00h</div>
-        </div>
+      <div class="grid-2">
+        <div class="mini-stat"><label>Por Hora</label><span id="resGananciaPorHora">$0/h</span></div>
+        <div class="mini-stat"><label>Distancia</label><span id="resKmRecorridos">0 km</span></div>
       </div>
     </section>
   </div>
 
-  <section class="card" style="background:#f8fafc; border:1px solid #e2e8f0;">
-    <h3>🎯 Proyección y Estado</h3>
-    <div class="grid-3-mini">
-        <div>
-            <label>Promedio Semanal (Real)</label>
-            <strong id="proyNetaPromedio">$0.00</strong>
-        </div>
-        <div>
-            <label>Meta Diaria (Fija)</label>
-            <strong id="proyGastoFijoDiario">$0.00</strong>
-        </div>
-        <div>
-            <label>Deuda Total</label>
-            <strong id="proyDeuda" style="color:#dc2626;">$0.00</strong>
-        </div>
-    </div>
-    <div style="margin-top:10px; font-size:0.9rem; color:#64748b; text-align:center;">
-        Liquidación estimada de deudas: <b id="proyDias">---</b>
+  <section class="card">
+    <h2>🔭 Análisis y Proyección</h2>
+    <div class="projection-grid">
+        <div class="projection"><label>Promedio Diario (7 días):</label> <span id="proyNetaPromedio">$0</span></div>
+        <div class="projection"><label>Meta Diaria Necesaria:</label> <strong id="proyGastoFijoDiario">$0.00</strong></div>
+        <div class="projection"><label>Deuda Total:</label> <span id="proyDeuda" style="color:#dc2626;">$0.00</span></div>
+        <div class="projection"><label>Tiempo para liquidar:</label> <span id="proyDias">---</span></div>
     </div>
   </section>
 
   <section class="card">
-    <h2>📈 Rendimiento (Últimos 14 Turnos)</h2>
-    <div style="height:250px; margin-bottom:20px;">
-        <canvas id="graficaGanancias"></canvas>
-    </div>
-    <div style="height:200px;">
-        <canvas id="graficaKm"></canvas>
-    </div>
+    <h2>📈 Rendimiento (14 Turnos)</h2>
+    <div style="height:250px; margin-bottom:20px;"><canvas id="graficaGanancias"></canvas></div>
+    <div style="height:200px;"><canvas id="graficaKm"></canvas></div>
   </section>
 
   <div class="dashboard-grid-tables">
       <section class="card">
         <h3>Últimos Turnos</h3>
         <table class="tabla">
-            <thead>
-                <tr><th>Fecha</th><th>Hrs</th><th>KM</th><th>Ganancia</th></tr>
-            </thead>
+            <thead><tr><th>Fecha</th><th>Horas</th><th>KM</th><th>Ganancia</th></tr></thead>
             <tbody id="tablaTurnos"></tbody>
         </table>
       </section>
-
       <section class="card">
         <h3>⛽ Gasolina Reciente</h3>
-        <div id="tablaKmMensual">
-            </div>
-        <p style="margin-top:5px; font-size:0.8rem; text-align:right;">Odómetro: <b id="proyKmTotal">0 KM</b></p>
-        <p style="font-size:0.8rem; text-align:right;">Recorridos Hoy: <b id="resKmRecorridos">0 km</b></p>
+        <div id="tablaKmMensual"></div>
       </section>
   </div>
-
 </main>
-<script type="module" src="js/05_init.js"></script>
+
+<script type="module" src="05_init.js"></script>
 </body>
 </html>
