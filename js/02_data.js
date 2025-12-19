@@ -1,3 +1,4 @@
+import './00_migrate.js';
 import { STORAGE_KEY } from './01_consts_utils.js';
 
 const base = {
