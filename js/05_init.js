@@ -3,12 +3,12 @@ import {
     renderTurnoUI, renderOdometroUI, setupAdminListeners, 
     renderMetaDiaria, renderMantenimientoUI, renderDashboard, 
     renderListasAdmin, renderHistorial, renderWalletUI, 
-    renderGlobalHeader // IMPORTANTE
+    renderGlobalHeader 
 } from './03_render.js';
 import { initCharts } from './04_charts.js';
 
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. INYECCIÓN DEL MENÚ (PRIORIDAD ALTA)
+    // 1. INYECCIÓN DEL MENÚ (Asegura consistencia en todas las páginas)
     renderGlobalHeader();
 
     // 2. Cargar datos
