@@ -15,70 +15,25 @@
     <div style="text-align:center; margin-bottom:15px;">
         <p id="turnoTexto" style="font-size:1.1rem; font-weight:500;">🔴 Cargando...</p>
     </div>
-    <div style="display:flex; gap:10px; flex-direction:column;">
-        <button id="btnIniciarTurno" class="btn-success">▶ Iniciar Turno</button>
-        <button id="btnFinalizarTurno" class="btn-danger" style="display:none;">⏹ Finalizar Turno</button>
-    </div>
-
+    
     <div id="cierreTurnoContainer" style="display:none; margin-top:15px; border-top:1px solid #eee; padding-top:15px;">
-        <label>💰 Ganancia Bruta:</label>
+        <label for="gananciaBruta">💰 Ganancia Bruta:</label>
         <input type="number" id="gananciaBruta" placeholder="0.00">
-        <label>🏎️ KM Final (Opcional):</label>
+        
+        <label for="kmFinalTurno">🏎️ KM Final (Opcional):</label>
         <input type="number" id="kmFinalTurno" placeholder="KM actual">
+        
         <div style="display:flex; gap:10px; margin-top:10px;">
             <button id="btnConfirmarFinalizar" class="btn-success" style="flex:1;">Confirmar</button>
-            <button id="btnCancelarCierre" class="btn-secondary" style="flex:1;">Atrás</button>
+            <button id="btnCancelarCierre" class="btn-secondary" style="flex:1;">Atras</button>
         </div>
     </div>
-  </section>
-
-  <section class="card">
-    <h2>➕ Ingreso Extra</h2>
-    <input type="text" id="ingresoDescripcion" placeholder="Ej: Propina efectivo">
-    <input type="number" id="ingresoCantidad" placeholder="$0.00">
-    <button id="btnRegistrarIngreso" class="btn-primary" style="width:100%; margin-top:10px;">Registrar</button>
-  </section>
-
-  <section class="card">
-    <h2>💸 Registro de Gasto</h2>
-    <div style="display:flex; gap:15px; margin-bottom:10px;">
-        <label><input type="radio" name="gastoTipoRadio" value="moto" checked> 🏎️ Moto</label>
-        <label><input type="radio" name="gastoTipoRadio" value="hogar"> 🏠 Hogar</label>
-    </div>
-    <select id="gastoCategoriaSelect"></select>
-    <input type="text" id="gastoCategoriaManual" placeholder="¿Cuál?" style="display:none; margin-top:5px;">
-    <input type="number" id="gastoCantidad" placeholder="Monto $">
-    <input type="text" id="gastoDescripcion" placeholder="Nota opcional">
-    
-    <div style="margin:10px 0; background:#f1f5f9; padding:10px; border-radius:5px;">
-        <label><input type="checkbox" id="checkEsRecurrente"> Es Gasto Fijo (Mensual, Renta, etc)</label>
-        <select id="gastoFrecuenciaSelect" style="margin-top:5px;">
-            <option value="Mensual">Mensual</option>
-            <option value="Semanal">Semanal</option>
-            <option value="Quincenal">Quincenal</option>
-            <option value="Diario">Diario</option>
-        </select>
-    </div>
-    <button id="btnRegistrarGasto" class="btn-primary" style="width:100%;">Guardar Gasto</button>
-    <ul id="listaGastosFijos" class="list" style="margin-top:15px;"></ul>
   </section>
 
   <section class="card">
     <h2>⛽ Carga de Gasolina</h2>
-    <div id="gasWizardPaso1">
-        <p>KM Inicial: <b id="kmInicialDisplay">--</b></p>
-        <button id="btnGasSiguiente1" class="btn-primary" style="width:100%;">Siguiente</button>
-    </div>
-    <div id="gasWizardPaso2" style="display:none;">
-        <input type="number" id="gasLitros" placeholder="Litros">
-        <input type="number" id="gasCosto" placeholder="Costo Total $">
-        <div style="display:flex; gap:10px;">
-            <button id="btnGasAtras2" class="btn-secondary">Atrás</button>
-            <button id="btnGasSiguiente2" class="btn-primary">Siguiente</button>
-        </div>
-    </div>
     <div id="gasWizardPaso3" style="display:none;">
-        <label>KM Marcado en Tablero:</label>
+        <label for="gasKmActual">KM Marcado en Tablero:</label>
         <input type="number" id="gasKmActual" placeholder="KM Actual">
         <div style="display:flex; gap:10px;">
             <button id="btnGasAtras3" class="btn-secondary">Atrás</button>
@@ -89,50 +44,14 @@
 
   <section class="card">
     <h2>💳 Deudas</h2>
-    <div id="deudaWizardStep1">
-        <input type="text" id="deudaNombre" placeholder="Nombre (Ej: Banco)">
-        <button id="btnDeudaNext1" class="btn-primary">Siguiente</button>
-    </div>
-    <div id="deudaWizardStep2" style="display:none;">
-        <input type="number" id="deudaMontoTotal" placeholder="Monto Total">
-        <input type="number" id="deudaMontoCuota" placeholder="Monto Cuota">
-        <div style="display:flex; gap:10px;">
-            <button id="btnDeudaBack2" class="btn-secondary">Atrás</button>
-            <button id="btnDeudaNext2" class="btn-primary">Siguiente</button>
-        </div>
-    </div>
-    <div id="deudaWizardStep3" style="display:none;">
-        <select id="deudaFrecuencia">
-            <option value="Mensual">Mensual</option>
-            <option value="Quincenal">Quincenal</option>
-            <option value="Semanal">Semanal</option>
-        </select>
-        <button id="btnRegistrarDeudaFinal" class="btn-success" style="width:100%;">Guardar Deuda</button>
-    </div>
-    
     <div style="margin-top:20px; background:#f8fafc; padding:10px; border-radius:8px;">
-        <label>Abonar a Deuda:</label>
+        <label for="abonoSeleccionar">Abonar a Deuda:</label>
         <select id="abonoSeleccionar"></select>
+        
+        <label for="abonoMonto">Cantidad $:</label>
         <input type="number" id="abonoMonto" placeholder="Cantidad $">
         <button id="btnRegistrarAbono" class="btn-success" style="width:100%; margin-top:5px;">Abonar</button>
     </div>
-    <ul id="listaDeudas" class="list"></ul>
-  </section>
-
-  <section class="card" style="background:#ecfdf5; border:1px solid #10b981; text-align:center;">
-    <h3>🎯 Tu Meta Diaria de Ahorro</h3>
-    <h1 id="metaDiariaDisplay" style="color:#059669;">$0.00</h1>
-    <p class="nota">Cubre tus gastos fijos y deudas del mes.</p>
-  </section>
-
-  <section class="card">
-    <h2>💾 Sistema</h2>
-    <div style="display:flex; gap:10px;">
-        <button id="btnCopiarJSON" class="btn-secondary" style="flex:1;">Copiar JSON</button>
-        <button id="btnExportar" class="btn-secondary" style="flex:1;">Excel</button>
-    </div>
-    <textarea id="importJson" placeholder="Pega JSON aquí para importar" style="width:100%; margin-top:10px; height:60px;"></textarea>
-    <button id="btnImportar" class="btn-danger" style="width:100%;">Importar Datos</button>
   </section>
 </main>
 
