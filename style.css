@@ -1,94 +1,23 @@
-/* =========================================
-   ESTILOS DEL MENÚ HAMBURGUESA (CORREGIDO)
-   ========================================= */
-
-/* Estilos base del Header para alojar el menú */
-.header {
-  position: relative; /* Necesario para posicionar el menú */
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 20px;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.logo {
-  font-weight: 700;
-  font-size: 1.2rem;
-  color: #1e293b;
-}
-
-/* El botón de las tres rayitas ☰ */
-.menu-toggle {
-  display: none; /* Oculto en PC por defecto */
-  background: none;
-  border: none;
-  font-size: 1.8rem;
-  cursor: pointer;
-  color: #334155;
-  padding: 5px;
-}
-
-/* El menú de enlaces */
-.nav-menu {
-  display: flex;
-  gap: 20px;
-}
-
-.nav-menu a {
-  text-decoration: none;
-  color: #64748b;
-  font-weight: 500;
-  font-size: 0.95rem;
-  transition: color 0.2s;
-}
-
-.nav-menu a:hover, .nav-menu a.active {
-  color: #2563eb; /* Azul activo */
-}
-
-/* --- VISTA MÓVIL (Celulares) --- */
-@media (max-width: 768px) {
-  .menu-toggle {
-    display: block; /* Aparece la hamburguesa */
-  }
-
-  .nav-menu {
-    display: none; /* Se oculta la lista de links */
-    position: absolute;
-    top: 100%; /* Justo debajo del header */
-    left: 0;
-    width: 100%;
-    background: #ffffff;
-    flex-direction: column;
-    padding: 10px 0;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    border-bottom: 1px solid #e2e8f0;
-    z-index: 1000;
-  }
-
-  /* Esta clase la agrega el JS al hacer click */
-  .nav-menu.active {
-    display: flex; 
-  }
-
-  .nav-menu a {
-    padding: 15px 20px;
-    border-bottom: 1px solid #f1f5f9;
-    width: 100%;
-    display: block;
-  }
-   body {
-  font-family: system-ui, sans-serif;
+body {
   margin: 0;
-  background: #f8fafc;
+  font-family: system-ui, sans-serif;
+  background: #f1f5f9;
 }
 
 .nav {
+  display: flex;
+  gap: 15px;
   padding: 12px;
   background: #0f172a;
-  color: white;
+}
+
+.nav a {
+  color: #94a3b8;
+  text-decoration: none;
+}
+
+.nav a.active {
+  color: #38bdf8;
 }
 
 .container {
@@ -100,12 +29,8 @@
   padding: 16px;
   margin-bottom: 16px;
   border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0,0,0,.05);
 }
 
 button {
   margin-top: 8px;
-  padding: 8px 12px;
-  cursor: pointer;
-}
 }
