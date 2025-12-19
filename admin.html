@@ -8,18 +8,22 @@
 </head>
 <body>
 
-<nav class="nav">
-  <a href="index.html">Dashboard</a>
-  <a class="active" href="admin.html">Admin</a>
-  <a href="wallet.html">Wallet</a>
-  <a href="historial.html">Historial</a>
-</nav>
+<header class="header">
+  <span class="logo">Admin</span>
+  <button class="menu-toggle">☰</button>
+  <nav class="nav-menu">
+    <a href="index.html">Dashboard</a>
+    <a class="active" href="admin.html">Admin</a>
+    <a href="wallet.html">Wallet</a>
+    <a href="historial.html">Historial</a>
+  </nav>
+</header>
 
 <main class="container">
 
   <section class="card">
     <h2>Gestión de Turno</h2>
-    <div id="estadoTurno"></div>
+    <p id="estadoTurno"></p>
     <button id="btnTurno"></button>
   </section>
 
@@ -35,11 +39,6 @@
     <select id="selectDeuda"></select>
     <input id="abonoMonto" type="number" placeholder="Monto $" />
     <button id="btnAbono">Abonar</button>
-  </section>
-
-  <section class="card">
-    <h2>Meta Diaria</h2>
-    <div id="metaDiaria"></div>
   </section>
 
 </main>
