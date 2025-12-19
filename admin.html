@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Administración – Uber Eats Tracker</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
@@ -10,138 +10,267 @@
 <body data-page="admin">
 
 <header class="header">
-  <div class="logo">⚙️ Admin</div>
+  <h1>Panel Administrativo</h1>
   <div class="header-actions">
-      </div>
+    <a href="index.html" class="btn-admin" id="adminButton" type="button">⬅ Volver al Panel</a>
+  </div>
 </header>
 
 <main class="container">
 
   <section class="card" id="cardTurnos">
     <h2>⏱️ Gestión de Turno</h2>
-    <div style="text-align:center; margin-bottom:15px;">
-        <p id="turnoTexto" style="font-size:1.1rem; font-weight:500;">🔴 Cargando estado...</p>
-        <p id="turnoCronometro" style="font-size:0.9rem; color:#64748b;">--:--</p>
-    </div>
+    <p id="turnoTexto" style="margin-bottom:10px;">🔴 Sin turno activo</p>
     
-    <div style="display:flex; gap:10px; flex-direction:column;">
-        <button id="btnIniciarTurno" class="btn-success" type="button" style="padding:12px;">▶ Iniciar Turno</button>
-        <button id="btnFinalizarTurno" class="btn-danger" type="button" style="display:none; padding:12px;">⏹ Finalizar Turno</button>
-    </div>
+    <button id="btnIniciarTurno" class="btn-success" type="button" style="width:100%;">Iniciar Turno</button>
+    <button id="btnFinalizarTurno" class="btn-danger" type="button" style="display:none; width:100%;">Finalizar Turno</button>
 
-    <div id="cierreTurnoContainer" style="display:none; margin-top:20px; padding:15px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">
-        <h3 style="margin-bottom:10px; font-size:1rem;">📝 Cierre de Turno</h3>
-        
-        <div class="form-group" style="margin-bottom:10px;">
-            <label>Kilometraje Final (Odometer):</label>
-            <input type="number" id="inpKmFinal" placeholder="Ej: 15200" class="input-form" />
+    <div id="cierreTurnoContainer" style="display:none; margin-top:15px; padding-top:10px; border-top:1px solid #eee;">
+        <label style="color:#dc2626; font-weight:bold;">Cierre de Día:</label>
+        <label>KM Final (incluyendo regreso a casa):</label>
+        <input type="number" id="kmFinalTurno" placeholder="Lectura del odómetro" />
+        <label>Ganancia Bruta del Turno ($):</label>
+        <input type="number" id="gananciaBruta" placeholder="0.00" />
+        <div style="margin-top:10px; display:flex; gap:10px;">
+             <button id="btnCancelarCierre" class="btn-secondary" style="flex:1;">Cancelar</button>
+             <button id="btnConfirmarFinalizar" class="btn-danger" style="flex:1;">Confirmar</button>
         </div>
-
-        <div class="form-group" style="margin-bottom:10px;">
-            <label>Ganancia Total ($):</label>
-            <input type="number" id="inpGanancia" placeholder="Ej: 850.50" class="input-form" />
-        </div>
-        
-        <button id="btnGuardarCierre" class="btn-primary" type="button" style="width:100%; margin-top:10px;">💾 Guardar y Cerrar</button>
     </div>
+    <p class="nota">El KM Inicial se toma automáticamente del cierre anterior.</p>
   </section>
 
   <section class="card">
-    <h2>🛠️ Operaciones Rápidas</h2>
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-        <button id="btnGasolinaWizard" class="btn-secondary" type="button" style="padding:15px; display:flex; flex-direction:column; align-items:center; gap:5px;">
-            <span style="font-size:1.5rem;">⛽</span>
-            <span>Gasolina</span>
-        </button>
-        
-        <button id="btnGastoWizard" class="btn-secondary" type="button" style="padding:15px; display:flex; flex-direction:column; align-items:center; gap:5px;">
-            <span style="font-size:1.5rem;">💸</span>
-            <span>Registrar Gasto</span>
-        </button>
-    </div>
-  </section>
-
-  <section class="card" id="cardMantenimiento">
-    <h2>🔧 Estado del Vehículo</h2>
-    <div id="mantenimientoAlertasContainer"></div>
-    
-    <div style="margin-top:15px;">
-        <h3 style="font-size:0.95rem; margin-bottom:10px;">Configuración de Intervalos (KM)</h3>
-        <div class="grid-inputs" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
-            <div>
-                <label style="font-size:0.8rem;">Aceite</label>
-                <input type="number" id="confAceite" placeholder="3000" />
-            </div>
-            <div>
-                <label style="font-size:0.8rem;">Bujía</label>
-                <input type="number" id="confBujia" placeholder="8000" />
-            </div>
-            <div>
-                <label style="font-size:0.8rem;">Llantas</label>
-                <input type="number" id="confLlantas" placeholder="15000" />
-            </div>
-        </div>
-        <button id="btnGuardarMantenimiento" class="btn-secondary" style="width:100%; margin-top:10px; font-size:0.85rem;">Actualizar Configuración</button>
-    </div>
+    <h2>Registrar Ingreso (Trabajo)</h2>
+    <label>Descripción:</label>
+    <input type="text" id="ingresoDescripcion" placeholder="Ej. Propina extra" />
+    <label>Monto:</label>
+    <input type="number" id="ingresoCantidad" placeholder="0.00" />
+    <button id="btnRegistrarIngreso" class="btn-primary" type="button">Registrar Ingreso</button>
   </section>
 
   <section class="card">
-    <h2>💳 Deudas y Obligaciones</h2>
+    <h2>💸 Registrar Gasto Inteligente</h2>
     
-    <div style="background:#f1f5f9; padding:15px; border-radius:8px; margin-bottom:15px;">
-        <h3 style="font-size:0.9rem; margin-bottom:10px;">➕ Nueva Deuda / Gasto Fijo</h3>
-        <input type="text" id="deudaNombre" placeholder="Descripción (Ej: Moto, Renta)" style="width:100%; margin-bottom:8px;" />
-        <div style="display:flex; gap:5px; margin-bottom:8px;">
-            <input type="number" id="deudaMontoTotal" placeholder="Total ($)" style="flex:1;" />
-            <input type="number" id="deudaMontoCuota" placeholder="Cuota ($)" style="flex:1;" />
-        </div>
-        <select id="deudaFrecuencia" style="width:100%; margin-bottom:10px;">
+    <div style="display:flex; gap:15px; margin-bottom:15px; font-weight:bold;">
+        <label style="cursor:pointer;">
+            <input type="radio" name="gastoTipoRadio" value="moto" checked> 🏍️ Operativo (Moto)
+        </label>
+        <label style="cursor:pointer;">
+            <input type="radio" name="gastoTipoRadio" value="hogar"> 🏠 Personal (Hogar)
+        </label>
+    </div>
+
+    <label>Categoría:</label>
+    <select id="gastoCategoriaSelect" style="width:100%; padding:8px; margin-bottom:10px;"></select>
+    
+    <input type="text" id="gastoCategoriaManual" placeholder="✍️ Escribe el nombre de la categoría..." style="display:none; margin-bottom:10px; border:2px solid #2563eb;" />
+
+    <label>Monto ($):</label>
+    <input type="number" id="gastoCantidad" placeholder="0.00" />
+
+    <label>Descripción (Opcional):</label>
+    <input type="text" id="gastoDescripcion" placeholder="Detalle extra (Ej. Marca del aceite)" />
+
+    <div style="margin:10px 0; padding:10px; background:#f9f9f9; border-radius:5px; border:1px solid #ddd;">
+        <label for="gastoFrecuenciaSelect" style="display:block; margin-bottom:5px; font-weight:bold; color:#2563eb;">
+            📅 Frecuencia del Gasto:
+        </label>
+        <select id="gastoFrecuenciaSelect" style="width:100%; padding:8px; margin-bottom:10px;">
+            <option value="No Recurrente">No Recurrente (Gasto Único)</option>
+            <option value="Diario">Diario</option>
             <option value="Semanal">Semanal</option>
             <option value="Quincenal">Quincenal</option>
             <option value="Mensual">Mensual</option>
-            <option value="Diario">Diario</option>
-            <option value="Unico">Pago Único</option>
+            <option value="Bimestral">Bimestral</option>
         </select>
-        <button id="btnRegistrarDeudaFinal" class="btn-primary" style="width:100%;">Registrar Deuda</button>
+        
+        <label style="font-size:0.8rem; color:#666;">
+            <input type="checkbox" id="checkEsRecurrente"> Marcar como Gasto Fijo Recurrente
+        </label>
     </div>
 
-    <div style="margin-bottom:15px;">
-        <label>Registrar Abono a Deuda:</label>
-        <select id="abonoSeleccionar" style="width:100%; margin-bottom:5px; padding:8px;"></select>
+    <button id="btnRegistrarGasto" class="btn-danger" type="button">Registrar Gasto</button>
+  </section>
+
+  <section class="card">
+    <h2>⛽ Carga de Combustible</h2>
+    
+    <div class="projection-grid" style="margin-bottom: 15px;">
+        <div class="projection">
+            <label>Costo Real por KM:</label>
+            <span id="costoPorKmDisplay">$0.00</span>
+        </div>
+    </div>
+    <hr style="margin:15px 0;"/>
+
+    <div id="gasWizardPaso1">
+        <label>1. Litros Cargados:</label>
+        <input type="number" id="gasLitros" placeholder="0.00" />
+        <button id="btnGasSiguiente1" class="btn-primary" type="button" style="width:100%; margin-top:10px;">Siguiente ➡</button>
+    </div>
+
+    <div id="gasWizardPaso2" style="display:none;">
+        <label>2. Costo Total ($):</label>
+        <input type="number" id="gasCosto" placeholder="$0.00" />
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button id="btnGasAtras2" class="btn-secondary" type="button" style="flex:1;">⬅ Atrás</button>
+            <button id="btnGasSiguiente2" class="btn-primary" type="button" style="flex:1;">Siguiente ➡</button>
+        </div>
+    </div>
+
+    <div id="gasWizardPaso3" style="display:none;">
+        <label>3. Kilometraje Actual (Odómetro):</label>
+        <input type="number" id="gasKmActual" placeholder="Ej. 12500" />
+        <div style="display:flex; gap:10px; margin-top:10px;">
+             <button id="btnGasAtras3" class="btn-secondary" type="button" style="flex:1;">⬅ Atrás</button>
+             <button id="btnRegistrarCargaFinal" class="btn-success" type="button" style="flex:1;">✅ Guardar Carga</button>
+        </div>
+    </div>
+  </section>
+  
+  <hr style="border: 2px solid #3b82f6; margin: 20px 0;"/>
+
+  <section class="card" id="cardDetalleKm">
+    <h2>🏎️ Detalle de Kilometraje</h2>
+    <div class="projection-grid" style="grid-template-columns: 1fr; gap:10px;">
+        <div style="padding: 10px; background:#f9f9f9; border-left: 3px solid #10b981;">
+            <label style="font-size:0.8rem; color:#666;">Kilometraje Inicial (Ayer):</label>
+            <strong id="kmInicialDisplay" style="display:block; font-size:1.2rem;">0 km</strong>
+            <p class="nota">El kilometraje inicial de hoy es el final de ayer.</p>
+        </div>
+        <div style="padding: 10px; background:#f9f9f9; border-left: 3px solid #f97316;">
+            <label style="font-size:0.8rem; color:#666;">Kilometraje Actual (Odómetro):</label>
+            <strong id="kmActualDisplay" style="display:block; font-size:1.2rem;">0 km</strong>
+            <p class="nota">Este campo no es editable, se actualiza con la carga de gasolina o al finalizar turno.</p>
+        </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>🔧 Mantenimiento (Alertas por KM)</h2>
+    <div id="mantenimientoAlerta" style="padding:10px; margin-bottom:10px; border-radius:6px; text-align:center; font-weight:bold; background: #fffbe8; border: 1px solid #fde047;">
+        Estado: 🟢 OK. ¡Sigue así!
+    </div>
+    
+    <h3>Umbrales (Cada X KM)</h3>
+    <label>Aceite (Cada X KM):</label>
+    <input type="number" id="mantenimientoAceite" />
+    <label>Bujía (Cada X KM):</label>
+    <input type="number" id="mantenimientoBujia" />
+    <label>Llantas (Cada X KM):</label>
+    <input type="number" id="mantenimientoLlantas" />
+    <button id="btnGuardarMantenimiento" class="btn-secondary" type="button">Guardar Umbrales</button>
+
+    <hr style="margin:20px 0;"/>
+
+    <h3>Último Servicio Registrado</h3>
+    <p class="nota">Registra el KM actual cuando realizaste el último servicio de cada componente.</p>
+
+    <div class="projection-grid" style="grid-template-columns: 1fr 1fr; gap:10px;">
+        <div>
+            <label>Aceite (KM):</label>
+            <input type="number" id="ultimoAceiteKM" placeholder="KM al cambiar aceite" />
+        </div>
+        <div>
+            <label>Bujía (KM):</label>
+            <input type="number" id="ultimoBujiaKM" placeholder="KM al cambiar bujía" />
+        </div>
+        <div style="grid-column: span 2;">
+            <label>Llantas (KM):</label>
+            <input type="number" id="ultimoLlantasKM" placeholder="KM al cambiar llantas" />
+        </div>
+    </div>
+
+    <button id="btnRegistrarServicio" class="btn-success" type="button" style="width:100%; margin-top:10px;">✅ Registrar Servicio(s)</button>
+  </section>
+
+  <section class="card">
+    <h2>📉 Obligaciones Financieras</h2>
+    
+    <div style="background:#f0f9ff; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #bae6fd;">
+        <h3 style="color:#0369a1; margin-top:0;">📅 Gastos Fijos Mensuales Activos</h3>
+        <ul id="listaGastosFijos" class="list" style="margin-bottom:10px;"></ul>
+        <div style="text-align:right; font-weight:bold; color:#0369a1;">
+            Total Mensual Fijo: <span id="totalFijoMensualDisplay">$0.00</span>
+        </div>
+    </div>
+
+    <hr style="margin:20px 0;" />
+
+    <h3>💳 Deudas (Préstamos / Tarjetas)</h3>
+    
+    <div id="deudaWizardStep1">
+      <label>1. Nombre de la Deuda:</label>
+      <input type="text" id="deudaNombre" placeholder="Ej. Moto a crédito, Tarjeta de tienda" />
+      <button id="btnDeudaNext1" class="btn-primary" type="button" style="width:100%; margin-top:10px;">Siguiente ➡</button>
+    </div>
+
+    <div id="deudaWizardStep2" style="display:none;">
+      <label>2. Monto Total Adeudado ($):</label>
+      <input type="number" id="deudaMontoTotal" placeholder="Ej. 15000.00" />
+      
+      <label>3. Monto de la Cuota Frecuente ($):</label>
+      <input type="number" id="deudaMontoCuota" placeholder="Ej. 100 por semana" />
+
+      <div style="display:flex; gap:10px; margin-top:10px;">
+          <button id="btnDeudaBack2" class="btn-secondary" type="button" style="flex:1;">⬅ Atrás</button>
+          <button id="btnDeudaNext2" class="btn-primary" type="button" style="flex:1;">Siguiente ➡</button>
+      </div>
+    </div>
+
+    <div id="deudaWizardStep3" style="display:none;">
+      <label>4. Frecuencia de Pago:</label>
+      <select id="deudaFrecuencia">
+        <option value="Mensual">Mensual</option>
+        <option value="Quincenal">Quincenal</option>
+        <option value="Semanal">Semanal</option>
+        <option value="Diario">Diario</option>
+      </select>
+
+      <label>5. Fecha Próximo Pago:</label>
+      <input type="date" id="deudaProximoPago" />
+
+      <div style="display:flex; gap:10px; margin-top:10px;">
+          <button id="btnDeudaBack3" class="btn-secondary" type="button" style="flex:1;">⬅ Atrás</button>
+          <button id="btnRegistrarDeudaFinal" class="btn-success" type="button" style="flex:1;">✅ Registrar Deuda</button>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;">
+        <h3>Registrar Abono a Deuda</h3>
+        <label>Seleccionar Deuda:</label>
+        <select id="abonoSeleccionar" style="margin-bottom:5px;"></select>
         <div style="display:flex; gap:10px; margin-top:5px;">
             <input type="number" id="abonoMonto" placeholder="Monto ($)" style="flex:1;" />
             <button id="btnRegistrarAbono" class="btn-success" type="button" style="flex:1;">Abonar</button>
         </div>
     </div>
 
-    <ul id="listaDeudas" class="list" style="margin-top:15px;">
-        </ul>
+    <ul id="listaDeudas" class="list" style="margin-top:15px;"></ul>
     
-    <hr style="margin:20px 0; border:0; border-top:1px solid #eee;" />
+    <hr style="margin:20px 0;" />
     
     <div style="background:#ecfdf5; padding:15px; border-radius:8px; border:1px solid #6ee7b7; text-align:center;">
         <h3>🎯 Meta Diaria Calculada</h3>
         <h1 id="metaDiariaDisplay" style="color:#059669; font-size:2rem; margin:10px 0;">$0.00</h1>
-        <p class="nota">Calculado: (Gastos Fijos Diarios) + (Aporte Diario a Deudas)</p>
+        <p class="nota">Calculado: (Gastos Fijos Diarios) + (Aporte Diaria a Deudas)</p>
     </div>
   </section>
 
   <section class="card">
-    <h2>💾 Datos del Sistema</h2>
-    <p class="nota">Exporta tus datos periódicamente para no perder información.</p>
-    <div style="display:flex; gap:10px; margin-top:10px;">
-        <button id="btnCopiarJSON" class="btn-secondary" type="button" style="flex:1;">📋 Copiar JSON</button>
-        <button id="btnExportar" class="btn-secondary" type="button" style="flex:1;">📊 Exportar Excel</button>
+    <h2>Respaldo</h2>
+    <div style="display:flex; gap:10px;">
+        <button id="btnCopiarJSON" class="btn-secondary" type="button" style="flex:1;">📋 Copiar Datos (JSON)</button>
+        <button id="btnExportar" class="btn-secondary" type="button" style="flex:1;">⬇ Descargar Excel (.xlsx)</button>
     </div>
-    <div style="margin-top:15px; border-top:1px solid #eee; padding-top:10px;">
-        <label style="color:#dc2626; font-size:0.8rem;">⚠ Zona de Peligro</label>
-        <button id="btnBorrarTodo" class="btn-danger" type="button" style="width:100%; margin-top:5px; opacity:0.7;">Borrar Todos los Datos</button>
+
+    <div style="margin-top:10px;">
+      <textarea id="importJson" rows="2" placeholder="Pegar JSON aquí..."></textarea>
+      <button id="btnImportar" class="btn-danger" type="button">Restaurar</button>
     </div>
   </section>
 
 </main>
-
 <script type="module" src="js/05_init.js"></script>
-
 </body>
 </html>
