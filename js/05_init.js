@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // 1. Cargar datos
     loadData();
     
-    // 2. Setup Global (Menú Hamburguesa) - AHORA SÍ EXISTE
+    // 2. Setup Menú Hamburguesa (Global)
     setupMobileMenu();
     
     // 3. Identificar página
