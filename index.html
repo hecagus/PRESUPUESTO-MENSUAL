@@ -1,62 +1,27 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard – Uber Eats Tracker</title>
+  <title>Dashboard</title>
   <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body data-page="index">
+<body>
+
+<nav class="nav">
+  <a href="index.html">Dashboard</a>
+  <a href="admin.html">Admin</a>
+  <a href="wallet.html">Wallet</a>
+  <a href="historial.html">Historial</a>
+</nav>
 
 <main class="container">
-  <div class="dashboard-grid">
-    <section class="card stats-card">
-      <h3>Ganancia Neta (Hoy)</h3>
-      <div class="big-number" id="resGananciaNeta">$0.00</div>
-      <p class="subtext">Bruta: <span id="resGananciaBruta">$0.00</span> | Gastos: <span id="resGastosTrabajo" style="color:#dc2626;">$0.00</span></p>
-    </section>
-
-    <section class="card stats-card">
-      <h3>Rendimiento</h3>
-      <div class="grid-2">
-        <div class="mini-stat"><label>Por Hora</label><span id="resGananciaPorHora">$0/h</span></div>
-        <div class="mini-stat"><label>Distancia</label><span id="resKmRecorridos">0 km</span></div>
-      </div>
-    </section>
-  </div>
-
-  <section class="card">
-    <h2>🔭 Análisis y Proyección</h2>
-    <div class="projection-grid">
-        <div class="projection"><label>Promedio Diario (7 días):</label> <span id="proyNetaPromedio">$0</span></div>
-        <div class="projection"><label>Meta Diaria Necesaria:</label> <strong id="proyGastoFijoDiario">$0.00</strong></div>
-        <div class="projection"><label>Deuda Total:</label> <span id="proyDeuda" style="color:#dc2626;">$0.00</span></div>
-        <div class="projection"><label>Tiempo para liquidar:</label> <span id="proyDias">---</span></div>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>📈 Rendimiento (14 Turnos)</h2>
-    <div style="height:250px; margin-bottom:20px;"><canvas id="graficaGanancias"></canvas></div>
-    <div style="height:200px;"><canvas id="graficaKm"></canvas></div>
-  </section>
-
-  <div class="dashboard-grid-tables">
-      <section class="card">
-        <h3>Últimos Turnos</h3>
-        <table class="tabla">
-            <thead><tr><th>Fecha</th><th>Horas</th><th>KM</th><th>Ganancia</th></tr></thead>
-            <tbody id="tablaTurnos"></tbody>
-        </table>
-      </section>
-      <section class="card">
-        <h3>⛽ Gasolina Reciente</h3>
-        <div id="tablaKmMensual"></div>
-      </section>
+  <div class="card">
+    <h2>Resumen General</h2>
+    <div id="resumen"></div>
   </div>
 </main>
 
-<script type="module" src="./js/05_init.js"></script>
+<script type="module" src="./js/index.js"></script>
 </body>
 </html>
