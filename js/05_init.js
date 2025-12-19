@@ -2,16 +2,17 @@ import { loadData } from './02_data.js';
 import { 
     renderTurnoUI, renderOdometroUI, setupAdminListeners, 
     renderMetaDiaria, renderMantenimientoUI, renderDashboard, 
-    renderListasAdmin, renderHistorial, renderWalletUI, setupMobileMenu 
+    renderListasAdmin, renderHistorial, renderWalletUI, 
+    renderGlobalHeader // IMPORTANTE: Importar la nueva función
 } from './03_render.js';
 import { initCharts } from './04_charts.js';
 
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. Cargar datos
+    // 1. Inyectar Menú Global (Primero que nada)
+    renderGlobalHeader();
+
+    // 2. Cargar datos
     loadData();
-    
-    // 2. Setup Menú Hamburguesa (Global)
-    setupMobileMenu();
     
     // 3. Identificar página
     const page = document.body.getAttribute('data-page');
