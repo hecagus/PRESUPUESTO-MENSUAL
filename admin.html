@@ -3,79 +3,44 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Administración – Uber Eats Tracker</title>
+  <title>Admin – Uber Eats Tracker</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 
-<body data-page="admin">
+<body>
+  <nav class="nav">
+    <strong>⚙ Admin</strong>
+  </nav>
 
-<main class="container">
+  <main class="container">
 
-  <!-- ================= TURNOS ================= -->
-  <section class="card" id="cardTurnos">
-    <h2>⏱️ Gestión de Turno</h2>
+    <section class="card">
+      <h2>Gestión de Turno</h2>
+      <div id="estadoTurno">Cargando...</div>
+      <button id="btnTurno"></button>
+    </section>
 
-    <div style="text-align:center; margin-bottom:15px;">
-      <p id="turnoTexto" style="font-size:1.1rem; font-weight:500;">
-        🔴 Cargando estado del turno...
-      </p>
-    </div>
+    <section class="card">
+      <h2>Registro de Gasto</h2>
+      <input id="gastoMonto" type="number" placeholder="Monto $" />
+      <button id="btnGasto">Registrar Gasto</button>
+      <div id="listaGastos"></div>
+    </section>
 
-    <div style="display:flex; gap:10px; flex-direction:column;">
-      <button id="btnIniciarTurno" class="btn-success">▶ Iniciar Turno</button>
-      <button id="btnFinalizarTurno" class="btn-danger" style="display:none;">
-        ⏹ Finalizar Turno
-      </button>
-    </div>
-  </section>
+    <section class="card">
+      <h2>Abonos a Deuda</h2>
+      <select id="selectDeuda"></select>
+      <input id="abonoMonto" type="number" placeholder="Monto $" />
+      <button id="btnAbono">Abonar</button>
+    </section>
 
-  <!-- ================= GASTOS ================= -->
-  <section class="card">
-    <h2>💸 Registro de Gasto</h2>
+    <section class="card">
+      <h2>Meta Diaria</h2>
+      <div id="metaDiaria">$0.00</div>
+    </section>
 
-    <div style="margin-bottom:15px;">
-      <label for="gastoCantidad">Monto $:</label>
-      <input type="number" id="gastoCantidad" placeholder="0.00" />
-    </div>
+  </main>
 
-    <!-- Render dinámico de gastos fijos / diarios -->
-    <ul id="listaGastosFijos" class="list"></ul>
-  </section>
-
-  <!-- ================= DEUDAS ================= -->
-  <section class="card">
-    <h2>💳 Abonos a Deuda</h2>
-
-    <div style="background:#f8fafc; padding:15px; border-radius:8px;">
-      <label for="abonoSeleccionar">Seleccionar Deuda:</label>
-      <select id="abonoSeleccionar" style="width:100%; margin-bottom:10px;"></select>
-
-      <label for="abonoMonto">Monto del Abono:</label>
-      <input
-        type="number"
-        id="abonoMonto"
-        placeholder="0.00"
-        style="width:100%;"
-      />
-    </div>
-  </section>
-
-  <!-- ================= MANTENIMIENTO ================= -->
-  <section class="card">
-    <h2>🛠️ Mantenimiento del Vehículo</h2>
-    <!-- Render dinámico -->
-    <div id="mantenimientoContainer"></div>
-  </section>
-
-  <!-- ================= META DIARIA ================= -->
-  <section class="card">
-    <h2>🎯 Meta Diaria</h2>
-    <!-- Render dinámico -->
-    <div id="metaDiariaContainer"></div>
-  </section>
-
-</main>
-
-<script type="module" src="./js/05_init.js"></script>
+  <script type="module" src="./js/admin.js"></script>
 </body>
 </html>
