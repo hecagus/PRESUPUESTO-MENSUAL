@@ -1,275 +1,82 @@
-/* style.css — limpio, claro y responsive */
+/* =========================================
+   ESTILOS DEL MENÚ HAMBURGUESA (CORREGIDO)
+   ========================================= */
 
-/* Reset simple */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html,body { height: 100%; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background: #fafafa; color: #111; }
-
-/* Layout */
+/* Estilos base del Header para alojar el menú */
 .header {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:18px 20px;
-  background: #ffffff;
-  border-bottom: 1px solid #eee;
-  box-shadow: 0 1px 0 rgba(0,0,0,0.02);
-}
-.header h1 { font-size:1.1rem; font-weight:600; color:#222; }
-.header .header-actions { display:flex; gap:8px; align-items:center; }
-
-.container {
-  max-width: 900px;
-  margin: 20px auto;
-  padding: 0 15px;
-}
-
-/* Cards and Sections */
-.card {
-  background: #ffffff;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-  margin-bottom: 20px;
-}
-.card h2 {
-  font-size: 1.15rem;
-  font-weight: 700;
-  margin-bottom: 15px;
-  color: #222;
-  border-bottom: 1px solid #f2f2f2;
-  padding-bottom: 10px;
-}
-.card h3 {
-  font-size: 1.05rem;
-  font-weight: 600;
-  margin-top: 15px;
-  margin-bottom: 10px;
-}
-
-/* Forms and Inputs */
-label {
-  display: block;
-  margin-top: 10px;
-  margin-bottom: 5px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #444;
-}
-
-/* NUEVO: Estilos para organizar los inputs de turno */
-.turno-inputs {
-    display: grid;
-    /* Permite hasta 3 columnas, pero se ajustará a las disponibles */
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 10px 20px; /* Separación vertical y horizontal */
-    margin-bottom: 15px; /* Separación del botón de abajo */
-}
-.turno-inputs label, .turno-inputs input {
-    margin-top: 0;
-    margin-bottom: 0;
-    display: block;
-}
-
-input[type="text"], input[type="number"], select, textarea {
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 1rem;
-  box-sizing: border-box;
-}
-input[type="number"]::-webkit-inner-spin-button, 
-input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-input[type="number"] {
-  -moz-appearance: textfield;
-}
-button, a.btn-admin {
-  margin-top: 8px;
-  margin-right: 8px;
-  white-space: nowrap;
-}
-.list {
-  list-style: none;
-  padding: 0;
-}
-.list li {
-  padding: 8px 0;
-  border-bottom: 1px solid #eee;
-  font-size: 0.95rem;
+  position: relative; /* Necesario para posicionar el menú */
   display: flex;
   justify-content: space-between;
-}
-.list li:last-child {
-  border-bottom: none;
+  align-items: center;
+  padding: 15px 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-/* Buttons */
-a.btn-admin, button {
-  display:inline-block;
-  padding:8px 12px;
-  border-radius:8px;
-  border:1px solid transparent;
-  background:#fff;
-  font-size:0.95rem;
-  cursor:pointer;
-  text-decoration:none;
-  color:#111;
-  transition: background-color 0.2s;
-}
-.btn-primary { background:#2563eb; color:#fff; border-color:#2563eb; }
-.btn-primary:hover { background:#1d4ed8; }
-
-.btn-success { background:#16a34a; color:#fff; border-color:#16a34a; }
-.btn-success:hover { background:#15803d; }
-
-.btn-danger { background:#dc2626; color:#fff; border-color:#dc2626; }
-.btn-danger:hover { background:#b91c1c; }
-
-.btn-secondary { background:#e5e7eb; color:#1f2937; border-color:#d1d5db; }
-.btn-secondary:hover { background:#d1d5db; }
-
-/* Stats grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 15px;
-  margin-top: 5px;
-}
-.stat {
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #eee;
-  background: #f7f7f7;
-}
-.stat label {
-  font-size: 0.85rem;
-  color: #6b7280;
-  margin: 0;
-}
-.stat span {
-  display: block;
-  font-size: 1.5rem;
+.logo {
   font-weight: 700;
-  color: #111;
-  margin-top: 4px;
-}
-.stat-large { background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.03); }
-.stat-highlight { background:#fffbe6; border:1px solid #fff1b8; }
-
-/* Projection grid */
-.projection-grid {
-  display:grid;
-  grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
-  gap:10px;
-}
-.projection { padding:10px; background:#fafafa; border-radius:8px; }
-
-/* Tables */
-.tabla { width:100%; border-collapse:collapse; margin-top:8px; }
-.tabla th, .tabla td { padding:10px; text-align:left; border-bottom:1px solid #f2f2f2; font-size:0.95rem; }
-.tabla thead th { background:#fafafa; font-weight:600; }
-
-/* Small helpers */
-.nota { color:#6b7280; font-size:0.9rem; margin-top:8px; }
-.alert-list { list-style: none; padding-left:8px; color:#b91c1c; }
-.hidden { display: none !important; }
-
-/* Modal tutorial */
-.overlay {
-  position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:9998;
-}
-.modal-center {
-  position:fixed;
-  left:50%; top:50%;
-  transform:translate(-50%,-50%);
-  background:#fff;
-  padding:25px;
-  border-radius:10px;
-  width:90%;
-  max-width:400px;
-  box-shadow:0 10px 25px rgba(0,0,0,0.2);
-  z-index:9999;
-}
-.modal-center h3 { margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; }
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .header { padding: 15px 10px; }
-  .header h1 { font-size: 1rem; }
-  .container { padding: 0 10px; margin-top: 15px; }
-  .card { padding: 15px; margin-bottom: 15px; }
-  .stats-grid { grid-template-columns: 1fr; }
-  .stat-large { grid-column: 1 / -1; }
-  .projection-grid { grid-template-columns: 1fr; }
-  .tabla th, .tabla td { padding: 8px; font-size: 0.9rem; }
-  
-  /* Ajuste para que los inputs de turno se vean bien en móvil */
-  .turno-inputs { grid-template-columns: 1fr; gap: 0; }
-}
-
-/* =========================================
-   MENÚ HAMBURGUESA (GLOBAL)
-   ========================================= */
-.nav-dropdown {
-  position: relative;
-  display: inline-block;
-}
-
-.btn-hamburger {
-  background: transparent;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 8px 12px;
   font-size: 1.2rem;
+  color: #1e293b;
+}
+
+/* El botón de las tres rayitas ☰ */
+.menu-toggle {
+  display: none; /* Oculto en PC por defecto */
+  background: none;
+  border: none;
+  font-size: 1.8rem;
   cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-hamburger:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-}
-
-.nav-content {
-  display: none;
-  position: absolute;
-  right: 0;
-  top: 100%;
-  background-color: #ffffff;
-  min-width: 200px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
-  border: 1px solid #f1f5f9;
-  z-index: 1000;
-  overflow: hidden;
-  margin-top: 5px;
-}
-
-/* Mostrar menú al pasar el mouse o al hacer click (manejado por CSS hover simple para PC, JS para móvil si se desea, pero hover funciona bien en simple) */
-.nav-dropdown:hover .nav-content {
-  display: block;
-}
-
-.nav-content a {
   color: #334155;
-  padding: 12px 16px;
+  padding: 5px;
+}
+
+/* El menú de enlaces */
+.nav-menu {
+  display: flex;
+  gap: 20px;
+}
+
+.nav-menu a {
   text-decoration: none;
-  display: block;
+  color: #64748b;
+  font-weight: 500;
   font-size: 0.95rem;
-  border-bottom: 1px solid #f8fafc;
-  transition: background 0.2s;
+  transition: color 0.2s;
 }
 
-.nav-content a:last-child {
-  border-bottom: none;
+.nav-menu a:hover, .nav-menu a.active {
+  color: #2563eb; /* Azul activo */
 }
 
-.nav-content a:hover {
-  background-color: #f8fafc;
-  color: #0f172a;
-  padding-left: 20px; /* Efecto de deslizamiento */
+/* --- VISTA MÓVIL (Celulares) --- */
+@media (max-width: 768px) {
+  .menu-toggle {
+    display: block; /* Aparece la hamburguesa */
+  }
+
+  .nav-menu {
+    display: none; /* Se oculta la lista de links */
+    position: absolute;
+    top: 100%; /* Justo debajo del header */
+    left: 0;
+    width: 100%;
+    background: #ffffff;
+    flex-direction: column;
+    padding: 10px 0;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid #e2e8f0;
+    z-index: 1000;
+  }
+
+  /* Esta clase la agrega el JS al hacer click */
+  .nav-menu.active {
+    display: flex; 
+  }
+
+  .nav-menu a {
+    padding: 15px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    width: 100%;
+    display: block;
+  }
 }
