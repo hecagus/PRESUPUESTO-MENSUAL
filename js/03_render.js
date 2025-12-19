@@ -1,46 +1,56 @@
-import { $, fmtMoney, log } from './01_consts_utils.js';
+import { $, fmtMoney, CATEGORIAS_GASTOS, formatearFecha, safeNumber, isSameDay, log } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 
-// -------- HEADER --------
 export const renderGlobalHeader = () => {
-    const page = document.body?.dataset.page || 'index';
+    const page = document.body.dataset.page || 'index';
+    const titulos = { 'index': '📊 Dashboard', 'admin': '⚙️ Admin', 'wallet': '💰 Wallet', 'historial': '📜 Historial' };
     const h = document.querySelector('header') || document.createElement('header');
     h.className = 'header';
     h.innerHTML = `
-        <strong>${page.toUpperCase()}</strong>
-        <nav>
-            <a href="index.html">Dashboard</a>
-            <a href="admin.html">Admin</a>
+        <div class="logo">${titulos[page]}</div>
+        <button id="menuToggle" class="menu-toggle">☰</button>
+        <nav id="navMenu" class="nav-menu">
+            <a href="index.html" class="${page === 'index' ? 'active' : ''}">Dashboard</a>
+            <a href="admin.html" class="${page === 'admin' ? 'active' : ''}">Administrar</a>
+            <a href="wallet.html" class="${page === 'wallet' ? 'active' : ''}">Wallet</a>
+            <a href="historial.html" class="${page === 'historial' ? 'active' : ''}">Historial</a>
         </nav>`;
     if (!document.querySelector('header')) document.body.prepend(h);
+
+    const btn = $("menuToggle");
+    const nav = $("navMenu");
+    if (btn && nav) btn.onclick = (e) => { e.stopPropagation(); nav.classList.toggle('active'); };
 };
 
-// -------- ADMIN --------
+export const renderDashboard = () => {
+    const s = Data.getState();
+    const hoy = s.turnos.filter(t => isSameDay(t.fecha, new Date())).reduce((acc, t) => acc + t.ganancia, 0);
+    const netaEl = $("resGananciaNeta");
+    if (netaEl) netaEl.innerText = `$${fmtMoney(hoy)}`;
+    log("RENDER", "Dashboard actualizado");
+};
+
 export const renderTurnoUI = () => {
+    const activo = Data.getTurnoActivo();
     const lbl = $("turnoTexto");
-    if (!lbl) return;
-    lbl.textContent = Data.getTurnoActivo()
-        ? "🟢 Turno activo"
-        : "🔴 Sin turno";
+    if (lbl) {
+        lbl.innerText = activo ? `🟢 Turno Activo` : "🔴 Sin turno activo";
+        if ($("btnIniciarTurno")) $("btnIniciarTurno").style.display = activo ? "none" : "block";
+        if ($("btnFinalizarTurno")) $("btnFinalizarTurno").style.display = activo ? "block" : "none";
+    }
 };
 
 export const setupAdminListeners = () => {
-    const btnI = $("btnIniciarTurno");
-    const btnF = $("btnFinalizarTurno");
-    if (btnI) btnI.onclick = () => Data.iniciarTurnoLogic() && renderTurnoUI();
-    if (btnF)
-        btnF.onclick = () => {
-            const g = prompt("Ganancia:");
-            const k = prompt("KM:");
-            Data.finalizarTurnoLogic(g, k);
-            location.reload();
-        };
+    if ($("btnIniciarTurno")) $("btnIniciarTurno").onclick = () => { if (Data.iniciarTurnoLogic()) renderTurnoUI(); };
+    if ($("btnFinalizarTurno")) $("btnFinalizarTurno").onclick = () => {
+        const m = prompt("Ganancia Bruta:");
+        if (m) { Data.finalizarTurnoLogic(m, 0); location.reload(); }
+    };
 };
 
 export const renderListasAdmin = () => {
     const ul = $("listaGastosFijos");
-    if (!ul) return;
-    ul.innerHTML = Data.getState().gastosFijosMensuales
-        .map(g => `<li>${g.categoria}: $${fmtMoney(g.monto)}</li>`)
-        .join('');
+    if (ul) ul.innerHTML = Data.getState().gastosFijosMensuales.map((g, i) => `<li>${g.categoria}: $${fmtMoney(g.monto)}</li>`).join('');
 };
+
+window.eliminarFijo = (i) => { if (confirm("¿Eliminar?")) { Data.eliminarGastoFijo(i); renderListasAdmin(); } };
