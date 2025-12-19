@@ -7,8 +7,8 @@ export const DIAS_POR_FRECUENCIA = {
 };
 
 export const CATEGORIAS_GASTOS = {
-    moto: ["Gasolina Extra", "Refacciones", "Mecánico / Reparación", "Llantas / Talacha", "Equipo", "Seguro", "Lavado", "➕ Otro / Nuevo..."],
-    hogar: ["Comida / Despensa", "Renta", "Luz / Agua / Gas", "Internet / Teléfono", "Deudas Personales", "Salud / Farmacia", "Plataformas (Uber/Rappi)", "➕ Otro / Nuevo..."]
+    moto: ["Gasolina Extra", "Refacciones", "Mecánico", "Llantas", "Equipo", "Seguro", "Lavado", "➕ Otro..."],
+    hogar: ["Comida", "Renta", "Servicios", "Internet", "Deudas", "Salud", "➕ Otro..."]
 };
 
 export const safeNumber = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
