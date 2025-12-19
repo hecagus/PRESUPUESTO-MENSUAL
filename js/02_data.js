@@ -48,9 +48,10 @@ export const saveData = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(s
 export const getState = () => state;
 export const getTurnoActivo = () => turnoActivo;
 
-// --- LÓGICA DE WALLET (CORREGIDA Y ROBUSTA) ---
+// --- LÓGICA DE WALLET ROBUSTA ---
 
 const getDiasDesdeUltimoPago = (nombreConcepto) => {
+    // Buscar el pago más reciente en los movimientos
     const pagos = state.movimientos
         .filter(m => m.tipo === 'gasto' && m.desc.toLowerCase().includes(nombreConcepto.toLowerCase()))
         .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
@@ -63,23 +64,21 @@ const getDiasDesdeUltimoPago = (nombreConcepto) => {
         const diffDays = diffTime / (1000 * 60 * 60 * 24); 
         return Math.floor(diffDays);
     } else {
-        return hoy.getDate(); // Si no hay pago, días del mes actual
+        return hoy.getDate(); // Si no hay pagos, asumimos días desde el inicio de mes
     }
 };
 
 export const getWalletData = () => {
     const costoKm = state.parametros.costoPorKm || 0;
 
-    // 1. GASOLINA (Cálculo más permisivo)
+    // 1. GASOLINA (Cálculo Histórico vs Real)
     let kmTotalHistorico = 0;
     
-    // Intentamos obtener el KM total desde la primera carga registrada
+    // Calcular KM totales rodados desde el primer registro
     const cargasOrd = [...state.cargasCombustible].sort((a,b) => safeNumber(a.km) - safeNumber(b.km));
     if (cargasOrd.length > 0) {
-        // Diferencia entre Odómetro Actual y la primera vez que cargaste
         kmTotalHistorico = state.parametros.ultimoKM - safeNumber(cargasOrd[0].km);
     } else if (state.turnos.length > 0) {
-        // Fallback: Si no hay cargas, usamos turnos
         const turnosOrd = [...state.turnos].sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
         kmTotalHistorico = state.parametros.ultimoKM - safeNumber(turnosOrd[0].kmFinal);
     }
@@ -97,16 +96,18 @@ export const getWalletData = () => {
     // 2. SOBRES FIJOS
     const sobres = [];
     
-    // A. Gastos Fijos
+    // A. Gastos Fijos (Filtrando Comida y Gasolina Extra)
     state.gastosFijosMensuales.forEach(g => {
         const cat = g.categoria.toLowerCase();
-        // Filtramos lo que NO es ahorro
+        // FILTROS:
         if (cat.includes('comida') || cat.includes('despensa') || cat.includes('alimentos')) return;
-        if (cat.includes('gasolina')) return; // Redundante
+        if (cat.includes('gasolina')) return; 
 
         const monto = safeNumber(g.monto);
         const diasFreq = DIAS_POR_FRECUENCIA[g.frecuencia] || 30;
         const costoDiario = monto / diasFreq;
+        
+        // REINICIO AUTOMÁTICO
         const diasAcumulados = getDiasDesdeUltimoPago(g.categoria);
         
         let acumulado = costoDiario * diasAcumulados;
@@ -127,6 +128,7 @@ export const getWalletData = () => {
             const cuota = safeNumber(d.montoCuota);
             const diasFreq = DIAS_POR_FRECUENCIA[d.frecuencia] || 30;
             const costoDiario = cuota / diasFreq;
+            
             const diasAcumulados = getDiasDesdeUltimoPago(d.desc);
             
             let acumulado = costoDiario * diasAcumulados;
@@ -171,7 +173,7 @@ export const eliminarGastoFijo = (index) => {
     saveData();
 };
 
-// --- FUNCIONES CORE ---
+// --- CORE FUNCTIONS ---
 export const getKmRecorridosHoy = () => {
     const todos = [...state.turnos].sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
     const hoyStr = new Date().toLocaleDateString();
