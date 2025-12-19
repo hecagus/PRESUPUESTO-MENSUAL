@@ -1,30 +1,33 @@
 import { loadData } from './02_data.js';
-import { 
-    renderGlobalHeader, 
-    renderDashboard, 
-    renderTurnoUI, 
-    setupAdminListeners, 
-    renderListasAdmin 
+import { 
+    renderTurnoUI, renderOdometroUI, setupAdminListeners, 
+    renderMetaDiaria, renderMantenimientoUI, renderDashboard, 
+    renderListasAdmin, renderHistorial, renderWalletUI, 
+    renderGlobalHeader 
 } from './03_render.js';
 import { initCharts } from './04_charts.js';
 
 document.addEventListener("DOMContentLoaded", () => {
-    renderGlobalHeader();
-    loadData();
+    // 1. INYECCIÓN DEL MENÚ (Asegura consistencia en todas las páginas)
+    renderGlobalHeader();
 
-    const page = document.body?.dataset.page || 'index';
+    // 2. Cargar datos
+    loadData();
+    
+    // 3. Identificar página
+    const page = document.body.getAttribute('data-page');
 
-    switch (page) {
-        case 'admin':
-            renderTurnoUI();
-            renderListasAdmin();
-            setupAdminListeners();
-            break;
-        case 'index':
-            renderDashboard();
-            initCharts();
-            break;
-    }
-
-    console.log(`✅ [PRODUCCIÓN] Sistema Online en: ${page}`);
+    // 4. Ejecutar renderizado
+    if (page === 'admin') {
+        renderTurnoUI(); renderOdometroUI(); renderMetaDiaria();
+        renderMantenimientoUI(); renderListasAdmin(); setupAdminListeners();
+    } else if (page === 'index') {
+        renderDashboard(); initCharts();
+    } else if (page === 'historial') {
+        renderHistorial();
+    } else if (page === 'wallet') {
+        renderWalletUI();
+    }
+    
+    console.log(`Sistema inicializado en página: ${page}`);
 });
