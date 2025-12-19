@@ -152,6 +152,7 @@ export const renderMantenimientoUI = () => {
     }
 };
 
+// FIX: Lista con botón de eliminar
 export const renderListasAdmin = () => {
     const ul = $("listaGastosFijos"); 
     if (ul) { 
@@ -178,6 +179,7 @@ export const renderListasAdmin = () => {
     }
 };
 
+// Exponer globalmente
 window.eliminarFijo = (index) => {
     if(confirm("¿Eliminar este gasto fijo permanentemente?")) {
         Data.eliminarGastoFijo(index);
@@ -214,7 +216,7 @@ export const renderHistorial = () => {
 };
 
 /* ==========================================================================
-   LISTENERS (Limpio)
+   LISTENERS (CÓDIGO LIMPIO)
    ========================================================================== */
 export const setupAdminListeners = () => {
     if (document.body.getAttribute("data-page") !== "admin") return;
