@@ -1,46 +1,49 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Admin – Uber Eats Tracker</title>
+  <title>Admin</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
-  <nav class="nav">
-    <strong>⚙ Admin</strong>
-  </nav>
 
-  <main class="container">
+<nav class="nav">
+  <a href="index.html">Dashboard</a>
+  <a class="active" href="admin.html">Admin</a>
+  <a href="wallet.html">Wallet</a>
+  <a href="historial.html">Historial</a>
+</nav>
 
-    <section class="card">
-      <h2>Gestión de Turno</h2>
-      <div id="estadoTurno">Cargando...</div>
-      <button id="btnTurno"></button>
-    </section>
+<main class="container">
 
-    <section class="card">
-      <h2>Registro de Gasto</h2>
-      <input id="gastoMonto" type="number" placeholder="Monto $" />
-      <button id="btnGasto">Registrar Gasto</button>
-      <div id="listaGastos"></div>
-    </section>
+  <section class="card">
+    <h2>Gestión de Turno</h2>
+    <div id="estadoTurno"></div>
+    <button id="btnTurno"></button>
+  </section>
 
-    <section class="card">
-      <h2>Abonos a Deuda</h2>
-      <select id="selectDeuda"></select>
-      <input id="abonoMonto" type="number" placeholder="Monto $" />
-      <button id="btnAbono">Abonar</button>
-    </section>
+  <section class="card">
+    <h2>Registro de Gasto</h2>
+    <input id="gastoMonto" type="number" placeholder="Monto $" />
+    <button id="btnGasto">Registrar</button>
+    <div id="listaGastos"></div>
+  </section>
 
-    <section class="card">
-      <h2>Meta Diaria</h2>
-      <div id="metaDiaria">$0.00</div>
-    </section>
+  <section class="card">
+    <h2>Abonos a Deuda</h2>
+    <select id="selectDeuda"></select>
+    <input id="abonoMonto" type="number" placeholder="Monto $" />
+    <button id="btnAbono">Abonar</button>
+  </section>
 
-  </main>
+  <section class="card">
+    <h2>Meta Diaria</h2>
+    <div id="metaDiaria"></div>
+  </section>
 
-  <script type="module" src="./js/admin.js"></script>
+</main>
+
+<script type="module" src="./js/admin.js"></script>
 </body>
 </html>
