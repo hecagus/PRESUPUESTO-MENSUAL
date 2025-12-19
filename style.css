@@ -210,3 +210,66 @@ a.btn-admin, button {
   /* Ajuste para que los inputs de turno se vean bien en móvil */
   .turno-inputs { grid-template-columns: 1fr; gap: 0; }
 }
+
+/* =========================================
+   MENÚ HAMBURGUESA (GLOBAL)
+   ========================================= */
+.nav-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.btn-hamburger {
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-hamburger:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.nav-content {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background-color: #ffffff;
+  min-width: 200px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  border: 1px solid #f1f5f9;
+  z-index: 1000;
+  overflow: hidden;
+  margin-top: 5px;
+}
+
+/* Mostrar menú al pasar el mouse o al hacer click (manejado por CSS hover simple para PC, JS para móvil si se desea, pero hover funciona bien en simple) */
+.nav-dropdown:hover .nav-content {
+  display: block;
+}
+
+.nav-content a {
+  color: #334155;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+  font-size: 0.95rem;
+  border-bottom: 1px solid #f8fafc;
+  transition: background 0.2s;
+}
+
+.nav-content a:last-child {
+  border-bottom: none;
+}
+
+.nav-content a:hover {
+  background-color: #f8fafc;
+  color: #0f172a;
+  padding-left: 20px; /* Efecto de deslizamiento */
+}
