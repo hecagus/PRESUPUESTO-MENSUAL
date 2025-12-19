@@ -154,31 +154,4 @@ export const setupAdminListeners = () => {
     safeClick("btnCopiarJSON", async () => { try { await navigator.clipboard.writeText(localStorage.getItem(STORAGE_KEY)); alert("JSON copiado"); } catch (e) { alert("Error"); } });  
     safeClick("btnImportar", () => { const j = $("importJson").value; if(!j) return; localStorage.setItem(STORAGE_KEY, j); location.reload(); });
 };
-           const rad = document.getElementsByName("gastoTipoRadio");
-for (let r of rad) if (r.checked) t = r.value;
-
-const g = {
-    id: Date.now(),
-    fecha: new Date().toISOString(),
-    categoria: c,
-    monto: Number(m),
-    desc: $("gastoDescripcion").value,
-    tipo: t
-};
-
-if (fix) {
-    g.frecuencia = $("gastoFrecuenciaSelect").value;
-    Data.agregarGastoFijo(g);
-    alert("Gasto Fijo Guardado");
-} else {
-    g.frecuencia = "No Recurrente";
-    Data.agregarGasto(g);
-    alert("Gasto Guardado");
-}
-
-$("gastoCantidad").value = "";
-$("gastoDescripcion").value = "";
-renderListasAdmin();
-renderMetaDiaria();
-if (fix) window.location.reload();
-});                                                                                                                                                                                                                                                                        
+                                                                                                                                                                                                                                                                                                            
