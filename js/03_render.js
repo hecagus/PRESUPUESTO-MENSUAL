@@ -172,7 +172,9 @@ export const renderHistorial = () => {
     r.innerHTML = `<p style="font-weight:bold; font-size:1.1rem;">Ingresos: <span style="color:#16a34a">$${fmtMoney(i)}</span> | Gastos: <span style="color:#dc2626">$${fmtMoney(g)}</span> | Neto: <span>$${fmtMoney(i-g)}</span></p>`;
 };
 
-// --- FUNCIÓN DEL MENÚ (QUE FALTABA) ---
+/* ==========================================================================
+   LISTENERS & MENU
+   ========================================================================== */
 export const setupMobileMenu = () => {
     const btn = document.getElementById('menuToggle');
     const nav = document.getElementById('navMenu');
