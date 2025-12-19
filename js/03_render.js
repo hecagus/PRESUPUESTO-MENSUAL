@@ -5,6 +5,49 @@ const safeClick = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
 const TODAY = new Date(); 
 
 /* ==========================================================================
+   NUEVO: RENDERIZADO GLOBAL DE CABECERA (MENÚ UNIFICADO)
+   ========================================================================== */
+export const renderGlobalHeader = () => {
+    const page = document.body.getAttribute('data-page') || 'index';
+    
+    // Títulos según la página
+    const titulos = {
+        'index': '📊 Dashboard',
+        'admin': '⚙️ Admin',
+        'wallet': '💰 Wallet',
+        'historial': '📜 Historial'
+    };
+    
+    const tituloActual = titulos[page] || 'Uber Eats Tracker';
+
+    // HTML del Header Unificado
+    const headerHTML = `
+        <div class="logo">${tituloActual}</div>
+        <button id="menuToggle" class="menu-toggle">☰</button>
+        <nav id="navMenu" class="nav-menu">
+            <a href="index.html" class="${page === 'index' ? 'active' : ''}">Dashboard</a>
+            <a href="admin.html" class="${page === 'admin' ? 'active' : ''}">Administrar</a>
+            <a href="wallet.html" class="${page === 'wallet' ? 'active' : ''}">Wallet</a>
+            <a href="historial.html" class="${page === 'historial' ? 'active' : ''}">Historial</a>
+        </nav>
+    `;
+
+    // Buscar si ya existe un header, si no, crearlo
+    let header = document.querySelector('header');
+    if (!header) {
+        header = document.createElement('header');
+        header.className = 'header';
+        document.body.prepend(header);
+    }
+    
+    // Inyectar el contenido
+    header.innerHTML = headerHTML;
+
+    // Activar la lógica del botón hamburguesa inmediatamente
+    setupMobileMenu();
+};
+
+/* ==========================================================================
    RENDER WALLET UI
    ========================================================================== */
 export const renderWalletUI = () => {
@@ -172,12 +215,13 @@ export const renderHistorial = () => {
     r.innerHTML = `<p style="font-weight:bold; font-size:1.1rem;">Ingresos: <span style="color:#16a34a">$${fmtMoney(i)}</span> | Gastos: <span style="color:#dc2626">$${fmtMoney(g)}</span> | Neto: <span>$${fmtMoney(i-g)}</span></p>`;
 };
 
-// --- MENÚ HAMBURGUESA ---
+// --- MENÚ Y LISTENERS ---
 export const setupMobileMenu = () => {
     const btn = document.getElementById('menuToggle');
     const nav = document.getElementById('navMenu');
     
     if (btn && nav) {
+        // Clonar para limpiar eventos previos
         const newBtn = btn.cloneNode(true);
         btn.parentNode.replaceChild(newBtn, btn);
         
