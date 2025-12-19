@@ -5,47 +5,6 @@ const safeClick = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
 const TODAY = new Date(); 
 
 /* ==========================================================================
-   RENDER GLOBAL MENU (Hamburguesa)
-   ========================================================================== */
-export const renderGlobalMenu = () => {
-    const header = document.querySelector('header');
-    if (!header) return;
-    if (document.getElementById('globalMenuBtn')) return;
-
-    const div = document.createElement('div');
-    div.style.cssText = "position:relative; display:inline-block;";
-    div.innerHTML = `
-        <button id="globalMenuBtn" style="background:none; border:none; font-size:1.8rem; cursor:pointer; color:white; margin-left:10px;">☰</button>
-        <div id="globalMenuDropdown" style="display:none; position:absolute; top:40px; right:0; background:white; padding:10px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.2); z-index:1000; min-width:160px; text-align:left;">
-            <a href="index.html" style="display:block; padding:8px; text-decoration:none; color:#1e293b; border-bottom:1px solid #f1f5f9;">📊 Dashboard</a>
-            <a href="wallet.html" style="display:block; padding:8px; text-decoration:none; color:#1e293b; border-bottom:1px solid #f1f5f9;">💰 Wallet (Alcancía)</a>
-            <a href="historial.html" style="display:block; padding:8px; text-decoration:none; color:#1e293b; border-bottom:1px solid #f1f5f9;">📜 Historial</a>
-            <a href="admin.html" style="display:block; padding:8px; text-decoration:none; color:#1e293b;">⚙️ Admin</a>
-        </div>
-    `;
-    
-    // Insertar en las acciones del header o al final
-    const actions = header.querySelector('.header-actions');
-    if (actions) {
-        actions.appendChild(div);
-    } else {
-        header.appendChild(div);
-    }
-
-    const btn = document.getElementById('globalMenuBtn');
-    const drop = document.getElementById('globalMenuDropdown');
-    
-    if (btn && drop) {
-        btn.onclick = (e) => {
-            e.stopPropagation();
-            drop.style.display = drop.style.display === 'block' ? 'none' : 'block';
-        };
-        document.addEventListener('click', () => { drop.style.display = 'none'; });
-        drop.onclick = (e) => e.stopPropagation();
-    }
-};
-
-/* ==========================================================================
    RENDER WALLET UI
    ========================================================================== */
 export const renderWalletUI = () => {
@@ -70,9 +29,9 @@ export const renderWalletUI = () => {
         container.innerHTML = "";
         data.sobres.forEach(s => {
             const div = document.createElement("div");
-            div.style.cssText = "background:white; padding:15px; border-radius:8px; border-left:4px solid #3b82f6; box-shadow:0 1px 3px rgba(0,0,0,0.1);";
+            div.style.cssText = "background:white; padding:15px; border-radius:8px; border-left:4px solid #3b82f6; box-shadow:0 1px 3px rgba(0,0,0,0.1); margin-bottom:10px;";
             
-            const textoAcumulado = s.dias === 0 ? "Reiniciado (Pago hoy/reciente)" : `Acumulado (${s.dias} días)`;
+            const textoAcumulado = s.dias === 0 ? "Reiniciado (Pago hoy)" : `Acumulado (${s.dias} días)`;
             
             div.innerHTML = `
                 <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
@@ -95,7 +54,7 @@ export const renderWalletUI = () => {
         }
     }
 
-    // 3. TOTALES / SALUD
+    // 3. TOTALES
     set("walletTotalObligado", `$${fmtMoney(data.totales.obligado)}`);
     set("walletCashFlow", `$${fmtMoney(data.totales.efectivo)}`);
     
@@ -104,10 +63,10 @@ export const renderWalletUI = () => {
         const diff = data.totales.salud;
         if (diff >= 0) {
             elHealth.innerText = `👍 Superávit: +$${fmtMoney(diff)}`;
-            elHealth.style.color = "#86efac"; // Verde
+            elHealth.style.color = "#86efac"; 
         } else {
             elHealth.innerText = `⚠️ Déficit: -$${fmtMoney(Math.abs(diff))}`;
-            elHealth.style.color = "#fca5a5"; // Rojo
+            elHealth.style.color = "#fca5a5"; 
         }
     }
 };
@@ -152,7 +111,6 @@ export const renderMantenimientoUI = () => {
     }
 };
 
-// FIX: Lista con botón de eliminar
 export const renderListasAdmin = () => {
     const ul = $("listaGastosFijos"); 
     if (ul) { 
@@ -160,7 +118,7 @@ export const renderListasAdmin = () => {
         Data.getState().gastosFijosMensuales.forEach((g, index) => { 
             ul.innerHTML += `<li style="display:flex; justify-content:space-between; align-items:center;">
                 <span>${g.categoria} (${g.frecuencia}) - $${fmtMoney(g.monto)}</span>
-                <button onclick="window.eliminarFijo(${index})" style="background:#fee2e2; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; color:#dc2626;">🗑️</button>
+                <button class="btn-danger-small" onclick="window.eliminarFijo(${index})" style="background:#fee2e2; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">🗑️</button>
             </li>`; 
         }); 
         const t = $("totalFijoMensualDisplay"); 
@@ -179,7 +137,6 @@ export const renderListasAdmin = () => {
     }
 };
 
-// Exponer globalmente
 window.eliminarFijo = (index) => {
     if(confirm("¿Eliminar este gasto fijo permanentemente?")) {
         Data.eliminarGastoFijo(index);
@@ -215,9 +172,25 @@ export const renderHistorial = () => {
     r.innerHTML = `<p style="font-weight:bold; font-size:1.1rem;">Ingresos: <span style="color:#16a34a">$${fmtMoney(i)}</span> | Gastos: <span style="color:#dc2626">$${fmtMoney(g)}</span> | Neto: <span>$${fmtMoney(i-g)}</span></p>`;
 };
 
-/* ==========================================================================
-   LISTENERS (CÓDIGO LIMPIO)
-   ========================================================================== */
+// --- MENÚ Y LISTENERS ---
+export const setupMobileMenu = () => {
+    const btn = document.getElementById('menuToggle') || document.querySelector('.menu-toggle');
+    const nav = document.getElementById('navMenu') || document.querySelector('.nav-menu');
+    
+    if (btn && nav) {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            nav.classList.toggle('active');
+        };
+        // Cerrar al hacer click fuera
+        document.addEventListener('click', (e) => {
+            if (!nav.contains(e.target) && !btn.contains(e.target)) {
+                nav.classList.remove('active');
+            }
+        });
+    }
+};
+
 export const setupAdminListeners = () => {
     if (document.body.getAttribute("data-page") !== "admin") return;
     safeClick("btnIniciarTurno", () => { if(Data.iniciarTurnoLogic()) renderTurnoUI(); });  
