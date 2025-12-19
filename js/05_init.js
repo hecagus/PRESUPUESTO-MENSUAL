@@ -1,9 +1,10 @@
 import { loadData } from './02_data.js';
-import {
-    renderGlobalHeader,
-    renderTurnoUI,
-    setupAdminListeners,
-    renderListasAdmin
+import { 
+    renderGlobalHeader, 
+    renderDashboard, 
+    renderTurnoUI, 
+    setupAdminListeners, 
+    renderListasAdmin 
 } from './03_render.js';
 import { initCharts } from './04_charts.js';
 
@@ -13,13 +14,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const page = document.body?.dataset.page || 'index';
 
-    if (page === 'admin') {
-        renderTurnoUI();
-        renderListasAdmin();
-        setupAdminListeners();
+    switch (page) {
+        case 'admin':
+            renderTurnoUI();
+            renderListasAdmin();
+            setupAdminListeners();
+            break;
+        case 'index':
+            renderDashboard();
+            initCharts();
+            break;
     }
 
-    if (page === 'index') initCharts();
-
-    console.log(`✅ INIT OK → ${page}`);
+    console.log(`✅ [PRODUCCIÓN] Sistema Online en: ${page}`);
 });
