@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Administración – Uber Eats Tracker</title>
   <link rel="stylesheet" href="style.css" />
-  <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 </head>
 <body data-page="admin">
 
@@ -16,41 +15,29 @@
         <p id="turnoTexto" style="font-size:1.1rem; font-weight:500;">🔴 Cargando...</p>
     </div>
     
-    <div id="cierreTurnoContainer" style="display:none; margin-top:15px; border-top:1px solid #eee; padding-top:15px;">
-        <label for="gananciaBruta">💰 Ganancia Bruta:</label>
-        <input type="number" id="gananciaBruta" placeholder="0.00">
-        
-        <label for="kmFinalTurno">🏎️ KM Final (Opcional):</label>
-        <input type="number" id="kmFinalTurno" placeholder="KM actual">
-        
-        <div style="display:flex; gap:10px; margin-top:10px;">
-            <button id="btnConfirmarFinalizar" class="btn-success" style="flex:1;">Confirmar</button>
-            <button id="btnCancelarCierre" class="btn-secondary" style="flex:1;">Atras</button>
-        </div>
+    <div style="display:flex; gap:10px; flex-direction:column;">
+        <button id="btnIniciarTurno" class="btn-success">▶ Iniciar Turno</button>
+        <button id="btnFinalizarTurno" class="btn-danger" style="display:none;">⏹ Finalizar Turno</button>
     </div>
   </section>
 
   <section class="card">
-    <h2>⛽ Carga de Gasolina</h2>
-    <div id="gasWizardPaso3" style="display:none;">
-        <label for="gasKmActual">KM Marcado en Tablero:</label>
-        <input type="number" id="gasKmActual" placeholder="KM Actual">
-        <div style="display:flex; gap:10px;">
-            <button id="btnGasAtras3" class="btn-secondary">Atrás</button>
-            <button id="btnRegistrarCargaFinal" class="btn-success">Finalizar</button>
-        </div>
+    <h2>💸 Registro de Gasto</h2>
+    <div style="margin-bottom:15px;">
+        <label for="gastoCantidad">Monto $:</label>
+        <input type="number" id="gastoCantidad" placeholder="0.00">
     </div>
+    <ul id="listaGastosFijos" class="list"></ul>
   </section>
 
   <section class="card">
-    <h2>💳 Deudas</h2>
-    <div style="margin-top:20px; background:#f8fafc; padding:10px; border-radius:8px;">
-        <label for="abonoSeleccionar">Abonar a Deuda:</label>
-        <select id="abonoSeleccionar"></select>
+    <h2>💳 Abonos a Deuda</h2>
+    <div style="background:#f8fafc; padding:15px; border-radius:8px;">
+        <label for="abonoSeleccionar">Seleccionar Deuda:</label>
+        <select id="abonoSeleccionar" style="width:100%; margin-bottom:10px;"></select>
         
-        <label for="abonoMonto">Cantidad $:</label>
-        <input type="number" id="abonoMonto" placeholder="Cantidad $">
-        <button id="btnRegistrarAbono" class="btn-success" style="width:100%; margin-top:5px;">Abonar</button>
+        <label for="abonoMonto">Monto del Abono:</label>
+        <input type="number" id="abonoMonto" placeholder="0.00" style="width:100%;">
     </div>
   </section>
 </main>
