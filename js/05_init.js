@@ -3,12 +3,12 @@ import {
     renderTurnoUI, renderOdometroUI, setupAdminListeners, 
     renderMetaDiaria, renderMantenimientoUI, renderDashboard, 
     renderListasAdmin, renderHistorial, renderWalletUI, 
-    renderGlobalHeader // IMPORTANTE: Importar la nueva función
+    renderGlobalHeader // IMPORTANTE
 } from './03_render.js';
 import { initCharts } from './04_charts.js';
 
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. Inyectar Menú Global (Primero que nada)
+    // 1. INYECCIÓN DEL MENÚ (PRIORIDAD ALTA)
     renderGlobalHeader();
 
     // 2. Cargar datos
