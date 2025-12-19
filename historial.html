@@ -8,29 +8,17 @@
 </head>
 <body data-page="historial">
 
-<header class="header">
-  <div class="logo">📜 Historial</div>
-  <button id="menuToggle" class="menu-toggle">☰</button>
-  <nav id="navMenu" class="nav-menu">
-    <a href="index.html">Dashboard</a>
-    <a href="admin.html">Administrar</a>
-    <a href="wallet.html">Wallet</a>
-    <a href="historial.html" class="active">Historial</a>
-  </nav>
-</header>
-
 <main class="container">
-
   <section class="card">
     <h2>Movimientos Recientes</h2>
-    <div id="historialResumen" style="margin-bottom:15px; background:#f1f5f9; padding:10px; border-radius:5px; text-align:center;">
+    <div id="historialResumen" style="margin-bottom:20px; padding:15px; background:#f1f5f9; border-radius:8px; text-align:center;">
         </div>
     
-    <div class="table-responsive">
+    <div style="overflow-x: auto;">
         <table class="tabla">
             <thead>
                 <tr>
-                    <th>Tipo</th>
+                    <th style="width:50px;">Tipo</th>
                     <th>Fecha</th>
                     <th>Descripción</th>
                     <th>Monto</th>
@@ -41,8 +29,8 @@
         </table>
     </div>
   </section>
-
 </main>
-<script type="module" src="js/05_init.js"></script>
+
+<script type="module" src="05_init.js"></script>
 </body>
 </html>
