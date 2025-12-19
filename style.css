@@ -4,20 +4,35 @@ body {
   background: #f1f5f9;
 }
 
-.nav {
+.header {
   display: flex;
-  gap: 15px;
+  justify-content: space-between;
   padding: 12px;
   background: #0f172a;
+  color: white;
 }
 
-.nav a {
-  color: #94a3b8;
+.menu-toggle {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+}
+
+.nav-menu {
+  display: none;
+  flex-direction: column;
+  background: #020617;
+}
+
+.nav-menu.active {
+  display: flex;
+}
+
+.nav-menu a {
+  padding: 12px;
+  color: #cbd5f5;
   text-decoration: none;
-}
-
-.nav a.active {
-  color: #38bdf8;
 }
 
 .container {
@@ -31,6 +46,11 @@ body {
   border-radius: 8px;
 }
 
-button {
-  margin-top: 8px;
+@media (min-width: 768px) {
+  .menu-toggle { display: none; }
+  .nav-menu {
+    display: flex;
+    flex-direction: row;
+    background: none;
+  }
 }
