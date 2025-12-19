@@ -16,6 +16,6 @@ export const fmtMoney = (n) => safeNumber(n).toFixed(2).replace(/\B(?=(\d{3})+(?
 export const formatearFecha = (d) => new Date(d).toLocaleDateString();
 
 export const isSameDay = (d1, d2) => {
-    const date1 = new Date(d1); const date2 = new Date(d2);
-    return date1.getFullYear() === date2.getFullYear() && date1.getMonth() === date2.getMonth() && date1.getDate() === date2.getDate();
+    const a = new Date(d1); const b = new Date(d2);
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 };
