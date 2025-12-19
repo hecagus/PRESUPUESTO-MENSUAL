@@ -1,5 +1,5 @@
 import { loadData } from './02_data.js';
-import { renderGlobalHeader, renderDashboard, renderTurnoUI, setupAdminListeners, renderListasAdmin, renderWalletUI } from './03_render.js';
+import { renderGlobalHeader, renderTurnoUI, setupAdminListeners, renderListasAdmin } from './03_render.js';
 import { initCharts } from './04_charts.js';
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -7,6 +7,6 @@ document.addEventListener("DOMContentLoaded", () => {
     loadData();
     const page = document.body.getAttribute('data-page');
     if (page === 'admin') { renderTurnoUI(); renderListasAdmin(); setupAdminListeners(); }
-    else if (page === 'index') { renderDashboard(); initCharts(); }
-    else if (page === 'wallet') { renderWalletUI(); }
+    else if (page === 'index') { initCharts(); }
+    console.log(`🚀 Sistema inicializado en: ${page}`);
 });
