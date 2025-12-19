@@ -50,7 +50,7 @@ export const renderWalletUI = () => {
         });
         
         if (data.sobres.length === 0) {
-            container.innerHTML = "<p class='nota' style='text-align:center;'>No hay sobres activos. (Comida y Gasolina se gestionan aparte)</p>";
+            container.innerHTML = "<p class='nota' style='text-align:center;'>No hay sobres activos.</p>";
         }
     }
 
@@ -172,27 +172,31 @@ export const renderHistorial = () => {
     r.innerHTML = `<p style="font-weight:bold; font-size:1.1rem;">Ingresos: <span style="color:#16a34a">$${fmtMoney(i)}</span> | Gastos: <span style="color:#dc2626">$${fmtMoney(g)}</span> | Neto: <span>$${fmtMoney(i-g)}</span></p>`;
 };
 
-/* ==========================================================================
-   LISTENERS & MENU
-   ========================================================================== */
+// --- MENÚ HAMBURGUESA ---
 export const setupMobileMenu = () => {
     const btn = document.getElementById('menuToggle');
     const nav = document.getElementById('navMenu');
     
     if (btn && nav) {
-        btn.onclick = (e) => {
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        
+        newBtn.onclick = (e) => {
             e.stopPropagation();
             nav.classList.toggle('active');
         };
-        // Cerrar al hacer click fuera
+        
         document.addEventListener('click', (e) => {
-            if (!nav.contains(e.target) && !btn.contains(e.target)) {
+            if (!nav.contains(e.target) && !newBtn.contains(e.target)) {
                 nav.classList.remove('active');
             }
         });
     }
 };
 
+/* ==========================================================================
+   LISTENERS
+   ========================================================================== */
 export const setupAdminListeners = () => {
     if (document.body.getAttribute("data-page") !== "admin") return;
     safeClick("btnIniciarTurno", () => { if(Data.iniciarTurnoLogic()) renderTurnoUI(); });  
