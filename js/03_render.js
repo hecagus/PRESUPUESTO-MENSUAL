@@ -5,7 +5,7 @@ const safeClick = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
 const TODAY = new Date(); 
 
 /* ==========================================================================
-   RENDER WALLET UI
+   RENDER WALLET UI (NUEVO)
    ========================================================================== */
 export const renderWalletUI = () => {
     const data = Data.getWalletData();
@@ -82,6 +82,7 @@ export const renderTurnoUI = () => {
         if (btnIn) btnIn.style.display = "inline-block"; if (btnFin) btnFin.style.display = "none";  
     }
 };
+
 export const renderOdometroUI = () => {
     const kmI = $("kmInicialDisplay"); const kmA = $("kmActualDisplay");
     if (kmA) {  
@@ -89,7 +90,9 @@ export const renderOdometroUI = () => {
         const c = $("costoPorKmDisplay"); if (c) c.innerText = s.parametros.costoPorKm > 0 ? `$${fmtMoney(s.parametros.costoPorKm)}/km` : "Calculando...";  
     }
 };
+
 export const renderMetaDiaria = () => { const el = $("metaDiariaDisplay"); if (el) el.innerText = `$${fmtMoney(Data.recalcularMetaDiaria())}`; };
+
 export const renderMantenimientoUI = () => {
     const s = Data.getState(); const b = s.parametros?.mantenimientoBase || {}; const sv = s.parametros?.ultimoServicio || {};
     const div = $("mantenimientoAlerta");
@@ -101,10 +104,12 @@ export const renderMantenimientoUI = () => {
         else { let m = "⚠️ SERVICIO PENDIENTE: "; let p = []; for (const i in r.alerta) { if (r.alerta[i]) { const k = safeNumber(r.kmRestantes[i]); const sim = k <= 0 ? '🔴' : '🟠'; p.push(`${sim} ${i} (${k <= 0 ? 'Excedido' : k + ' KM restantes'})`); } } div.style.cssText = "background: #fee2e2; border: 1px solid #f87171;"; div.innerHTML = m + p.join('; '); }  
     }
 };
+
 export const renderListasAdmin = () => {
     const ul = $("listaGastosFijos"); if (ul) { ul.innerHTML = ""; Data.getState().gastosFijosMensuales.forEach(g => { ul.innerHTML += `<li>${g.categoria} (${g.frecuencia}) - $${fmtMoney(g.monto)}</li>`; }); const t = $("totalFijoMensualDisplay"); if(t) t.innerText = `$${fmtMoney(Data.getState().parametros.gastoFijo * 30)}`; }
     const ulD = $("listaDeudas"); const sel = $("abonoSeleccionar"); if(ulD) { ulD.innerHTML = ""; if(sel) sel.innerHTML = ""; Data.getState().deudas.forEach(d => { if(d.saldo > 0) { ulD.innerHTML += `<li>${d.desc}: $${fmtMoney(d.saldo)}</li>`; if(sel) { const o = document.createElement("option"); o.value=d.id; o.text=d.desc; sel.add(o); } } }); }
 };
+
 export const renderDashboard = () => {
     const s = Data.getState(); if (!s) return; const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };  
     const turnosHoy = s.turnos.filter(t => isSameDay(t.fecha, TODAY));  
@@ -125,6 +130,7 @@ export const renderDashboard = () => {
     const tb = $("tablaTurnos"); if (tb) { tb.innerHTML = ""; const ult = s.turnos.slice().reverse().slice(0, 5); if (ult.length === 0) { tb.innerHTML = "<tr><td colspan='4' style='text-align:center'>Sin registros aún</td></tr>"; } else { ult.forEach(t => { tb.innerHTML += `<tr><td>${formatearFecha(t.fecha)}</td><td>${safeNumber(t.horas).toFixed(2)}h</td><td>${safeNumber(t.kmFinal)}</td><td>$${fmtMoney(t.ganancia)}</td></tr>`; }); } }  
     const dg = $("tablaKmMensual"); if (dg) { const c = s.cargasCombustible.slice().reverse().slice(0, 5); if (c.length === 0) { dg.innerHTML = "<p style='text-align:center; padding:10px; color:#666'>Sin cargas registradas</p>"; } else { let h = `<table class="tabla"><thead><tr><th>Fecha</th><th>Litros</th><th>Costo</th><th>KM Reg.</th></tr></thead><tbody>`; c.forEach(x => { h += `<tr><td>${formatearFecha(x.fecha)}</td><td>${x.litros} L</td><td>$${fmtMoney(x.costo)}</td><td>${x.km}</td></tr>`; }); dg.innerHTML = h + `</tbody></table>`; } }
 };
+
 export const renderHistorial = () => {
     const tb = $("historialBody"); const r = $("historialResumen"); if (!tb || !r) return; tb.innerHTML = "";  
     const movs = Data.getState().movimientos.slice().reverse(); let i = 0, g = 0;  
@@ -132,7 +138,9 @@ export const renderHistorial = () => {
     r.innerHTML = `<p style="font-weight:bold; font-size:1.1rem;">Ingresos: <span style="color:#16a34a">$${fmtMoney(i)}</span> | Gastos: <span style="color:#dc2626">$${fmtMoney(g)}</span> | Neto: <span>$${fmtMoney(i-g)}</span></p>`;
 };
 
-/* LISTENERS */
+/* ==========================================================================
+   LISTENERS
+   ========================================================================== */
 export const setupAdminListeners = () => {
     if (document.body.getAttribute("data-page") !== "admin") return;
     safeClick("btnIniciarTurno", () => { if(Data.iniciarTurnoLogic()) renderTurnoUI(); });  
@@ -154,4 +162,3 @@ export const setupAdminListeners = () => {
     safeClick("btnCopiarJSON", async () => { try { await navigator.clipboard.writeText(localStorage.getItem(STORAGE_KEY)); alert("JSON copiado"); } catch (e) { alert("Error"); } });  
     safeClick("btnImportar", () => { const j = $("importJson").value; if(!j) return; localStorage.setItem(STORAGE_KEY, j); location.reload(); });
 };
-                                                                                                                                                                                                                                                                                                            
