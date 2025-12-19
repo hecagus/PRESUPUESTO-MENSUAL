@@ -31,4 +31,3 @@ export const isSameDay = (d1, d2) => {
            date1.getMonth() === date2.getMonth() &&
            date1.getDate() === date2.getDate();
 };
-
