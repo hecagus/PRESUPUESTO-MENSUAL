@@ -44,5 +44,4 @@ export const finalizarTurnoLogic = (ganancia, kmFinal = 0) => {
 };
 
 export const eliminarGastoFijo = (index) => { state.gastosFijosMensuales.splice(index, 1); recalcularMetaDiaria(); };
-export const agregarGasto = (g) => { state.movimientos.push({ tipo: 'gasto', fecha: g.fecha, desc: g.categoria, monto: g.monto }); saveData(); };
 export const agregarGastoFijo = (gf) => { state.gastosFijosMensuales.push(gf); recalcularMetaDiaria(); };
