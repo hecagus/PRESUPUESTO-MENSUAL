@@ -5,22 +5,21 @@ const safeClick = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
 const TODAY = new Date(); 
 
 /* ==========================================================================
-   NUEVO: RENDERIZADO GLOBAL DE CABECERA (MENÚ UNIFICADO)
+   1. RENDERIZADO GLOBAL DE CABECERA (MENÚ UNIFICADO)
    ========================================================================== */
 export const renderGlobalHeader = () => {
     const page = document.body.getAttribute('data-page') || 'index';
     
-    // Títulos según la página
+    // Diccionario de títulos
     const titulos = {
         'index': '📊 Dashboard',
         'admin': '⚙️ Admin',
         'wallet': '💰 Wallet',
         'historial': '📜 Historial'
     };
-    
     const tituloActual = titulos[page] || 'Uber Eats Tracker';
 
-    // HTML del Header Unificado
+    // HTML del Header
     const headerHTML = `
         <div class="logo">${tituloActual}</div>
         <button id="menuToggle" class="menu-toggle">☰</button>
@@ -32,29 +31,54 @@ export const renderGlobalHeader = () => {
         </nav>
     `;
 
-    // Buscar si ya existe un header, si no, crearlo
+    // Inyección Inteligente:
+    // Busca si ya existe un <header>, si no, lo crea al principio del body
     let header = document.querySelector('header');
     if (!header) {
         header = document.createElement('header');
-        header.className = 'header';
+        header.className = 'header'; // Asegura la clase para el CSS
         document.body.prepend(header);
     }
     
-    // Inyectar el contenido
+    // Reemplaza el contenido para asegurar que sea el menú correcto
     header.innerHTML = headerHTML;
 
-    // Activar la lógica del botón hamburguesa inmediatamente
+    // Activa el listener del botón hamburguesa inmediatamente
     setupMobileMenu();
 };
 
+// Lógica interna del menú móvil
+const setupMobileMenu = () => {
+    const btn = document.getElementById('menuToggle');
+    const nav = document.getElementById('navMenu');
+    
+    if (btn && nav) {
+        // Clonar botón para eliminar listeners viejos y evitar duplicados
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        
+        newBtn.onclick = (e) => {
+            e.stopPropagation(); // Evita que el click cierre el menú inmediatamente
+            nav.classList.toggle('active');
+        };
+        
+        // Cerrar al hacer click fuera
+        document.addEventListener('click', (e) => {
+            if (nav.classList.contains('active') && !nav.contains(e.target) && !newBtn.contains(e.target)) {
+                nav.classList.remove('active');
+            }
+        });
+    }
+};
+
 /* ==========================================================================
-   RENDER WALLET UI
+   2. RENDER WALLET UI
    ========================================================================== */
 export const renderWalletUI = () => {
     const data = Data.getWalletData();
     const set = (id, v) => { const el = $(id); if(el) el.innerText = v; };
 
-    // 1. GASOLINA
+    // A. GASOLINA
     set("walletGasKm", `${data.gasolina.kmTotal} km (Hist.)`);
     set("walletGasCosto", `$${fmtMoney(data.gasolina.costoKm)}/km`);
     set("walletGasNecesario", `$${fmtMoney(data.gasolina.necesario)}`);
@@ -66,12 +90,13 @@ export const renderWalletUI = () => {
         elSaldoGas.style.color = data.gasolina.saldo >= 0 ? "#16a34a" : "#dc2626";
     }
 
-    // 2. SOBRES FIJOS
+    // B. SOBRES FIJOS
     const container = $("walletFixedContainer");
     if (container) {
         container.innerHTML = "";
         data.sobres.forEach(s => {
             const div = document.createElement("div");
+            // Estilos en línea para asegurar consistencia visual
             div.style.cssText = "background:white; padding:15px; border-radius:8px; border-left:4px solid #3b82f6; box-shadow:0 1px 3px rgba(0,0,0,0.1); margin-bottom:10px;";
             
             const textoAcumulado = s.dias === 0 ? "Reiniciado (Pago hoy)" : `Acumulado (${s.dias} días)`;
@@ -97,7 +122,7 @@ export const renderWalletUI = () => {
         }
     }
 
-    // 3. TOTALES
+    // C. TOTALES
     set("walletTotalObligado", `$${fmtMoney(data.totales.obligado)}`);
     set("walletCashFlow", `$${fmtMoney(data.totales.efectivo)}`);
     
@@ -115,7 +140,7 @@ export const renderWalletUI = () => {
 };
 
 /* ==========================================================================
-   OTROS RENDERS
+   3. OTROS RENDERS (ADMIN, DASHBOARD, ETC)
    ========================================================================== */
 export const renderTurnoUI = () => {
     const lbl = $("turnoTexto"); if (!lbl) return;
@@ -180,6 +205,7 @@ export const renderListasAdmin = () => {
     }
 };
 
+// Función global expuesta para los botones generados dinámicamente
 window.eliminarFijo = (index) => {
     if(confirm("¿Eliminar este gasto fijo permanentemente?")) {
         Data.eliminarGastoFijo(index);
@@ -215,31 +241,8 @@ export const renderHistorial = () => {
     r.innerHTML = `<p style="font-weight:bold; font-size:1.1rem;">Ingresos: <span style="color:#16a34a">$${fmtMoney(i)}</span> | Gastos: <span style="color:#dc2626">$${fmtMoney(g)}</span> | Neto: <span>$${fmtMoney(i-g)}</span></p>`;
 };
 
-// --- MENÚ Y LISTENERS ---
-export const setupMobileMenu = () => {
-    const btn = document.getElementById('menuToggle');
-    const nav = document.getElementById('navMenu');
-    
-    if (btn && nav) {
-        // Clonar para limpiar eventos previos
-        const newBtn = btn.cloneNode(true);
-        btn.parentNode.replaceChild(newBtn, btn);
-        
-        newBtn.onclick = (e) => {
-            e.stopPropagation();
-            nav.classList.toggle('active');
-        };
-        
-        document.addEventListener('click', (e) => {
-            if (!nav.contains(e.target) && !newBtn.contains(e.target)) {
-                nav.classList.remove('active');
-            }
-        });
-    }
-};
-
 /* ==========================================================================
-   LISTENERS
+   4. LISTENERS (LIMPIO Y SIN BASURA)
    ========================================================================== */
 export const setupAdminListeners = () => {
     if (document.body.getAttribute("data-page") !== "admin") return;
