@@ -11,10 +11,50 @@ import {
 } from "./02_data.js";
 
 /* =========================
-   UTILIDADES
+   UTILIDADES UI
 ========================= */
 const show = (el) => { if (el) el.style.display = ""; };
 const hide = (el) => { if (el) el.style.display = "none"; };
+
+/* =========================
+   MENÚ GLOBAL (HAMBURGUESA)
+========================= */
+export const renderGlobalMenu = () => {
+  const header = document.querySelector(".header");
+  if (!header) return;
+
+  // Evitar duplicado
+  if (document.getElementById("globalMenu")) return;
+
+  const menuBtn = document.createElement("button");
+  menuBtn.id = "menuToggle";
+  menuBtn.className = "menu-toggle";
+  menuBtn.textContent = "☰";
+
+  const menu = document.createElement("nav");
+  menu.id = "globalMenu";
+  menu.className = "menu hidden";
+  menu.innerHTML = `
+    <a href="index.html">🏠 Inicio</a>
+    <a href="admin.html">⚙️ Admin</a>
+    <a href="wallet.html">💵 Wallet</a>
+    <a href="historial.html">📜 Historial</a>
+  `;
+
+  header.appendChild(menuBtn);
+  document.body.appendChild(menu);
+
+  menuBtn.addEventListener("click", () => {
+    menu.classList.toggle("hidden");
+  });
+
+  // Cerrar al hacer click fuera
+  document.addEventListener("click", (e) => {
+    if (!menu.contains(e.target) && e.target !== menuBtn) {
+      menu.classList.add("hidden");
+    }
+  });
+};
 
 /* =========================
    TURNO
@@ -43,56 +83,26 @@ export const renderTurnoUI = () => {
 };
 
 export const setupTurnoListeners = () => {
-  const btnIniciar = $("btnIniciarTurno");
-  const btnFinalizar = $("btnFinalizarTurno");
-  const btnGuardar = $("btnGuardarCierre");
-
-  btnIniciar?.addEventListener("click", () => {
+  $("btnIniciarTurno")?.addEventListener("click", () => {
     iniciarTurno();
     renderTurnoUI();
   });
 
-  btnFinalizar?.addEventListener("click", () => {
+  $("btnFinalizarTurno")?.addEventListener("click", () => {
     show($("cierreTurnoContainer"));
   });
 
-  btnGuardar?.addEventListener("click", () => {
-    const km = $("inpKmFinal")?.value;
-    const ganancia = $("inpGanancia")?.value;
-
-    finalizarTurno(ganancia, km);
+  $("btnGuardarCierre")?.addEventListener("click", () => {
+    finalizarTurno(
+      $("inpGanancia")?.value,
+      $("inpKmFinal")?.value
+    );
     renderTurnoUI();
   });
 };
 
 /* =========================
-   INGRESOS / GASTOS
-========================= */
-export const setupGastosListeners = () => {
-  $("btnGuardarIngreso")?.addEventListener("click", () => {
-    const desc = $("ingresoDescripcion")?.value || "Ingreso";
-    const monto = $("ingresoCantidad")?.value;
-
-    agregarGasto({
-      fecha: new Date().toISOString(),
-      categoria: desc,
-      monto,
-      tipo: "ingreso"
-    });
-  });
-
-  $("btnGuardarGasto")?.addEventListener("click", () => {
-    agregarGasto({
-      fecha: new Date().toISOString(),
-      categoria: $("gastoCategoria")?.value,
-      monto: $("gastoCantidad")?.value,
-      tipo: "gasto"
-    });
-  });
-};
-
-/* =========================
-   DEUDAS
+   DEUDAS (ADMIN)
 ========================= */
 export const renderDeudas = () => {
   const lista = $("listaDeudas");
@@ -102,9 +112,7 @@ export const renderDeudas = () => {
   lista.innerHTML = "";
   selector.innerHTML = "";
 
-  const { deudas } = getState();
-
-  deudas.forEach((d, i) => {
+  getState().deudas.forEach((d, i) => {
     const li = document.createElement("li");
     li.textContent = `${d.desc} — $${fmtMoney(d.saldo)}`;
     lista.appendChild(li);
@@ -129,25 +137,12 @@ export const setupDeudaListeners = () => {
 };
 
 /* =========================
-   WALLET (RESUMEN)
-========================= */
-export const renderWalletResumen = () => {
-  const data = getWalletData();
-  const el = $("walletResumen");
-  if (!el) return;
-
-  el.textContent = `Disponible: $${fmtMoney(data.totales.disponible)}`;
-};
-
-/* =========================
-   INIT GENERAL
+   INIT ADMIN
 ========================= */
 export const initAdminRender = () => {
+  renderGlobalMenu();
   renderTurnoUI();
   renderDeudas();
-  renderWalletResumen();
-
   setupTurnoListeners();
-  setupGastosListeners();
   setupDeudaListeners();
 };
