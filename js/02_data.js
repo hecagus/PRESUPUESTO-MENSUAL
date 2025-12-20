@@ -1,6 +1,6 @@
 import { STORAGE_KEY, OLD_KEY, safeNumber } from './01_consts_utils.js';
 
-// Estado Base
+// Estado Base por defecto
 const BASE_STATE = {
     turno: null,
     gastos: [],
@@ -18,12 +18,16 @@ let state = structuredClone(BASE_STATE);
 
 /* ===== PERSISTENCIA Y MIGRACIÓN ===== */
 export const loadData = () => {
-    // Lógica de migración legacy
+    // 1. MIGRACIÓN: Si no hay datos nuevos, busca los viejos
     if (!localStorage.getItem(STORAGE_KEY)) {
         const old = localStorage.getItem(OLD_KEY);
-        if (old) localStorage.setItem(STORAGE_KEY, old);
+        if (old) {
+            console.log("Migrando datos antiguos...");
+            localStorage.setItem(STORAGE_KEY, old);
+        }
     }
 
+    // 2. CARGA NORMAL
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
         try {
@@ -60,7 +64,7 @@ export const agregarGasto = (tipo, categoria, monto, esRecurrente, fecha) => {
         tipo,
         categoria,
         monto: safeNumber(monto),
-        fecha: esRecurrente ? fecha : null // Si tiene fecha es recurrente
+        fecha: esRecurrente ? fecha : null
     });
     saveData();
 };
@@ -71,7 +75,6 @@ export const agregarGasolina = (km, litros, costo) => {
         litros: safeNumber(litros),
         costo: safeNumber(costo)
     });
-    // Actualizamos el KM actual si es mayor al registrado
     if (safeNumber(km) > state.kmActual) state.kmActual = safeNumber(km);
     saveData();
 };
@@ -79,7 +82,7 @@ export const agregarGasolina = (km, litros, costo) => {
 export const agregarDeuda = (nombre, total, pago, fecha) => {
     state.deudas.push({
         nombre,
-        saldo: safeNumber(total), // Usamos saldo para el control
+        saldo: safeNumber(total),
         pago: safeNumber(pago),
         fecha,
         abonos: []
@@ -92,7 +95,7 @@ export const guardarUmbrales = (aceite, frenos) => {
     saveData();
 };
 
-// Fórmula Meta Diaria: (Total Recurrentes / 6)
+// Fórmula: (Gastos Recurrentes + Deudas) / 6 días laborables
 export const calcularMetaDiaria = () => {
     const gastosRecurrentes = state.gastos.filter(g => g.fecha).reduce((a, b) => a + b.monto, 0);
     const pagosDeudas = state.deudas.reduce((a, b) => a + (b.pago || 0), 0);
