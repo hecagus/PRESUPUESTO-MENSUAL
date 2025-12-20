@@ -1,17 +1,15 @@
+/* Archivo: js/05_init.js */
 import { loadData, iniciarTurno, finalizarTurno, agregarGasto, agregarGasolina, agregarDeuda, guardarUmbrales, getState } from './02_data.js';
 import { renderGlobalHeader, renderAdminUI, renderWalletUI, renderHistorialUI } from './03_render.js';
 import { initCharts } from './04_charts.js';
 import { $ } from './01_consts_utils.js';
 
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. Carga inicial (Incluye migración si aplica)
+    console.log("🚀 Sistema Iniciando...");
     loadData();
     renderGlobalHeader();
 
-    // 2. Detección de página
-    const page = document.body.getAttribute('data-page') || detectPage();
-
-    console.log(`🚀 Sistema iniciado en: ${page}`);
+    const page = document.body.getAttribute('data-page') || 'index';
 
     switch (page) {
         case 'admin':
@@ -29,20 +27,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-function detectPage() {
-    const path = window.location.pathname;
-    if (path.includes('admin')) return 'admin';
-    if (path.includes('wallet')) return 'wallet';
-    if (path.includes('historial')) return 'historial';
-    return 'index';
-}
-
-/* ===== LÓGICA DE ADMIN ===== */
 function initAdmin() {
     renderAdminUI();
     initCharts();
 
-    // -- TURNOS --
+    /* --- LISTENERS EXISTENTES --- */
     const btnTurno = $("btnTurno");
     if (btnTurno) btnTurno.onclick = () => { iniciarTurno(); renderAdminUI(); };
 
@@ -50,13 +39,12 @@ function initAdmin() {
     if (btnFinTurno) btnFinTurno.onclick = () => {
         const km = $("kmFinal").value;
         const ganancia = $("gananciaTurno").value;
-        if (!km || !ganancia) return alert("Faltan datos de cierre");
+        if (!km || !ganancia) return alert("Faltan datos");
         finalizarTurno(ganancia, km);
         alert("Turno finalizado");
         location.reload();
     };
 
-    // -- GASTOS --
     const btnGasto = $("registrarGasto");
     if (btnGasto) btnGasto.onclick = () => {
         const tipo = $("tipoGasto").value;
@@ -64,26 +52,23 @@ function initAdmin() {
         const monto = $("montoGasto").value;
         const isRecurrente = $("gastoRecurrente").checked;
         const fecha = $("fechaPago").value;
-
-        if (!monto) return alert("Ingresa un monto");
+        if (!monto) return alert("Ingresa monto");
         agregarGasto(tipo, cat, monto, isRecurrente, fecha);
         alert("Gasto registrado");
         location.reload();
     };
 
-    // -- GASOLINA --
     const btnGas = $("guardarGasolina");
     if (btnGas) btnGas.onclick = () => {
         const km = $("kmGasolina").value;
         const l = $("litros").value;
         const c = $("costoGas").value;
         agregarGasolina(km, l, c);
-        alert("Carga guardada");
+        alert("Gasolina guardada");
         renderAdminUI();
         $("kmGasolina").value = ""; $("litros").value = ""; $("costoGas").value = "";
     };
 
-    // -- DEUDAS --
     const btnDeuda = $("registrarDeuda");
     if (btnDeuda) btnDeuda.onclick = () => {
         const nom = $("deudaNombre").value;
@@ -92,18 +77,17 @@ function initAdmin() {
         const fec = $("deudaFecha").value;
         if (!nom || !tot) return alert("Datos incompletos");
         agregarDeuda(nom, tot, pag, fec);
-        alert("Deuda agregada");
+        alert("Deuda guardada");
         location.reload();
     };
 
-    // -- MANTENIMIENTO --
     const btnMant = $("guardarUmbrales");
     if (btnMant) btnMant.onclick = () => {
         guardarUmbrales($("umbralAceite").value, $("umbralFrenos").value);
-        alert("Umbrales actualizados");
+        alert("Umbrales guardados");
     };
 
-    // -- EXPORTAR (JSON) --
+    /* --- IMPORTAR / EXPORTAR --- */
     const btnExp = $("exportar");
     if (btnExp) btnExp.onclick = () => {
         const data = getState();
@@ -114,7 +98,6 @@ function initAdmin() {
         a.click();
     };
 
-    // -- IMPORTAR (ARCHIVO) --
     const inpImp = $("importar");
     if (inpImp) inpImp.onchange = (e) => {
         const file = e.target.files[0];
@@ -122,30 +105,39 @@ function initAdmin() {
         const r = new FileReader();
         r.onload = () => {
             try {
-                JSON.parse(r.result); // Validar JSON
+                JSON.parse(r.result);
                 localStorage.setItem('uber_tracker_data', r.result);
-                alert("✅ Datos importados desde archivo.");
+                alert("✅ Archivo importado.");
                 location.reload();
-            } catch (err) {
-                alert("❌ Archivo inválido.");
-            }
+            } catch (err) { alert("❌ Archivo inválido"); }
         };
         r.readAsText(file);
     };
 
-    // -- IMPORTAR (TEXTO PEGADO) - NUEVO --
+    /* --- EL BOTÓN QUE FALLABA --- */
     const btnImpText = $("btnImportarTexto");
-    if (btnImpText) btnImpText.onclick = () => {
-        const text = $("jsonPaste").value;
-        if (!text) return alert("⚠️ Pega el JSON primero.");
-        try {
-            JSON.parse(text); // Validar integridad
-            localStorage.setItem('uber_tracker_data', text);
-            alert("✅ Datos importados desde texto.");
-            location.reload();
-        } catch (err) {
-            alert("❌ Texto inválido. Asegúrate de copiar todo.");
-        }
-    };
+    // Debug: Verifica si el botón existe
+    if (!btnImpText) console.error("❌ ERROR: No encuentro el botón con ID 'btnImportarTexto'");
+    
+    if (btnImpText) {
+        console.log("✅ Botón de texto detectado y listo.");
+        btnImpText.onclick = () => {
+            console.log("🖱️ Click recibido en botón texto");
+            const text = $("jsonPaste").value;
+            if (!text) return alert("⚠️ Pega el JSON primero.");
+            
+            try {
+                // Limpieza básica por si pegaron espacios extra
+                const cleanText = text.trim();
+                JSON.parse(cleanText); // Validar integridad
+                localStorage.setItem('uber_tracker_data', cleanText);
+                alert("✅ Datos importados desde texto.");
+                location.reload();
+            } catch (err) {
+                console.error(err);
+                alert("❌ JSON Inválido. Asegúrate de copiar TODO el texto, incluyendo llaves { }.");
+            }
+        };
+    }
 }
 
