@@ -2,13 +2,13 @@ import { $ } from './01_consts_utils.js';
 import { getState } from './02_data.js';
 
 export const initCharts = () => {
-    const ctx = $("chartGanancias"); // Para Dashboard
-    const ctxGastos = $("chartGastos"); // Para Admin (según tu HTML admin)
+    const ctx = $("chartGanancias"); // Dashboard
+    const ctxGastos = $("chartGastos"); // Admin
 
     if (typeof Chart === 'undefined') return;
     const s = getState();
 
-    // 1. Gráfica Dashboard (Ganancias/Ingresos)
+    // 1. Gráfica Dashboard (Ingresos)
     if (ctx) {
         new Chart(ctx, {
             type: 'bar',
@@ -24,9 +24,8 @@ export const initCharts = () => {
         });
     }
 
-    // 2. Gráfica Admin (Gastos por Categoría - Ejemplo simple)
+    // 2. Gráfica Admin (Gastos por Tipo)
     if (ctxGastos) {
-        // Agrupar gastos por tipo
         const porTipo = s.gastos.reduce((acc, g) => {
             acc[g.tipo] = (acc[g.tipo] || 0) + g.monto;
             return acc;
@@ -44,3 +43,4 @@ export const initCharts = () => {
         });
     }
 };
+
