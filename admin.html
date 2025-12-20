@@ -92,9 +92,20 @@
 </section>
 
 <section class="card">
-  <h2>Importar / Exportar</h2>
-  <button id="exportar" class="btn primary">Exportar JSON</button>
-  <input type="file" id="importar">
+  <h2>Respaldo y Restauración</h2>
+  
+  <p style="font-size:0.9rem; color:#64748b; margin-bottom:10px;">Guarda tus datos o restáuralos si cambias de dispositivo.</p>
+  
+  <button id="exportar" class="btn primary">⬇️ Descargar Copia (JSON)</button>
+  
+  <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e2e8f0;">
+  
+  <label style="font-weight:bold; margin-bottom:5px; display:block;">Opción A: Subir Archivo</label>
+  <input type="file" id="importar" accept=".json">
+  
+  <label style="font-weight:bold; margin-top:15px; margin-bottom:5px; display:block;">Opción B: Pegar Texto JSON</label>
+  <textarea id="jsonPaste" rows="5" placeholder='Pega aquí el código que empieza con {"turno":...}' style="width:100%; border:1px solid #cbd5e1; border-radius:6px; padding:10px; font-family:monospace; font-size:0.8rem;"></textarea>
+  <button id="btnImportarTexto" class="btn success">⬆️ Importar desde Texto</button>
 </section>
 
 <canvas id="chartGastos"></canvas>
