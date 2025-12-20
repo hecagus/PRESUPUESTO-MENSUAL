@@ -1,23 +1,23 @@
-import { loadData, iniciarTurno, finalizarTurno, agregarGasto, agregarGasolina, agregarDeuda, guardarUmbrales, saveData, getState } from './02_data.js';
+import { loadData, iniciarTurno, finalizarTurno, agregarGasto, agregarGasolina, agregarDeuda, guardarUmbrales, getState } from './02_data.js';
 import { renderGlobalHeader, renderAdminUI, renderWalletUI, renderHistorialUI } from './03_render.js';
 import { initCharts } from './04_charts.js';
-import { $, safeNumber } from './01_consts_utils.js';
+import { $ } from './01_consts_utils.js';
 
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. Carga inicial
+    // 1. Carga inicial (Incluye migración si aplica)
     loadData();
     renderGlobalHeader();
 
     // 2. Detección de página
     const page = document.body.getAttribute('data-page') || detectPage();
 
-    console.log(`🚀 Init: ${page}`);
+    console.log(`🚀 Sistema iniciado en: ${page}`);
 
     switch (page) {
         case 'admin':
             initAdmin();
             break;
-        case 'index': // Dashboard
+        case 'index':
             initCharts();
             break;
         case 'wallet':
@@ -29,7 +29,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// Helper para detectar página si falta data-page
 function detectPage() {
     const path = window.location.pathname;
     if (path.includes('admin')) return 'admin';
@@ -38,30 +37,26 @@ function detectPage() {
     return 'index';
 }
 
-/* ===== LOGICA ESPECÍFICA DE ADMIN ===== */
+/* ===== LÓGICA DE ADMIN ===== */
 function initAdmin() {
     renderAdminUI();
-    initCharts(); // Admin también tiene canvas en tu HTML
+    initCharts();
 
-    // Listeners Turno
+    // -- TURNOS --
     const btnTurno = $("btnTurno");
-    if (btnTurno) btnTurno.onclick = () => {
-        iniciarTurno();
-        renderAdminUI();
-    };
+    if (btnTurno) btnTurno.onclick = () => { iniciarTurno(); renderAdminUI(); };
 
     const btnFinTurno = $("finalizarTurno");
     if (btnFinTurno) btnFinTurno.onclick = () => {
         const km = $("kmFinal").value;
         const ganancia = $("gananciaTurno").value;
         if (!km || !ganancia) return alert("Faltan datos de cierre");
-        
         finalizarTurno(ganancia, km);
-        alert("Turno finalizado y guardado");
+        alert("Turno finalizado");
         location.reload();
     };
 
-    // Listeners Gasto
+    // -- GASTOS --
     const btnGasto = $("registrarGasto");
     if (btnGasto) btnGasto.onclick = () => {
         const tipo = $("tipoGasto").value;
@@ -71,66 +66,86 @@ function initAdmin() {
         const fecha = $("fechaPago").value;
 
         if (!monto) return alert("Ingresa un monto");
-
         agregarGasto(tipo, cat, monto, isRecurrente, fecha);
         alert("Gasto registrado");
         location.reload();
     };
 
-    // Listeners Gasolina
+    // -- GASOLINA --
     const btnGas = $("guardarGasolina");
     if (btnGas) btnGas.onclick = () => {
         const km = $("kmGasolina").value;
         const l = $("litros").value;
         const c = $("costoGas").value;
-        
         agregarGasolina(km, l, c);
         alert("Carga guardada");
-        renderAdminUI(); // Actualizar KM
+        renderAdminUI();
         $("kmGasolina").value = ""; $("litros").value = ""; $("costoGas").value = "";
     };
 
-    // Listeners Deuda
+    // -- DEUDAS --
     const btnDeuda = $("registrarDeuda");
     if (btnDeuda) btnDeuda.onclick = () => {
         const nom = $("deudaNombre").value;
         const tot = $("deudaTotal").value;
         const pag = $("deudaPago").value;
         const fec = $("deudaFecha").value;
-        
         if (!nom || !tot) return alert("Datos incompletos");
-        
         agregarDeuda(nom, tot, pag, fec);
         alert("Deuda agregada");
-        location.reload(); // Para recalcular meta
+        location.reload();
     };
 
-    // Listeners Mantenimiento
+    // -- MANTENIMIENTO --
     const btnMant = $("guardarUmbrales");
     if (btnMant) btnMant.onclick = () => {
         guardarUmbrales($("umbralAceite").value, $("umbralFrenos").value);
         alert("Umbrales actualizados");
     };
 
-    // Export / Import
+    // -- EXPORTAR (JSON) --
     const btnExp = $("exportar");
     if (btnExp) btnExp.onclick = () => {
         const data = getState();
         const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'uber_tracker_backup.json';
+        a.download = `backup_uber_${new Date().toISOString().slice(0,10)}.json`;
         a.click();
     };
 
+    // -- IMPORTAR (ARCHIVO) --
     const inpImp = $("importar");
     if (inpImp) inpImp.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
         const r = new FileReader();
         r.onload = () => {
-            localStorage.setItem('uber_tracker_data', r.result);
-            alert("Datos importados");
-            location.reload();
+            try {
+                JSON.parse(r.result); // Validar JSON
+                localStorage.setItem('uber_tracker_data', r.result);
+                alert("✅ Datos importados desde archivo.");
+                location.reload();
+            } catch (err) {
+                alert("❌ Archivo inválido.");
+            }
         };
-        r.readAsText(e.target.files[0]);
+        r.readAsText(file);
+    };
+
+    // -- IMPORTAR (TEXTO PEGADO) - NUEVO --
+    const btnImpText = $("btnImportarTexto");
+    if (btnImpText) btnImpText.onclick = () => {
+        const text = $("jsonPaste").value;
+        if (!text) return alert("⚠️ Pega el JSON primero.");
+        try {
+            JSON.parse(text); // Validar integridad
+            localStorage.setItem('uber_tracker_data', text);
+            alert("✅ Datos importados desde texto.");
+            location.reload();
+        } catch (err) {
+            alert("❌ Texto inválido. Asegúrate de copiar todo.");
+        }
     };
 }
+
