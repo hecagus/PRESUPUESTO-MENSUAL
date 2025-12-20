@@ -6,22 +6,27 @@
   <title>Wallet</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
+<body data-page="wallet">
 
-<nav class="nav">
-  <a href="index.html">Dashboard</a>
-  <a href="admin.html">Admin</a>
-  <a class="active" href="wallet.html">Wallet</a>
-  <a href="historial.html">Historial</a>
-</nav>
+<header class="header">
+  <div class="logo">Wallet</div>
+  <button class="menu-toggle">☰</button>
+  <nav class="nav-menu">
+    <a href="index.html">Dashboard</a>
+    <a href="admin.html">Admin</a>
+    <a class="active" href="wallet.html">Wallet</a>
+    <a href="historial.html">Historial</a>
+  </nav>
+</header>
 
 <main class="container">
   <div class="card">
-    <h2>Wallet</h2>
+    <h2>Estado de Deudas</h2>
     <div id="walletInfo"></div>
   </div>
 </main>
 
-<script type="module" src="./js/wallet.js"></script>
+<script type="module" src="./js/05_init.js"></script>
 </body>
 </html>
+
