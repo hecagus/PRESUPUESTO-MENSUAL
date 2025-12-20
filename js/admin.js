@@ -1,25 +1,89 @@
-import './menu.js';
-import { load, save } from './02_data.js';
-import { fmtMoney } from './01_consts_utils.js';
+const data = loadData();
 
-let d = load();
+/* ===== MENU ===== */
+menuToggle.onclick = () => navMenu.classList.toggle('active');
 
-const estado = document.getElementById('estadoTurno');
-const btnTurno = document.getElementById('btnTurno');
-const lista = document.getElementById('listaGastos');
-const monto = document.getElementById('gastoMonto');
-
+/* ===== TURNO ===== */
 btnTurno.onclick = () => {
-  d.turno = d.turno ? null : { inicio: Date.now() };
-  save(d); location.reload();
+  data.turno = { inicio:Date.now(), kmInicio:data.kmActual };
+  turnoEstado.textContent = '🟢 Turno activo';
+  turnoEstado.className = 'estado on';
+  btnTurno.classList.add('hidden');
+  turnoFinal.classList.remove('hidden');
+  saveData(data);
 };
 
-document.getElementById('btnGasto').onclick = () => {
-  if (!monto.value) return;
-  d.gastos.push({ monto: +monto.value });
-  save(d); location.reload();
+finalizarTurno.onclick = () => {
+  data.kmActual = Number(kmFinal.value);
+  data.ingresos.push(Number(gananciaTurno.value));
+  data.turno = null;
+  saveData(data);
+  location.reload();
 };
 
-estado.textContent = d.turno ? '🟢 Turno activo' : '🔴 Sin turno';
-btnTurno.textContent = d.turno ? 'Finalizar Turno' : 'Iniciar Turno';
-lista.innerHTML = d.gastos.map(g => fmtMoney(g.monto)).join('<br>');
+/* ===== GASTOS ===== */
+const categorias = {
+  hogar:['Luz','Renta','Internet','Streaming'],
+  operativo:['Talachas','Mecánico','Refacciones']
+};
+
+function renderCategorias() {
+  categoriaGasto.innerHTML = '';
+  categorias[tipoGasto.value].forEach(c=>{
+    const o=document.createElement('option'); o.textContent=c;
+    categoriaGasto.appendChild(o);
+  });
+}
+tipoGasto.onchange = renderCategorias;
+renderCategorias();
+
+gastoRecurrente.onchange = ()=>fechaPago.classList.toggle('hidden',!gastoRecurrente.checked);
+
+registrarGasto.onclick = ()=>{
+  data.gastos.push({
+    tipo:tipoGasto.value,
+    categoria:categoriaGasto.value,
+    monto:+montoGasto.value,
+    fecha:fechaPago.value||null
+  });
+  saveData(data);
+};
+
+/* ===== GASOLINA ===== */
+guardarGasolina.onclick = ()=>{
+  data.gasolina.push({
+    km:+kmGasolina.value,
+    litros:+litros.value,
+    costo:+costoGas.value
+  });
+  saveData(data);
+};
+
+/* ===== DEUDAS ===== */
+registrarDeuda.onclick = ()=>{
+  data.deudas.push({
+    nombre:deudaNombre.value,
+    total:+deudaTotal.value,
+    pago:+deudaPago.value,
+    fecha:deudaFecha.value,
+    abonos:[]
+  });
+  saveData(data);
+  location.reload();
+};
+
+/* ===== META ===== */
+const totalRecurrentes =
+  data.gastos.filter(g=>g.fecha).reduce((a,b)=>a+b.monto,0) +
+  data.deudas.reduce((a,b)=>a+b.pago,0);
+
+metaDiaria.textContent = '$'+(totalRecurrentes/6).toFixed(2);
+
+/* ===== IMPORT / EXPORT ===== */
+exportar.onclick = exportJSON;
+
+importar.onchange = e=>{
+  const r=new FileReader();
+  r.onload=()=>{ localStorage.setItem(KEY,r.result); location.reload(); };
+  r.readAsText(e.target.files[0]);
+};
