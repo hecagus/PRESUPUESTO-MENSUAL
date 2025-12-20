@@ -1,32 +1,35 @@
-export const STORAGE_KEY = "panelData";
-export const TUTORIAL_VIEWED_KEY = "tutorialViewed";
+// 01_consts_utils.js
+export const STORAGE_KEY = "panelData_vFinal";
 
-export const $ = id => document.getElementById(id);
+export const $ = (id) => document.getElementById(id);
 
 export const DIAS_POR_FRECUENCIA = {
-  Diario: 1,
-  Semanal: 7,
-  Quincenal: 15,
-  Mensual: 30,
-  Bimestral: 60,
-  "No Recurrente": null
+    Diario: 1,
+    Semanal: 7,
+    Quincenal: 15,
+    Mensual: 30,
+    Bimestral: 60,
+    Anual: 365,
+    "No Recurrente": 0
 };
 
-export function safeNumber(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
+export const safeNumber = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+};
 
-export function fmtMoney(n) {
-  return safeNumber(n).toFixed(2);
-}
+export const fmtMoney = (n) =>
+    safeNumber(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
-export function formatearFecha(d) {
-  const date = new Date(d);
-  return isNaN(date) ? "-" : date.toLocaleDateString();
-}
+export const formatearFecha = (d) =>
+    new Date(d).toLocaleDateString();
 
-export function isSameDay(a, b) {
-  const x = new Date(a), y = new Date(b);
-  return x.toDateString() === y.toDateString();
-}
+export const isSameDay = (d1, d2) => {
+    const a = new Date(d1);
+    const b = new Date(d2);
+    return (
+        a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate()
+    );
+};
