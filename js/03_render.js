@@ -3,9 +3,6 @@ import * as Data from './02_data.js';
 
 /* ===== HEADER / MENU ===== */
 export const renderGlobalHeader = () => {
-    const btn = $(".menu-toggle");
-    const menu = $(".nav-menu"); // Clase, pero seleccionamos por query selector si usamos $
-    // Ajuste para selector de clase con helper simple
     const menuEl = document.querySelector('.nav-menu'); 
     const btnEl = document.querySelector('.menu-toggle');
 
@@ -77,9 +74,9 @@ export const renderAdminUI = () => {
     };
 
     if (selTipo) selTipo.onchange = fillCats;
-    fillCats(); // Init
+    fillCats(); // Ejecutar al inicio
 
-    // 5. Toggle Fecha Pago (Recurrente)
+    // 5. Toggle Fecha Pago
     const checkRec = $("gastoRecurrente");
     const dateInput = $("fechaPago");
     if (checkRec && dateInput) {
@@ -116,8 +113,7 @@ export const renderHistorialUI = () => {
     if (!div) return;
 
     const s = Data.getState();
-    // Combinamos gastos e ingresos para mostrar
-    // Esto es un render básico basado en tu snippet original
+    
     const htmlGastos = s.gastos.slice().reverse().map(g => 
         `<div style="color:#dc2626; padding:5px 0; border-bottom:1px solid #eee;">
             ➖ ${g.categoria} (${g.tipo}): ${fmtMoney(g.monto)}
@@ -132,3 +128,4 @@ export const renderHistorialUI = () => {
 
     div.innerHTML = `<h3>Últimos Movimientos</h3>${htmlIngresos}${htmlGastos}`;
 };
+
