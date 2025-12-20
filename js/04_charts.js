@@ -1,21 +1,20 @@
-import { $ } from "./01_consts_utils.js";
+// 04_charts.js
+import { $, } from "./01_consts_utils.js";
 import { getState } from "./02_data.js";
 
-export function initCharts() {
-  if (typeof Chart === "undefined") return;
-  const ctx = $("chartGanancias");
-  if (!ctx) return;
+export const initCharts = () => {
+    const canvas = $("graficaGanancias");
+    if (!canvas || typeof Chart === "undefined") return;
 
-  const s = getState();
+    const data = getState().turnos.slice(-14);
 
-  new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: s.turnos.map((_, i) => `T${i + 1}`),
-      datasets: [{
-        label: "Ingresos",
-        data: s.turnos.map(t => t.dineroGenerado)
-      }]
-    }
-  });
-}
+    new Chart(canvas, {
+        type: "bar",
+        data: {
+            labels: data.map(t => new Date(t.fecha).toLocaleDateString()),
+            datasets: [{
+                data: data.map(t => t.ganancia)
+            }]
+        }
+    });
+};
