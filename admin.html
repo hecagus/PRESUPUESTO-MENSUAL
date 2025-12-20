@@ -3,46 +3,114 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Admin</title>
+  <title>Admin – Finanzas Repartidor</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
 
+<body data-page="admin">
 <header class="header">
-  <span class="logo">Admin</span>
-  <button class="menu-toggle">☰</button>
-  <nav class="nav-menu">
+  <div class="logo">Admin</div>
+  <button class="menu-toggle" id="menuToggle">☰</button>
+  <nav class="nav-menu" id="navMenu">
     <a href="index.html">Dashboard</a>
-    <a class="active" href="admin.html">Admin</a>
+    <a href="admin.html" class="active">Admin</a>
     <a href="wallet.html">Wallet</a>
-    <a href="historial.html">Historial</a>
   </nav>
 </header>
 
 <main class="container">
 
-  <section class="card">
-    <h2>Gestión de Turno</h2>
-    <p id="estadoTurno"></p>
-    <button id="btnTurno"></button>
-  </section>
+<!-- ================= TURNO ================= -->
+<section class="card">
+  <h2>Gestión de Turno</h2>
+  <div id="turnoEstado" class="estado off">🔴 Sin turno</div>
+  <button id="btnTurno" class="btn success">Iniciar turno</button>
 
-  <section class="card">
-    <h2>Registro de Gasto</h2>
-    <input id="gastoMonto" type="number" placeholder="Monto $" />
-    <button id="btnGasto">Registrar</button>
-    <div id="listaGastos"></div>
-  </section>
+  <div id="turnoFinal" class="hidden">
+    <input id="kmFinal" type="number" placeholder="Kilometraje final">
+    <input id="gananciaTurno" type="number" placeholder="¿Cuánto ganaste? $">
+    <button id="finalizarTurno" class="btn primary">Finalizar ⏭️</button>
+  </div>
+</section>
 
-  <section class="card">
-    <h2>Abonos a Deuda</h2>
-    <select id="selectDeuda"></select>
-    <input id="abonoMonto" type="number" placeholder="Monto $" />
-    <button id="btnAbono">Abonar</button>
-  </section>
+<!-- ================= GASTO ================= -->
+<section class="card">
+  <h2>Registrar Gasto Inteligente</h2>
+
+  <select id="tipoGasto">
+    <option value="hogar">🏠 Hogar</option>
+    <option value="operativo">🚴 Operativo</option>
+  </select>
+
+  <select id="categoriaGasto"></select>
+
+  <input id="montoGasto" type="number" placeholder="Monto $">
+
+  <label>
+    <input type="checkbox" id="gastoRecurrente"> Gasto recurrente
+  </label>
+
+  <input type="date" id="fechaPago" class="hidden">
+
+  <button id="registrarGasto" class="btn danger">Registrar gasto</button>
+</section>
+
+<!-- ================= GASOLINA ================= -->
+<section class="card">
+  <h2>⛽ Carga de Gasolina</h2>
+  <input id="kmGasolina" type="number" placeholder="Kilometraje al cargar">
+  <input id="litros" type="number" placeholder="Litros cargados">
+  <input id="costoGas" type="number" placeholder="Costo total $">
+  <button id="guardarGasolina" class="btn primary">Guardar</button>
+</section>
+
+<!-- ================= KILOMETRAJE ================= -->
+<section class="card">
+  <h2>Detalle de Kilometraje</h2>
+  <div id="kmActual">Kilometraje actual: --</div>
+</section>
+
+<!-- ================= MANTENIMIENTO ================= -->
+<section class="card">
+  <h2>Mantenimiento</h2>
+  <input id="umbralAceite" type="number" placeholder="Aceite (km)">
+  <input id="umbralFrenos" type="number" placeholder="Frenos (km)">
+  <button id="guardarUmbrales" class="btn success">Guardar umbrales</button>
+
+  <div id="alertasMantenimiento"></div>
+</section>
+
+<!-- ================= DEUDAS ================= -->
+<section class="card">
+  <h2>Deudas</h2>
+  <input id="deudaNombre" placeholder="Nombre">
+  <input id="deudaTotal" type="number" placeholder="Total $">
+  <input id="deudaPago" type="number" placeholder="Pago periódico $">
+  <input id="deudaFecha" type="date">
+  <button id="registrarDeuda" class="btn danger">Registrar deuda</button>
+
+  <div id="listaDeudas"></div>
+</section>
+
+<!-- ================= META ================= -->
+<section class="card">
+  <h2>Meta diaria</h2>
+  <div id="metaDiaria">$0.00</div>
+</section>
+
+<!-- ================= IMPORT / EXPORT ================= -->
+<section class="card">
+  <h2>Importar / Exportar</h2>
+  <button id="exportar" class="btn primary">Exportar JSON</button>
+  <input type="file" id="importar">
+</section>
+
+<canvas id="chartGastos"></canvas>
 
 </main>
 
-<script type="module" src="./js/admin.js"></script>
+<script src="storage.js"></script>
+<script src="admin.js"></script>
 </body>
 </html>
