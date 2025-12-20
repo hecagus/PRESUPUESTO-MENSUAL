@@ -1,19 +1,20 @@
-/* Archivo: js/05_init.js */
 import { loadData, iniciarTurno, finalizarTurno, agregarGasto, agregarGasolina, agregarDeuda, guardarUmbrales, getState } from './02_data.js';
 import { renderGlobalHeader, renderAdminUI, renderWalletUI, renderHistorialUI } from './03_render.js';
 import { initCharts } from './04_charts.js';
 import { $ } from './01_consts_utils.js';
 
 document.addEventListener("DOMContentLoaded", () => {
-    console.log("🚀 Sistema Iniciando...");
-    loadData();
+    // 1. AQUÍ SE LEE EL LOCALSTORAGE AL ABRIR LA PÁGINA
+    console.log("🚀 Sistema Iniciando... Leyendo datos...");
+    loadData(); // <--- Esta función (de 02_data.js) recupera la info guardada
+    
     renderGlobalHeader();
 
     const page = document.body.getAttribute('data-page') || 'index';
 
     switch (page) {
         case 'admin':
-            initAdmin();
+            initAdmin(); // Carga la lógica de tu HTML de admin
             break;
         case 'index':
             initCharts();
@@ -31,113 +32,100 @@ function initAdmin() {
     renderAdminUI();
     initCharts();
 
-    /* --- LISTENERS EXISTENTES --- */
-    const btnTurno = $("btnTurno");
-    if (btnTurno) btnTurno.onclick = () => { iniciarTurno(); renderAdminUI(); };
+    // --- LÓGICA DEL BOTÓN "IMPORTAR TEXTO" ---
+    const btnImpText = $("btnImportarTexto");
+    
+    if (btnImpText) {
+        btnImpText.onclick = () => {
+            const text = $("jsonPaste").value; // Obtiene lo que pegaste
+            
+            if (!text) return alert("⚠️ El campo está vacío. Pega el JSON primero.");
+            
+            try {
+                // Validación: Verificamos que sea JSON real
+                const cleanText = text.trim();
+                JSON.parse(cleanText); 
+                
+                // 2. AQUÍ SE ESCRIBE EN LOCALSTORAGE (Guardar)
+                localStorage.setItem('uber_tracker_data', cleanText);
+                
+                alert("✅ ¡Datos guardados correctamente!");
+                
+                // 3. AL RECARGAR, EL SISTEMA "LEE" LOS DATOS NUEVOS
+                location.reload(); 
+            } catch (err) {
+                console.error(err);
+                alert("❌ Error: El texto no es válido. Copia todo el código incluyendo las llaves { }.");
+            }
+        };
+    }
 
-    const btnFinTurno = $("finalizarTurno");
-    if (btnFinTurno) btnFinTurno.onclick = () => {
+    // --- OTROS BOTONES (Turno, Gasto, etc.) ---
+    const safeClick = (id, fn) => { const el = $(id); if(el) el.onclick = fn; };
+
+    safeClick("btnTurno", () => { iniciarTurno(); renderAdminUI(); });
+    
+    safeClick("finalizarTurno", () => {
         const km = $("kmFinal").value;
         const ganancia = $("gananciaTurno").value;
         if (!km || !ganancia) return alert("Faltan datos");
         finalizarTurno(ganancia, km);
         alert("Turno finalizado");
         location.reload();
-    };
+    });
 
-    const btnGasto = $("registrarGasto");
-    if (btnGasto) btnGasto.onclick = () => {
-        const tipo = $("tipoGasto").value;
-        const cat = $("categoriaGasto").value;
-        const monto = $("montoGasto").value;
-        const isRecurrente = $("gastoRecurrente").checked;
-        const fecha = $("fechaPago").value;
-        if (!monto) return alert("Ingresa monto");
-        agregarGasto(tipo, cat, monto, isRecurrente, fecha);
+    safeClick("registrarGasto", () => {
+        const m = $("montoGasto").value;
+        if (!m) return alert("Ingresa monto");
+        agregarGasto($("tipoGasto").value, $("categoriaGasto").value, m, $("gastoRecurrente").checked, $("fechaPago").value);
         alert("Gasto registrado");
         location.reload();
-    };
+    });
 
-    const btnGas = $("guardarGasolina");
-    if (btnGas) btnGas.onclick = () => {
-        const km = $("kmGasolina").value;
-        const l = $("litros").value;
-        const c = $("costoGas").value;
-        agregarGasolina(km, l, c);
+    safeClick("guardarGasolina", () => {
+        agregarGasolina($("kmGasolina").value, $("litros").value, $("costoGas").value);
         alert("Gasolina guardada");
         renderAdminUI();
         $("kmGasolina").value = ""; $("litros").value = ""; $("costoGas").value = "";
-    };
+    });
 
-    const btnDeuda = $("registrarDeuda");
-    if (btnDeuda) btnDeuda.onclick = () => {
-        const nom = $("deudaNombre").value;
-        const tot = $("deudaTotal").value;
-        const pag = $("deudaPago").value;
-        const fec = $("deudaFecha").value;
-        if (!nom || !tot) return alert("Datos incompletos");
-        agregarDeuda(nom, tot, pag, fec);
+    safeClick("registrarDeuda", () => {
+        if (!$("deudaNombre").value) return alert("Falta nombre");
+        agregarDeuda($("deudaNombre").value, $("deudaTotal").value, $("deudaPago").value, $("deudaFecha").value);
         alert("Deuda guardada");
         location.reload();
-    };
+    });
 
-    const btnMant = $("guardarUmbrales");
-    if (btnMant) btnMant.onclick = () => {
+    safeClick("guardarUmbrales", () => {
         guardarUmbrales($("umbralAceite").value, $("umbralFrenos").value);
         alert("Umbrales guardados");
-    };
-
-    /* --- IMPORTAR / EXPORTAR --- */
-    const btnExp = $("exportar");
-    if (btnExp) btnExp.onclick = () => {
-        const data = getState();
-        const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
+    });
+    
+    // Exportar archivo
+    safeClick("exportar", () => {
+        const blob = new Blob([JSON.stringify(getState())], {type:'application/json'});
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `backup_uber_${new Date().toISOString().slice(0,10)}.json`;
+        a.download = `backup_${new Date().toISOString().slice(0,10)}.json`;
         a.click();
-    };
+    });
 
+    // Importar archivo (Opción A)
     const inpImp = $("importar");
     if (inpImp) inpImp.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        const f = e.target.files[0];
+        if(!f) return;
         const r = new FileReader();
         r.onload = () => {
-            try {
-                JSON.parse(r.result);
-                localStorage.setItem('uber_tracker_data', r.result);
-                alert("✅ Archivo importado.");
-                location.reload();
-            } catch (err) { alert("❌ Archivo inválido"); }
-        };
-        r.readAsText(file);
-    };
-
-    /* --- EL BOTÓN QUE FALLABA --- */
-    const btnImpText = $("btnImportarTexto");
-    // Debug: Verifica si el botón existe
-    if (!btnImpText) console.error("❌ ERROR: No encuentro el botón con ID 'btnImportarTexto'");
-    
-    if (btnImpText) {
-        console.log("✅ Botón de texto detectado y listo.");
-        btnImpText.onclick = () => {
-            console.log("🖱️ Click recibido en botón texto");
-            const text = $("jsonPaste").value;
-            if (!text) return alert("⚠️ Pega el JSON primero.");
-            
-            try {
-                // Limpieza básica por si pegaron espacios extra
-                const cleanText = text.trim();
-                JSON.parse(cleanText); // Validar integridad
-                localStorage.setItem('uber_tracker_data', cleanText);
-                alert("✅ Datos importados desde texto.");
-                location.reload();
-            } catch (err) {
-                console.error(err);
-                alert("❌ JSON Inválido. Asegúrate de copiar TODO el texto, incluyendo llaves { }.");
+            try { 
+                JSON.parse(r.result); 
+                localStorage.setItem('uber_tracker_data', r.result); 
+                alert("✅ Archivo cargado."); 
+                location.reload(); 
             }
+            catch(e) { alert("❌ Archivo inválido"); }
         };
-    }
+        r.readAsText(f);
+    };
 }
 
