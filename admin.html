@@ -16,12 +16,12 @@
     <a href="index.html">Dashboard</a>
     <a href="admin.html" class="active">Admin</a>
     <a href="wallet.html">Wallet</a>
+    <a href="historial.html">Historial</a>
   </nav>
 </header>
 
 <main class="container">
 
-<!-- ================= TURNO ================= -->
 <section class="card">
   <h2>Gestión de Turno</h2>
   <div id="turnoEstado" class="estado off">🔴 Sin turno</div>
@@ -34,7 +34,6 @@
   </div>
 </section>
 
-<!-- ================= GASTO ================= -->
 <section class="card">
   <h2>Registrar Gasto Inteligente</h2>
 
@@ -56,7 +55,6 @@
   <button id="registrarGasto" class="btn danger">Registrar gasto</button>
 </section>
 
-<!-- ================= GASOLINA ================= -->
 <section class="card">
   <h2>⛽ Carga de Gasolina</h2>
   <input id="kmGasolina" type="number" placeholder="Kilometraje al cargar">
@@ -65,13 +63,11 @@
   <button id="guardarGasolina" class="btn primary">Guardar</button>
 </section>
 
-<!-- ================= KILOMETRAJE ================= -->
 <section class="card">
   <h2>Detalle de Kilometraje</h2>
   <div id="kmActual">Kilometraje actual: --</div>
 </section>
 
-<!-- ================= MANTENIMIENTO ================= -->
 <section class="card">
   <h2>Mantenimiento</h2>
   <input id="umbralAceite" type="number" placeholder="Aceite (km)">
@@ -81,7 +77,6 @@
   <div id="alertasMantenimiento"></div>
 </section>
 
-<!-- ================= DEUDAS ================= -->
 <section class="card">
   <h2>Deudas</h2>
   <input id="deudaNombre" placeholder="Nombre">
@@ -89,17 +84,13 @@
   <input id="deudaPago" type="number" placeholder="Pago periódico $">
   <input id="deudaFecha" type="date">
   <button id="registrarDeuda" class="btn danger">Registrar deuda</button>
-
-  <div id="listaDeudas"></div>
 </section>
 
-<!-- ================= META ================= -->
 <section class="card">
   <h2>Meta diaria</h2>
   <div id="metaDiaria">$0.00</div>
 </section>
 
-<!-- ================= IMPORT / EXPORT ================= -->
 <section class="card">
   <h2>Importar / Exportar</h2>
   <button id="exportar" class="btn primary">Exportar JSON</button>
@@ -110,7 +101,7 @@
 
 </main>
 
-<script src="storage.js"></script>
-<script src="admin.js"></script>
+<script type="module" src="./js/05_init.js"></script>
 </body>
 </html>
+
