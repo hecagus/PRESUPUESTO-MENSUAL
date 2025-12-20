@@ -1,17 +1,101 @@
-import './00_migrate.js';
-import { STORAGE_KEY } from './01_consts_utils.js';
+import { STORAGE_KEY, OLD_KEY, safeNumber } from './01_consts_utils.js';
 
-const base = {
-  turno: null,
-  gastos: [],
-  deudas: [
-    { id: 1, nombre: 'Moto', saldo: 13919 },
-    { id: 2, nombre: 'Uber Pro Card', saldo: 516 }
-  ]
+// Estado Base
+const BASE_STATE = {
+    turno: null,
+    gastos: [],
+    deudas: [
+        { id: 1, nombre: 'Moto', saldo: 13919, pago: 0 },
+        { id: 2, nombre: 'Uber Pro Card', saldo: 516, pago: 0 }
+    ],
+    gasolina: [],
+    ingresos: [],
+    kmActual: 0,
+    mantenimiento: { aceite: 0, frenos: 0 }
 };
 
-export const load = () =>
-  JSON.parse(localStorage.getItem(STORAGE_KEY)) || structuredClone(base);
+let state = structuredClone(BASE_STATE);
 
-export const save = d =>
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+/* ===== PERSISTENCIA Y MIGRACIÓN ===== */
+export const loadData = () => {
+    // Lógica de migración legacy
+    if (!localStorage.getItem(STORAGE_KEY)) {
+        const old = localStorage.getItem(OLD_KEY);
+        if (old) localStorage.setItem(STORAGE_KEY, old);
+    }
+
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+        try {
+            state = { ...BASE_STATE, ...JSON.parse(raw) };
+        } catch (e) {
+            console.error("Error cargando datos, reiniciando state", e);
+        }
+    }
+    return state;
+};
+
+export const saveData = () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+};
+
+export const getState = () => state;
+
+/* ===== LÓGICA DE NEGOCIO ===== */
+export const iniciarTurno = () => {
+    state.turno = { inicio: Date.now(), kmInicio: state.kmActual };
+    saveData();
+    return state.turno;
+};
+
+export const finalizarTurno = (ganancia, kmFinal) => {
+    state.kmActual = safeNumber(kmFinal);
+    state.ingresos.push(safeNumber(ganancia));
+    state.turno = null;
+    saveData();
+};
+
+export const agregarGasto = (tipo, categoria, monto, esRecurrente, fecha) => {
+    state.gastos.push({
+        tipo,
+        categoria,
+        monto: safeNumber(monto),
+        fecha: esRecurrente ? fecha : null // Si tiene fecha es recurrente
+    });
+    saveData();
+};
+
+export const agregarGasolina = (km, litros, costo) => {
+    state.gasolina.push({
+        km: safeNumber(km),
+        litros: safeNumber(litros),
+        costo: safeNumber(costo)
+    });
+    // Actualizamos el KM actual si es mayor al registrado
+    if (safeNumber(km) > state.kmActual) state.kmActual = safeNumber(km);
+    saveData();
+};
+
+export const agregarDeuda = (nombre, total, pago, fecha) => {
+    state.deudas.push({
+        nombre,
+        saldo: safeNumber(total), // Usamos saldo para el control
+        pago: safeNumber(pago),
+        fecha,
+        abonos: []
+    });
+    saveData();
+};
+
+export const guardarUmbrales = (aceite, frenos) => {
+    state.mantenimiento = { aceite: safeNumber(aceite), frenos: safeNumber(frenos) };
+    saveData();
+};
+
+// Fórmula Meta Diaria: (Total Recurrentes / 6)
+export const calcularMetaDiaria = () => {
+    const gastosRecurrentes = state.gastos.filter(g => g.fecha).reduce((a, b) => a + b.monto, 0);
+    const pagosDeudas = state.deudas.reduce((a, b) => a + (b.pago || 0), 0);
+    return (gastosRecurrentes + pagosDeudas) / 6;
+};
+
