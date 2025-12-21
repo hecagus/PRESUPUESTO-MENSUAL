@@ -11,14 +11,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const page = document.body.dataset.page;
 
-  // menú SIEMPRE
   renderGlobalMenu();
 
-  if (page === "admin") {
-    initAdminRender();
-  }
-
-  if (page === "historial") {
-    initHistorialRender();
-  }
+  if (page === "admin") initAdminRender();
+  if (page === "historial") initHistorialRender();
 });
