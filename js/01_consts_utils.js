@@ -2,10 +2,10 @@
 
 export const STORAGE_KEY = "panelData";
 
-// Selector Seguro
+// Selector Seguro (Short-hand)
 export const $ = (id) => document.getElementById(id);
 
-// Constantes de Tiempo y Frecuencia
+// --- MATEMÁTICAS DE TIEMPO (CRÍTICO PARA META DIARIA) ---
 export const DIAS_POR_FRECUENCIA = {
     'Diario': 1,
     'Semanal': 7,
@@ -16,17 +16,18 @@ export const DIAS_POR_FRECUENCIA = {
     'No Recurrente': 0
 };
 
-// Restauramos TODAS las categorías originales
+// --- CATEGORÍAS COMPLETAS (ORIGINALES) ---
 export const CATEGORIAS_GASTOS = {
     moto: [
-        "Gasolina", // Agregado explícitamente
+        "Gasolina", 
         "Mantenimiento (Aceite/Filtros)", 
         "Reparación Mecánica", 
         "Llantas/Frenos",
         "Peajes/Casetas", 
         "Lavado/Limpieza", 
         "Seguro/Trámites", 
-        "Accesorios"
+        "Accesorios/Equipo",
+        "✏️ Otra..."
     ],
     hogar: [
         "Renta/Alquiler",
@@ -37,11 +38,12 @@ export const CATEGORIAS_GASTOS = {
         "Salud/Farmacia",
         "Ropa/Personal", 
         "Diversión/Cine",
-        "Deudas Bancarias"
+        "Deudas Bancarias",
+        "✏️ Otra..."
     ]
 };
 
-// Helpers Matemáticos
+// --- HELPERS PUROS ---
 export function safeNumber(v) {
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
@@ -51,10 +53,10 @@ export function fmtMoney(n) {
     return safeNumber(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-// Helper de Fechas
 export function formatearFecha(d) {
     if (!d) return "-";
     const dateObj = new Date(d);
+    // Formato corto: DD/MM HH:MM
     return dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 }
 
