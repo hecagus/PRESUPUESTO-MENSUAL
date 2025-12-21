@@ -10,86 +10,84 @@ import {
 } from "./02_data.js";
 
 /* =========================
-   UTILIDADES UI
+   UTILIDADES
 ========================= */
-const show = (el) => { if (el) el.style.display = ""; };
-const hide = (el) => { if (el) el.style.display = "none"; };
+const show = el => el && (el.style.display = "");
+const hide = el => el && (el.style.display = "none");
 
 /* =========================
    MENÚ GLOBAL
 ========================= */
 export const renderGlobalMenu = () => {
   const header = document.querySelector(".header");
-  if (!header) return;
-
-  if (document.getElementById("menuToggle")) return;
+  if (!header || document.getElementById("menuToggle")) return;
 
   const btn = document.createElement("button");
   btn.id = "menuToggle";
-  btn.className = "menu-toggle";
   btn.textContent = "☰";
+  btn.className = "btn-hamburger";
 
-  const nav = document.createElement("nav");
-  nav.id = "navMenu";
-  nav.className = "nav-menu";
+  const nav = document.createElement("div");
+  nav.className = "nav-dropdown";
   nav.innerHTML = `
-    <a href="index.html">Inicio</a>
-    <a href="admin.html">Admin</a>
-    <a href="wallet.html">Wallet</a>
-    <a href="historial.html" class="active">Historial</a>
+    <div class="nav-content">
+      <a href="index.html">Inicio</a>
+      <a href="admin.html">Admin</a>
+      <a href="wallet.html">Wallet</a>
+      <a href="historial.html">Historial</a>
+    </div>
   `;
 
   header.appendChild(btn);
   header.appendChild(nav);
 
   btn.addEventListener("click", () => {
-    nav.classList.toggle("active");
+    nav.querySelector(".nav-content").classList.toggle("show");
   });
 };
 
 /* =========================
-   ADMIN – TURNO
+   META DIARIA
+========================= */
+export const renderMetaDiaria = () => {
+  const metaEl = $("metaDiaria");
+  const fijosEl = $("totalFijosMensual");
+  if (!metaEl || !fijosEl) return;
+
+  const { gastosFijosMensuales, parametros } = getState();
+
+  const totalFijos = gastosFijosMensuales.reduce(
+    (acc, g) => acc + Number(g.monto || 0),
+    0
+  );
+
+  metaEl.textContent = `$${fmtMoney(parametros.gastoFijo)}`;
+  fijosEl.textContent = `$${fmtMoney(totalFijos)}`;
+};
+
+/* =========================
+   TURNO
 ========================= */
 export const renderTurnoUI = () => {
-  const turnoTexto = $("turnoTexto");
-  const btnIniciar = $("btnIniciarTurno");
-  const btnFinalizar = $("btnFinalizarTurno");
-  const cierre = $("cierreTurnoContainer");
-  if (!turnoTexto || !btnIniciar || !btnFinalizar) return;
-
   const activo = getTurnoActivo();
-  if (activo) {
-    turnoTexto.textContent = "🟢 Turno en curso";
-    hide(btnIniciar); show(btnFinalizar); show(cierre);
-  } else {
-    turnoTexto.textContent = "🔴 Sin turno activo";
-    show(btnIniciar); hide(btnFinalizar); hide(cierre);
-  }
-};
+  const txt = $("turnoTexto");
+  if (!txt) return;
 
-export const setupTurnoListeners = () => {
-  $("btnIniciarTurno")?.addEventListener("click", () => {
-    iniciarTurno(); renderTurnoUI();
-  });
-  $("btnFinalizarTurno")?.addEventListener("click", () => {
-    show($("cierreTurnoContainer"));
-  });
-  $("btnGuardarCierre")?.addEventListener("click", () => {
-    finalizarTurno($("inpGanancia")?.value, $("inpKmFinal")?.value);
-    renderTurnoUI();
-  });
+  txt.textContent = activo
+    ? "🟢 Turno en curso"
+    : "🔴 Sin turno activo";
 };
 
 /* =========================
-   ADMIN – DEUDAS
+   DEUDAS
 ========================= */
 export const renderDeudas = () => {
   const lista = $("listaDeudas");
-  const selector = $("abonoSeleccionar");
-  if (!lista || !selector) return;
+  const sel = $("abonoSeleccionar");
+  if (!lista || !sel) return;
 
   lista.innerHTML = "";
-  selector.innerHTML = "";
+  sel.innerHTML = "";
 
   getState().deudas.forEach((d, i) => {
     const li = document.createElement("li");
@@ -99,71 +97,16 @@ export const renderDeudas = () => {
     const opt = document.createElement("option");
     opt.value = i;
     opt.textContent = d.desc;
-    selector.appendChild(opt);
-  });
-};
-
-export const setupDeudaListeners = () => {
-  $("btnRegistrarDeudaFinal")?.addEventListener("click", () => {
-    agregarDeuda({
-      desc: $("deudaNombre")?.value,
-      saldo: $("deudaMontoTotal")?.value,
-      montoCuota: $("deudaMontoCuota")?.value,
-      frecuencia: $("deudaFrecuencia")?.value
-    });
-    renderDeudas();
+    sel.appendChild(opt);
   });
 };
 
 /* =========================
-   HISTORIAL
-========================= */
-export const renderHistorial = () => {
-  const tbody = $("historialBody");
-  const resumen = $("historialResumen");
-  if (!tbody) return;
-
-  const { movimientos } = getState();
-  tbody.innerHTML = "";
-
-  let ingresos = 0, gastos = 0;
-
-  movimientos
-    .slice()
-    .reverse()
-    .forEach(m => {
-      const tr = document.createElement("tr");
-
-      const tipo = m.tipo === "ingreso" ? "Ingreso" : "Gasto";
-      if (m.tipo === "ingreso") ingresos += Number(m.monto || 0);
-      else gastos += Number(m.monto || 0);
-
-      tr.innerHTML = `
-        <td>${tipo}</td>
-        <td>${formatearFecha(m.fecha)}</td>
-        <td>${m.desc || m.categoria || "-"}</td>
-        <td>$${fmtMoney(m.monto)}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-  if (resumen) {
-    resumen.textContent = `Ingresos: $${fmtMoney(ingresos)} · Gastos: $${fmtMoney(gastos)} · Neto: $${fmtMoney(ingresos - gastos)}`;
-  }
-};
-
-/* =========================
-   INIT POR PÁGINA
+   INIT ADMIN
 ========================= */
 export const initAdminRender = () => {
   renderGlobalMenu();
   renderTurnoUI();
   renderDeudas();
-  setupTurnoListeners();
-  setupDeudaListeners();
-};
-
-export const initHistorialRender = () => {
-  renderGlobalMenu();
-  renderHistorial();
+  renderMetaDiaria();
 };
