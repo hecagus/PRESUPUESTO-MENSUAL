@@ -8,10 +8,17 @@ import {
 
 document.addEventListener("DOMContentLoaded", () => {
   loadAdminData();
-  renderGlobalMenu();
 
   const page = document.body.dataset.page;
 
-  if (page === "admin") initAdminRender();
-  if (page === "historial") initHistorialRender();
+  // menú SIEMPRE
+  renderGlobalMenu();
+
+  if (page === "admin") {
+    initAdminRender();
+  }
+
+  if (page === "historial") {
+    initHistorialRender();
+  }
 });
