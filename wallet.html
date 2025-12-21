@@ -1,32 +1,43 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Wallet</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Wallet – Uber Tracker</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body data-page="wallet">
 
 <header class="header">
-  <div class="logo">Wallet</div>
-  <button class="menu-toggle">☰</button>
-  <nav class="nav-menu">
-    <a href="index.html">Dashboard</a>
-    <a href="admin.html">Admin</a>
-    <a class="active" href="wallet.html">Wallet</a>
-    <a href="historial.html">Historial</a>
-  </nav>
+  <h1>💰 Mi Alcancía</h1>
+  <div class="header-actions"></div>
 </header>
 
 <main class="container">
-  <div class="card">
-    <h2>Estado de Deudas</h2>
-    <div id="walletInfo"></div>
-  </div>
+
+  <section class="card" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white;">
+    <h2>Estado Global</h2>
+    <p style="color:#94a3b8; margin-bottom:20px">Dinero que deberías tener acumulado hoy.</p>
+    
+    <div class="stats-grid">
+        <div class="stat">
+            <label style="color:#cbd5e1">Debiste guardar:</label>
+            <span id="walletTotalObligado" style="color:#fca5a5; font-size:1.5rem">$0.00</span>
+        </div>
+        <div class="stat">
+            <label style="color:#cbd5e1">Saldo Real (Est.):</label>
+            <span id="walletSaldoReal" style="color:#fff; font-size:1.5rem">$0.00</span>
+        </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>ℹ️ ¿Cómo funciona?</h2>
+    <p>Este saldo se calcula basándose en tu Meta Diaria multiplicada por el día actual del mes, comparado contra tus ingresos netos reales.</p>
+  </section>
+
 </main>
 
-<script type="module" src="./js/05_init.js"></script>
+<script type="module" src="05_init.js"></script>
 </body>
 </html>
-
