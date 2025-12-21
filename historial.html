@@ -1,32 +1,42 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Historial</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Historial – Mi Ruta · Mi Lana 🛵💵</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body data-page="historial">
 
 <header class="header">
-  <div class="logo">Historial</div>
-  <button class="menu-toggle">☰</button>
-  <nav class="nav-menu">
-    <a href="index.html">Dashboard</a>
-    <a href="admin.html">Admin</a>
-    <a href="wallet.html">Wallet</a>
-    <a class="active" href="historial.html">Historial</a>
-  </nav>
+  <div class="logo">📜 Historial</div>
 </header>
 
 <main class="container">
-  <div class="card">
+
+  <section class="card">
     <h2>Movimientos</h2>
-    <div id="historial"></div>
-  </div>
+    <p class="nota">Listado cronológico de ingresos y gastos.</p>
+
+    <div id="historialResumen" class="nota"></div>
+
+    <div class="table-responsive">
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Fecha</th>
+            <th>Descripción</th>
+            <th>Monto</th>
+          </tr>
+        </thead>
+        <tbody id="historialBody"></tbody>
+      </table>
+    </div>
+  </section>
+
 </main>
 
-<script type="module" src="./js/05_init.js"></script>
+<script type="module" src="js/05_init.js"></script>
 </body>
 </html>
-
