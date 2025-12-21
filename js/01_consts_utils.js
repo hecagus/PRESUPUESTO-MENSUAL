@@ -1,45 +1,47 @@
 /* 01_consts_utils.js */
 
 export const STORAGE_KEY = "panelData";
-export const TUTORIAL_VIEWED_KEY = "tutorialViewed";
 
-// Selector Seguro (Short-hand)
+// Selector Seguro
 export const $ = (id) => document.getElementById(id);
 
-// Configuración de Frecuencias (Días divisor)
+// Constantes de Tiempo y Frecuencia
 export const DIAS_POR_FRECUENCIA = {
     'Diario': 1,
     'Semanal': 7,
     'Quincenal': 15,
     'Mensual': 30,
     'Bimestral': 60,
+    'Anual': 365,
     'No Recurrente': 0
 };
 
-// Categorías de Gastos
+// Restauramos TODAS las categorías originales
 export const CATEGORIAS_GASTOS = {
     moto: [
-        "Mantenimiento (Aceite/Filtros)", "Reparación Mecánica", "Llantas/Frenos",
-        "Peajes/Casetas", "Lavado/Limpieza", "Accesorios/Equipo", "Seguro/Trámites", "✏️ Otra / Nueva..."
+        "Gasolina", // Agregado explícitamente
+        "Mantenimiento (Aceite/Filtros)", 
+        "Reparación Mecánica", 
+        "Llantas/Frenos",
+        "Peajes/Casetas", 
+        "Lavado/Limpieza", 
+        "Seguro/Trámites", 
+        "Accesorios"
     ],
     hogar: [
-        "Comida del día (Calle)", "Despensa/Supermercado", "Renta/Alquiler",
-        "Luz/Agua/Gas", "Internet/Streaming", "Celular/Datos", "Salud/Farmacia",
-        "Ropa/Personal", "Diversión/Salidas", "✏️ Otra / Nueva..."
+        "Renta/Alquiler",
+        "Comida (Calle)", 
+        "Despensa/Super", 
+        "Luz/Agua/Gas", 
+        "Internet/Plan Celular", 
+        "Salud/Farmacia",
+        "Ropa/Personal", 
+        "Diversión/Cine",
+        "Deudas Bancarias"
     ]
 };
 
-// Pasos del Tutorial
-export const TUTORIAL_STEPS = [
-    { title: "¡Bienvenido/a!", text: "Esta guía rápida te mostrará cómo usar el nuevo sistema de rastreo avanzado.", button: "Comenzar" },
-    { title: "Turnos y Odómetro", text: "Usa 'Iniciar Turno' al salir y 'Finalizar Turno' al regresar. El KM se enlaza automáticamente.", button: "Siguiente" },
-    { title: "Gasolina y Costos", text: "Registra cargas de gasolina para activar tu métrica de Costo Real por KM.", button: "Siguiente" },
-    { title: "Gastos Inteligentes", text: "Clasifica tus gastos (Moto vs Hogar) y define recurrentes para automatizar tu presupuesto.", button: "Siguiente" },
-    { title: "Meta Diaria", text: "El sistema calculará cuánto debes ganar hoy para cubrir tus gastos fijos y deudas.", button: "Finalizar" }
-];
-
-// --- Helpers Puros ---
-
+// Helpers Matemáticos
 export function safeNumber(v) {
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
@@ -49,10 +51,11 @@ export function fmtMoney(n) {
     return safeNumber(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+// Helper de Fechas
 export function formatearFecha(d) {
     if (!d) return "-";
     const dateObj = new Date(d);
-    return dateObj.toLocaleDateString();
+    return dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 }
 
 export function isSameDay(d1, d2) {
