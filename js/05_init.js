@@ -4,8 +4,7 @@ import * as Render from './03_render.js';
 import { initCharts } from './04_charts.js';
 import { $ } from './01_consts_utils.js';
 
-// --- CONTROLADORES DE EVENTOS (Lógica de Interacción) ---
-
+// --- CONTROLADORES DE EVENTOS ---
 const bindAdminEvents = () => {
     const btnInicio = $("btnIniciarTurno");
     const btnFin = $("btnFinalizarTurno");
@@ -58,8 +57,6 @@ const bindAdminEvents = () => {
     }
 };
 
-// --- REFRESCO DE VISTAS ---
-
 const refreshAdminUI = () => {
     const stats = getAdminStats();
     Render.renderTurnoControl(stats.turnoActivo);
@@ -70,42 +67,37 @@ const refreshAdminUI = () => {
 const refreshDashboardUI = () => {
     const stats = getDashboardStats();
     Render.renderDashboard(stats);
-    initCharts(); // Charts accede a Data internamente, eso se permite en charts.js
+    initCharts();
 };
 
-// --- INICIALIZACIÓN GLOBAL ---
-
+// --- ARRANQUE DEL SISTEMA ---
 document.addEventListener("DOMContentLoaded", () => {
+    console.log("🚀 Iniciando Sistema...");
+
     // 1. Cargar Datos
     loadData();
     
-    // 2. Renderizar Menú (Estático)
-    Render.renderGlobalMenu();
+    // 2. FORZAR RENDER DEL MENÚ
+    try {
+        Render.renderGlobalMenu();
+        console.log("✅ Menú inyectado");
+    } catch (e) {
+        console.error("❌ Error pintando menú:", e);
+    }
     
     // 3. Router
     const page = document.body.getAttribute('data-page');
 
-    switch (page) {
-        case 'index':
-            refreshDashboardUI();
-            break;
-            
-        case 'admin':
-            refreshAdminUI();
-            bindAdminEvents();
-            break;
-            
-        case 'wallet':
-            Render.renderWalletUI(getWalletStats());
-            break;
-            
-        case 'historial':
-            Render.renderHistorial(getState().movimientos);
-            break;
-            
-        default:
-            console.log("Vista estándar cargada.");
+    if (page === 'index') {
+        refreshDashboardUI();
+    } else if (page === 'admin') {
+        refreshAdminUI();
+        bindAdminEvents();
+    } else if (page === 'wallet') {
+        Render.renderWalletUI(getWalletStats());
+    } else if (page === 'historial') {
+        Render.renderHistorial(getState().movimientos);
     }
     
-    console.log(`Sistema inicializado: ${page}`);
+    console.log(`✅ Página cargada: ${page}`);
 });
