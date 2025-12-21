@@ -1,114 +1,95 @@
-// 02_data.js
-const STORAGE_KEY = "miRutaMiLana_v1";
+// 03_render.js
+import {
+  iniciarTurno,
+  finalizarTurno,
+  registrarIngresoExtra,
+  registrarGasto,
+  registrarGasolina,
+  registrarDeuda,
+  registrarAbono,
+  getState
+} from "./02_data.js";
 
-const defaultState = {
-  turnoActivo: false,
-  turnos: [],
-  ingresosExtra: [],
-  gastos: [],
-  gasolina: [],
-  deudas: [],
-  abonos: []
-};
-
-let state = load();
-
-/* ======================
-   PERSISTENCIA
-====================== */
-function load() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : structuredClone(defaultState);
-  } catch {
-    return structuredClone(defaultState);
-  }
-}
-
-function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
+const $ = id => document.getElementById(id);
 
 /* ======================
-   TURNOS
+   MENÚ
 ====================== */
-export function iniciarTurno() {
-  state.turnoActivo = true;
-  save();
+export function renderGlobalMenu() {
+  if ($("menuToggle")) return;
+
+  const btn = document.createElement("button");
+  btn.id = "menuToggle";
+  btn.textContent = "☰";
+
+  const nav = document.createElement("nav");
+  nav.className = "menu";
+  nav.innerHTML = `
+    <a href="index.html">Inicio</a>
+    <a href="admin.html">Admin</a>
+    <a href="historial.html">Historial</a>
+  `;
+
+  document.body.prepend(btn);
+  document.body.appendChild(nav);
+
+  btn.onclick = () => nav.classList.toggle("show");
 }
 
-export function finalizarTurno({ kmFinal, ganancia }) {
-  state.turnos.push({
-    fecha: new Date().toISOString(),
-    kmFinal: Number(kmFinal),
-    ganancia: Number(ganancia)
+/* ======================
+   ADMIN
+====================== */
+export function initAdminRender() {
+  renderGlobalMenu();
+
+  $("btnIniciarTurno")?.addEventListener("click", () => {
+    iniciarTurno();
+    $("turnoTexto").textContent = "🟢 Turno en curso";
   });
-  state.turnoActivo = false;
-  save();
-}
 
-/* ======================
-   INGRESOS
-====================== */
-export function registrarIngresoExtra(desc, monto) {
-  state.ingresosExtra.push({
-    fecha: new Date().toISOString(),
-    desc,
-    monto: Number(monto)
+  $("btnGuardarTurno")?.addEventListener("click", () => {
+    finalizarTurno({
+      kmFinal: $("kmFinal").value,
+      ganancia: $("gananciaTurno").value
+    });
+    $("turnoTexto").textContent = "🔴 Sin turno activo";
+    $("cierreTurno").style.display = "none";
   });
-  save();
-}
 
-/* ======================
-   GASTOS
-====================== */
-export function registrarGasto(desc, monto) {
-  state.gastos.push({
-    fecha: new Date().toISOString(),
-    desc,
-    monto: Number(monto)
-  });
-  save();
-}
+  $("btnGuardarIngresoExtra")?.addEventListener("click", () =>
+    registrarIngresoExtra(
+      $("ingresoExtraDesc").value,
+      $("ingresoExtraMonto").value
+    )
+  );
 
-/* ======================
-   GASOLINA
-====================== */
-export function registrarGasolina(litros, costo, km) {
-  state.gasolina.push({
-    fecha: new Date().toISOString(),
-    litros: Number(litros),
-    costo: Number(costo),
-    km: Number(km)
-  });
-  save();
-}
+  $("btnGuardarGasto")?.addEventListener("click", () =>
+    registrarGasto(
+      $("gastoDesc").value,
+      $("gastoMonto").value
+    )
+  );
 
-/* ======================
-   DEUDAS
-====================== */
-export function registrarDeuda(nombre, monto, cuota) {
-  state.deudas.push({
-    id: crypto.randomUUID(),
-    nombre,
-    monto: Number(monto),
-    cuota: Number(cuota)
-  });
-  save();
-}
+  $("btnGuardarGasolina")?.addEventListener("click", () =>
+    registrarGasolina(
+      $("litrosGasolina").value,
+      $("costoGasolina").value,
+      $("kmGasolina").value
+    )
+  );
 
-export function registrarAbono(deudaId, monto) {
-  state.abonos.push({
-    fecha: new Date().toISOString(),
-    deudaId,
-    monto: Number(monto)
-  });
-  save();
-}
+  $("btnGuardarDeuda")?.addEventListener("click", () =>
+    registrarDeuda(
+      $("deudaNombre").value,
+      $("deudaMonto").value,
+      $("deudaCuota").value
+    )
+  );
 
-/* ======================
-   GETTERS
-====================== */
-export function getState() {
-  return structuredClone(state);
+  $("btnRegistrarAbono")?.addEventListener("click", () =>
+    registrarAbono(
+      $("abonoDeudaSelect").value,
+      $("abonoMonto").value
+    )
+  );
 }
