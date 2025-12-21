@@ -2,32 +2,24 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Uber Tracker</title>
+  <link rel="stylesheet" href="style.css"/>
 </head>
+
 <body data-page="index">
 
 <header class="header">
-  <span class="logo">Uber Tracker</span>
-  <button class="menu-toggle">☰</button>
-  <nav class="nav-menu">
-    <a class="active" href="index.html">Dashboard</a>
-    <a href="admin.html">Admin</a>
-    <a href="wallet.html">Wallet</a>
-    <a href="historial.html">Historial</a>
-  </nav>
+  <h1>Uber Tracker</h1>
 </header>
 
 <main class="container">
   <section class="card">
     <h2>Ganancias (Ingresos)</h2>
-    <canvas id="chartGanancias" height="200"></canvas>
   </section>
 </main>
 
-<script type="module" src="./js/05_init.js"></script>
+<!-- 🔥 ESTO ERA LO QUE FALTABA -->
+<script type="module" src="./05_init.js"></script>
 </body>
 </html>
-
