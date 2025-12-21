@@ -1,9 +1,9 @@
 // 05_init.js
 import { loadData } from "./02_data.js";
 import {
-  renderGlobalMenu,
   initAdminRender,
-  initHistorialRender
+  initHistorialRender,
+  renderGlobalMenu
 } from "./03_render.js";
 
 document.addEventListener("DOMContentLoaded", () => {
