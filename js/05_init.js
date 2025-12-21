@@ -1,13 +1,11 @@
 // 05_init.js
-import { initAdminRender, renderGlobalMenu } from "./03_render.js";
+// =====================================
+// INIT GLOBAL — NO DEPENDE DE LA PÁGINA
+// =====================================
+
+import { renderGlobalMenu } from "./03_render.js";
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Menú SIEMPRE
+  // 🔒 El menú SIEMPRE se inicializa
   renderGlobalMenu();
-
-  const page = document.body.dataset.page;
-
-  if (page === "admin") {
-    initAdminRender();
-  }
 });
