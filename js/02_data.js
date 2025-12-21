@@ -1,171 +1,214 @@
 // 02_data.js
-import { STORAGE_KEY, DIAS_POR_FRECUENCIA, safeNumber } from "./01_consts_utils.js";
+// ===============================
+// MODELO DE DATOS – ADMIN (V1)
+// ===============================
 
-/* =========================
-   ESTRUCTURA BASE
-========================= */
-const DEFAULT_DATA = {
-    turnos: [],
-    movimientos: [],
-    cargasCombustible: [],
-    deudas: [],
-    gastosFijosMensuales: [],
-    parametros: {
-        gastoFijo: 0,
-        ultimoKM: 0,
-        costoPorKm: 0
-    }
+import { STORAGE_KEY, safeNumber } from "./01_consts_utils.js";
+
+/* ===============================
+   MODELO CONGELADO DE ADMIN
+================================ */
+
+const DEFAULT_ADMIN_DATA = {
+  parametrosOperativos: {
+    rendimientoKmPorLitro: 0,
+    precioLitroGasolina: 0,
+    fechaInicioControl: null
+  },
+
+  gasolina: {
+    ultimoReposteo: {
+      fecha: null,
+      kmOdometro: null
+    },
+    costoRealPorKm: 0
+  },
+
+  gastosRecurrentes: [],
+
+  deudas: [],
+
+  gastosNetos: [],
+
+  sistema: {
+    versionModelo: 1,
+    ultimaActualizacion: null
+  }
 };
 
-let state = JSON.parse(JSON.stringify(DEFAULT_DATA));
-let turnoActivo = JSON.parse(localStorage.getItem("turnoActivo")) || null;
+/* ===============================
+   ESTADO INTERNO
+================================ */
 
-/* =========================
+let adminData = structuredClone(DEFAULT_ADMIN_DATA);
+
+/* ===============================
    PERSISTENCIA
-========================= */
-export const loadData = () => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-        try {
-            state = { ...DEFAULT_DATA, ...JSON.parse(raw) };
-        } catch {
-            state = JSON.parse(JSON.stringify(DEFAULT_DATA));
-        }
-    }
+================================ */
+
+export const loadAdminData = () => {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    saveAdminData();
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+
+    // Migración defensiva
+    adminData = {
+      ...DEFAULT_ADMIN_DATA,
+      ...parsed,
+      parametrosOperativos: {
+        ...DEFAULT_ADMIN_DATA.parametrosOperativos,
+        ...(parsed.parametrosOperativos || {})
+      },
+      gasolina: {
+        ...DEFAULT_ADMIN_DATA.gasolina,
+        ...(parsed.gasolina || {})
+      },
+      sistema: {
+        ...DEFAULT_ADMIN_DATA.sistema,
+        ...(parsed.sistema || {})
+      }
+    };
+  } catch (e) {
+    console.error("❌ Error cargando AdminData. Reiniciando.", e);
+    adminData = structuredClone(DEFAULT_ADMIN_DATA);
+  }
 };
 
-export const saveData = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+export const saveAdminData = () => {
+  adminData.sistema.ultimaActualizacion = new Date().toISOString();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(adminData));
 };
 
-export const getState = () => state;
-export const getTurnoActivo = () => turnoActivo;
+/* ===============================
+   GETTERS (LECTURA)
+================================ */
 
-/* =========================
-   TURNOS
-========================= */
-export const iniciarTurno = () => {
-    if (turnoActivo) return false;
-    turnoActivo = { inicio: new Date().toISOString() };
-    localStorage.setItem("turnoActivo", JSON.stringify(turnoActivo));
-    return true;
+export const getAdminData = () => structuredClone(adminData);
+
+/* ===============================
+   PARÁMETROS OPERATIVOS
+================================ */
+
+export const setParametrosOperativos = ({
+  rendimientoKmPorLitro,
+  precioLitroGasolina,
+  fechaInicioControl
+}) => {
+  adminData.parametrosOperativos.rendimientoKmPorLitro = safeNumber(rendimientoKmPorLitro);
+  adminData.parametrosOperativos.precioLitroGasolina = safeNumber(precioLitroGasolina);
+  adminData.parametrosOperativos.fechaInicioControl = fechaInicioControl || null;
+  saveAdminData();
 };
 
-export const finalizarTurno = (ganancia, kmFinal) => {
-    if (!turnoActivo) return false;
+/* ===============================
+   GASOLINA (CONFIGURACIÓN)
+================================ */
 
-    const fin = new Date();
-    const horas = (fin - new Date(turnoActivo.inicio)) / 36e5;
+export const setUltimoReposteo = ({ fecha, kmOdometro }) => {
+  adminData.gasolina.ultimoReposteo.fecha = fecha || null;
+  adminData.gasolina.ultimoReposteo.kmOdometro = safeNumber(kmOdometro);
+  saveAdminData();
+};
 
-    const turno = {
-        fecha: fin.toISOString(),
-        horas,
-        ganancia: safeNumber(ganancia),
-        kmFinal: safeNumber(kmFinal)
+export const setCostoRealPorKm = (valor) => {
+  adminData.gasolina.costoRealPorKm = safeNumber(valor);
+  saveAdminData();
+};
+
+/* ===============================
+   GASTOS RECURRENTES
+================================ */
+
+export const addGastoRecurrente = ({
+  nombre,
+  tipo,           // hogar | operativo
+  monto,
+  frecuencia,     // diario | semanal | quincenal | mensual
+  diaPago,
+  vaASobre
+}) => {
+  adminData.gastosRecurrentes.push({
+    id: crypto.randomUUID(),
+    nombre,
+    tipo,
+    monto: safeNumber(monto),
+    frecuencia,
+    diaPago,
+    vaASobre: Boolean(vaASobre),
+    activo: true
+  });
+  saveAdminData();
+};
+
+/* ===============================
+   DEUDAS
+================================ */
+
+export const addDeuda = ({
+  nombre,
+  saldoTotal,
+  cuota,
+  frecuencia,
+  diaPago,
+  vaASobre
+}) => {
+  adminData.deudas.push({
+    id: crypto.randomUUID(),
+    nombre,
+    saldoTotal: safeNumber(saldoTotal),
+    cuota: safeNumber(cuota),
+    frecuencia,
+    diaPago,
+    vaASobre: Boolean(vaASobre),
+    activa: true
+  });
+  saveAdminData();
+};
+
+/* ===============================
+   GASTOS NETOS
+================================ */
+
+export const addGastoNeto = ({ nombre, tipo, fecha, monto }) => {
+  adminData.gastosNetos.push({
+    id: crypto.randomUUID(),
+    nombre,
+    tipo,
+    fecha,
+    monto: safeNumber(monto)
+  });
+  saveAdminData();
+};
+
+/* ===============================
+   BACKUP / RESTORE
+================================ */
+
+export const exportAdminJSON = () => {
+  return JSON.stringify(adminData, null, 2);
+};
+
+export const importAdminJSON = (jsonString) => {
+  try {
+    const parsed = JSON.parse(jsonString);
+
+    if (!parsed || typeof parsed !== "object") return false;
+    if (!parsed.sistema || parsed.sistema.versionModelo !== 1) return false;
+
+    adminData = {
+      ...DEFAULT_ADMIN_DATA,
+      ...parsed
     };
 
-    state.turnos.push(turno);
-    state.movimientos.push({
-        tipo: "ingreso",
-        fecha: fin.toISOString(),
-        desc: "Turno",
-        monto: turno.ganancia
-    });
-
-    if (turno.kmFinal > 0) state.parametros.ultimoKM = turno.kmFinal;
-
-    turnoActivo = null;
-    localStorage.removeItem("turnoActivo");
-    saveData();
+    saveAdminData();
     return true;
-};
-
-/* =========================
-   GASTOS Y DEUDAS
-========================= */
-export const agregarGastoFijo = (g) => {
-    state.gastosFijosMensuales.push(g);
-    recalcularMetaDiaria();
-};
-
-export const agregarDeuda = (d) => {
-    state.deudas.push(d);
-    recalcularMetaDiaria();
-};
-
-export const agregarGasto = (g) => {
-    state.movimientos.push({
-        tipo: "gasto",
-        fecha: g.fecha,
-        desc: g.categoria,
-        monto: safeNumber(g.monto)
-    });
-    saveData();
-};
-
-/* =========================
-   WALLET (VERSIÓN SIMPLE Y ESTABLE)
-========================= */
-export const getWalletData = () => {
-    const totalIngresos = state.movimientos
-        .filter(m => m.tipo === "ingreso")
-        .reduce((a, b) => a + safeNumber(b.monto), 0);
-
-    const totalGastos = state.movimientos
-        .filter(m => m.tipo === "gasto")
-        .reduce((a, b) => a + safeNumber(b.monto), 0);
-
-    const sobres = [];
-
-    state.gastosFijosMensuales.forEach(g => {
-        const dias = DIAS_POR_FRECUENCIA[g.frecuencia] || 30;
-        sobres.push({
-            nombre: g.categoria,
-            diario: safeNumber(g.monto) / dias,
-            acumulado: safeNumber(g.monto),
-            tipo: "Fijo"
-        });
-    });
-
-    state.deudas.forEach(d => {
-        if (d.saldo > 0) {
-            sobres.push({
-                nombre: d.desc,
-                diario: safeNumber(d.montoCuota),
-                acumulado: safeNumber(d.saldo),
-                tipo: "Deuda"
-            });
-        }
-    });
-
-    const totalObligado = sobres.reduce((a, s) => a + s.acumulado, 0);
-
-    return {
-        sobres,
-        totales: {
-            ingresos: totalIngresos,
-            gastos: totalGastos,
-            obligado: totalObligado,
-            disponible: totalIngresos - totalGastos
-        }
-    };
-};
-
-/* =========================
-   META DIARIA
-========================= */
-export const recalcularMetaDiaria = () => {
-    const fijos = state.gastosFijosMensuales.reduce((a, g) => {
-        const d = DIAS_POR_FRECUENCIA[g.frecuencia] || 30;
-        return a + safeNumber(g.monto) / d;
-    }, 0);
-
-    const deudas = state.deudas.reduce((a, d) => {
-        if (d.saldo <= 0) return a;
-        const dpf = DIAS_POR_FRECUENCIA[d.frecuencia] || 30;
-        return a + safeNumber(d.montoCuota) / dpf;
-    }, 0);
-
-    state.parametros.gastoFijo = fijos + deudas;
-    saveData();
+  } catch (e) {
+    console.error("❌ Error importando JSON Admin", e);
+    return false;
+  }
 };
