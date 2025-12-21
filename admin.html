@@ -3,39 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Admin – Mi Ruta · Mi Lana 🛵💵</title>
+  <title>Panel Administrativo – Mi Ruta · Mi Lana 🛵💵</title>
   <link rel="stylesheet" href="style.css"/>
 </head>
 
 <body data-page="admin">
 
+<!-- ================= HEADER FIJO ================= -->
 <header class="header">
-  <h1>⚙️ Administración</h1>
+  <h1>⚙️ Panel Administrativo</h1>
 </header>
 
 <main class="container">
 
-<!-- ================= PARÁMETROS OPERATIVOS ================= -->
-<section class="card">
-  <h2>🛵 Parámetros Operativos</h2>
+<!-- ========== 1️⃣ REGISTRO INICIAL (SOLO 1ª VEZ) ========== -->
+<section class="card" id="bloqueKilometrajeInicial">
+  <h2>🛵 Registro de Kilometraje Inicial</h2>
 
-  <label for="rendimientoKm">
-    Rendimiento (km por litro)
-  </label>
-  <input id="rendimientoKm" type="number" placeholder="Ej. 35"/>
+  <label for="kmInicial">Kilometraje actual de tu moto</label>
+  <input id="kmInicial" type="number" placeholder="Ej. 15320"/>
 
-  <label for="precioGasolina">
-    Precio por litro de gasolina
-  </label>
-  <input id="precioGasolina" type="number" step="0.01" placeholder="Ej. 24.50"/>
-
-  <label for="fechaInicio">
-    Fecha inicio de control
-  </label>
-  <input id="fechaInicio" type="date"/>
+  <button id="btnGuardarKmInicial">Guardar</button>
 </section>
 
-<!-- ================= GESTIÓN DE TURNO ================= -->
+<!-- ========== 2️⃣ GESTIÓN DE TURNO (INTOCABLE) ========== -->
 <section class="card">
   <h2>⏱️ Gestión de Turno</h2>
 
@@ -44,56 +35,129 @@
   <button id="btnIniciarTurno">▶ Iniciar Turno</button>
   <button id="btnFinalizarTurno">⏹ Finalizar Turno</button>
 
-  <div id="cierreTurnoContainer" style="display:none">
+  <div id="cierreTurno" style="display:none">
+    <label for="kmFinal">Kilometraje actual</label>
+    <input id="kmFinal" type="number"/>
 
-    <label for="inpKmFinal">
-      Kilometraje actual
-    </label>
-    <input id="inpKmFinal" type="number"/>
+    <label for="gananciaTurno">Ganancia del turno</label>
+    <input id="gananciaTurno" type="number"/>
 
-    <label for="inpGanancia">
-      Ganancia del turno
-    </label>
-    <input id="inpGanancia" type="number"/>
-
-    <button id="btnGuardarCierre">Guardar Turno</button>
+    <button id="btnGuardarTurno">Guardar Turno</button>
   </div>
 </section>
 
-<!-- ================= REGISTRO GASOLINA ================= -->
+<!-- ========== 3️⃣ INGRESO EXTRA ========== -->
+<section class="card">
+  <h2>💰 Registrar Ingreso Extra</h2>
+
+  <label for="ingresoExtraDesc">Descripción</label>
+  <input id="ingresoExtraDesc" type="text"/>
+
+  <label for="ingresoExtraMonto">Monto</label>
+  <input id="ingresoExtraMonto" type="number"/>
+
+  <button id="btnGuardarIngresoExtra">Guardar Ingreso</button>
+</section>
+
+<!-- ========== 4️⃣ GASTO INTELIGENTE ========== -->
+<section class="card">
+  <h2>💸 Registrar Gasto</h2>
+
+  <label for="gastoTipo">Tipo</label>
+  <select id="gastoTipo">
+    <option value="hogar">Hogar</option>
+    <option value="operativo">Operativo</option>
+  </select>
+
+  <label for="gastoRecurrente">¿Es recurrente?</label>
+  <select id="gastoRecurrente">
+    <option value="no">No</option>
+    <option value="si">Sí</option>
+  </select>
+
+  <div id="gastoSimple">
+    <label for="gastoDesc">Descripción</label>
+    <input id="gastoDesc" type="text"/>
+
+    <label for="gastoMonto">Monto</label>
+    <input id="gastoMonto" type="number"/>
+  </div>
+
+  <div id="gastoRecurrenteConfig" style="display:none">
+    <label for="gastoFrecuencia">Frecuencia</label>
+    <select id="gastoFrecuencia">
+      <option value="diario">Diario</option>
+      <option value="semanal">Semanal</option>
+      <option value="quincenal">Quincenal</option>
+      <option value="mensual">Mensual</option>
+    </select>
+
+    <label for="gastoDiaPago">Día de pago</label>
+    <input id="gastoDiaPago" type="text" placeholder="Ej. viernes / 1 / último"/>
+  </div>
+
+  <button id="btnGuardarGasto">Guardar Gasto</button>
+</section>
+
+<!-- ========== 5️⃣ GASOLINA ========== -->
 <section class="card">
   <h2>⛽ Registro de Gasolina</h2>
 
-  <label for="litrosGasolina">
-    Litros cargados
-  </label>
+  <label for="litrosGasolina">Litros cargados</label>
   <input id="litrosGasolina" type="number" step="0.01"/>
 
-  <label for="costoGasolina">
-    Costo total ($)
-  </label>
+  <label for="costoGasolina">Costo total ($)</label>
   <input id="costoGasolina" type="number" step="0.01"/>
 
-  <label for="kmReposteo">
-    Kilometraje actual
-  </label>
-  <input id="kmReposteo" type="number"/>
+  <label for="kmGasolina">Kilometraje actual</label>
+  <input id="kmGasolina" type="number"/>
 
-  <button id="btnGuardarGasolina">Guardar Gasolina ⛽</button>
+  <button id="btnGuardarGasolina">Guardar Gasolina</button>
 </section>
 
-<!-- ================= META DIARIA ================= -->
+<!-- ========== 6️⃣ DEUDAS ========== -->
 <section class="card">
+  <h2>💳 Deudas</h2>
+
+  <label for="deudaNombre">Nombre</label>
+  <input id="deudaNombre" type="text"/>
+
+  <label for="deudaMonto">Monto total</label>
+  <input id="deudaMonto" type="number"/>
+
+  <label for="deudaCuota">Cuota</label>
+  <input id="deudaCuota" type="number"/>
+
+  <label for="deudaFrecuencia">Frecuencia</label>
+  <select id="deudaFrecuencia">
+    <option value="semanal">Semanal</option>
+    <option value="quincenal">Quincenal</option>
+    <option value="mensual">Mensual</option>
+  </select>
+
+  <label for="deudaDiaPago">Día de pago</label>
+  <input id="deudaDiaPago" type="text"/>
+
+  <button id="btnGuardarDeuda">Registrar Deuda</button>
+</section>
+
+<!-- ========== 7️⃣ META DIARIA (SOLO VISUAL) ========== -->
+<section class="card meta-diaria">
   <h2>🎯 Meta Diaria Calculada</h2>
+  <div class="meta-circulo">
+    <span id="metaDiaria">$0.00</span>
+  </div>
+  <p>Esto es lo mínimo que debes generar hoy</p>
+</section>
 
-  <p>
-    Meta Diaria:
-    <strong id="metaDiaria">$0.00</strong>
-  </p>
+<!-- ========== 8️⃣ RESPALDO DE DATOS ========== -->
+<section class="card">
+  <h2>📦 Respaldo de Datos</h2>
 
-  <p class="nota">
-    Calculado automáticamente según gasolina, gastos recurrentes y deudas.
-  </p>
+  <button id="btnExportarJSON">Copiar JSON</button>
+
+  <textarea id="importJSON" placeholder="Pega aquí el JSON de respaldo"></textarea>
+  <button id="btnImportarJSON">Restaurar</button>
 </section>
 
 </main>
