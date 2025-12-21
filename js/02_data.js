@@ -1,214 +1,114 @@
 // 02_data.js
-// ===============================
-// MODELO DE DATOS – ADMIN (V1)
-// ===============================
+const STORAGE_KEY = "miRutaMiLana_v1";
 
-import { STORAGE_KEY, safeNumber } from "./01_consts_utils.js";
-
-/* ===============================
-   MODELO CONGELADO DE ADMIN
-================================ */
-
-const DEFAULT_ADMIN_DATA = {
-  parametrosOperativos: {
-    rendimientoKmPorLitro: 0,
-    precioLitroGasolina: 0,
-    fechaInicioControl: null
-  },
-
-  gasolina: {
-    ultimoReposteo: {
-      fecha: null,
-      kmOdometro: null
-    },
-    costoRealPorKm: 0
-  },
-
-  gastosRecurrentes: [],
-
+const defaultState = {
+  turnoActivo: false,
+  turnos: [],
+  ingresosExtra: [],
+  gastos: [],
+  gasolina: [],
   deudas: [],
-
-  gastosNetos: [],
-
-  sistema: {
-    versionModelo: 1,
-    ultimaActualizacion: null
-  }
+  abonos: []
 };
 
-/* ===============================
-   ESTADO INTERNO
-================================ */
+let state = load();
 
-let adminData = structuredClone(DEFAULT_ADMIN_DATA);
-
-/* ===============================
+/* ======================
    PERSISTENCIA
-================================ */
-
-export const loadAdminData = () => {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    saveAdminData();
-    return;
-  }
-
+====================== */
+function load() {
   try {
-    const parsed = JSON.parse(raw);
-
-    // Migración defensiva
-    adminData = {
-      ...DEFAULT_ADMIN_DATA,
-      ...parsed,
-      parametrosOperativos: {
-        ...DEFAULT_ADMIN_DATA.parametrosOperativos,
-        ...(parsed.parametrosOperativos || {})
-      },
-      gasolina: {
-        ...DEFAULT_ADMIN_DATA.gasolina,
-        ...(parsed.gasolina || {})
-      },
-      sistema: {
-        ...DEFAULT_ADMIN_DATA.sistema,
-        ...(parsed.sistema || {})
-      }
-    };
-  } catch (e) {
-    console.error("❌ Error cargando AdminData. Reiniciando.", e);
-    adminData = structuredClone(DEFAULT_ADMIN_DATA);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : structuredClone(defaultState);
+  } catch {
+    return structuredClone(defaultState);
   }
-};
+}
 
-export const saveAdminData = () => {
-  adminData.sistema.ultimaActualizacion = new Date().toISOString();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(adminData));
-};
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
 
-/* ===============================
-   GETTERS (LECTURA)
-================================ */
+/* ======================
+   TURNOS
+====================== */
+export function iniciarTurno() {
+  state.turnoActivo = true;
+  save();
+}
 
-export const getAdminData = () => structuredClone(adminData);
-
-/* ===============================
-   PARÁMETROS OPERATIVOS
-================================ */
-
-export const setParametrosOperativos = ({
-  rendimientoKmPorLitro,
-  precioLitroGasolina,
-  fechaInicioControl
-}) => {
-  adminData.parametrosOperativos.rendimientoKmPorLitro = safeNumber(rendimientoKmPorLitro);
-  adminData.parametrosOperativos.precioLitroGasolina = safeNumber(precioLitroGasolina);
-  adminData.parametrosOperativos.fechaInicioControl = fechaInicioControl || null;
-  saveAdminData();
-};
-
-/* ===============================
-   GASOLINA (CONFIGURACIÓN)
-================================ */
-
-export const setUltimoReposteo = ({ fecha, kmOdometro }) => {
-  adminData.gasolina.ultimoReposteo.fecha = fecha || null;
-  adminData.gasolina.ultimoReposteo.kmOdometro = safeNumber(kmOdometro);
-  saveAdminData();
-};
-
-export const setCostoRealPorKm = (valor) => {
-  adminData.gasolina.costoRealPorKm = safeNumber(valor);
-  saveAdminData();
-};
-
-/* ===============================
-   GASTOS RECURRENTES
-================================ */
-
-export const addGastoRecurrente = ({
-  nombre,
-  tipo,           // hogar | operativo
-  monto,
-  frecuencia,     // diario | semanal | quincenal | mensual
-  diaPago,
-  vaASobre
-}) => {
-  adminData.gastosRecurrentes.push({
-    id: crypto.randomUUID(),
-    nombre,
-    tipo,
-    monto: safeNumber(monto),
-    frecuencia,
-    diaPago,
-    vaASobre: Boolean(vaASobre),
-    activo: true
+export function finalizarTurno({ kmFinal, ganancia }) {
+  state.turnos.push({
+    fecha: new Date().toISOString(),
+    kmFinal: Number(kmFinal),
+    ganancia: Number(ganancia)
   });
-  saveAdminData();
-};
+  state.turnoActivo = false;
+  save();
+}
 
-/* ===============================
+/* ======================
+   INGRESOS
+====================== */
+export function registrarIngresoExtra(desc, monto) {
+  state.ingresosExtra.push({
+    fecha: new Date().toISOString(),
+    desc,
+    monto: Number(monto)
+  });
+  save();
+}
+
+/* ======================
+   GASTOS
+====================== */
+export function registrarGasto(desc, monto) {
+  state.gastos.push({
+    fecha: new Date().toISOString(),
+    desc,
+    monto: Number(monto)
+  });
+  save();
+}
+
+/* ======================
+   GASOLINA
+====================== */
+export function registrarGasolina(litros, costo, km) {
+  state.gasolina.push({
+    fecha: new Date().toISOString(),
+    litros: Number(litros),
+    costo: Number(costo),
+    km: Number(km)
+  });
+  save();
+}
+
+/* ======================
    DEUDAS
-================================ */
-
-export const addDeuda = ({
-  nombre,
-  saldoTotal,
-  cuota,
-  frecuencia,
-  diaPago,
-  vaASobre
-}) => {
-  adminData.deudas.push({
+====================== */
+export function registrarDeuda(nombre, monto, cuota) {
+  state.deudas.push({
     id: crypto.randomUUID(),
     nombre,
-    saldoTotal: safeNumber(saldoTotal),
-    cuota: safeNumber(cuota),
-    frecuencia,
-    diaPago,
-    vaASobre: Boolean(vaASobre),
-    activa: true
+    monto: Number(monto),
+    cuota: Number(cuota)
   });
-  saveAdminData();
-};
+  save();
+}
 
-/* ===============================
-   GASTOS NETOS
-================================ */
-
-export const addGastoNeto = ({ nombre, tipo, fecha, monto }) => {
-  adminData.gastosNetos.push({
-    id: crypto.randomUUID(),
-    nombre,
-    tipo,
-    fecha,
-    monto: safeNumber(monto)
+export function registrarAbono(deudaId, monto) {
+  state.abonos.push({
+    fecha: new Date().toISOString(),
+    deudaId,
+    monto: Number(monto)
   });
-  saveAdminData();
-};
+  save();
+}
 
-/* ===============================
-   BACKUP / RESTORE
-================================ */
-
-export const exportAdminJSON = () => {
-  return JSON.stringify(adminData, null, 2);
-};
-
-export const importAdminJSON = (jsonString) => {
-  try {
-    const parsed = JSON.parse(jsonString);
-
-    if (!parsed || typeof parsed !== "object") return false;
-    if (!parsed.sistema || parsed.sistema.versionModelo !== 1) return false;
-
-    adminData = {
-      ...DEFAULT_ADMIN_DATA,
-      ...parsed
-    };
-
-    saveAdminData();
-    return true;
-  } catch (e) {
-    console.error("❌ Error importando JSON Admin", e);
-    return false;
-  }
-};
+/* ======================
+   GETTERS
+====================== */
+export function getState() {
+  return structuredClone(state);
+}
