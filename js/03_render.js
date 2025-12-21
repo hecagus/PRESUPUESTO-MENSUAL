@@ -1,6 +1,5 @@
 // 03_render.js
-import { $, fmtMoney, formatearFecha } from "./01_consts_utils.js";
-import { getAdminData } from "./02_data.js";
+import { $ } from "./01_consts_utils.js";
 
 /* =========================
    MENÚ GLOBAL
@@ -12,56 +11,46 @@ export const renderGlobalMenu = () => {
   const btn = document.createElement("button");
   btn.id = "menuToggle";
   btn.textContent = "☰";
-  btn.className = "btn-hamburger";
 
-  const nav = document.createElement("div");
-  nav.className = "nav-dropdown";
+  const nav = document.createElement("nav");
+  nav.className = "menu";
   nav.innerHTML = `
-    <div class="nav-content">
-      <a href="index.html">Inicio</a>
-      <a href="admin.html">Admin</a>
-      <a href="wallet.html">Wallet</a>
-      <a href="historial.html">Historial</a>
-    </div>
+    <a href="index.html">Inicio</a>
+    <a href="admin.html">Admin</a>
+    <a href="wallet.html">Wallet</a>
+    <a href="historial.html">Historial</a>
   `;
 
   header.appendChild(btn);
   header.appendChild(nav);
 
   btn.addEventListener("click", () => {
-    nav.querySelector(".nav-content").classList.toggle("show");
+    nav.classList.toggle("show");
   });
 };
 
 /* =========================
-   ADMIN (placeholder visual)
+   GESTIÓN DE TURNO (UI)
 ========================= */
 export const initAdminRender = () => {
   renderGlobalMenu();
-  // 🔒 Admin render real se implementa después
-};
 
-/* =========================
-   HISTORIAL (LECTURA SIMPLE)
-========================= */
-export const initHistorialRender = () => {
-  renderGlobalMenu();
+  const turnoTexto = $("turnoTexto");
+  const btnIniciar = $("btnIniciarTurno");
+  const btnFinalizar = $("btnFinalizarTurno");
+  const cierre = $("cierreTurno");
 
-  const tbody = $("historialBody");
-  if (!tbody) return;
+  if (!turnoTexto || !btnIniciar || !btnFinalizar) return;
 
-  const { gastosNetos } = getAdminData();
+  let turnoActivo = false;
 
-  tbody.innerHTML = "";
+  btnIniciar.addEventListener("click", () => {
+    turnoActivo = true;
+    turnoTexto.textContent = "🟢 Turno en curso";
+  });
 
-  gastosNetos.forEach(g => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>Gasto</td>
-      <td>${formatearFecha(g.fecha)}</td>
-      <td>${g.nombre}</td>
-      <td>$${fmtMoney(g.monto)}</td>
-    `;
-    tbody.appendChild(tr);
+  btnFinalizar.addEventListener("click", () => {
+    if (!turnoActivo) return;
+    cierre.style.display = "block";
   });
 };
