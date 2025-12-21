@@ -2,15 +2,40 @@
 import { $, fmtMoney, formatearFecha } from './01_consts_utils.js';
 
 /* ==========================================================================
-   NAVEGACIÓN GLOBAL (ESTÁTICA)
+   NAVEGACIÓN GLOBAL (MENÚ HAMBURGUESA - BLINDADO)
    ========================================================================== */
 export const renderGlobalMenu = () => {
-    const container = document.querySelector(".header-actions");
-    if (!container || document.getElementById("nav-dropdown-global")) return;
+    // 1. Buscar contenedor. Si no existe, buscar el header. Si no, al body.
+    let container = document.querySelector(".header-actions");
+    
+    if (!container) {
+        console.warn("No se encontró .header-actions, intentando inyectar en header...");
+        const header = document.querySelector(".header");
+        if (header) {
+            container = document.createElement("div");
+            container.className = "header-actions";
+            header.appendChild(container);
+        } else {
+            console.error("CRÍTICO: No hay <header> en el HTML. El menú flotará.");
+            container = document.createElement("div");
+            container.className = "header-actions";
+            container.style.position = "fixed";
+            container.style.top = "10px";
+            container.style.right = "10px";
+            container.style.zIndex = "1000";
+            document.body.prepend(container);
+        }
+    }
 
+    // 2. Evitar duplicados
+    if (document.getElementById("nav-dropdown-global")) return;
+
+    // 3. HTML del Menú
     const menuHTML = `
         <div id="nav-dropdown-global" class="nav-dropdown">
-            <button class="btn-hamburger" type="button">☰</button>
+            <button class="btn-hamburger" type="button" aria-label="Abrir Menú">
+                ☰
+            </button>
             <div class="nav-content">
                 <a href="index.html">📊 Panel Principal</a>
                 <a href="wallet.html">💰 Mi Alcancía (Wallet)</a>
@@ -20,19 +45,28 @@ export const renderGlobalMenu = () => {
         </div>
     `;
     
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = menuHTML;
-    container.appendChild(tempDiv.firstElementChild);
+    // 4. Inyección segura
+    container.innerHTML = menuHTML; // Limpia botones viejos y pone el menú
 
+    // 5. Event Listeners (Click Toggle)
     const btn = container.querySelector(".btn-hamburger");
     const content = container.querySelector(".nav-content");
     
     if (btn && content) {
         btn.onclick = (e) => {
-            e.stopPropagation();
-            content.style.display = content.style.display === 'block' ? 'none' : 'block';
+            e.stopPropagation(); // Evita que el click llegue al document
+            const isVisible = content.style.display === 'block';
+            content.style.display = isVisible ? 'none' : 'block';
+            btn.style.background = isVisible ? 'transparent' : '#f1f5f9';
         };
-        document.addEventListener('click', () => { content.style.display = 'none'; });
+
+        // Cerrar al hacer click fuera
+        document.addEventListener('click', (e) => {
+            if (!container.contains(e.target)) {
+                content.style.display = 'none';
+                btn.style.background = 'transparent';
+            }
+        });
     }
 };
 
@@ -50,14 +84,18 @@ export const renderTurnoControl = (turnoActivo) => {
     if (turnoActivo) {
         btnInicio.style.display = "none";
         btnFin.style.display = "block";
-        txtEstado.innerHTML = `🟢 <b>Turno Activo</b><br>Inicio: ${new Date(turnoActivo.inicio).toLocaleTimeString()}<br>KM Inicial: ${turnoActivo.kmInicial}`;
-        txtEstado.style.color = "#16a34a";
+        if(txtEstado) {
+            txtEstado.innerHTML = `🟢 <b>Turno Activo</b><br>Inicio: ${new Date(turnoActivo.inicio).toLocaleTimeString()}<br>KM Inicial: ${turnoActivo.kmInicial}`;
+            txtEstado.style.color = "#16a34a";
+        }
         if (divCierre) divCierre.style.display = "block";
     } else {
         btnInicio.style.display = "block";
         btnFin.style.display = "none";
-        txtEstado.innerText = "🔴 Sin turno activo";
-        txtEstado.style.color = "#dc2626";
+        if(txtEstado) {
+            txtEstado.innerText = "🔴 Sin turno activo";
+            txtEstado.style.color = "#dc2626";
+        }
         if (divCierre) divCierre.style.display = "none";
     }
 };
@@ -108,19 +146,22 @@ export const renderDashboard = (stats) => {
 
     const listaAlertas = $("listaAlertas");
     if (listaAlertas) {
-        listaAlertas.innerHTML = stats.alertas.map(a => `<li>${a}</li>`).join("");
+        listaAlertas.innerHTML = stats.alertas.length > 0 
+            ? stats.alertas.map(a => `<li>${a}</li>`).join("")
+            : `<li style="color:#16a34a; border-color:#bbf7d0; background:#f0fdf4">✅ Todo en orden.</li>`;
     }
     
     const tbody = $("tablaTurnos");
     if (tbody) {
-        tbody.innerHTML = stats.turnosRecientes.map(t => `
-            <tr>
-                <td>${formatearFecha(t.fecha)}</td>
-                <td>${t.horas.toFixed(1)}h</td>
-                <td>${t.kmRecorridos}km</td>
-                <td>$${fmtMoney(t.ganancia)}</td>
-            </tr>
-        `).join("");
+        tbody.innerHTML = stats.turnosRecientes.length > 0 
+            ? stats.turnosRecientes.map(t => `
+                <tr>
+                    <td>${formatearFecha(t.fecha)}</td>
+                    <td>${t.horas.toFixed(1)}h</td>
+                    <td>${t.kmRecorridos}km</td>
+                    <td>$${fmtMoney(t.ganancia)}</td>
+                </tr>`).join("")
+            : `<tr><td colspan="4" style="text-align:center">Sin turnos recientes</td></tr>`;
     }
 };
 
@@ -130,6 +171,11 @@ export const renderDashboard = (stats) => {
 export const renderHistorial = (movimientos) => {
     const tbody = $("historialBody");
     if (!tbody) return;
+    
+    if (movimientos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">No hay movimientos registrados.</td></tr>`;
+        return;
+    }
     
     tbody.innerHTML = movimientos.slice().reverse().map(m => `
         <tr>
