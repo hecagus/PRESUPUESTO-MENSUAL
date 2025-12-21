@@ -1,13 +1,13 @@
 // 05_init.js
-import { loadData } from "./02_data.js";
+import { loadAdminData } from "./02_data.js";
 import {
+  renderGlobalMenu,
   initAdminRender,
-  initHistorialRender,
-  renderGlobalMenu
+  initHistorialRender
 } from "./03_render.js";
 
 document.addEventListener("DOMContentLoaded", () => {
-  loadData();
+  loadAdminData();
   renderGlobalMenu();
 
   const page = document.body.dataset.page;
