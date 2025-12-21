@@ -1,8 +1,13 @@
 // 05_init.js
-import { initAdminRender } from "./03_render.js";
+import { initAdminRender, renderGlobalMenu } from "./03_render.js";
 
 document.addEventListener("DOMContentLoaded", () => {
-  if (document.body.dataset.page === "admin") {
+  // Menú SIEMPRE
+  renderGlobalMenu();
+
+  const page = document.body.dataset.page;
+
+  if (page === "admin") {
     initAdminRender();
   }
 });
