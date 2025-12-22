@@ -1,4 +1,4 @@
-/* 05_init.js - CONEXIÓN TOTAL */
+/* 05_init.js - ORQUESTADOR */
 import { 
     loadData, getState, getDashboardStats, getAdminStats, getWalletStats,
     iniciarTurno, finalizarTurno, registrarGasolina, 
@@ -9,22 +9,21 @@ import * as Render from './03_render.js';
 import { CATEGORIAS_GASTOS, $ } from './01_consts_utils.js';
 import { initCharts } from './04_charts.js';
 
-// --- REFRESCO DE PANTALLA ---
+// --- REFRESCO CENTRALIZADO ---
 const refreshUI = () => {
     const page = document.body.getAttribute('data-page');
-    // Siempre cargar estado fresco
-    const s = getState(); 
+    const s = getState();
     
+    Render.renderGlobalMenu(); // Asegurar menú
+
     if (page === 'index') {
-        const stats = getDashboardStats();
-        Render.renderDashboard(stats);
-        if (typeof initCharts === 'function') initCharts();
+        Render.renderDashboard(getDashboardStats());
+        initCharts();
     } else if (page === 'admin') {
-        const stats = getAdminStats();
-        // Esto quita el "Cargando..."
-        Render.renderTurnoControl(stats.turnoActivo);
-        Render.renderMetaDiaria(stats.metaDiaria);
-        Render.renderAdminLists(stats.deudas);
+        const adminStats = getAdminStats();
+        Render.renderTurnoControl(adminStats.turnoActivo);
+        Render.renderMetaDiaria(adminStats.metaDiaria);
+        Render.renderAdminLists(adminStats.deudas);
     } else if (page === 'wallet') {
         Render.renderWalletUI(getWalletStats());
     } else if (page === 'historial') {
@@ -32,124 +31,85 @@ const refreshUI = () => {
     }
 };
 
-// --- WIZARDS (LÓGICA DE NEGOCIO) ---
-
+// --- WIZARDS ---
 const wizardGasolina = () => {
-    const litros = prompt("⛽ Paso 1: ¿Litros cargados?");
-    if (!litros) return;
-    const costo = prompt("💰 Paso 2: ¿Costo TOTAL ($)?");
-    if (!costo) return;
-    const ultimoKM = getState().parametros.ultimoKMfinal || 0;
-    const km = prompt(`🏎️ Paso 3: Kilometraje ACTUAL:\n(Anterior: ${ultimoKM})`, ultimoKM);
-    if (!km) return;
-
-    const res = registrarGasolina(litros, costo, km);
-    alert(`✅ Registrado.\nRendimiento: $${res.costoKmReal ? res.costoKmReal.toFixed(2) : '0.00'}/km`);
+    const litros = prompt("⛽ Litros:"); if(!litros) return;
+    const costo = prompt("💰 Costo Total:"); if(!costo) return;
+    const prevKM = getState().parametros.ultimoKMfinal || 0;
+    const km = prompt(`🏎️ KM Actual (Anterior: ${prevKM}):`, prevKM); if(!km) return;
+    
+    registrarGasolina(litros, costo, km);
+    alert("✅ Gasolina registrada");
     refreshUI();
 };
 
-const wizardGastoInteligente = () => {
-    const tipo = prompt("¿Tipo de Gasto?\n1. 🛵 MOTO (Operativo)\n2. 🏠 HOGAR (Personal)");
+const wizardGasto = () => {
+    const tipo = prompt("1. 🛵 Moto\n2. 🏠 Hogar");
     if(tipo !== "1" && tipo !== "2") return;
     
-    const esMoto = tipo === "1";
-    const lista = esMoto ? CATEGORIAS_GASTOS.moto : CATEGORIAS_GASTOS.hogar;
-    
-    let menu = "Escribe el número:\n";
-    lista.forEach((c, i) => menu += `${i+1}. ${c}\n`);
-    const sel = prompt(menu);
-    const catDesc = lista[parseInt(sel)-1];
-    
-    if (!catDesc) { alert("Opción inválida"); return; }
-    
-    const monto = prompt(`Gasto: ${catDesc}\n¿Monto Total ($)?`);
-    if (!monto) return;
+    const list = tipo === "1" ? CATEGORIAS_GASTOS.moto : CATEGORIAS_GASTOS.hogar;
+    let txt = "Elige #:\n"; list.forEach((c,i)=> txt+=`${i+1}. ${c}\n`);
+    const sel = prompt(txt);
+    const cat = list[parseInt(sel)-1];
+    if(!cat) return;
 
-    const esFijo = confirm("¿Es un gasto RECURRENTE (Renta, Plan, Seguro)?\n\n[Aceptar] = SÍ (Afecta Meta Diaria)\n[Cancelar] = NO (Gasto único)");
+    const monto = prompt("💰 Monto:"); if(!monto) return;
     
-    if (esFijo) {
-        const fSel = prompt("Frecuencia:\n1. Semanal\n2. Quincenal\n3. Mensual");
-        const freqs = ["", "Semanal", "Quincenal", "Mensual"];
-        const frecuencia = freqs[fSel] || "Mensual";
-        const dia = prompt("¿Día de pago ideal? (Ej: 15)");
-        agregarGastoRecurrente(catDesc, monto, frecuencia, dia);
-        alert("✅ Gasto Fijo agregado a Meta Diaria.");
+    if(confirm("¿Es gasto FIJO recurrente?")) {
+        const f = prompt("1. Semanal 2. Quincenal 3. Mensual") || "3";
+        const freqs = ["","Semanal","Quincenal","Mensual"];
+        agregarGastoRecurrente(cat, monto, freqs[f]||"Mensual", 15);
     }
-
-    agregarMovimiento('gasto', catDesc, monto, esMoto ? 'Moto' : 'Hogar');
-    alert("✅ Gasto registrado");
+    
+    agregarMovimiento('gasto', cat, monto, tipo==="1"?'Moto':'Hogar');
     refreshUI();
 };
 
-const wizardNuevaDeuda = () => {
-    const nombre = prompt("📝 Nombre de la Deuda (Ej: Banco):");
-    if(!nombre) return;
-    const total = prompt("💰 Monto TOTAL a deber ($):");
-    if(!total) return;
-    const cuota = prompt("📅 ¿Cuánto pagas por cuota? ($):");
-    if(!cuota) return;
-    
-    const fSel = prompt("Frecuencia de pago:\n1. Semanal\n2. Quincenal\n3. Mensual");
-    const freqs = ["", "Semanal", "Quincenal", "Mensual"];
-    const frecuencia = freqs[fSel] || "Mensual";
-    
-    agregarDeuda(nombre, total, cuota, frecuencia);
-    alert("✅ Deuda registrada. Tu Meta Diaria subió.");
+const wizardDeuda = () => {
+    const n = prompt("Nombre Deuda:"); if(!n) return;
+    const t = prompt("Total Deuda:"); if(!t) return;
+    const c = prompt("Cuota Pago:"); if(!c) return;
+    agregarDeuda(n, t, c, "Mensual"); // Simplificado
+    alert("✅ Deuda registrada");
     refreshUI();
 };
 
-// --- EVENTOS (CLICK LISTENERS) ---
-const bindAdminEvents = () => {
-    // Turnos
-    const btnI = $("btnIniciarTurno");
-    if (btnI) btnI.onclick = () => {
-        const km = prompt("Confirma KM Inicial:", getState().parametros.ultimoKMfinal || 0);
-        if (km) { iniciarTurno(km); refreshUI(); }
-    };
-    const btnF = $("btnFinalizarTurno");
-    if (btnF) btnF.onclick = () => {
-        const km = prompt("KM Final del tablero:");
-        const gan = prompt("Ganancia Total ($):");
-        if (km && gan) { finalizarTurno(km, gan); alert("Turno Cerrado"); refreshUI(); }
-    };
+// --- EVENTOS ---
+const bindEvents = () => {
+    const click = (id, fn) => { const el = $(id); if(el) el.onclick = fn; };
 
-    // Botones Rápidos (Ahora en HTML)
-    const btnGas = $("btnWizardGas");
-    if (btnGas) btnGas.onclick = wizardGasolina;
+    click("btnIniciarTurno", () => {
+        const km = prompt("KM Inicial:", getState().parametros.ultimoKMfinal||0);
+        if(km) { iniciarTurno(km); refreshUI(); }
+    });
+    
+    click("btnFinalizarTurno", () => {
+        const km = prompt("KM Final:"); 
+        const g = prompt("Ganancia:");
+        if(km && g) { finalizarTurno(km, g); alert("Turno cerrado"); refreshUI(); }
+    });
 
-    const btnGasto = $("btnWizardGasto");
-    if (btnGasto) btnGasto.onclick = wizardGastoInteligente;
-
-    // Deudas
-    const btnNewDeuda = $("btnWizardDeuda");
-    if (btnNewDeuda) btnNewDeuda.onclick = wizardNuevaDeuda;
-
-    const btnAbono = $("btnRegistrarAbono");
-    if (btnAbono) btnAbono.onclick = () => {
+    click("btnWizardGas", wizardGasolina);
+    click("btnWizardGasto", wizardGasto);
+    click("btnWizardDeuda", wizardDeuda);
+    
+    click("btnRegistrarAbono", () => {
         const id = $("abonoSeleccionar").value;
         const m = $("abonoMonto").value;
-        if(id && m) { registrarAbono(id, m); alert("✅ Abono aplicado"); refreshUI(); }
-    };
+        if(id && m) { registrarAbono(id, m); alert("Abono ok"); refreshUI(); }
+    });
 
-    // Respaldo
-    const btnJSON = $("btnCopiarJSON");
-    if (btnJSON) btnJSON.onclick = () => {
+    click("btnCopiarJSON", () => {
         navigator.clipboard.writeText(JSON.stringify(getState()));
-        alert("📋 Datos copiados al portapapeles");
-    };
+        alert("Copiado!");
+    });
 };
 
-// --- ARRANQUE ---
+// --- MAIN ---
 document.addEventListener("DOMContentLoaded", () => {
-    loadData(); // Cargar LocalStorage
-    Render.renderGlobalMenu(); // Menú siempre visible
-    
-    refreshUI(); // Pintar estado actual
-    
-    const page = document.body.getAttribute('data-page');
-    if (page === 'admin') {
-        bindAdminEvents();
-    }
-    
-    console.log("Sistema Reparado y Cargado: " + page);
+    loadData();
+    const p = document.body.getAttribute('data-page');
+    if(p === 'admin') bindEvents();
+    refreshUI();
+    console.log("App Ready: " + p);
 });
