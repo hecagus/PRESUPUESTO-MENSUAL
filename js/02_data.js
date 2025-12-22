@@ -1,18 +1,18 @@
-/* 02_data.js - CEREBRO DE DATOS */
+/* 02_data.js */
 import { STORAGE_KEY, DIAS_POR_FRECUENCIA, safeNumber, isSameDay } from './01_consts_utils.js';
 
 const DEFAULT_PANEL_DATA = {
     ingresos: [],
     gastos: [],
     turnos: [],
-    movimientos: [], 
-    cargasCombustible: [], 
+    movimientos: [],
+    cargasCombustible: [],
     deudas: [],
-    gastosFijosMensuales: [], 
+    gastosFijosMensuales: [],
     parametros: {
-        gastoFijo: 0, // Meta Diaria
-        ultimoKMfinal: 0, 
-        costoPorKm: 0, 
+        gastoFijo: 0,
+        ultimoKMfinal: 0,
+        costoPorKm: 0,
         mantenimientoBase: { 'Aceite (KM)': 3000 }
     }
 };
@@ -34,23 +34,27 @@ export const loadData = () => {
     if (data) {
         try {
             const parsed = JSON.parse(data);
-            panelData = { ...DEFAULT_PANEL_DATA, ...parsed, parametros: { ...DEFAULT_PANEL_DATA.parametros, ...parsed.parametros } };
-        } catch (e) { console.error(e); }
+            panelData = { 
+                ...DEFAULT_PANEL_DATA, 
+                ...parsed, 
+                parametros: { ...DEFAULT_PANEL_DATA.parametros, ...parsed.parametros } 
+            };
+        } catch (e) { console.error("Error cargando datos:", e); }
     }
     recalcularMetaDiaria();
 };
 
-// --- CÁLCULOS MATEMÁTICOS ---
+// --- CÁLCULOS ---
 export const recalcularMetaDiaria = () => {
     const totalFijos = panelData.gastosFijosMensuales.reduce((sum, g) => {
         const dias = DIAS_POR_FRECUENCIA[g.frecuencia] || 30;
-        return sum + (safeNumber(g.monto) / dias);
+        return sum + (safeNumber(g.monto) / (dias || 1));
     }, 0);
 
     const totalDeudas = panelData.deudas.reduce((sum, d) => {
         if (d.saldo <= 0) return sum;
         const dias = DIAS_POR_FRECUENCIA[d.frecuencia] || 30;
-        return sum + (safeNumber(d.montoCuota) / dias);
+        return sum + (safeNumber(d.montoCuota) / (dias || 1));
     }, 0);
 
     panelData.parametros.gastoFijo = totalFijos + totalDeudas;
@@ -58,7 +62,7 @@ export const recalcularMetaDiaria = () => {
     return panelData.parametros.gastoFijo;
 };
 
-// --- OPERACIONES DEUDA ---
+// --- OPERACIONES ---
 export const agregarDeuda = (desc, total, cuota, frecuencia) => {
     panelData.deudas.push({
         id: Date.now(),
@@ -81,7 +85,6 @@ export const registrarAbono = (idDeuda, monto) => {
     }
 };
 
-// --- OPERACIONES GASOLINA ---
 export const registrarGasolina = (litros, costoTotal, kmActual) => {
     litros = safeNumber(litros);
     costoTotal = safeNumber(costoTotal);
@@ -92,8 +95,7 @@ export const registrarGasolina = (litros, costoTotal, kmActual) => {
     let costoKmReal = 0;
 
     if (ultimaCarga && kmActual > ultimaCarga.km) {
-        const distancia = kmActual - ultimaCarga.km;
-        costoKmReal = costoTotal / distancia;
+        costoKmReal = costoTotal / (kmActual - ultimaCarga.km);
         panelData.parametros.costoPorKm = costoKmReal;
     }
 
@@ -107,7 +109,6 @@ export const registrarGasolina = (litros, costoTotal, kmActual) => {
     return { costoKmReal, kmActual };
 };
 
-// --- OPERACIONES TURNO ---
 export const iniciarTurno = (kmInicial) => {
     turnoActivo = { inicio: new Date().getTime(), kmInicial: safeNumber(kmInicial) };
     saveData();
@@ -134,13 +135,13 @@ export const finalizarTurno = (kmFinal, ganancia) => {
     saveData();
 };
 
-// --- MOVIMIENTOS ---
 export const agregarMovimiento = (tipo, desc, monto, categoria) => {
+    const m = safeNumber(monto);
     panelData.movimientos.push({
-        tipo, fecha: new Date().toISOString(), desc, monto: safeNumber(monto), categoria
+        tipo, fecha: new Date().toISOString(), desc, monto: m, categoria
     });
-    if (tipo === 'gasto') panelData.gastos.push({ tipo: categoria, monto: safeNumber(monto), desc });
-    else panelData.ingresos.push(safeNumber(monto));
+    if (tipo === 'gasto') panelData.gastos.push({ tipo: categoria, monto: m, desc });
+    else panelData.ingresos.push(m);
     saveData();
 };
 
@@ -149,19 +150,20 @@ export const agregarGastoRecurrente = (desc, monto, frecuencia, diaPago) => {
     recalcularMetaDiaria();
 };
 
-// --- UI GETTERS ---
+// --- GETTERS UI ---
 export const getDashboardStats = () => {
     const hoy = new Date();
     const movsHoy = panelData.movimientos.filter(m => isSameDay(m.fecha, hoy));
     const turnosHoy = panelData.turnos.filter(t => isSameDay(t.fecha, hoy));
     const ganancia = movsHoy.filter(m => m.tipo === 'ingreso').reduce((a, b) => a + b.monto, 0);
+    
     return {
         horasHoy: turnosHoy.reduce((a, b) => a + b.horas, 0),
         gananciaHoy: ganancia,
         meta: panelData.parametros.gastoFijo,
         progreso: panelData.parametros.gastoFijo > 0 ? (ganancia / panelData.parametros.gastoFijo) * 100 : 0,
         turnosRecientes: panelData.turnos.slice(-5).reverse(),
-        alertas: [] 
+        alertas: []
     };
 };
 
