@@ -3,80 +3,63 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Admin – Uber Tracker</title>
+  <title>Admin - Uber Tracker</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 </head>
 <body data-page="admin">
 
 <header class="header">
-  <h1>⚙️ Administración</h1>
-  <div class="header-actions"></div>
-</header>
+  <div class="header-top"><h1>⚙️ Administración</h1></div>
+  <div class="header-actions"></div> </header>
 
 <main class="container">
 
-  <section class="card" id="cardTurnos" style="border-left: 5px solid #3b82f6;">
-    <h2>⏱️ Control de Turno</h2>
-    <div id="turnoTexto" style="margin-bottom:15px; font-size:1.1rem; font-weight:bold; color:#64748b;">
-        🔴 Sin turno activo
+  <section class="card" style="border-left: 5px solid #3b82f6;">
+    <h2>⏱️ Turno</h2>
+    <div id="turnoTexto" style="margin-bottom:10px;">🔴 ...</div>
+    <div style="display:flex; gap:10px;">
+        <button id="btnIniciarTurno" class="btn-success">Iniciar</button>
+        <button id="btnFinalizarTurno" class="btn-danger" style="display:none;">Finalizar</button>
     </div>
-    <button id="btnIniciarTurno" class="btn-success" style="width:100%;">▶ Iniciar Turno</button>
-    <button id="btnFinalizarTurno" class="btn-danger" style="display:none; width:100%;">⏹ Finalizar Turno</button>
-  </section>
-
-  <section class="card" style="border-left: 5px solid #f59e0b;">
-    <h2>⛽ Control de Gasolina</h2>
-    <p style="color:#64748b; font-size:0.9rem; margin-bottom:10px;">
-        Registra cada carga para calcular tu rendimiento real por KM.
-    </p>
-    <button id="btnWizardGas" class="btn-secondary" style="width:100%; background:#fff7ed; color:#c2410c; border:1px solid #fdba74; font-weight:bold; font-size:1rem; padding:15px;">
-        ⛽ Registrar Carga de Combustible
-    </button>
-  </section>
-
-  <section class="card" style="border-left: 5px solid #8b5cf6;">
-    <h2>💸 Registro de Gastos</h2>
-    <p style="color:#64748b; font-size:0.9rem; margin-bottom:10px;">
-        Gastos operativos (Moto) o personales (Hogar/Varios).
-    </p>
-    <button id="btnWizardGasto" class="btn-secondary" style="width:100%; background:#eff6ff; color:#1d4ed8; border:1px solid #93c5fd; font-weight:bold; font-size:1rem; padding:15px;">
-        💸 Registrar Nuevo Gasto
-    </button>
   </section>
 
   <section class="card">
-    <h2>🎯 Meta Diaria Calculada</h2>
+    <h2>🚀 Operativo</h2>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+        <button id="btnWizardGas" class="btn-secondary" style="border-color:#f59e0b; color:#b45309;">⛽ Gasolina</button>
+        <button id="btnWizardGasto" class="btn-secondary" style="border-color:#8b5cf6; color:#6d28d9;">💸 Gasto</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>🎯 Meta Diaria</h2>
     <div style="text-align:center; padding:15px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
-        <h1 id="metaDiariaDisplay" style="color:#166534; font-size:2.5rem; margin:10px 0;">$0.00</h1>
-        <small style="color:#15803d; font-weight:500;">Suma de Gastos Fijos (diarios) + Cuotas Deudas (diarias)</small>
+        <h1 id="metaDiariaDisplay" style="color:#166534; font-size:2rem; margin:0;">$0.00</h1>
     </div>
   </section>
 
   <section class="card">
-    <h2>💳 Gestión de Deudas</h2>
-    <button id="btnWizardDeuda" class="btn-secondary" style="width:100%; margin-bottom:15px; border:1px dashed #94a3b8; color:#475569;">
-        ➕ Registrar Nueva Deuda / Préstamo
-    </button>
-    <hr style="margin:15px 0; border-color:#f1f5f9;">
-    <h3>📉 Abonar a Deuda</h3>
-    <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
-        <select id="abonoSeleccionar" style="padding:10px; border-radius:6px; border:1px solid #cbd5e1; background:#fff;"></select>
-        <div style="display:flex; gap:10px;">
-            <input type="number" id="abonoMonto" placeholder="$ Monto" style="padding:10px; border-radius:6px; border:1px solid #cbd5e1; flex:1;">
-            <button id="btnRegistrarAbono" class="btn-success" style="flex:1;">Abonar</button>
+    <h2>💳 Deudas</h2>
+    <button id="btnWizardDeuda" class="btn-secondary" style="margin-bottom:15px;">➕ Nueva Deuda</button>
+    
+    <div style="background:#f8fafc; padding:10px; border-radius:8px; margin-bottom:15px;">
+        <select id="abonoSeleccionar" style="margin-bottom:10px;"></select>
+        <div style="display:flex; gap:5px;">
+            <input type="number" id="abonoMonto" placeholder="$" style="flex:1;">
+            <button id="btnRegistrarAbono" class="btn-success" style="width:auto;">Abonar</button>
         </div>
     </div>
-    <ul id="listaDeudas" class="list" style="margin-top:20px; list-style:none; padding:0;"></ul>
+    
+    <ul id="listaDeudas" class="alert-list"></ul>
   </section>
 
   <section class="card">
     <h2>💾 Datos</h2>
-    <button id="btnCopiarJSON" class="btn-secondary" style="width:100%;">📋 Copiar Respaldo JSON</button>
+    <button id="btnCopiarJSON" class="btn-secondary">📋 Copiar JSON</button>
   </section>
 
 </main>
-
 <script type="module" src="05_init.js"></script>
 </body>
 </html>
