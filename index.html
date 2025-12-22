@@ -3,40 +3,30 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Dashboard – Uber Tracker</title>
+  <title>Panel - Uber Tracker</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body data-page="index">
 
 <header class="header">
-  <h1>📊 Mi Ruta · Mi Lana</h1>
-  <div class="header-actions"></div> 
+  <div class="header-top"><h1>📊 Mi Ruta · Mi Lana</h1></div>
+  <div class="header-actions"></div>
 </header>
 
 <main class="container">
-  
   <section class="card" id="cardResumen">
-    <h2>Resumen de Hoy</h2>
+    <h2>Resumen Hoy</h2>
     <div class="stats-grid">
-      <div class="stat">
-        <label>Horas</label>
-        <span id="resHoras">0.0h</span>
-      </div>
-      <div class="stat stat-large">
-        <label>Ganancia</label>
-        <span id="resGananciaBruta" style="color:#16a34a">$0.00</span>
-      </div>
+      <div class="stat"><label>Horas</label><span id="resHoras">0.0h</span></div>
+      <div class="stat"><label>Ganancia</label><span id="resGananciaBruta" style="color:#16a34a">$0.00</span></div>
     </div>
-    
     <div style="margin-top:15px">
-        <div style="display:flex; justify-content:space-between; margin-bottom:5px">
-            <small>Meta Diaria: <span id="dashboardMeta">$0</span></small>
-            <small id="progresoTexto">0%</small>
+        <div style="display:flex; justify-content:space-between; font-size:0.8rem;">
+            <span>Meta: <b id="dashboardMeta">$0</b></span>
+            <span id="progresoTexto">0%</span>
         </div>
-        <div class="progress-bg">
-            <div id="progresoBarra" class="progress-fill" style="width:0%"></div>
-        </div>
+        <div class="progress-bg"><div id="progresoBarra" class="progress-fill" style="width:0%"></div></div>
     </div>
   </section>
 
@@ -47,32 +37,22 @@
 
   <section class="card">
     <h2>Últimos Turnos</h2>
-    <div style="overflow-x:auto;">
-        <table class="tabla">
-          <thead>
-            <tr><th>Fecha</th><th>H</th><th>KM</th><th>$$</th></tr>
-          </thead>
-          <tbody id="tablaTurnos"></tbody>
-        </table>
-    </div>
+    <table class="tabla">
+        <thead><tr><th>Fecha</th><th>H</th><th>KM</th><th>$$</th></tr></thead>
+        <tbody id="tablaTurnos"></tbody>
+    </table>
   </section>
 
   <section class="card">
-    <h2>Tendencia Ingresos</h2>
-    <div class="chart-wrap">
-      <canvas id="graficaGanancias"></canvas>
-    </div>
+    <h2>Ingresos (14 Días)</h2>
+    <div class="chart-wrap"><canvas id="graficaGanancias"></canvas></div>
   </section>
   
   <section class="card">
     <h2>Rendimiento KM</h2>
-    <div class="chart-wrap">
-      <canvas id="graficaKm"></canvas>
-    </div>
+    <div class="chart-wrap"><canvas id="graficaKm"></canvas></div>
   </section>
-
 </main>
-
 <script type="module" src="05_init.js"></script>
 </body>
 </html>
