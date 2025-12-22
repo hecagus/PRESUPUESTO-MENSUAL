@@ -1,115 +1,82 @@
-/* 05_init.js - ORQUESTADOR */
-import { 
-    loadData, getState, getDashboardStats, getAdminStats, getWalletStats,
-    iniciarTurno, finalizarTurno, registrarGasolina, 
-    agregarMovimiento, agregarGastoRecurrente, 
-    agregarDeuda, registrarAbono 
-} from './02_data.js';
-import * as Render from './03_render.js';
-import { CATEGORIAS_GASTOS, $ } from './01_consts_utils.js';
-import { initCharts } from './04_charts.js';
+import { loadData, getState, iniciarTurno, finalizarTurno, registrarGasolina, agregarMovimiento, agregarDeuda, registrarAbono, getDashboardStats } from "./02_data.js";
+import { renderGlobalMenu, renderAdminUI, renderDashboard } from "./03_render.js";
+import { initCharts } from "./04_charts.js";
+import { $, CATEGORIAS_GASTOS } from "./01_consts_utils.js";
 
-// --- REFRESCO CENTRALIZADO ---
-const refreshUI = () => {
-    const page = document.body.getAttribute('data-page');
-    const s = getState();
-    
-    Render.renderGlobalMenu(); // Asegurar menú
-
-    if (page === 'index') {
-        Render.renderDashboard(getDashboardStats());
-        initCharts();
-    } else if (page === 'admin') {
-        const adminStats = getAdminStats();
-        Render.renderTurnoControl(adminStats.turnoActivo);
-        Render.renderMetaDiaria(adminStats.metaDiaria);
-        Render.renderAdminLists(adminStats.deudas);
-    } else if (page === 'wallet') {
-        Render.renderWalletUI(getWalletStats());
-    } else if (page === 'historial') {
-        Render.renderHistorial(s.movimientos);
-    }
-};
-
-// --- WIZARDS ---
-const wizardGasolina = () => {
-    const litros = prompt("⛽ Litros:"); if(!litros) return;
-    const costo = prompt("💰 Costo Total:"); if(!costo) return;
-    const prevKM = getState().parametros.ultimoKMfinal || 0;
-    const km = prompt(`🏎️ KM Actual (Anterior: ${prevKM}):`, prevKM); if(!km) return;
-    
-    registrarGasolina(litros, costo, km);
+// --- WIZARDS (VENTANAS DE PREGUNTA) ---
+const wizardGas = () => {
+    const l = prompt("⛽ Litros:"); if(!l) return;
+    const c = prompt("💰 Costo Total ($):"); if(!c) return;
+    const km = prompt(`🏎️ KM Actual (Anterior: ${getState().parametros.ultimoKM}):`); if(!km) return;
+    registrarGasolina(l, c, km);
     alert("✅ Gasolina registrada");
-    refreshUI();
+    window.location.reload();
 };
 
 const wizardGasto = () => {
     const tipo = prompt("1. 🛵 Moto\n2. 🏠 Hogar");
     if(tipo !== "1" && tipo !== "2") return;
+    const catList = tipo === "1" ? CATEGORIAS_GASTOS.moto : CATEGORIAS_GASTOS.hogar;
     
-    const list = tipo === "1" ? CATEGORIAS_GASTOS.moto : CATEGORIAS_GASTOS.hogar;
-    let txt = "Elige #:\n"; list.forEach((c,i)=> txt+=`${i+1}. ${c}\n`);
+    let txt = "Elige #:\n";
+    catList.forEach((c, i) => txt += `${i+1}. ${c}\n`);
     const sel = prompt(txt);
-    const cat = list[parseInt(sel)-1];
-    if(!cat) return;
+    const cat = catList[parseInt(sel)-1];
+    
+    if(!cat) return alert("Opción inválida");
+    const monto = prompt(`💰 Monto para ${cat}:`);
+    if(!monto) return;
 
-    const monto = prompt("💰 Monto:"); if(!monto) return;
-    
-    if(confirm("¿Es gasto FIJO recurrente?")) {
-        const f = prompt("1. Semanal 2. Quincenal 3. Mensual") || "3";
-        const freqs = ["","Semanal","Quincenal","Mensual"];
-        agregarGastoRecurrente(cat, monto, freqs[f]||"Mensual", 15);
-    }
-    
-    agregarMovimiento('gasto', cat, monto, tipo==="1"?'Moto':'Hogar');
-    refreshUI();
+    agregarMovimiento("gasto", cat, monto, tipo === "1" ? "Moto" : "Hogar");
+    alert("✅ Gasto registrado");
+    window.location.reload();
 };
 
 const wizardDeuda = () => {
-    const n = prompt("Nombre Deuda:"); if(!n) return;
-    const t = prompt("Total Deuda:"); if(!t) return;
-    const c = prompt("Cuota Pago:"); if(!c) return;
-    agregarDeuda(n, t, c, "Mensual"); // Simplificado
-    alert("✅ Deuda registrada");
-    refreshUI();
+    const d = prompt("Nombre Deuda:"); if(!d) return;
+    const t = prompt("Total a pagar ($):"); if(!t) return;
+    const c = prompt("Cuota de pago ($):"); if(!c) return;
+    const f = prompt("Frecuencia:\n1. Semanal\n2. Quincenal\n3. Mensual") || "3";
+    const freqs = ["", "Semanal", "Quincenal", "Mensual"];
+    agregarDeuda(d, t, c, freqs[parseInt(f)]);
+    alert("✅ Deuda agregada");
+    window.location.reload();
 };
 
-// --- EVENTOS ---
-const bindEvents = () => {
-    const click = (id, fn) => { const el = $(id); if(el) el.onclick = fn; };
+// --- INICIO ---
+document.addEventListener("DOMContentLoaded", () => {
+  loadData();
+  renderGlobalMenu();
 
-    click("btnIniciarTurno", () => {
-        const km = prompt("KM Inicial:", getState().parametros.ultimoKMfinal||0);
-        if(km) { iniciarTurno(km); refreshUI(); }
-    });
+  const page = document.body.dataset.page;
+
+  if (page === "admin") {
+    renderAdminUI();
     
-    click("btnFinalizarTurno", () => {
-        const km = prompt("KM Final:"); 
-        const g = prompt("Ganancia:");
-        if(km && g) { finalizarTurno(km, g); alert("Turno cerrado"); refreshUI(); }
+    $("btnIniciarTurno")?.addEventListener("click", () => {
+        const km = prompt("🏎️ KM Inicial:");
+        if(km) { iniciarTurno(km); renderAdminUI(); }
     });
 
-    click("btnWizardGas", wizardGasolina);
-    click("btnWizardGasto", wizardGasto);
-    click("btnWizardDeuda", wizardDeuda);
+    $("btnFinalizarTurno")?.addEventListener("click", () => {
+        const km = prompt("🏁 KM Final:");
+        const gan = prompt("💵 Ganancia del día:");
+        if(km && gan) { finalizarTurno(km, gan); renderAdminUI(); }
+    });
+
+    $("btnGas")?.addEventListener("click", wizardGas);
+    $("btnGasto")?.addEventListener("click", wizardGasto);
+    $("btnDeuda")?.addEventListener("click", wizardDeuda);
     
-    click("btnRegistrarAbono", () => {
+    $("btnRegistrarAbono")?.addEventListener("click", () => {
         const id = $("abonoSeleccionar").value;
         const m = $("abonoMonto").value;
-        if(id && m) { registrarAbono(id, m); alert("Abono ok"); refreshUI(); }
+        if(id && m) { registrarAbono(id, m); alert("✅ Abono registrado"); window.location.reload(); }
     });
+  }
 
-    click("btnCopiarJSON", () => {
-        navigator.clipboard.writeText(JSON.stringify(getState()));
-        alert("Copiado!");
-    });
-};
-
-// --- MAIN ---
-document.addEventListener("DOMContentLoaded", () => {
-    loadData();
-    const p = document.body.getAttribute('data-page');
-    if(p === 'admin') bindEvents();
-    refreshUI();
-    console.log("App Ready: " + p);
+  if (page === "index") {
+      renderDashboard(getDashboardStats());
+      initCharts();
+  }
 });
