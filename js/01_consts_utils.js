@@ -1,46 +1,39 @@
-/* 01_consts_utils.js */
-export const STORAGE_KEY = "panelData";
+export const STORAGE_KEY = "moto_finanzas_v1";
 
-export const $ = (id) => document.getElementById(id);
-
-export const DIAS_POR_FRECUENCIA = {
-  Diario: 1,
-  Semanal: 7,
-  Quincenal: 15,
-  Mensual: 30,
-  Bimestral: 60,
-  Anual: 365
+export const FRECUENCIAS = {
+    'Diario': 1,
+    'Semanal': 7,
+    'Quincenal': 15,
+    'Mensual': 30,
+    'Bimestral': 60,
+    'Anual': 365,
+    'Unico': 0
 };
 
-export const CATEGORIAS_GASTOS = {
-  moto: ["Gasolina", "Mantenimiento", "Reparación", "Llantas", "Seguro", "Otro"],
-  hogar: ["Renta", "Comida", "Servicios", "Internet", "Salud", "Deudas", "Otro"]
+export const CATEGORIAS = {
+    operativo: ["Gasolina", "Mantenimiento", "Reparación", "Equipo", "Seguro"],
+    personal: ["Comida", "Hogar", "Personal", "Diversión", "Salud"]
 };
 
-export const safeNumber = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
+// Selectores
+export const $ = (sel) => document.querySelector(sel);
+export const $$ = (sel) => document.querySelectorAll(sel);
+
+// Formateadores
+export const fmtMoney = (amount) => {
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount || 0);
 };
 
-export const fmtMoney = (n) =>
-  safeNumber(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-
-export const formatearFecha = (d) => {
-  if (!d) return "-";
-  const dt = new Date(d);
-  return (
-    dt.toLocaleDateString() +
-    " " +
-    dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-  );
+export const fmtDate = (isoString) => {
+    if(!isoString) return '-';
+    const d = new Date(isoString);
+    return `${d.getDate()}/${d.getMonth()+1} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
 };
 
-export const isSameDay = (d1, d2) => {
-  const a = new Date(d1);
-  const b = new Date(d2);
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
+export const safeFloat = (val) => {
+    const n = parseFloat(val);
+    return isNaN(n) ? 0 : n;
 };
+
+// Generador de IDs únicos
+export const uuid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
