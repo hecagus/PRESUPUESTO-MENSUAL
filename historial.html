@@ -2,36 +2,27 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Historial - Uber Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Historial</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body data-page="historial">
 
 <header class="header">
-  <div class="header-top"><h1>📜 Historial Completo</h1></div>
-  <div class="header-actions"></div>
+  <h1>📜 Historial</h1>
 </header>
 
 <main class="container">
   <section class="card">
-    <h2>Movimientos Registrados</h2>
-    <div style="overflow-x:auto;">
-        <table class="tabla">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Detalle</th>
-              <th>Categoría</th>
-              <th>Monto</th>
-            </tr>
-          </thead>
-          <tbody id="historialBody"></tbody>
-        </table>
-    </div>
+    <table class="tabla">
+      <thead>
+        <tr><th>Fecha</th><th>Detalle</th><th>Cat</th><th>$$</th></tr>
+      </thead>
+      <tbody id="historialBody"></tbody>
+    </table>
   </section>
 </main>
-
 <script type="module" src="05_init.js"></script>
 </body>
 </html>
+
