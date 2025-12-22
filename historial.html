@@ -3,58 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historial - Finanzas Moto</title>
+    <title>Historial</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body data-page="historial">
-    <header class="header">
-        <h1>📜 Historial</h1>
-      <nav class="bottom-nav">
-  <a data-page="index" href="index.html">📊</a>
-  <a data-page="wallet" href="wallet.html">💰</a>
-  <a data-page="admin" href="admin.html">⚙️</a>
-  <a data-page="historial" href="historial.html">📜</a>
-</nav>
-    </header>
-
-    <main class="container">
-        <section class="card">
-            <h2>Rendimiento Gasolina</h2>
-            <div style="height: 150px;">
-                <canvas id="chartGas"></canvas>
-            </div>
-        </section>
-
-        <section class="card">
-            <h2>Últimos Movimientos</h2>
+    <div class="header"><h1>📜 Historial</h1></div>
+    <div class="container">
+        <div class="card">
+            <h2>Rendimiento ($/KM)</h2>
+            <div style="height:150px"><canvas id="chartGas"></canvas></div>
+        </div>
+        <div class="card">
+            <h2>Movimientos</h2>
             <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Concepto</th>
-                            <th>Monto</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaBody">
-                        </tbody>
-                </table>
-            </div>
-        </section>
-    </main>
-
-    <div id="appModal" class="modal-overlay">
-        <div class="modal">
-            <h3 id="modalTitle"></h3>
-            <div id="modalBody" class="modal-body"></div>
-            <div class="modal-actions">
-                <button id="modalCancel" class="btn btn-outline" style="width:auto">Cancelar</button>
-                <button id="modalConfirm" class="btn btn-primary" style="width:auto">Confirmar</button>
+                <table><thead><tr><th>Fecha</th><th>Desc</th><th>$$</th></tr></thead><tbody id="tablaBody"></tbody></table>
             </div>
         </div>
     </div>
-
     <script type="module" src="05_init.js"></script>
 </body>
 </html>
