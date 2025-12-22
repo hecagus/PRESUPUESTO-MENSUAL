@@ -1,176 +1,154 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administración</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>Administración</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body data-page="admin">
 
-<!-- HEADER -->
 <header class="header">
-    <h1>⚙️ Administración</h1>
+  <h1>⚙️ Administración</h1>
 </header>
 
-<!-- CONTENIDO -->
 <main class="container">
 
-    <!-- ===================== -->
-    <!-- 1️⃣ TURNO (WIZARD REAL) -->
-    <!-- ===================== -->
-    <section class="card">
-        <h2>Turno</h2>
+  <!-- 1️⃣ ONBOARDING / KILOMETRAJE -->
+  <section class="card" id="cardKilometraje">
+    <h2>Kilometraje</h2>
+    <p>Kilometraje actual del vehículo</p>
+    <div class="stat-box">
+      <label>KM actual</label>
+      <div class="value" id="kmActual">—</div>
+    </div>
+    <button id="btnConfigKM" class="btn btn-primary">
+      ✏️ Configurar kilometraje
+    </button>
+  </section>
 
-        <div class="stat-box" style="margin-bottom: 0.75rem;">
-            <label>Estado</label>
-            <div id="turnoEstado">🔴 Turno detenido</div>
-        </div>
+  <!-- 2️⃣ TURNO -->
+  <section class="card">
+    <h2>Turno</h2>
 
-        <div class="stat-box" style="margin-bottom: 1rem;">
-            <label>Tiempo trabajado</label>
-            <div id="turnoTimer">--:--:--</div>
-        </div>
+    <div class="stat-box">
+      <label>Estado</label>
+      <div id="turnoEstado">🔴 Turno detenido</div>
+    </div>
 
-        <button id="btnTurnoIniciar" class="btn btn-success">
-            ▶️ Iniciar turno
-        </button>
+    <div class="stat-box">
+      <label>Tiempo trabajado</label>
+      <div class="value" id="turnoTimer">--:--:--</div>
+    </div>
 
-        <button id="btnTurnoFinalizar" class="btn btn-danger hidden">
-            ⏹️ Finalizar turno
-        </button>
-    </section>
+    <button id="btnTurnoIniciar" class="btn btn-success">
+      ▶️ Iniciar turno
+    </button>
 
-    <!-- ========================== -->
-    <!-- 2️⃣ GASTOS INTELIGENTES -->
-    <!-- ========================== -->
-    <section class="card">
-        <h2>Gastos inteligentes</h2>
+    <button id="btnTurnoFinalizar" class="btn btn-danger hidden">
+      ⏹️ Finalizar turno
+    </button>
+  </section>
 
-        <p class="text-sec" style="margin-bottom: 0.75rem;">
-            Registra gastos únicos o recurrentes.  
-            Los recurrentes alimentan el Wallet.
-        </p>
+  <!-- 3️⃣ GASTOS INTELIGENTES -->
+  <section class="card">
+    <h2>Gastos inteligentes</h2>
+    <p>Registra gastos únicos o recurrentes.  
+       Los recurrentes alimentan el Wallet.</p>
 
-        <div class="grid-2">
-            <button id="btnGastoHogar" class="btn btn-outline">
-                🏠 Gasto hogar
-            </button>
+    <div class="grid-2">
+      <button id="btnGastoHogar" class="btn btn-outline">
+        🏠 Gasto hogar
+      </button>
+      <button id="btnGastoOperativo" class="btn btn-outline">
+        🛵 Gasto operativo
+      </button>
+    </div>
+  </section>
 
-            <button id="btnGastoOperativo" class="btn btn-outline">
-                🛵 Gasto operativo
-            </button>
-        </div>
-    </section>
+  <!-- 4️⃣ GASOLINA -->
+  <section class="card">
+    <h2>Gasolina</h2>
+    <p>Registro de carga de combustible</p>
 
-    <!-- ================= -->
-    <!-- 3️⃣ GASOLINA -->
-    <!-- ================= -->
-    <section class="card">
-        <h2>Gasolina</h2>
+    <button id="btnGasolina" class="btn btn-outline">
+      ⛽ Registrar gasolina
+    </button>
+  </section>
 
-        <div class="stat-box" style="margin-bottom: 1rem;">
-            <label>Kilometraje actual</label>
-            <div id="kmActual">-- km</div>
-        </div>
+  <!-- 5️⃣ DEUDAS -->
+  <section class="card">
+    <h2>Deudas</h2>
 
-        <button id="btnGasolina" class="btn btn-outline">
-            ⛽ Registrar repostaje
-        </button>
-    </section>
+    <button id="btnDeudaNueva" class="btn btn-primary">
+      ➕ Nueva deuda
+    </button>
 
-    <!-- ================= -->
-    <!-- 4️⃣ DEUDAS -->
-    <!-- ================= -->
-    <section class="card">
-        <h2>Deudas</h2>
+    <ul class="list-group" id="listaDeudasAdmin">
+      <!-- JS renderiza -->
+    </ul>
+  </section>
 
-        <button id="btnDeudaNueva" class="btn btn-primary" style="margin-bottom: 1rem;">
-            ➕ Registrar nueva deuda
-        </button>
+  <!-- 6️⃣ ABONOS -->
+  <section class="card">
+    <h2>Registrar abono</h2>
 
-        <ul id="listaDeudasAdmin" class="list-group">
-            <!-- render dinámico -->
-        </ul>
-    </section>
+    <select id="abonoDeudaSelect" class="input-control">
+      <option value="">-- Seleccionar deuda --</option>
+    </select>
 
-    <!-- ===================== -->
-    <!-- 5️⃣ ABONOS -->
-    <!-- ===================== -->
-    <section class="card">
-        <h2>Registrar abono</h2>
+    <div class="grid-2" style="margin-top:1rem">
+      <button id="btnAbonoCuota" class="btn btn-outline">
+        💵 Pagar cuota
+      </button>
+      <button id="btnAbonoCustom" class="btn btn-outline">
+        ✏️ Abono custom
+      </button>
+    </div>
+  </section>
 
-        <div class="input-group">
-            <label>Selecciona deuda</label>
-            <select id="abonoDeudaSelect" class="input-control">
-                <option value="">-- Selecciona una deuda --</option>
-            </select>
-        </div>
+  <!-- 7️⃣ META -->
+  <section class="card">
+    <h2>Meta diaria</h2>
+    <div class="stat-box">
+      <label>Meta calculada</label>
+      <div class="value text-green" id="metaDiariaValor">$0.00</div>
+    </div>
+  </section>
 
-        <div class="grid-2">
-            <button id="btnAbonoCuota" class="btn btn-outline">
-                💳 Pagar cuota
-            </button>
-
-            <button id="btnAbonoCustom" class="btn btn-outline">
-                ✏️ Abono manual
-            </button>
-        </div>
-    </section>
-
-    <!-- ===================== -->
-    <!-- 6️⃣ META DIARIA -->
-    <!-- ===================== -->
-    <section class="card">
-        <h2>Meta diaria</h2>
-
-        <div class="stat-box">
-            <label>Meta calculada</label>
-            <div id="metaDiariaValor">$0.00</div>
-        </div>
-    </section>
-
-    <!-- ===================== -->
-    <!-- 7️⃣ DATOS / BACKUP -->
-    <!-- ===================== -->
-    <section class="card">
-        <h2>Datos</h2>
-
-        <button id="btnExportJSON" class="btn btn-outline" style="margin-bottom: 0.5rem;">
-            📋 Copiar JSON
-        </button>
-
-        <button id="btnRestoreBackup" class="btn btn-outline">
-            ♻️ Restaurar datos
-        </button>
-    </section>
+  <!-- 8️⃣ BACKUP -->
+  <section class="card">
+    <h2>Datos</h2>
+    <button id="btnExportJSON" class="btn btn-outline">
+      📋 Copiar JSON
+    </button>
+    <button id="btnRestoreBackup" class="btn btn-outline">
+      ♻️ Restaurar JSON
+    </button>
+  </section>
 
 </main>
 
-<!-- ===================== -->
-<!-- NAVEGACIÓN INFERIOR -->
-<!-- ===================== -->
-<nav class="bottom-nav">
-    <a href="index.html" class="nav-link">📊<span>Panel</span></a>
-    <a href="wallet.html" class="nav-link">💰<span>Wallet</span></a>
-    <a href="admin.html" class="nav-link active">⚙️<span>Admin</span></a>
-    <a href="historial.html" class="nav-link">📜<span>Historial</span></a>
-</nav>
-
-<!-- ===================== -->
 <!-- MODAL GLOBAL -->
-<!-- ===================== -->
 <div id="appModal" class="modal-overlay">
-    <div class="modal">
-        <h3 id="modalTitle"></h3>
-        <div id="modalBody" class="modal-body"></div>
-        <div class="modal-actions">
-            <button id="modalCancel" class="btn btn-outline">Cancelar</button>
-            <button id="modalConfirm" class="btn btn-primary">Confirmar</button>
-        </div>
+  <div class="modal">
+    <h3 id="modalTitle"></h3>
+    <div id="modalBody" class="modal-body"></div>
+    <div class="modal-actions">
+      <button id="modalCancel" class="btn btn-outline">Cancelar</button>
+      <button id="modalConfirm" class="btn btn-primary">Confirmar</button>
     </div>
+  </div>
 </div>
+
+<!-- NAV FIJO (EN TODOS LOS HTML) -->
+<nav class="bottom-nav">
+  <a href="index.html" class="nav-link">📊 Panel</a>
+  <a href="wallet.html" class="nav-link">💰 Wallet</a>
+  <a href="admin.html" class="nav-link active">⚙️ Admin</a>
+  <a href="historial.html" class="nav-link">📜 Historial</a>
+</nav>
 
 <script type="module" src="05_init.js"></script>
 </body>
