@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Panel - Uber Tracker</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body data-page="index">
@@ -15,13 +15,13 @@
 </header>
 
 <main class="container">
-  <section class="card" id="cardResumen">
+  <section class="card">
     <h2>Resumen Hoy</h2>
     <div class="stats-grid">
       <div class="stat"><label>Horas</label><span id="resHoras">0.0h</span></div>
       <div class="stat"><label>Ganancia</label><span id="resGananciaBruta" style="color:#16a34a">$0.00</span></div>
     </div>
-    <div style="margin-top:15px">
+    <div style="margin-top:10px;">
         <div style="display:flex; justify-content:space-between; font-size:0.8rem;">
             <span>Meta: <b id="dashboardMeta">$0</b></span>
             <span id="progresoTexto">0%</span>
@@ -31,26 +31,16 @@
   </section>
 
   <section class="card">
-    <h2>⚠️ Alertas</h2>
-    <ul id="listaAlertas" class="alert-list"></ul>
+    <h2>Últimos 7 Días</h2>
+    <div class="chart-container"><canvas id="grafica"></canvas></div>
   </section>
 
   <section class="card">
-    <h2>Últimos Turnos</h2>
+    <h2>Historial Reciente</h2>
     <table class="tabla">
         <thead><tr><th>Fecha</th><th>H</th><th>KM</th><th>$$</th></tr></thead>
         <tbody id="tablaTurnos"></tbody>
     </table>
-  </section>
-
-  <section class="card">
-    <h2>Ingresos (14 Días)</h2>
-    <div class="chart-wrap"><canvas id="graficaGanancias"></canvas></div>
-  </section>
-  
-  <section class="card">
-    <h2>Rendimiento KM</h2>
-    <div class="chart-wrap"><canvas id="graficaKm"></canvas></div>
   </section>
 </main>
 <script type="module" src="05_init.js"></script>
