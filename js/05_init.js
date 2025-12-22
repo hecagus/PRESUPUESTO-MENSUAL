@@ -1,4 +1,4 @@
-/* 05_init.js - FIX ORQUESTACIÓN */
+/* 05_init.js */
 import { 
     loadData, getState, getDashboardStats, getAdminStats, getWalletStats,
     iniciarTurno, finalizarTurno, registrarGasolina, 
@@ -11,14 +11,12 @@ import { initCharts } from './04_charts.js';
 // --- REFRESCO REACTIVO (SIN RELOAD) ---
 const refreshUI = () => {
     const page = document.body.getAttribute('data-page');
-    
-    // Siempre cargar datos frescos
+    // Forzar lectura fresca de estado
     const s = getState();
     
     if (page === 'index') {
         const stats = getDashboardStats();
         Render.renderDashboard(stats);
-        // Reinicializar gráficas si el contexto existe
         if (typeof initCharts === 'function') initCharts();
     } else if (page === 'admin') {
         const stats = getAdminStats();
@@ -101,7 +99,7 @@ const bindEvents = () => {
         if(id && m) { registrarAbono(id, m); alert("Abono aplicado"); refreshUI(); }
     };
 
-    // Inyectar Botones Wizard si es Admin (Idempotente)
+    // Inyectar Botones Wizard Admin
     const cardTurnos = document.getElementById("cardTurnos");
     if (cardTurnos && !document.getElementById("btnWizardGas")) {
         const div = document.createElement("div");
@@ -115,18 +113,17 @@ const bindEvents = () => {
         `;
         cardTurnos.appendChild(div);
         
-        // Asignación directa sin listeners duplicados
         document.getElementById("btnWizardGas").onclick = wizardGasolina;
         document.getElementById("btnWizardGasto").onclick = wizardGastoInteligente;
     }
 };
 
-// --- INIT ---
+// --- INIT PRINCIPAL ---
 document.addEventListener("DOMContentLoaded", () => {
     // 1. Cargar Datos
     try { loadData(); } catch (e) { console.error("Error data", e); }
 
-    // 2. Renderizar Menú (Prioridad 1 para navegación)
+    // 2. Renderizar Menú (CRÍTICO: Prioridad 1)
     Render.renderGlobalMenu();
 
     // 3. Renderizar UI Inicial
@@ -138,6 +135,6 @@ document.addEventListener("DOMContentLoaded", () => {
         bindEvents();
     }
     
-    console.log(`Sistema v2.1 (Hotfix) cargado: ${page}`);
+    console.log(`Sistema v2.2 (Fix) cargado: ${page}`);
 });
 
