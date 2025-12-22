@@ -21,20 +21,28 @@
     <div id="turnoTexto" style="margin-bottom:15px; font-size:1.1rem; font-weight:bold; color:#64748b;">
         🔴 Sin turno activo
     </div>
-    
-    <button id="btnIniciarTurno" class="btn-success" style="width:100%; margin-bottom:10px;">▶ Iniciar Turno</button>
-    <button id="btnFinalizarTurno" class="btn-danger" style="display:none; width:100%; margin-bottom:10px;">⏹ Finalizar Turno</button>
+    <button id="btnIniciarTurno" class="btn-success" style="width:100%;">▶ Iniciar Turno</button>
+    <button id="btnFinalizarTurno" class="btn-danger" style="display:none; width:100%;">⏹ Finalizar Turno</button>
+  </section>
 
-    <hr style="margin:15px 0; border-color:#f1f5f9;">
+  <section class="card" style="border-left: 5px solid #f59e0b;">
+    <h2>⛽ Control de Gasolina</h2>
+    <p style="color:#64748b; font-size:0.9rem; margin-bottom:10px;">
+        Registra cada carga para calcular tu rendimiento real por KM.
+    </p>
+    <button id="btnWizardGas" class="btn-secondary" style="width:100%; background:#fff7ed; color:#c2410c; border:1px solid #fdba74; font-weight:bold; font-size:1rem; padding:15px;">
+        ⛽ Registrar Carga de Combustible
+    </button>
+  </section>
 
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-        <button id="btnWizardGas" class="btn-secondary" style="background:#fff7ed; color:#c2410c; border:1px solid #fdba74; font-weight:bold;">
-            ⛽ Gasolina
-        </button>
-        <button id="btnWizardGasto" class="btn-secondary" style="background:#eff6ff; color:#1d4ed8; border:1px solid #93c5fd; font-weight:bold;">
-            💸 Gasto
-        </button>
-    </div>
+  <section class="card" style="border-left: 5px solid #8b5cf6;">
+    <h2>💸 Registro de Gastos</h2>
+    <p style="color:#64748b; font-size:0.9rem; margin-bottom:10px;">
+        Gastos operativos (Moto) o personales (Hogar/Varios).
+    </p>
+    <button id="btnWizardGasto" class="btn-secondary" style="width:100%; background:#eff6ff; color:#1d4ed8; border:1px solid #93c5fd; font-weight:bold; font-size:1rem; padding:15px;">
+        💸 Registrar Nuevo Gasto
+    </button>
   </section>
 
   <section class="card">
@@ -47,13 +55,10 @@
 
   <section class="card">
     <h2>💳 Gestión de Deudas</h2>
-    
     <button id="btnWizardDeuda" class="btn-secondary" style="width:100%; margin-bottom:15px; border:1px dashed #94a3b8; color:#475569;">
         ➕ Registrar Nueva Deuda / Préstamo
     </button>
-
     <hr style="margin:15px 0; border-color:#f1f5f9;">
-
     <h3>📉 Abonar a Deuda</h3>
     <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
         <select id="abonoSeleccionar" style="padding:10px; border-radius:6px; border:1px solid #cbd5e1; background:#fff;"></select>
@@ -62,7 +67,6 @@
             <button id="btnRegistrarAbono" class="btn-success" style="flex:1;">Abonar</button>
         </div>
     </div>
-
     <ul id="listaDeudas" class="list" style="margin-top:20px; list-style:none; padding:0;"></ul>
   </section>
 
