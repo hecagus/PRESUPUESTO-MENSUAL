@@ -1,14 +1,13 @@
-/* 03_render.js - FIX RENDER PASIVO */
+/* 03_render.js */
 import { $, fmtMoney, formatearFecha } from './01_consts_utils.js';
 
 /* ==========================================================================
-   NAVEGACIÓN GLOBAL (FIX: Inyección segura)
+   NAVEGACIÓN GLOBAL (FIX: Inyección Robusta)
    ========================================================================== */
 export const renderGlobalMenu = () => {
-    // 1. Buscar contenedor
     let container = document.querySelector(".header-actions");
     
-    // 2. Si no existe, crearlo (Fix para HTMLs incompletos)
+    // Auto-reparación: Crear contenedor si no existe en HTML
     if (!container) {
         const header = document.querySelector(".header");
         if (header) {
@@ -16,14 +15,13 @@ export const renderGlobalMenu = () => {
             container.className = "header-actions";
             header.appendChild(container);
         } else {
-            return; // Fallo total de HTML
+            return; // HTML gravemente dañado
         }
     }
 
-    // 3. Idempotencia: Si ya existe, no duplicar
+    // Idempotencia: No duplicar menú
     if (document.getElementById("nav-dropdown-global")) return;
 
-    // 4. Inyección
     container.innerHTML = `
         <div id="nav-dropdown-global" class="nav-dropdown">
             <button class="btn-hamburger" type="button">☰</button>
@@ -36,7 +34,6 @@ export const renderGlobalMenu = () => {
         </div>
     `;
 
-    // 5. Listener Simple (Sin duplicados)
     const btn = container.querySelector(".btn-hamburger");
     const content = container.querySelector(".nav-content");
     
@@ -45,6 +42,7 @@ export const renderGlobalMenu = () => {
             e.stopPropagation();
             content.style.display = content.style.display === 'block' ? 'none' : 'block';
         };
+        // Cerrar al hacer click fuera
         document.addEventListener('click', (e) => {
             if (!container.contains(e.target)) content.style.display = 'none';
         });
@@ -52,7 +50,7 @@ export const renderGlobalMenu = () => {
 };
 
 /* ==========================================================================
-   DASHBOARD (FIX: Empty States y Barras)
+   DASHBOARD (FIX: Estados Vacíos y Progreso)
    ========================================================================== */
 export const renderDashboard = (stats) => {
     if (!stats) return;
@@ -64,15 +62,16 @@ export const renderDashboard = (stats) => {
     setTxt("dashboardMeta", `$${fmtMoney(stats.meta)}`);
     setTxt("progresoTexto", `${stats.progreso.toFixed(0)}%`);
 
-    // Fix Barra Progreso
+    // FIX: Barra de Progreso
     const barra = $("progresoBarra");
     if (barra) {
-        barra.style.width = `${Math.min(stats.progreso, 100)}%`;
-        // Asegurar que sea visible aunque sea 0%
-        if (stats.progreso === 0) barra.style.width = "2%"; 
+        const width = Math.min(stats.progreso, 100);
+        barra.style.width = `${width}%`;
+        // Asegura visibilidad mínima visual si es 0
+        if (stats.progreso === 0) barra.style.width = "2px"; 
     }
 
-    // Fix Alertas Vacías
+    // FIX: Alertas Vacías
     const listaAlertas = $("listaAlertas");
     if (listaAlertas) {
         if (stats.alertas && stats.alertas.length > 0) {
@@ -82,7 +81,7 @@ export const renderDashboard = (stats) => {
         }
     }
     
-    // Fix Tabla Turnos Vacía
+    // FIX: Tabla Vacía
     const tbody = $("tablaTurnos");
     if (tbody) {
         if (stats.turnosRecientes && stats.turnosRecientes.length > 0) {
