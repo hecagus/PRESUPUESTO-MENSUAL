@@ -1,73 +1,51 @@
-/* 03_render.js - VERSIÓN DEBUG */
+/* 03_render.js */
 import { $, fmtMoney, formatearFecha } from './01_consts_utils.js';
 
 /* ==========================================================================
-   NAVEGACIÓN GLOBAL (FIX: VISIBILIDAD)
+   NAVEGACIÓN GLOBAL (TU VERSIÓN INTEGRADA)
    ========================================================================== */
 export const renderGlobalMenu = () => {
-    console.log("🛠️ Intentando renderizar menú...");
-    
-    // 1. Buscar contenedor
-    let container = document.querySelector(".header-actions");
-    
-    // 2. Si no existe, crearlo y pegarlo al header
-    if (!container) {
-        console.warn("⚠️ .header-actions no existe. Creándolo manualmente.");
-        const header = document.querySelector(".header");
-        if (header) {
-            container = document.createElement("div");
-            container.className = "header-actions";
-            header.appendChild(container);
-        } else {
-            console.error("⛔ ERROR CRÍTICO: No hay <header> en el HTML.");
-            return;
-        }
-    }
+  const header = document.querySelector('.header');
+  if (!header) return;
 
-    // 3. Verificar si ya tiene contenido (Evitar duplicados)
-    if (document.getElementById("nav-dropdown-global")) {
-        console.log("✅ El menú ya existe. Saliendo.");
-        return;
-    }
+  let actions = header.querySelector('.header-actions');
+  if (!actions) {
+    actions = document.createElement('div');
+    actions.className = 'header-actions';
+    header.appendChild(actions);
+  }
 
-    // 4. Inyección HTML
-    container.innerHTML = `
-        <div id="nav-dropdown-global" class="nav-dropdown">
-            <button class="btn-hamburger" type="button" aria-label="Abrir Menú">☰</button>
-            <div class="nav-content">
-                <a href="index.html">📊 Panel Principal</a>
-                <a href="wallet.html">💰 Mi Alcancía</a>
-                <a href="admin.html">⚙️ Administración</a>
-                <a href="historial.html">📜 Historial</a>
-            </div>
-        </div>
-    `;
-    console.log("✅ HTML del menú inyectado.");
+  // IDEMPOTENCIA: Si ya existe, no lo volvemos a crear
+  if (document.getElementById('nav-dropdown-global')) return;
 
-    // 5. Listener
-    const btn = container.querySelector(".btn-hamburger");
-    const content = container.querySelector(".nav-content");
-    
-    if (btn && content) {
-        btn.onclick = (e) => {
-            e.stopPropagation();
-            // Toggle simple
-            if (content.style.display === 'block') {
-                content.style.display = 'none';
-                btn.style.backgroundColor = '#f1f5f9';
-            } else {
-                content.style.display = 'block';
-                btn.style.backgroundColor = '#cbd5e1';
-            }
-        };
-        // Cerrar al click fuera
-        document.addEventListener('click', (e) => {
-            if (!container.contains(e.target)) {
-                content.style.display = 'none';
-                btn.style.backgroundColor = '#f1f5f9';
-            }
-        });
+  // Inyección con estilos INLINE para garantizar visibilidad
+  actions.innerHTML = `
+    <div id="nav-dropdown-global" style="position:relative;">
+      <button class="btn-hamburger" type="button" style="display:block; cursor:pointer; font-size:1.5rem; background:transparent; border:1px solid #ccc; padding:5px 10px; border-radius:4px;">☰</button>
+      <div class="nav-content" style="display:none; position:absolute; right:0; top:120%; background:#fff; border:1px solid #e5e7eb; border-radius:8px; min-width:180px; z-index:3000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <a href="index.html" style="display:block; padding:12px; text-decoration:none; color:#333; border-bottom:1px solid #eee;">📊 Panel</a>
+        <a href="wallet.html" style="display:block; padding:12px; text-decoration:none; color:#333; border-bottom:1px solid #eee;">💰 Wallet</a>
+        <a href="admin.html" style="display:block; padding:12px; text-decoration:none; color:#333; border-bottom:1px solid #eee;">⚙️ Admin</a>
+        <a href="historial.html" style="display:block; padding:12px; text-decoration:none; color:#333;">📜 Historial</a>
+      </div>
+    </div>
+  `;
+
+  const btn = actions.querySelector('.btn-hamburger');
+  const menu = actions.querySelector('.nav-content');
+
+  // Toggle del menú
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+  };
+
+  // Cerrar al hacer click fuera (Listener permanente)
+  document.addEventListener('click', (e) => {
+    if (menu.style.display === 'block' && !actions.contains(e.target)) {
+        menu.style.display = 'none';
     }
+  });
 };
 
 /* ==========================================================================
@@ -86,7 +64,7 @@ export const renderDashboard = (stats) => {
     const barra = $("progresoBarra");
     if (barra) {
         barra.style.width = `${Math.min(stats.progreso, 100)}%`;
-        if (stats.progreso === 0) barra.style.width = "4px"; // Mínimo visible
+        if (stats.progreso === 0) barra.style.width = "4px"; 
     }
 
     const listaAlertas = $("listaAlertas");
@@ -194,4 +172,3 @@ export const renderWalletUI = (stats) => {
         elReal.style.color = stats.enMeta ? "#16a34a" : "#dc2626";
     }
 };
-
