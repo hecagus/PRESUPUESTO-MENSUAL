@@ -1,45 +1,21 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Wallet – Uber Tracker</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wallet</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body data-page="wallet">
-
 <header class="header">
-  <div class="header-top"><h1>💰 Mi Alcancía</h1></div>
-  <div class="header-actions"></div> </header>
-
+  <div class="header-top"><h1>💰 Wallet</h1></div>
+  <div class="header-actions"></div>
+</header>
 <main class="container">
-
-  <section class="card" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white;">
-    <h2>Estado Global</h2>
-    <p style="color:#94a3b8; margin-bottom:20px; font-size:0.9rem;">Dinero que deberías tener acumulado hoy.</p>
-    
-    <div class="stats-grid">
-        <div class="stat">
-            <label style="color:#cbd5e1">Debiste guardar:</label>
-            <span id="walletTotalObligado" style="color:#fca5a5; font-size:1.5rem">$0.00</span>
-        </div>
-        <div class="stat">
-            <label style="color:#cbd5e1">Saldo Real (Est.):</label>
-            <span id="walletSaldoReal" style="color:#fff; font-size:1.5rem">$0.00</span>
-        </div>
-    </div>
+  <section class="card" style="background: linear-gradient(135deg, #1e293b, #0f172a); color:white;">
+    <h2>Estado Financiero</h2>
+    <p>Próximamente: Análisis detallado de ahorro vs deuda.</p>
   </section>
-
-  <section class="card">
-    <h2>ℹ️ ¿Cómo funciona?</h2>
-    <p style="font-size:0.9rem; color:#64748b; line-height:1.6;">
-        El sistema suma tu <b>Meta Diaria</b> acumulada hasta la fecha y la compara con tu <b>Saldo Real</b> (Ingresos - Gastos).
-        <br><br>
-        🟢 <b>Verde:</b> Tienes el dinero suficiente.<br>
-        🔴 <b>Rojo:</b> Te gastaste dinero de la renta/deudas.
-    </p>
-  </section>
-
 </main>
 <script type="module" src="05_init.js"></script>
 </body>
