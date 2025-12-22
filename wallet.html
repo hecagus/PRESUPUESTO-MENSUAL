@@ -2,43 +2,40 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Wallet - Uber Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Wallet</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body data-page="wallet">
 
 <header class="header">
-  <div class="header-top"><h1>💰 Wallet & Finanzas</h1></div>
-  <div class="header-actions"></div>
+  <h1>💰 Wallet</h1>
 </header>
 
 <main class="container">
   <section class="card" style="background: linear-gradient(135deg, #1e293b, #0f172a); color:white;">
-    <h2>Resumen Financiero</h2>
-    
+    <h2>Estado Global</h2>
     <div class="stats-grid">
         <div class="stat">
             <label style="color:#cbd5e1">Debiste guardar:</label>
             <span id="walletEsperado" style="color:#fca5a5">$0.00</span>
         </div>
         <div class="stat">
-            <label style="color:#cbd5e1">Saldo Real (Caja):</label>
+            <label style="color:#cbd5e1">Saldo Real:</label>
             <span id="walletReal" style="color:#fff">$0.00</span>
         </div>
     </div>
   </section>
 
-  <section class="card border-orange">
-    <h2>⛽ Rendimiento Gasolina</h2>
+  <section class="card">
+    <h2>⛽ Rendimiento</h2>
     <div class="stat">
-        <label>Costo Promedio por KM</label>
-        <span id="walletGas" style="font-size:1.8rem; color:#d97706">$0.00 / km</span>
+        <label>Costo Promedio</label>
+        <span id="walletGas" style="font-size:1.8rem; color:#d97706">--</span>
     </div>
-    <p style="font-size:0.8rem; color:#64748b; margin-top:5px;">Calculado en base a tus cargas de combustible registradas.</p>
   </section>
 </main>
-
 <script type="module" src="05_init.js"></script>
 </body>
 </html>
+
