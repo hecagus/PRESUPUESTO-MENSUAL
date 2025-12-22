@@ -9,15 +9,14 @@
 <body data-page="wallet">
 
 <header class="header">
-  <h1>💰 Mi Alcancía</h1>
-  <div class="header-actions"></div>
-</header>
+  <div class="header-top"><h1>💰 Mi Alcancía</h1></div>
+  <div class="header-actions"></div> </header>
 
 <main class="container">
 
   <section class="card" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white;">
     <h2>Estado Global</h2>
-    <p style="color:#94a3b8; margin-bottom:20px">Dinero que deberías tener acumulado hoy.</p>
+    <p style="color:#94a3b8; margin-bottom:20px; font-size:0.9rem;">Dinero que deberías tener acumulado hoy.</p>
     
     <div class="stats-grid">
         <div class="stat">
@@ -33,11 +32,15 @@
 
   <section class="card">
     <h2>ℹ️ ¿Cómo funciona?</h2>
-    <p>Este saldo se calcula basándose en tu Meta Diaria multiplicada por el día actual del mes, comparado contra tus ingresos netos reales.</p>
+    <p style="font-size:0.9rem; color:#64748b; line-height:1.6;">
+        El sistema suma tu <b>Meta Diaria</b> acumulada hasta la fecha y la compara con tu <b>Saldo Real</b> (Ingresos - Gastos).
+        <br><br>
+        🟢 <b>Verde:</b> Tienes el dinero suficiente.<br>
+        🔴 <b>Rojo:</b> Te gastaste dinero de la renta/deudas.
+    </p>
   </section>
 
 </main>
-
 <script type="module" src="05_init.js"></script>
 </body>
 </html>
