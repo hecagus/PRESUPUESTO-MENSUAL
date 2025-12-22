@@ -1,4 +1,4 @@
-/* style.css - FIX VISIBILIDAD MENÚ */
+/* style.css - FUENTE DE VERDAD */
 
 :root {
   --primary: #2563eb;
@@ -20,7 +20,7 @@ body {
   line-height: 1.5;
 }
 
-/* HEADER */
+/* HEADER & MENU */
 .header { 
   background: var(--card-bg); 
   padding: 15px 20px; 
@@ -31,7 +31,9 @@ body {
   position: sticky; 
   top: 0; 
   z-index: 1000;
-  height: 70px; /* Altura fija para evitar colapso */
+  height: 70px;
+  /* CRÍTICO: Permite que el menú se salga del header */
+  overflow: visible !important; 
 }
 .header h1 { font-size: 1.2rem; font-weight: 700; color: #1e293b; }
 
@@ -40,48 +42,34 @@ body {
     display: flex; 
     align-items: center;
     justify-content: flex-end;
-    min-width: 50px; /* Asegura espacio para el botón */
-    min-height: 40px;
+    z-index: 2000; /* Prioridad sobre el título */
 }
 
-/* MENÚ HAMBURGUESA - ALTA VISIBILIDAD */
+/* MENÚ HAMBURGUESA (Estilos base por si falla inline) */
 .btn-hamburger { 
-    background-color: #f1f5f9; /* Fondo Gris Claro */
-    border: 2px solid #cbd5e1; /* Borde visible */
-    color: #0f172a; /* Texto Oscuro */
-    padding: 8px 12px; 
+    background-color: #f1f5f9;
+    border: 2px solid #cbd5e1;
+    color: #0f172a;
+    padding: 5px 10px; 
     border-radius: 6px; 
     cursor: pointer; 
     font-size: 1.5rem; 
     line-height: 1;
-    display: block !important; /* FORZADO */
-    visibility: visible !important; /* FORZADO */
-    opacity: 1 !important; /* FORZADO */
-    z-index: 1001;
-    width: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: block !important;
+    z-index: 2001;
 }
 
-.btn-hamburger:hover {
-    background-color: #e2e8f0;
-    border-color: #94a3b8;
-}
-
-/* DROPDOWN */
 .nav-dropdown .nav-content {
     display: none; 
     position: absolute; 
     right: 0; 
-    top: 120%; /* Debajo del botón */
+    top: 120%; 
     background: white; 
     border: 1px solid #e2e8f0; 
     border-radius: 8px; 
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); 
-    width: 220px; 
-    z-index: 2000;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.15); 
+    width: 200px; 
+    z-index: 3000;
 }
 
 .nav-content a { 
@@ -93,54 +81,51 @@ body {
     font-weight: 500;
 }
 
-.nav-content a:active, .nav-content a:hover {
-    background-color: #eff6ff;
-    color: var(--primary);
-}
-/* === FIX CRÍTICO: VISIBILIDAD MENÚ HAMBURGUESA === */
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header-actions {
-  position: relative;
-  min-width: 44px;
-  min-height: 44px;
-}
-
-.btn-hamburger {
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  font-size: 1.5rem;
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  color: #0f172a;
-  cursor: pointer;
-  z-index: 2000;
-}
-
-/* RESTO DEL CSS (Layout, Cards, Utils) */
+/* LAYOUT & CARDS */
 .container { max-width: 800px; margin: 20px auto; padding: 0 15px; }
-.card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid #e2e8f0; }
+
+.card { 
+  background: var(--card-bg); 
+  padding: 20px; 
+  border-radius: 12px; 
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+  margin-bottom: 20px; 
+  border: 1px solid #e2e8f0;
+}
+
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 .stat label { display: block; font-size: 0.85rem; color: var(--gray); }
 .stat span { font-size: 1.5rem; font-weight: 700; color: var(--text); }
+
+/* PROGRESO */
 .progress-bg { background: #e2e8f0; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 5px; width: 100%; }
 .progress-fill { background: var(--success); height: 100%; transition: width 0.3s ease; min-width: 5px; }
-.chart-wrap { position: relative; height: 250px; width: 100%; min-height: 250px; display: block; }
+
+/* GRÁFICAS */
+.chart-wrap { 
+    position: relative; 
+    height: 250px; 
+    width: 100%; 
+    min-height: 250px; 
+    display: block;
+}
+
+/* TABLAS Y LISTAS */
 .tabla { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 10px; }
 .tabla th { text-align: left; padding: 10px; border-bottom: 2px solid #e2e8f0; color: var(--gray); }
 .tabla td { padding: 10px; border-bottom: 1px solid #f1f5f9; }
+
 .alert-list { list-style: none; margin: 0; padding: 0; }
-.alert-list li { background: #fffbeb; color: #b45309; padding: 10px; border-radius: 6px; margin-bottom: 8px; border: 1px solid #fcd34d; }
+.alert-list li { 
+    background: #fffbeb; 
+    color: #b45309; 
+    padding: 10px; 
+    border-radius: 6px; 
+    margin-bottom: 8px; 
+    border: 1px solid #fcd34d; 
+}
+
+/* UTILS */
 .btn-success { background: var(--success); color: white; width: 100%; padding: 12px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; }
 .btn-danger { background: var(--danger); color: white; width: 100%; padding: 12px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; }
 .btn-secondary { background: #f1f5f9; color: var(--text); border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; cursor: pointer; }
-
