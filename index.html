@@ -3,65 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Finanzas Moto</title>
+    <title>Panel</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body data-page="index">
-    <header class="header">
-        <h1>📊 Mi Ruta · Mi Lana</h1>
-        <nav class="bottom-nav">
-  <a data-page="index" href="index.html">📊</a>
-  <a data-page="wallet" href="wallet.html">💰</a>
-  <a data-page="admin" href="admin.html">⚙️</a>
-  <a data-page="historial" href="historial.html">📜</a>
-</nav>
-    </header>
-
-    <main class="container">
-        <section class="card">
+    <div class="header"><h1>📊 Mi Ruta · Mi Lana</h1></div>
+    <div class="container">
+        <div class="card">
             <h2>Resumen de Hoy</h2>
             <div class="grid-2">
-                <div class="stat-box">
-                    <label>Horas</label>
-                    <div class="value" id="valHoras">0.0h</div>
-                </div>
-                <div class="stat-box">
-                    <label>Ganancia</label>
-                    <div class="value text-green" id="valGanancia">$0.00</div>
-                </div>
+                <div class="stat-box"><label>Horas</label><div class="value" id="valHoras">0.0h</div></div>
+                <div class="stat-box"><label>Ganancia</label><div class="value text-green" id="valGanancia">$0.00</div></div>
             </div>
-            
-            <div style="margin-top: 1.5rem;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <small>Meta: <span id="valMeta">$0</span></small>
-                    <small id="txtProgreso">0%</small>
-                </div>
-                <div style="background:#e2e8f0; height:10px; border-radius:5px; overflow:hidden;">
-                    <div id="barProgreso" style="background:var(--success); width:0%; height:100%; transition:width 0.5s;"></div>
-                </div>
-            </div>
-        </section>
-
-        <section class="card">
-            <h2>Ganancias (7 Días)</h2>
-            <div style="height: 200px;">
-                <canvas id="chartGanancias"></canvas>
-            </div>
-        </section>
-    </main>
-
-    <div id="appModal" class="modal-overlay">
-        <div class="modal">
-            <h3 id="modalTitle">Título</h3>
-            <div id="modalBody" class="modal-body"></div>
-            <div class="modal-actions">
-                <button id="modalCancel" class="btn btn-outline" style="width:auto">Cancelar</button>
-                <button id="modalConfirm" class="btn btn-primary" style="width:auto">Confirmar</button>
+            <div style="margin-top:1rem">
+                <div style="display:flex; justify-content:space-between"><small>Meta: <span id="valMeta">$0</span></small><small id="txtProgreso">0%</small></div>
+                <div style="background:#e2e8f0; height:8px; border-radius:4px; overflow:hidden"><div id="barProgreso" style="background:var(--success); width:0%; height:100%"></div></div>
             </div>
         </div>
+        <div class="card"><h2>Ganancias (7 Días)</h2><div style="height:200px"><canvas id="chartGanancias"></canvas></div></div>
     </div>
-
+    
+    <div id="appModal" class="modal-overlay"><div class="modal"><h3 id="modalTitle"></h3><div id="modalBody" class="modal-body"></div><div class="modal-actions"><button id="modalCancel" class="btn btn-outline">Cancelar</button><button id="modalConfirm" class="btn btn-primary">Confirmar</button></div></div></div>
     <script type="module" src="05_init.js"></script>
 </body>
 </html>
