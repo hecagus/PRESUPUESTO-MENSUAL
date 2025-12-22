@@ -1,4 +1,4 @@
-/* 05_init.js - FUENTE DE VERDAD CORREGIDA */
+/* 05_init.js - LÓGICA CONECTADA Y WIZARDS */
 import {
   loadData,
   iniciarTurno,
@@ -23,130 +23,66 @@ import { $, CATEGORIAS_GASTOS, safeNumber } from "./01_consts_utils.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   loadData();
-  renderGlobalMenu();
+  renderGlobalMenu(); // Inyecta el menú inferior
 
   const page = document.body.dataset.page;
 
   if (page === "admin") {
     renderAdminUI();
 
-    // --- LOGICA DE BOTONES ---
+    /* --- EVENTOS DE BOTONES (IDs VERIFICADOS) --- */
+    
+    // Turnos
+    const btnI = $("btnIniciarTurno");
+    if(btnI) btnI.onclick = () => {
+        const km = prompt("🏎️ KM Inicial:");
+        if (km && safeNumber(km) > 0) { iniciarTurno(km); renderAdminUI(); }
+    };
 
-    // 1. Turnos (Estos IDs sí coincidían, están OK)
-    const btnIniciar = $("btnIniciarTurno");
-    if (btnIniciar) {
-        btnIniciar.onclick = () => {
-          const km = prompt("🏎️ KM inicial del tablero:");
-          // Validación estricta para no iniciar con cancel o vacío
-          if (km !== null && safeNumber(km) > 0) {
-            iniciarTurno(km);
-            renderAdminUI();
-          } else if (km !== null) {
-            alert("❌ El KM debe ser mayor a 0");
-          }
-        };
-    }
+    const btnF = $("btnFinalizarTurno");
+    if(btnF) btnF.onclick = () => {
+        const km = prompt("🏁 KM Final:");
+        const g = prompt("💵 Ganancia ($):");
+        if (km && g) { finalizarTurno(km, g); renderAdminUI(); }
+    };
 
-    const btnFinalizar = $("btnFinalizarTurno");
-    if (btnFinalizar) {
-        btnFinalizar.onclick = () => {
-          const km = prompt("🏁 KM final del tablero:");
-          if (km === null) return; // Cancelado
-          const g = prompt("💵 Ganancia Total ($):");
-          if (g === null) return; // Cancelado
-
-          if (safeNumber(km) > 0 && safeNumber(g) >= 0) {
-            finalizarTurno(km, g);
-            renderAdminUI();
-          } else {
-            alert("❌ Datos inválidos");
-          }
-        };
-    }
-
-    // 2. Gasolina (CORREGIDO: btnGas -> btnWizardGas)
+    // Gasolina
     const btnGas = $("btnWizardGas");
-    if (btnGas) {
-        btnGas.onclick = () => {
-          const l = prompt("⛽ Litros cargados:");
-          if (!l) return;
-          const c = prompt("💰 Costo Total ($):");
-          if (!c) return;
-          const k = prompt("🏎️ KM Actual:");
-          if (!k) return;
+    if(btnGas) btnGas.onclick = () => {
+        const l = prompt("⛽ Litros:");
+        const c = prompt("💰 Costo ($):");
+        const k = prompt("🏎️ KM Actual:");
+        if(l && c && k) { registrarGasolina(l, c, k); alert("Registrado"); renderAdminUI(); }
+    };
 
-          if (safeNumber(l) > 0 && safeNumber(c) > 0 && safeNumber(k) > 0) {
-            registrarGasolina(l, c, k);
-            alert("✅ Gasolina registrada");
-            renderAdminUI();
-          } else {
-            alert("❌ Datos numéricos inválidos");
-          }
-        };
-    }
-
-    // 3. Gastos (CORREGIDO: btnGasto -> btnWizardGasto)
+    // Gastos
     const btnGasto = $("btnWizardGasto");
-    if (btnGasto) {
-        btnGasto.onclick = () => {
-          const tipo = prompt("Tipo:\n1. 🛵 Moto\n2. 🏠 Hogar");
-          if (tipo !== "1" && tipo !== "2") return;
-          
-          const list = tipo === "1" ? CATEGORIAS_GASTOS.moto : CATEGORIAS_GASTOS.hogar;
-          const sel = prompt("Selecciona #:\n" + list.map((c, i) => `${i + 1}. ${c}`).join("\n"));
-          const cat = list[sel - 1];
-          
-          if (!cat) return alert("❌ Opción inválida");
-          
-          const m = prompt(`💰 Monto para ${cat}:`);
-          if (m && safeNumber(m) > 0) {
-            agregarMovimiento("gasto", cat, m, tipo === "1" ? "Moto" : "Hogar");
-            renderAdminUI();
-          }
-        };
-    }
+    if(btnGasto) btnGasto.onclick = () => {
+        const tipo = prompt("1. Moto\n2. Hogar");
+        if(tipo!=="1" && tipo!=="2") return;
+        const list = tipo==="1" ? CATEGORIAS_GASTOS.moto : CATEGORIAS_GASTOS.hogar;
+        const sel = prompt("Selecciona #:\n" + list.map((c,i)=>`${i+1}. ${c}`).join("\n"));
+        const cat = list[sel-1];
+        const m = prompt("Monto ($):");
+        if(cat && m) { agregarMovimiento("gasto", cat, m, tipo==="1"?"Moto":"Hogar"); renderAdminUI(); }
+    };
 
-    // 4. Deudas (CORREGIDO: btnDeuda -> btnWizardDeuda)
+    // Deudas
     const btnDeuda = $("btnWizardDeuda");
-    if (btnDeuda) {
-        btnDeuda.onclick = () => {
-          const d = prompt("📝 Nombre de la Deuda:");
-          if (!d) return;
-          const t = prompt("💰 Total a pagar ($):");
-          if (!t) return;
-          const c = prompt("📅 Cuota mensual ($):");
-          
-          if (safeNumber(t) > 0 && safeNumber(c) > 0) {
-            agregarDeuda(d, t, c, "Mensual");
-            renderAdminUI();
-          } else {
-             alert("❌ Montos inválidos");
-          }
-        };
-    }
+    if(btnDeuda) btnDeuda.onclick = () => {
+        const d = prompt("Nombre Deuda:");
+        const t = prompt("Total ($):");
+        const c = prompt("Cuota ($):");
+        if(d && t && c) { agregarDeuda(d, t, c, "Mensual"); renderAdminUI(); }
+    };
 
-    // 5. Abonos (Este estaba OK)
+    // Abonos
     const btnAbono = $("btnRegistrarAbono");
-    if (btnAbono) {
-        btnAbono.onclick = () => {
-          const elSelect = $("abonoSeleccionar");
-          const elMonto = $("abonoMonto");
-          
-          if (!elSelect || !elMonto) return;
-
-          const id = elSelect.value;
-          const m = safeNumber(elMonto.value);
-          
-          if (id && m > 0) {
-            registrarAbono(id, m);
-            elMonto.value = "";
-            renderAdminUI();
-            alert("✅ Abono registrado");
-          } else {
-            alert("❌ Selecciona deuda y monto mayor a 0");
-          }
-        };
-    }
+    if(btnAbono) btnAbono.onclick = () => {
+        const id = $("abonoSeleccionar").value;
+        const m = $("abonoMonto").value;
+        if(id && m) { registrarAbono(id, m); $("abonoMonto").value=""; renderAdminUI(); alert("Abono registrado"); }
+    };
   }
 
   if (page === "index") {
@@ -157,3 +93,4 @@ document.addEventListener("DOMContentLoaded", () => {
   if (page === "historial") renderHistorial();
   if (page === "wallet") renderWallet();
 });
+
