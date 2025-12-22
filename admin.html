@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Admin - Uber Tracker</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body data-page="admin">
 
@@ -14,39 +14,44 @@
 </header>
 
 <main class="container">
-  <section class="card border-blue">
-    <h2>⏱️ Control de Turno</h2>
-    <div id="turnoTexto" style="margin-bottom:10px; font-weight:bold;">...</div>
-    <button id="btnIniciarTurno" class="btn btn-success">▶ Iniciar</button>
-    <button id="btnFinalizarTurno" class="btn btn-danger" style="display:none">⏹ Finalizar</button>
+
+  <section class="card" style="border-left: 5px solid #3b82f6;">
+    <h2>⏱️ Turno</h2>
+    <div id="turnoTexto" style="margin-bottom:10px; font-weight:bold; color:#64748b;">🔴 ...</div>
+    <button id="btnIniciarTurno" class="btn-success">▶ Iniciar</button>
+    <button id="btnFinalizarTurno" class="btn-danger" style="display:none;">⏹ Finalizar</button>
   </section>
 
-  <section class="card border-orange">
+  <section class="card" style="border-left: 5px solid #f59e0b;">
     <h2>🚀 Acciones Rápidas</h2>
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-        <button id="btnGas" class="btn btn-sec">⛽ Gasolina</button>
-        <button id="btnGasto" class="btn btn-sec">💸 Gasto</button>
+        <button id="btnWizardGas" class="btn-secondary" style="border-color:#f59e0b; color:#b45309;">⛽ Gasolina</button>
+        <button id="btnWizardGasto" class="btn-secondary" style="border-color:#8b5cf6; color:#6d28d9;">💸 Gasto</button>
     </div>
   </section>
 
-  <section class="card border-purple">
-    <h2>🎯 Finanzas & Deudas</h2>
-    <div style="text-align:center; margin-bottom:10px;">
-        <small>Meta Diaria:</small>
-        <h1 id="metaDiariaDisplay" style="color:#16a34a">$0.00</h1>
+  <section class="card">
+    <h2>🎯 Meta Diaria</h2>
+    <div style="text-align:center; padding:15px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
+        <h1 id="metaDiariaDisplay" style="color:#166534; font-size:2rem; margin:0;">$0.00</h1>
     </div>
+  </section>
+
+  <section class="card" style="border-left: 5px solid #ef4444;">
+    <h2>💳 Deudas</h2>
+    <button id="btnWizardDeuda" class="btn-secondary" style="margin-bottom:15px;">➕ Nueva Deuda</button>
     
-    <button id="btnDeuda" class="btn btn-sec">➕ Nueva Deuda</button>
-    
-    <div style="background:#f1f5f9; padding:10px; border-radius:8px; margin-top:10px;">
-        <select id="abonoSeleccionar"></select>
+    <div style="background:#f8fafc; padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #e2e8f0;">
+        <select id="abonoSeleccionar" style="margin-bottom:10px; width:100%; padding:8px;"></select>
         <div style="display:flex; gap:5px;">
-            <input type="number" id="abonoMonto" placeholder="$ Monto">
-            <button id="btnRegistrarAbono" class="btn btn-primary" style="width:auto">Pagar</button>
+            <input type="number" id="abonoMonto" placeholder="$ Monto" style="flex:1; padding:8px;">
+            <button id="btnRegistrarAbono" class="btn-success" style="width:auto;">Abonar</button>
         </div>
     </div>
-    <ul id="listaDeudas" style="margin-top:10px; list-style:none;"></ul>
+    
+    <ul id="listaDeudas" class="alert-list"></ul>
   </section>
+
 </main>
 <script type="module" src="05_init.js"></script>
 </body>
