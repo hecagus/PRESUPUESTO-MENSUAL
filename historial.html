@@ -1,26 +1,48 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historial</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Historial</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body data-page="historial">
-    <div class="header"><h1>📜 Historial</h1></div>
-    <div class="container">
-        <div class="card">
-            <h2>Rendimiento ($/KM)</h2>
-            <div style="height:150px"><canvas id="chartGas"></canvas></div>
-        </div>
-        <div class="card">
-            <h2>Movimientos</h2>
-            <div class="table-wrap">
-                <table><thead><tr><th>Fecha</th><th>Desc</th><th>$$</th></tr></thead><tbody id="tablaBody"></tbody></table>
-            </div>
-        </div>
-    </div>
-    <script type="module" src="05_init.js"></script>
+
+<header class="header">
+  <h1>📜 Historial</h1>
+</header>
+
+<main class="container">
+  <section class="card">
+    <h2>Movimientos</h2>
+    <table>
+      <thead>
+        <tr><th>Fecha</th><th>Concepto</th><th>Monto</th></tr>
+      </thead>
+      <tbody id="tablaBody"></tbody>
+    </table>
+  </section>
+</main>
+
+<nav class="bottom-nav">
+  <a href="index.html" class="nav-link">
+    <span class="icon">📊</span>
+    <span class="label">Panel</span>
+  </a>
+  <a href="wallet.html" class="nav-link">
+    <span class="icon">💰</span>
+    <span class="label">Wallet</span>
+  </a>
+  <a href="admin.html" class="nav-link">
+    <span class="icon">⚙️</span>
+    <span class="label">Admin</span>
+  </a>
+  <a href="historial.html" class="nav-link active">
+    <span class="icon">📜</span>
+    <span class="label">Historial</span>
+  </a>
+</nav>
+
+<script type="module" src="05_init.js"></script>
 </body>
 </html>
