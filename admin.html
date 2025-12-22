@@ -1,55 +1,60 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Admin - Uber Tracker</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Finanzas Moto</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body data-page="admin">
+    <header class="header">
+        <h1>⚙️ Administración</h1>
+      <nav class="bottom-nav">
+  <a data-page="index" href="index.html">📊</a>
+  <a data-page="wallet" href="wallet.html">💰</a>
+  <a data-page="admin" href="admin.html">⚙️</a>
+  <a data-page="historial" href="historial.html">📜</a>
+</nav>
+    </header>
 
-<header class="header">
-  <h1>⚙️ Administración</h1>
-</header>
+    <main class="container">
+        <section class="card" style="border-left: 5px solid var(--primary);">
+            <h2>Control de Turno</h2>
+            <div id="statusTurno" style="margin-bottom: 1rem;">Cargando...</div>
+            <button id="btnIniciar" class="btn btn-success hidden">▶ Iniciar Turno</button>
+            <button id="btnFinalizar" class="btn btn-danger hidden">⏹ Finalizar Turno</button>
+        </section>
 
-<main class="container">
-  <section class="card" style="border-left: 5px solid #3b82f6;">
-    <h2>⏱️ Turno</h2>
-    <div id="turnoTexto" style="margin-bottom:15px; font-weight:bold; color:#64748b;">🔴 Sin turno</div>
-    <button id="btnIniciarTurno" class="btn btn-success">▶ Iniciar Turno</button>
-    <button id="btnFinalizarTurno" class="btn btn-danger" style="display:none">⏹ Finalizar</button>
-  </section>
+        <section class="card">
+            <h2>Acciones Rápidas</h2>
+            <div class="grid-2">
+                <button id="btnGasolina" class="btn btn-outline" style="border-color:var(--warning); color:var(--warning);">⛽ Gasolina</button>
+                <button id="btnGasto" class="btn btn-outline" style="border-color:var(--danger); color:var(--danger);">💸 Gasto</button>
+            </div>
+        </section>
 
-  <section class="card" style="border-left: 5px solid #f59e0b;">
-    <h2>🚀 Acciones</h2>
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-        <button id="btnWizardGas" class="btn btn-sec">⛽ Gasolina</button>
-        <button id="btnWizardGasto" class="btn btn-sec">💸 Gasto</button>
-    </div>
-  </section>
+        <section class="card">
+            <h2>Configuración Financiera</h2>
+            <div class="stat-box" style="text-align:center; margin-bottom:1rem;">
+                <label>Meta Diaria Calculada</label>
+                <div class="value text-green" id="valMetaCalc">$0.00</div>
+            </div>
+            <button id="btnDeuda" class="btn btn-primary" style="margin-bottom:0.5rem;">➕ Agregar Deuda</button>
+            <button id="btnJson" class="btn btn-outline">📂 Restaurar Backup JSON</button>
+        </section>
+    </main>
 
-  <section class="card">
-    <h2>🎯 Meta Diaria</h2>
-    <div style="text-align:center; padding:15px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
-        <h1 id="metaDiariaDisplay" style="color:#166534; font-size:2rem; margin:0;">$0.00</h1>
-    </div>
-  </section>
-
-  <section class="card" style="border-left: 5px solid #ef4444;">
-    <h2>💳 Deudas</h2>
-    <button id="btnWizardDeuda" class="btn btn-sec" style="margin-bottom:15px;">➕ Nueva Deuda</button>
-    
-    <div style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
-        <select id="abonoSeleccionar" style="width:100%; padding:10px; margin-bottom:10px;"></select>
-        <div style="display:flex; gap:5px;">
-            <input type="number" id="abonoMonto" placeholder="$ Monto" style="flex:1; padding:10px;">
-            <button id="btnRegistrarAbono" class="btn btn-success" style="width:auto;">Abonar</button>
+    <div id="appModal" class="modal-overlay">
+        <div class="modal">
+            <h3 id="modalTitle"></h3>
+            <div id="modalBody" class="modal-body"></div>
+            <div class="modal-actions">
+                <button id="modalCancel" class="btn btn-outline" style="width:auto">Cancelar</button>
+                <button id="modalConfirm" class="btn btn-primary" style="width:auto">Confirmar</button>
+            </div>
         </div>
     </div>
-    <ul id="listaDeudas" style="list-style:none; padding:0; margin-top:10px;"></ul>
-  </section>
-</main>
-<script type="module" src="05_init.js"></script>
+
+    <script type="module" src="05_init.js"></script>
 </body>
 </html>
-
