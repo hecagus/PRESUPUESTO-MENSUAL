@@ -1,19 +1,19 @@
-/* 02_data.js */
+/* 02_data.js - CEREBRO DE DATOS */
 import { STORAGE_KEY, DIAS_POR_FRECUENCIA, safeNumber, isSameDay } from './01_consts_utils.js';
 
 const DEFAULT_PANEL_DATA = {
     ingresos: [],
     gastos: [],
     turnos: [],
-    movimientos: [], // Historial plano
-    cargasCombustible: [], // Array crítico para rendimiento
+    movimientos: [], 
+    cargasCombustible: [], 
     deudas: [],
-    gastosFijosMensuales: [], // Objetos para Meta Diaria
+    gastosFijosMensuales: [], 
     parametros: {
-        gastoFijo: 0, // Meta Diaria Calculada
-        ultimoKMfinal: 0, // Odómetro global
-        costoPorKm: 0, // Métrica de rendimiento
-        mantenimientoBase: { 'Aceite (KM)': 3000, 'Bujía (KM)': 8000 }
+        gastoFijo: 0, // Meta Diaria
+        ultimoKMfinal: 0, 
+        costoPorKm: 0, 
+        mantenimientoBase: { 'Aceite (KM)': 3000 }
     }
 };
 
@@ -25,11 +25,8 @@ export const getState = () => panelData;
 
 export const saveData = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(panelData));
-    if (turnoActivo) {
-        localStorage.setItem("turnoActivo", JSON.stringify(turnoActivo));
-    } else {
-        localStorage.removeItem("turnoActivo");
-    }
+    if (turnoActivo) localStorage.setItem("turnoActivo", JSON.stringify(turnoActivo));
+    else localStorage.removeItem("turnoActivo");
 };
 
 export const loadData = () => {
@@ -38,134 +35,112 @@ export const loadData = () => {
         try {
             const parsed = JSON.parse(data);
             panelData = { ...DEFAULT_PANEL_DATA, ...parsed, parametros: { ...DEFAULT_PANEL_DATA.parametros, ...parsed.parametros } };
-        } catch (e) { console.error("Error data", e); }
+        } catch (e) { console.error(e); }
     }
     recalcularMetaDiaria();
 };
 
-// ==========================================
-// A. LÓGICA DE META DIARIA (Killer Feature)
-// ==========================================
+// --- CÁLCULOS MATEMÁTICOS ---
 export const recalcularMetaDiaria = () => {
-    // 1. Gastos Fijos (Prorrateo)
-    const totalFijosDiarios = panelData.gastosFijosMensuales.reduce((sum, g) => {
+    const totalFijos = panelData.gastosFijosMensuales.reduce((sum, g) => {
         const dias = DIAS_POR_FRECUENCIA[g.frecuencia] || 30;
         return sum + (safeNumber(g.monto) / dias);
     }, 0);
 
-    // 2. Deudas (Cuota Diaria)
-    const totalDeudasDiarias = panelData.deudas.reduce((sum, d) => {
+    const totalDeudas = panelData.deudas.reduce((sum, d) => {
         if (d.saldo <= 0) return sum;
         const dias = DIAS_POR_FRECUENCIA[d.frecuencia] || 30;
         return sum + (safeNumber(d.montoCuota) / dias);
     }, 0);
 
-    panelData.parametros.gastoFijo = totalFijosDiarios + totalDeudasDiarias;
+    panelData.parametros.gastoFijo = totalFijos + totalDeudas;
     saveData();
     return panelData.parametros.gastoFijo;
 };
 
-// ==========================================
-// B. LÓGICA DE GASOLINA (Rendimiento Real)
-// ==========================================
+// --- OPERACIONES DEUDA ---
+export const agregarDeuda = (desc, total, cuota, frecuencia) => {
+    panelData.deudas.push({
+        id: Date.now(),
+        desc,
+        montoTotal: safeNumber(total),
+        saldo: safeNumber(total),
+        montoCuota: safeNumber(cuota),
+        frecuencia
+    });
+    recalcularMetaDiaria();
+};
+
+export const registrarAbono = (idDeuda, monto) => {
+    const deuda = panelData.deudas.find(d => d.id == idDeuda);
+    if (deuda) {
+        deuda.saldo -= safeNumber(monto);
+        if(deuda.saldo < 0) deuda.saldo = 0;
+        agregarMovimiento('gasto', `Abono: ${deuda.desc}`, monto, 'Deuda');
+        recalcularMetaDiaria();
+    }
+};
+
+// --- OPERACIONES GASOLINA ---
 export const registrarGasolina = (litros, costoTotal, kmActual) => {
     litros = safeNumber(litros);
     costoTotal = safeNumber(costoTotal);
     kmActual = safeNumber(kmActual);
 
-    // Buscar carga anterior para delta KM
     const cargasOrdenadas = panelData.cargasCombustible.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
     const ultimaCarga = cargasOrdenadas[cargasOrdenadas.length - 1];
-
     let costoKmReal = 0;
 
     if (ultimaCarga && kmActual > ultimaCarga.km) {
         const distancia = kmActual - ultimaCarga.km;
-        // Rendimiento = Costo de ESTA carga / Distancia recorrida desde la ANTERIOR
-        // (Asumiendo tanque lleno/constante, es la mejor aproximación offline)
         costoKmReal = costoTotal / distancia;
-        
-        // Actualizar métrica global
         panelData.parametros.costoPorKm = costoKmReal;
     }
 
-    // Guardar registro
     panelData.cargasCombustible.push({
         fecha: new Date().toISOString(),
-        litros: litros,
-        costo: costoTotal,
-        km: kmActual,
-        rendimientoCalc: costoKmReal
+        litros, costo: costoTotal, km: kmActual, rendimientoCalc: costoKmReal
     });
 
-    // Actualizar Odómetro y registrar Gasto
-    if (kmActual > panelData.parametros.ultimoKMfinal) {
-        panelData.parametros.ultimoKMfinal = kmActual;
-    }
+    if (kmActual > panelData.parametros.ultimoKMfinal) panelData.parametros.ultimoKMfinal = kmActual;
     agregarMovimiento('gasto', '⛽ Gasolina', costoTotal, 'Moto');
-    
     return { costoKmReal, kmActual };
 };
 
-// ==========================================
-// C. LÓGICA DE TURNOS (Exactitud)
-// ==========================================
+// --- OPERACIONES TURNO ---
 export const iniciarTurno = (kmInicial) => {
-    turnoActivo = {
-        inicio: new Date().getTime(), // Timestamp exacto
-        kmInicial: safeNumber(kmInicial)
-    };
+    turnoActivo = { inicio: new Date().getTime(), kmInicial: safeNumber(kmInicial) };
     saveData();
-    return turnoActivo;
 };
 
 export const finalizarTurno = (kmFinal, ganancia) => {
-    if (!turnoActivo) return null;
+    if (!turnoActivo) return;
     const ahora = new Date().getTime();
-    
+    const horas = (ahora - turnoActivo.inicio) / (1000 * 60 * 60);
     const kmRecorridos = safeNumber(kmFinal) - turnoActivo.kmInicial;
-    const horasExactas = (ahora - turnoActivo.inicio) / (1000 * 60 * 60); // Decimales
 
-    const nuevoTurno = {
+    panelData.turnos.push({
         id: Date.now(),
         fecha: new Date().toISOString(),
-        inicioTs: turnoActivo.inicio,
-        finTs: ahora,
-        horas: horasExactas,
+        horas,
         kmRecorridos: kmRecorridos > 0 ? kmRecorridos : 0,
         ganancia: safeNumber(ganancia)
-    };
+    });
 
-    panelData.turnos.push(nuevoTurno);
-    
-    // Actualizar Odómetro Global
-    if (safeNumber(kmFinal) > panelData.parametros.ultimoKMfinal) {
-        panelData.parametros.ultimoKMfinal = safeNumber(kmFinal);
-    }
-
-    // Registrar Ingreso
-    if (nuevoTurno.ganancia > 0) {
-        agregarMovimiento('ingreso', 'Ganancia Turno', nuevoTurno.ganancia, 'Operativo');
-    }
+    if (safeNumber(kmFinal) > panelData.parametros.ultimoKMfinal) panelData.parametros.ultimoKMfinal = safeNumber(kmFinal);
+    if (safeNumber(ganancia) > 0) agregarMovimiento('ingreso', 'Ganancia Turno', ganancia, 'Operativo');
 
     turnoActivo = false;
     saveData();
-    return nuevoTurno;
 };
 
-// --- GESTIÓN DE MOVIMIENTOS Y OBLIGACIONES ---
+// --- MOVIMIENTOS ---
 export const agregarMovimiento = (tipo, desc, monto, categoria) => {
     panelData.movimientos.push({
-        tipo,
-        fecha: new Date().toISOString(),
-        desc,
-        monto: safeNumber(monto),
-        categoria
+        tipo, fecha: new Date().toISOString(), desc, monto: safeNumber(monto), categoria
     });
-    // Sincronizar con arrays simples para gráficas rápidas
     if (tipo === 'gasto') panelData.gastos.push({ tipo: categoria, monto: safeNumber(monto), desc });
     else panelData.ingresos.push(safeNumber(monto));
-    
     saveData();
 };
 
@@ -174,48 +149,37 @@ export const agregarGastoRecurrente = (desc, monto, frecuencia, diaPago) => {
     recalcularMetaDiaria();
 };
 
-export const registrarAbono = (idDeuda, monto) => {
-    const deuda = panelData.deudas.find(d => d.id == idDeuda);
-    if (deuda) {
-        deuda.saldo -= safeNumber(monto);
-        agregarMovimiento('gasto', `Abono: ${deuda.desc}`, monto, 'Deuda');
-        recalcularMetaDiaria();
-    }
-};
-
-// --- ESTADÍSTICAS PARA UI ---
+// --- UI GETTERS ---
 export const getDashboardStats = () => {
     const hoy = new Date();
     const movsHoy = panelData.movimientos.filter(m => isSameDay(m.fecha, hoy));
     const turnosHoy = panelData.turnos.filter(t => isSameDay(t.fecha, hoy));
-    
     const ganancia = movsHoy.filter(m => m.tipo === 'ingreso').reduce((a, b) => a + b.monto, 0);
-    const meta = panelData.parametros.gastoFijo;
-    
     return {
         horasHoy: turnosHoy.reduce((a, b) => a + b.horas, 0),
         gananciaHoy: ganancia,
-        meta: meta,
-        progreso: meta > 0 ? (ganancia / meta) * 100 : 0,
-        turnosRecientes: panelData.turnos.slice(-5).reverse()
+        meta: panelData.parametros.gastoFijo,
+        progreso: panelData.parametros.gastoFijo > 0 ? (ganancia / panelData.parametros.gastoFijo) * 100 : 0,
+        turnosRecientes: panelData.turnos.slice(-5).reverse(),
+        alertas: [] 
     };
 };
 
-export const getWalletStats = () => {
-    const diaActual = new Date().getDate();
-    const metaDiaria = panelData.parametros.gastoFijo;
-    const deberiasTener = metaDiaria * diaActual;
+export const getAdminStats = () => ({
+    turnoActivo,
+    metaDiaria: panelData.parametros.gastoFijo,
+    deudas: panelData.deudas,
+    ultimoKM: panelData.parametros.ultimoKMfinal
+});
 
-    // Calcular Neto del Mes Actual
+export const getWalletStats = () => {
+    const dia = new Date().getDate();
+    const meta = panelData.parametros.gastoFijo;
     const ahora = new Date();
     const movsMes = panelData.movimientos.filter(m => {
         const d = new Date(m.fecha);
         return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear();
     });
-
-    const ingresosMes = movsMes.filter(m => m.tipo === 'ingreso').reduce((a,b) => a+b.monto, 0);
-    const gastosMes = movsMes.filter(m => m.tipo === 'gasto').reduce((a,b) => a+b.monto, 0);
-    const tienesRealmente = ingresosMes - gastosMes;
-
-    return { deberiasTener, tienesRealmente, enMeta: tienesRealmente >= deberiasTener };
+    const neto = movsMes.reduce((acc, m) => acc + (m.tipo==='ingreso'?m.monto:-m.monto), 0);
+    return { deberiasTener: meta * dia, tienesRealmente: neto, enMeta: neto >= (meta * dia) };
 };
