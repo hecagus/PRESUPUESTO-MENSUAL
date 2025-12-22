@@ -1,30 +1,39 @@
-/* 03_render.js */
+/* 03_render.js - VERSIÓN DEBUG */
 import { $, fmtMoney, formatearFecha } from './01_consts_utils.js';
 
 /* ==========================================================================
-   NAVEGACIÓN GLOBAL (FIX: Inyección Robusta)
+   NAVEGACIÓN GLOBAL (FIX: VISIBILIDAD)
    ========================================================================== */
 export const renderGlobalMenu = () => {
+    console.log("🛠️ Intentando renderizar menú...");
+    
+    // 1. Buscar contenedor
     let container = document.querySelector(".header-actions");
     
-    // Auto-reparación: Crear contenedor si no existe en HTML
+    // 2. Si no existe, crearlo y pegarlo al header
     if (!container) {
+        console.warn("⚠️ .header-actions no existe. Creándolo manualmente.");
         const header = document.querySelector(".header");
         if (header) {
             container = document.createElement("div");
             container.className = "header-actions";
             header.appendChild(container);
         } else {
-            return; // HTML gravemente dañado
+            console.error("⛔ ERROR CRÍTICO: No hay <header> en el HTML.");
+            return;
         }
     }
 
-    // Idempotencia: No duplicar menú
-    if (document.getElementById("nav-dropdown-global")) return;
+    // 3. Verificar si ya tiene contenido (Evitar duplicados)
+    if (document.getElementById("nav-dropdown-global")) {
+        console.log("✅ El menú ya existe. Saliendo.");
+        return;
+    }
 
+    // 4. Inyección HTML
     container.innerHTML = `
         <div id="nav-dropdown-global" class="nav-dropdown">
-            <button class="btn-hamburger" type="button">☰</button>
+            <button class="btn-hamburger" type="button" aria-label="Abrir Menú">☰</button>
             <div class="nav-content">
                 <a href="index.html">📊 Panel Principal</a>
                 <a href="wallet.html">💰 Mi Alcancía</a>
@@ -33,24 +42,36 @@ export const renderGlobalMenu = () => {
             </div>
         </div>
     `;
+    console.log("✅ HTML del menú inyectado.");
 
+    // 5. Listener
     const btn = container.querySelector(".btn-hamburger");
     const content = container.querySelector(".nav-content");
     
     if (btn && content) {
         btn.onclick = (e) => {
             e.stopPropagation();
-            content.style.display = content.style.display === 'block' ? 'none' : 'block';
+            // Toggle simple
+            if (content.style.display === 'block') {
+                content.style.display = 'none';
+                btn.style.backgroundColor = '#f1f5f9';
+            } else {
+                content.style.display = 'block';
+                btn.style.backgroundColor = '#cbd5e1';
+            }
         };
-        // Cerrar al hacer click fuera
+        // Cerrar al click fuera
         document.addEventListener('click', (e) => {
-            if (!container.contains(e.target)) content.style.display = 'none';
+            if (!container.contains(e.target)) {
+                content.style.display = 'none';
+                btn.style.backgroundColor = '#f1f5f9';
+            }
         });
     }
 };
 
 /* ==========================================================================
-   DASHBOARD (FIX: Estados Vacíos y Progreso)
+   DASHBOARD
    ========================================================================== */
 export const renderDashboard = (stats) => {
     if (!stats) return;
@@ -62,26 +83,21 @@ export const renderDashboard = (stats) => {
     setTxt("dashboardMeta", `$${fmtMoney(stats.meta)}`);
     setTxt("progresoTexto", `${stats.progreso.toFixed(0)}%`);
 
-    // FIX: Barra de Progreso
     const barra = $("progresoBarra");
     if (barra) {
-        const width = Math.min(stats.progreso, 100);
-        barra.style.width = `${width}%`;
-        // Asegura visibilidad mínima visual si es 0
-        if (stats.progreso === 0) barra.style.width = "2px"; 
+        barra.style.width = `${Math.min(stats.progreso, 100)}%`;
+        if (stats.progreso === 0) barra.style.width = "4px"; // Mínimo visible
     }
 
-    // FIX: Alertas Vacías
     const listaAlertas = $("listaAlertas");
     if (listaAlertas) {
         if (stats.alertas && stats.alertas.length > 0) {
             listaAlertas.innerHTML = stats.alertas.map(a => `<li>${a}</li>`).join("");
         } else {
-            listaAlertas.innerHTML = `<li style="background:#f0fdf4; color:#166534; border-color:#bbf7d0;">✅ Todo en orden. Sin alertas.</li>`;
+            listaAlertas.innerHTML = `<li style="background:#f0fdf4; color:#166534; border-color:#bbf7d0;">✅ Sin alertas activas.</li>`;
         }
     }
     
-    // FIX: Tabla Vacía
     const tbody = $("tablaTurnos");
     if (tbody) {
         if (stats.turnosRecientes && stats.turnosRecientes.length > 0) {
@@ -94,7 +110,7 @@ export const renderDashboard = (stats) => {
                 </tr>
             `).join("");
         } else {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:15px; color:#64748b;">No hay turnos registrados hoy.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:15px; color:#64748b;">No hay turnos hoy.</td></tr>`;
         }
     }
 };
@@ -110,17 +126,17 @@ export const renderTurnoControl = (turnoActivo) => {
     if (turnoActivo) {
         if(btnInicio) btnInicio.style.display = "none";
         if(btnFin) btnFin.style.display = "block";
-        if(txtEstado) txtEstado.innerHTML = `<span style="color:#16a34a; font-weight:bold;">🟢 Turno Activo (Inicio: ${new Date(turnoActivo.inicio).toLocaleTimeString()})</span>`;
+        if(txtEstado) txtEstado.innerHTML = `<span style="color:#16a34a; font-weight:bold;">🟢 Turno Activo (${new Date(turnoActivo.inicio).toLocaleTimeString()})</span>`;
     } else {
         if(btnInicio) btnInicio.style.display = "block";
         if(btnFin) btnFin.style.display = "none";
-        if(txtEstado) txtEstado.innerHTML = `<span style="color:#dc2626;">🔴 Sin turno activo</span>`;
+        if(txtEstado) txtEstado.innerHTML = `<span style="color:#dc2626;">🔴 Turno cerrado</span>`;
     }
 };
 
 export const renderMetaDiaria = (monto) => {
     const el = $("metaDiariaDisplay");
-    if(el) el.innerText = `$${fmtMoney(monto)}`;
+    if (el) el.innerText = `$${fmtMoney(monto)}`;
 };
 
 export const renderAdminLists = (deudas) => {
@@ -129,7 +145,7 @@ export const renderAdminLists = (deudas) => {
     
     if (ul) {
         if (!deudas || deudas.length === 0) {
-            ul.innerHTML = `<li style="text-align:center; color:#94a3b8; padding:10px;">No hay deudas activas.</li>`;
+            ul.innerHTML = `<li style="text-align:center; color:#94a3b8; padding:10px;">Sin deudas registradas.</li>`;
         } else {
             ul.innerHTML = deudas.map(d => `
                 <li class="list-item">
@@ -153,7 +169,7 @@ export const renderHistorial = (movs) => {
     if (!tbody) return;
     
     if (!movs || movs.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#64748b;">No hay movimientos registrados.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#64748b;">Sin movimientos.</td></tr>`;
         return;
     }
 
