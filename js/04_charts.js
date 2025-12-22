@@ -3,24 +3,25 @@ import { $ } from './01_consts_utils.js';
 import { getState } from './02_data.js';
 
 export const initCharts = () => {
-    const ctxGanancias = $("graficaGanancias");
-    const ctxKm = $("graficaKm");
+    const ctxG = $("graficaGanancias");
+    const ctxK = $("graficaKm");
 
-    if (typeof Chart === 'undefined') return;
+    // Seguridad: Si no hay ChartJS o no hay elementos, salir.
+    if (typeof Chart === 'undefined' || (!ctxG && !ctxK)) return;
+
     const s = getState();
-    const turnos = s.turnos.slice(-14); // Últimos 14
-    
+    const turnos = s.turnos.slice(-14); 
     const labels = turnos.map(t => new Date(t.fecha).toLocaleDateString(undefined, {weekday:'short'}));
     
-    if (ctxGanancias && turnos.length > 0) {
-        new Chart(ctxGanancias, {
+    if (ctxG) {
+        new Chart(ctxG, {
             type: 'bar',
             data: {
                 labels: labels,
                 datasets: [{
                     label: 'Ganancia',
                     data: turnos.map(t => t.ganancia),
-                    backgroundColor: '#10b981',
+                    backgroundColor: '#2563eb',
                     borderRadius: 4
                 }]
             },
@@ -28,18 +29,18 @@ export const initCharts = () => {
         });
     }
 
-    if (ctxKm && turnos.length > 0) {
-        new Chart(ctxKm, {
+    if (ctxK) {
+        new Chart(ctxK, {
             type: 'line',
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'KM Recorridos',
+                    label: 'KM',
                     data: turnos.map(t => t.kmRecorridos),
-                    borderColor: '#3b82f6',
+                    borderColor: '#16a34a',
                     tension: 0.3,
                     fill: true,
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)'
+                    backgroundColor: 'rgba(22, 163, 74, 0.1)'
                 }]
             },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
