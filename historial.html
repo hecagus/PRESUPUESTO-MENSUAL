@@ -3,19 +3,35 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Historial</title>
+  <title>Historial - Uber Tracker</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body data-page="historial">
+
 <header class="header">
   <div class="header-top"><h1>📜 Historial Completo</h1></div>
   <div class="header-actions"></div>
 </header>
+
 <main class="container">
   <section class="card">
-    <p>Aquí verás todos tus movimientos detallados.</p>
-    </section>
+    <h2>Movimientos Registrados</h2>
+    <div style="overflow-x:auto;">
+        <table class="tabla">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Detalle</th>
+              <th>Categoría</th>
+              <th>Monto</th>
+            </tr>
+          </thead>
+          <tbody id="historialBody"></tbody>
+        </table>
+    </div>
+  </section>
 </main>
+
 <script type="module" src="05_init.js"></script>
 </body>
 </html>
