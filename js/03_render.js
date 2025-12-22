@@ -1,51 +1,60 @@
-/* 03_render.js */
+/* 03_render.js - FUENTE DE VERDAD */
 import { $, fmtMoney, formatearFecha } from './01_consts_utils.js';
 
 /* ==========================================================================
-   NAVEGACIÓN GLOBAL (TU VERSIÓN INTEGRADA)
+   NAVEGACIÓN GLOBAL (BLINDAJE TOTAL)
    ========================================================================== */
 export const renderGlobalMenu = () => {
-  const header = document.querySelector('.header');
-  if (!header) return;
+    // 1. Verificar Header
+    const header = document.querySelector('.header');
+    if (!header) return;
 
-  let actions = header.querySelector('.header-actions');
-  if (!actions) {
-    actions = document.createElement('div');
-    actions.className = 'header-actions';
-    header.appendChild(actions);
-  }
-
-  // IDEMPOTENCIA: Si ya existe, no lo volvemos a crear
-  if (document.getElementById('nav-dropdown-global')) return;
-
-  // Inyección con estilos INLINE para garantizar visibilidad
-  actions.innerHTML = `
-    <div id="nav-dropdown-global" style="position:relative;">
-      <button class="btn-hamburger" type="button" style="display:block; cursor:pointer; font-size:1.5rem; background:transparent; border:1px solid #ccc; padding:5px 10px; border-radius:4px;">☰</button>
-      <div class="nav-content" style="display:none; position:absolute; right:0; top:120%; background:#fff; border:1px solid #e5e7eb; border-radius:8px; min-width:180px; z-index:3000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <a href="index.html" style="display:block; padding:12px; text-decoration:none; color:#333; border-bottom:1px solid #eee;">📊 Panel</a>
-        <a href="wallet.html" style="display:block; padding:12px; text-decoration:none; color:#333; border-bottom:1px solid #eee;">💰 Wallet</a>
-        <a href="admin.html" style="display:block; padding:12px; text-decoration:none; color:#333; border-bottom:1px solid #eee;">⚙️ Admin</a>
-        <a href="historial.html" style="display:block; padding:12px; text-decoration:none; color:#333;">📜 Historial</a>
-      </div>
-    </div>
-  `;
-
-  const btn = actions.querySelector('.btn-hamburger');
-  const menu = actions.querySelector('.nav-content');
-
-  // Toggle del menú
-  btn.onclick = (e) => {
-    e.stopPropagation();
-    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-  };
-
-  // Cerrar al hacer click fuera (Listener permanente)
-  document.addEventListener('click', (e) => {
-    if (menu.style.display === 'block' && !actions.contains(e.target)) {
-        menu.style.display = 'none';
+    // 2. Garantizar Contenedor de Acciones
+    let actions = header.querySelector('.header-actions');
+    if (!actions) {
+        actions = document.createElement('div');
+        actions.className = 'header-actions';
+        header.appendChild(actions);
     }
-  });
+    // Asegurar posición relativa para el absolute del dropdown
+    actions.style.position = 'relative'; 
+
+    // 3. IDEMPOTENCIA: Si ya existe, abortar
+    if (document.getElementById('nav-dropdown-global')) return;
+
+    // 4. INYECCIÓN CON ESTILOS INLINE (Garantía Visual)
+    actions.innerHTML = `
+      <div id="nav-dropdown-global" style="display:inline-block;">
+        <button class="btn-hamburger" type="button" 
+            style="display:block; cursor:pointer; font-size:1.5rem; background:#f8fafc; border:1px solid #cbd5e1; padding:6px 12px; border-radius:6px; color:#334155;">
+            ☰
+        </button>
+        <div class="nav-content" 
+            style="display:none; position:absolute; right:0; top:120%; background:#fff; border:1px solid #e2e8f0; border-radius:8px; min-width:180px; z-index:3000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <a href="index.html" style="display:block; padding:12px; text-decoration:none; color:#1e293b; border-bottom:1px solid #f1f5f9;">📊 Panel</a>
+          <a href="wallet.html" style="display:block; padding:12px; text-decoration:none; color:#1e293b; border-bottom:1px solid #f1f5f9;">💰 Wallet</a>
+          <a href="admin.html" style="display:block; padding:12px; text-decoration:none; color:#1e293b; border-bottom:1px solid #f1f5f9;">⚙️ Admin</a>
+          <a href="historial.html" style="display:block; padding:12px; text-decoration:none; color:#1e293b;">📜 Historial</a>
+        </div>
+      </div>
+    `;
+
+    // 5. LISTENERS
+    const btn = actions.querySelector('.btn-hamburger');
+    const menu = actions.querySelector('.nav-content');
+
+    if (btn && menu) {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        };
+
+        document.addEventListener('click', (e) => {
+            if (menu.style.display === 'block' && !actions.contains(e.target)) {
+                menu.style.display = 'none';
+            }
+        });
+    }
 };
 
 /* ==========================================================================
