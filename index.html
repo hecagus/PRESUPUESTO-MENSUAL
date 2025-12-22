@@ -1,79 +1,61 @@
-<!-- index.html (COMPLETO – BOTONES VISIBLES, MOBILE-FIRST) -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mi Ruta · Mi Lana</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Finanzas Moto</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body data-page="index">
+    <header class="header">
+        <h1>📊 Mi Ruta · Mi Lana</h1>
+    </header>
 
-<header class="header">
-  <div class="header-top">
-    <h1>📊 Mi Ruta · Mi Lana</h1>
-  </div>
-</header>
+    <main class="container">
+        <section class="card">
+            <h2>Resumen de Hoy</h2>
+            <div class="grid-2">
+                <div class="stat-box">
+                    <label>Horas</label>
+                    <div class="value" id="valHoras">0.0h</div>
+                </div>
+                <div class="stat-box">
+                    <label>Ganancia</label>
+                    <div class="value text-green" id="valGanancia">$0.00</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 1.5rem;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <small>Meta: <span id="valMeta">$0</span></small>
+                    <small id="txtProgreso">0%</small>
+                </div>
+                <div style="background:#e2e8f0; height:10px; border-radius:5px; overflow:hidden;">
+                    <div id="barProgreso" style="background:var(--success); width:0%; height:100%; transition:width 0.5s;"></div>
+                </div>
+            </div>
+        </section>
 
-<main class="container">
+        <section class="card">
+            <h2>Ganancias (7 Días)</h2>
+            <div style="height: 200px;">
+                <canvas id="chartGanancias"></canvas>
+            </div>
+        </section>
+    </main>
 
-  <section class="card border-blue">
-    <h2>Resumen Hoy</h2>
-    <div class="stats-grid">
-      <div class="stat">
-        <label>Horas</label>
-        <span id="resHoras">0.0h</span>
-      </div>
-      <div class="stat">
-        <label>Ganancia</label>
-        <span id="resGananciaBruta" style="color:var(--success)">$0.00</span>
-      </div>
+    <div id="appModal" class="modal-overlay">
+        <div class="modal">
+            <h3 id="modalTitle">Título</h3>
+            <div id="modalBody" class="modal-body"></div>
+            <div class="modal-actions">
+                <button id="modalCancel" class="btn btn-outline" style="width:auto">Cancelar</button>
+                <button id="modalConfirm" class="btn btn-primary" style="width:auto">Confirmar</button>
+            </div>
+        </div>
     </div>
 
-    <p style="margin-top:10px;">
-      Meta: <b id="dashboardMeta">$0</b>
-      <span style="float:right;" id="progresoTexto">0%</span>
-    </p>
-
-    <div class="progress-bg">
-      <div class="progress-fill" id="progresoBarra" style="width:0%"></div>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Últimos 7 Días</h2>
-    <div class="chart-container">
-      <canvas id="grafica"></canvas>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Últimos Turnos</h2>
-    <table class="tabla">
-      <thead>
-        <tr>
-          <th>Fecha</th>
-          <th>H</th>
-          <th>KM</th>
-          <th>$$</th>
-        </tr>
-      </thead>
-      <tbody id="tablaTurnos"></tbody>
-    </table>
-  </section>
-
-</main>
-
-<!-- BOTONES SIEMPRE VISIBLES -->
-<nav class="bottom-nav">
-  <a href="index.html" class="active">📊</a>
-  <a href="wallet.html">💰</a>
-  <a href="admin.html">⚙️</a>
-  <a href="historial.html">📜</a>
-</nav>
-
-<script type="module" src="05_init.js"></script>
+    <script type="module" src="05_init.js"></script>
 </body>
 </html>
