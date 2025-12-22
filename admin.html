@@ -3,33 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin</title>
+    <title>Administración</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body data-page="admin">
-    <div class="header"><h1>⚙️ Admin</h1></div>
-    <div class="container">
-        <div class="card" style="border-left:4px solid var(--primary)">
-            <h2>Turno</h2>
-            <div id="statusTurno" style="margin-bottom:1rem; font-size:1.2rem; font-weight:bold;"></div>
-            <button id="btnIniciar" class="btn btn-success hidden">▶ Iniciar</button>
-            <button id="btnFinalizar" class="btn btn-danger hidden">⏹ Finalizar</button>
+
+<!-- ================= HEADER ================= -->
+<header class="header">
+    <h1>⚙️ Administración</h1>
+</header>
+
+<!-- ================= MAIN ================= -->
+<main class="container">
+
+    <!-- ===== TURNO ===== -->
+    <section class="card" style="border-left:5px solid var(--primary)">
+        <h2>Control de Turno</h2>
+
+        <div class="stat-box" style="margin-bottom:1rem">
+            <label>Estado</label>
+            <div id="turnoEstado" class="value">—</div>
+            <small id="turnoTimer" class="text-sec">--:--:--</small>
         </div>
-        <div class="card">
-            <h2>Acciones</h2>
-            <div class="grid-2">
-                <button id="btnGasolina" class="btn btn-outline" style="color:var(--warning); border-color:var(--warning)">⛽ Gasolina</button>
-                <button id="btnGasto" class="btn btn-outline" style="color:var(--danger); border-color:var(--danger)">💸 Gasto</button>
-            </div>
+
+        <div class="stat-box" style="margin-bottom:1rem">
+            <label>Kilometraje Actual</label>
+            <div id="kmActual" class="value">0 km</div>
         </div>
-        <div class="card">
-            <h2>Configuración</h2>
-            <div class="stat-box" style="text-align:center; margin-bottom:1rem"><label>Meta Diaria (Calc)</label><div id="valMetaCalc" class="value">$0.00</div></div>
-            <button id="btnDeuda" class="btn btn-primary" style="margin-bottom:5px">➕ Deuda</button>
-            <button id="btnJson" class="btn btn-outline">📂 Restore JSON</button>
+
+        <button id="btnTurnoIniciar" class="btn btn-success">▶ Iniciar Turno</button>
+        <button id="btnTurnoFinalizar" class="btn btn-danger hidden">⏹ Finalizar Turno</button>
+    </section>
+
+    <!-- ===== ACCIONES RÁPIDAS ===== -->
+    <section class="card">
+        <h2>Acciones Operativas</h2>
+
+        <div class="grid-2">
+            <button id="btnGasolina"
+                class="btn btn-outline"
+                style="border-color:var(--warning); color:var(--warning)">
+                ⛽ Gasolina
+            </button>
+
+            <button id="btnGastoOperativo"
+                class="btn btn-outline"
+                style="border-color:var(--danger); color:var(--danger)">
+                🛠 Gasto Moto
+            </button>
+        </div>
+
+        <div style="margin-top:1rem">
+            <button id="btnGastoHogar"
+                class="btn btn-outline">
+                🏠 Gasto Hogar / Personal
+            </button>
+        </div>
+    </section>
+
+    <!-- ===== META Y WALLET ===== -->
+    <section class="card">
+        <h2>Planeación Diaria</h2>
+
+        <div class="stat-box" style="margin-bottom:1rem">
+            <label>Meta Diaria Calculada</label>
+            <div id="metaDiariaValor" class="value text-green">$0.00</div>
+        </div>
+
+        <div class="stat-box">
+            <label>Wallet (Sobres Acumulados)</label>
+            <div id="walletValor" class="value">$0.00</div>
+            <small class="text-sec">
+                Dinero apartado para gasolina, deudas y gastos futuros
+            </small>
+        </div>
+    </section>
+
+    <!-- ===== DEUDAS ===== -->
+    <section class="card">
+        <h2>Deudas</h2>
+
+        <ul id="listaDeudasAdmin" class="list-group"></ul>
+
+        <div class="input-group" style="margin-top:1rem">
+            <label>Seleccionar deuda</label>
+            <select id="abonoDeudaSelect" class="input-control">
+                <option value="">— Selecciona una deuda —</option>
+            </select>
+        </div>
+
+        <div class="grid-2" style="margin-top:0.5rem">
+            <button id="btnAbonoCuota" class="btn btn-success">
+                💳 Pagar Cuota
+            </button>
+            <button id="btnAbonoCustom" class="btn btn-outline">
+                ✏️ Abono Manual
+            </button>
+        </div>
+
+        <button id="btnDeudaNueva"
+            class="btn btn-primary"
+            style="margin-top:1rem">
+            ➕ Nueva Deuda
+        </button>
+    </section>
+
+    <!-- ===== DATA ===== -->
+    <section class="card">
+        <h2>Datos</h2>
+
+        <button id="btnExportJSON" class="btn btn-outline">
+            📤 Exportar JSON
+        </button>
+
+        <button id="btnRestoreBackup"
+            class="btn btn-outline"
+            style="margin-top:0.5rem">
+            ♻️ Restaurar Backup
+        </button>
+    </section>
+
+</main>
+
+<!-- ================= NAV ================= -->
+<nav class="bottom-nav">
+    <a class="nav-link" href="index.html">📊 Panel</a>
+    <a class="nav-link" href="wallet.html">💰 Wallet</a>
+    <a class="nav-link active" href="admin.html">⚙️ Admin</a>
+    <a class="nav-link" href="historial.html">📜 Historial</a>
+</nav>
+
+<!-- ================= MODAL ================= -->
+<div id="appModal" class="modal-overlay">
+    <div class="modal">
+        <h3 id="modalTitle"></h3>
+        <div id="modalBody" class="modal-body"></div>
+        <div class="modal-actions">
+            <button id="modalCancel" class="btn btn-outline">Cancelar</button>
+            <button id="modalConfirm" class="btn btn-primary">Confirmar</button>
         </div>
     </div>
-    <div id="appModal" class="modal-overlay"><div class="modal"><h3 id="modalTitle"></h3><div id="modalBody" class="modal-body"></div><div class="modal-actions"><button id="modalCancel" class="btn btn-outline">Cancelar</button><button id="modalConfirm" class="btn btn-primary">Confirmar</button></div></div></div>
-    <script type="module" src="05_init.js"></script>
+</div>
+
+<script type="module" src="05_init.js"></script>
 </body>
 </html>
