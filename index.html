@@ -1,48 +1,79 @@
+<!-- index.html (COMPLETO – BOTONES VISIBLES, MOBILE-FIRST) -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Panel - Uber Tracker</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mi Ruta · Mi Lana</title>
+  <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body data-page="index">
 
 <header class="header">
-  <h1>📊 Mi Ruta · Mi Lana</h1>
+  <div class="header-top">
+    <h1>📊 Mi Ruta · Mi Lana</h1>
+  </div>
 </header>
 
 <main class="container">
-  <section class="card">
+
+  <section class="card border-blue">
     <h2>Resumen Hoy</h2>
     <div class="stats-grid">
-      <div class="stat"><label>Horas</label><span id="resHoras">0.0h</span></div>
-      <div class="stat"><label>Ganancia</label><span id="resGananciaBruta" style="color:#16a34a">$0.00</span></div>
+      <div class="stat">
+        <label>Horas</label>
+        <span id="resHoras">0.0h</span>
+      </div>
+      <div class="stat">
+        <label>Ganancia</label>
+        <span id="resGananciaBruta" style="color:var(--success)">$0.00</span>
+      </div>
     </div>
-    <div style="margin-top:15px">
-        <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.85rem;">
-            <span>Meta: <b id="dashboardMeta">$0</b></span>
-            <span id="progresoTexto">0%</span>
-        </div>
-        <div class="progress-bg"><div id="progresoBarra" class="progress-fill" style="width:0%"></div></div>
+
+    <p style="margin-top:10px;">
+      Meta: <b id="dashboardMeta">$0</b>
+      <span style="float:right;" id="progresoTexto">0%</span>
+    </p>
+
+    <div class="progress-bg">
+      <div class="progress-fill" id="progresoBarra" style="width:0%"></div>
     </div>
   </section>
 
   <section class="card">
     <h2>Últimos 7 Días</h2>
-    <div class="chart-wrap"><canvas id="graficaGanancias"></canvas></div>
+    <div class="chart-container">
+      <canvas id="grafica"></canvas>
+    </div>
   </section>
 
   <section class="card">
     <h2>Últimos Turnos</h2>
     <table class="tabla">
-        <thead><tr><th>Fecha</th><th>H</th><th>KM</th><th>$$</th></tr></thead>
-        <tbody id="tablaTurnos"></tbody>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>H</th>
+          <th>KM</th>
+          <th>$$</th>
+        </tr>
+      </thead>
+      <tbody id="tablaTurnos"></tbody>
     </table>
   </section>
+
 </main>
+
+<!-- BOTONES SIEMPRE VISIBLES -->
+<nav class="bottom-nav">
+  <a href="index.html" class="active">📊</a>
+  <a href="wallet.html">💰</a>
+  <a href="admin.html">⚙️</a>
+  <a href="historial.html">📜</a>
+</nav>
+
 <script type="module" src="05_init.js"></script>
 </body>
 </html>
-
