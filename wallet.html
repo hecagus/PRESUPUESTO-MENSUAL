@@ -1,41 +1,49 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Wallet</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallet - Finanzas Moto</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body data-page="wallet">
+    <header class="header">
+        <h1>💰 Mi Wallet</h1>
+      <nav class="bottom-nav">
+  <a data-page="index" href="index.html">📊</a>
+  <a data-page="wallet" href="wallet.html">💰</a>
+  <a data-page="admin" href="admin.html">⚙️</a>
+  <a data-page="historial" href="historial.html">📜</a>
+</nav>
+    </header>
 
-<header class="header">
-  <h1>💰 Wallet</h1>
-</header>
+    <main class="container">
+        <section class="card" style="background:linear-gradient(135deg, #1e293b, #0f172a); color:white;">
+            <h2 style="color:#94a3b8; border-color:#334155;">Flujo de Caja Real</h2>
+            <div class="stat-box">
+                <label style="color:#cbd5e1;">Saldo Disponible (Ingresos - Gastos)</label>
+                <div class="value" id="valSaldo">$0.00</div>
+            </div>
+        </section>
 
-<main class="container">
-  <section class="card" style="background: linear-gradient(135deg, #1e293b, #0f172a); color:white;">
-    <h2>Estado Global</h2>
-    <div class="stats-grid">
-        <div class="stat">
-            <label style="color:#cbd5e1">Debiste guardar:</label>
-            <span id="walletEsperado" style="color:#fca5a5">$0.00</span>
-        </div>
-        <div class="stat">
-            <label style="color:#cbd5e1">Saldo Real:</label>
-            <span id="walletReal" style="color:#fff">$0.00</span>
+        <section class="card">
+            <h2>Deudas Activas</h2>
+            <ul class="list-group" id="listaDeudas">
+                </ul>
+        </section>
+    </main>
+
+    <div id="appModal" class="modal-overlay">
+        <div class="modal">
+            <h3 id="modalTitle"></h3>
+            <div id="modalBody" class="modal-body"></div>
+            <div class="modal-actions">
+                <button id="modalCancel" class="btn btn-outline" style="width:auto">Cancelar</button>
+                <button id="modalConfirm" class="btn btn-primary" style="width:auto">Confirmar</button>
+            </div>
         </div>
     </div>
-  </section>
 
-  <section class="card">
-    <h2>⛽ Rendimiento</h2>
-    <div class="stat">
-        <label>Costo Promedio</label>
-        <span id="walletGas" style="font-size:1.8rem; color:#d97706">--</span>
-    </div>
-  </section>
-</main>
-<script type="module" src="05_init.js"></script>
+    <script type="module" src="05_init.js"></script>
 </body>
 </html>
-
