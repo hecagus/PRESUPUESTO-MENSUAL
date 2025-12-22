@@ -3,58 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Finanzas Moto</title>
+    <title>Admin</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body data-page="admin">
-    <header class="header">
-        <h1>⚙️ Administración</h1>
-      <nav class="bottom-nav">
-  <a data-page="index" href="index.html">📊</a>
-  <a data-page="wallet" href="wallet.html">💰</a>
-  <a data-page="admin" href="admin.html">⚙️</a>
-  <a data-page="historial" href="historial.html">📜</a>
-</nav>
-    </header>
-
-    <main class="container">
-        <section class="card" style="border-left: 5px solid var(--primary);">
-            <h2>Control de Turno</h2>
-            <div id="statusTurno" style="margin-bottom: 1rem;">Cargando...</div>
-            <button id="btnIniciar" class="btn btn-success hidden">▶ Iniciar Turno</button>
-            <button id="btnFinalizar" class="btn btn-danger hidden">⏹ Finalizar Turno</button>
-        </section>
-
-        <section class="card">
-            <h2>Acciones Rápidas</h2>
+    <div class="header"><h1>⚙️ Admin</h1></div>
+    <div class="container">
+        <div class="card" style="border-left:4px solid var(--primary)">
+            <h2>Turno</h2>
+            <div id="statusTurno" style="margin-bottom:1rem; font-size:1.2rem; font-weight:bold;"></div>
+            <button id="btnIniciar" class="btn btn-success hidden">▶ Iniciar</button>
+            <button id="btnFinalizar" class="btn btn-danger hidden">⏹ Finalizar</button>
+        </div>
+        <div class="card">
+            <h2>Acciones</h2>
             <div class="grid-2">
-                <button id="btnGasolina" class="btn btn-outline" style="border-color:var(--warning); color:var(--warning);">⛽ Gasolina</button>
-                <button id="btnGasto" class="btn btn-outline" style="border-color:var(--danger); color:var(--danger);">💸 Gasto</button>
-            </div>
-        </section>
-
-        <section class="card">
-            <h2>Configuración Financiera</h2>
-            <div class="stat-box" style="text-align:center; margin-bottom:1rem;">
-                <label>Meta Diaria Calculada</label>
-                <div class="value text-green" id="valMetaCalc">$0.00</div>
-            </div>
-            <button id="btnDeuda" class="btn btn-primary" style="margin-bottom:0.5rem;">➕ Agregar Deuda</button>
-            <button id="btnJson" class="btn btn-outline">📂 Restaurar Backup JSON</button>
-        </section>
-    </main>
-
-    <div id="appModal" class="modal-overlay">
-        <div class="modal">
-            <h3 id="modalTitle"></h3>
-            <div id="modalBody" class="modal-body"></div>
-            <div class="modal-actions">
-                <button id="modalCancel" class="btn btn-outline" style="width:auto">Cancelar</button>
-                <button id="modalConfirm" class="btn btn-primary" style="width:auto">Confirmar</button>
+                <button id="btnGasolina" class="btn btn-outline" style="color:var(--warning); border-color:var(--warning)">⛽ Gasolina</button>
+                <button id="btnGasto" class="btn btn-outline" style="color:var(--danger); border-color:var(--danger)">💸 Gasto</button>
             </div>
         </div>
+        <div class="card">
+            <h2>Configuración</h2>
+            <div class="stat-box" style="text-align:center; margin-bottom:1rem"><label>Meta Diaria (Calc)</label><div id="valMetaCalc" class="value">$0.00</div></div>
+            <button id="btnDeuda" class="btn btn-primary" style="margin-bottom:5px">➕ Deuda</button>
+            <button id="btnJson" class="btn btn-outline">📂 Restore JSON</button>
+        </div>
     </div>
-
+    <div id="appModal" class="modal-overlay"><div class="modal"><h3 id="modalTitle"></h3><div id="modalBody" class="modal-body"></div><div class="modal-actions"><button id="modalCancel" class="btn btn-outline">Cancelar</button><button id="modalConfirm" class="btn btn-primary">Confirmar</button></div></div></div>
     <script type="module" src="05_init.js"></script>
 </body>
 </html>
