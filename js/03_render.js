@@ -1,60 +1,45 @@
-/* 03_render.js - FUENTE DE VERDAD */
+/* 03_render.js - VERSIÓN SIN HAMBURGUESA (BOTONES DIRECTOS) */
 import { $, fmtMoney, formatearFecha } from './01_consts_utils.js';
 
 /* ==========================================================================
-   NAVEGACIÓN GLOBAL (BLINDAJE TOTAL)
+   NAVEGACIÓN GLOBAL: BARRA DE ICONOS (VISIBILIDAD 100%)
    ========================================================================== */
 export const renderGlobalMenu = () => {
     // 1. Verificar Header
     const header = document.querySelector('.header');
     if (!header) return;
 
-    // 2. Garantizar Contenedor de Acciones
+    // 2. Garantizar Contenedor
     let actions = header.querySelector('.header-actions');
     if (!actions) {
         actions = document.createElement('div');
         actions.className = 'header-actions';
         header.appendChild(actions);
     }
-    // Asegurar posición relativa para el absolute del dropdown
-    actions.style.position = 'relative'; 
 
-    // 3. IDEMPOTENCIA: Si ya existe, abortar
-    if (document.getElementById('nav-dropdown-global')) return;
+    // 3. LIMPIEZA TOTAL: Borramos cualquier rastro de menú anterior
+    actions.innerHTML = '';
 
-    // 4. INYECCIÓN CON ESTILOS INLINE (Garantía Visual)
+    // 4. INYECCIÓN DE BOTONES DIRECTOS (Sin menús ocultos)
+    // Usamos estilos inline para garantizar que se vean sí o sí.
+    actions.style.display = 'flex';
+    actions.style.gap = '15px'; // Espacio entre iconos
+    actions.style.alignItems = 'center';
+
     actions.innerHTML = `
-      <div id="nav-dropdown-global" style="display:inline-block;">
-        <button class="btn-hamburger" type="button" 
-            style="display:block; cursor:pointer; font-size:1.5rem; background:#f8fafc; border:1px solid #cbd5e1; padding:6px 12px; border-radius:6px; color:#334155;">
-            ☰
-        </button>
-        <div class="nav-content" 
-            style="display:none; position:absolute; right:0; top:120%; background:#fff; border:1px solid #e2e8f0; border-radius:8px; min-width:180px; z-index:3000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <a href="index.html" style="display:block; padding:12px; text-decoration:none; color:#1e293b; border-bottom:1px solid #f1f5f9;">📊 Panel</a>
-          <a href="wallet.html" style="display:block; padding:12px; text-decoration:none; color:#1e293b; border-bottom:1px solid #f1f5f9;">💰 Wallet</a>
-          <a href="admin.html" style="display:block; padding:12px; text-decoration:none; color:#1e293b; border-bottom:1px solid #f1f5f9;">⚙️ Admin</a>
-          <a href="historial.html" style="display:block; padding:12px; text-decoration:none; color:#1e293b;">📜 Historial</a>
-        </div>
-      </div>
+        <a href="index.html" class="nav-btn" aria-label="Panel">
+            📊
+        </a>
+        <a href="wallet.html" class="nav-btn" aria-label="Wallet">
+            💰
+        </a>
+        <a href="admin.html" class="nav-btn" aria-label="Admin">
+            ⚙️
+        </a>
+        <a href="historial.html" class="nav-btn" aria-label="Historial">
+            📜
+        </a>
     `;
-
-    // 5. LISTENERS
-    const btn = actions.querySelector('.btn-hamburger');
-    const menu = actions.querySelector('.nav-content');
-
-    if (btn && menu) {
-        btn.onclick = (e) => {
-            e.stopPropagation();
-            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-        };
-
-        document.addEventListener('click', (e) => {
-            if (menu.style.display === 'block' && !actions.contains(e.target)) {
-                menu.style.display = 'none';
-            }
-        });
-    }
 };
 
 /* ==========================================================================
@@ -81,7 +66,7 @@ export const renderDashboard = (stats) => {
         if (stats.alertas && stats.alertas.length > 0) {
             listaAlertas.innerHTML = stats.alertas.map(a => `<li>${a}</li>`).join("");
         } else {
-            listaAlertas.innerHTML = `<li style="background:#f0fdf4; color:#166534; border-color:#bbf7d0;">✅ Sin alertas activas.</li>`;
+            listaAlertas.innerHTML = `<li style="background:#f0fdf4; color:#166534; border-color:#bbf7d0;">✅ Sin alertas.</li>`;
         }
     }
     
@@ -97,7 +82,7 @@ export const renderDashboard = (stats) => {
                 </tr>
             `).join("");
         } else {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:15px; color:#64748b;">No hay turnos hoy.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:15px; color:#64748b;">Sin turnos hoy.</td></tr>`;
         }
     }
 };
@@ -132,7 +117,7 @@ export const renderAdminLists = (deudas) => {
     
     if (ul) {
         if (!deudas || deudas.length === 0) {
-            ul.innerHTML = `<li style="text-align:center; color:#94a3b8; padding:10px;">Sin deudas registradas.</li>`;
+            ul.innerHTML = `<li style="text-align:center; color:#94a3b8; padding:10px;">Sin deudas.</li>`;
         } else {
             ul.innerHTML = deudas.map(d => `
                 <li class="list-item">
