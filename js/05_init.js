@@ -1,26 +1,27 @@
-/* 05_init.js — ADMIN FUNCIONAL REAL */
+/* 05_init.js — ORQUESTADOR ESTABLE */
 
 import {
-  loadData,
-  getStore,
-  setUltimoKM,
-  iniciarTurno,
-  finalizarTurno,
-  registrarGasolina,
-  procesarGasto,
-  agregarDeuda,
-  abonarDeuda,
-  importarBackup
+  loadData, getStore, setUltimoKM,
+  iniciarTurno, finalizarTurno,
+  registrarGasolina, procesarGasto,
+  agregarDeuda, abonarDeuda, importarBackup
 } from './02_data.js';
 
 import {
-  $, fmtMoney, fmtDate, safeFloat, CATEGORIAS, FRECUENCIAS
+  fmtMoney, fmtDate, safeFloat,
+  CATEGORIAS, FRECUENCIAS
 } from './01_consts_utils.js';
 
 import { Modal } from './03_render.js';
 import { renderCharts } from './04_charts.js';
 
 let timerInterval = null;
+
+/* 🔒 BIND SEGURO */
+const bind = (id, fn) => {
+  const el = document.getElementById(id);
+  if (el) el.onclick = fn;
+};
 
 const App = {
 
@@ -35,19 +36,15 @@ const App = {
     if (page === 'historial') this.historial(store);
   },
 
-  /* =========================
-     ADMIN
-  ========================= */
+  /* ================= ADMIN ================= */
   admin(store) {
 
-    // 🔹 RENDER SIEMPRE
     this.updateAdminUI(store);
 
-    // 🔹 ONBOARDING PASIVO (NO ROMPE ADMIN)
     const requireKM = () => {
       Modal.showInput(
         'Kilometraje inicial',
-        [{ label: '¿Qué kilometraje marca tu moto?', key: 'km', type: 'number' }],
+        [{ label: 'Kilometraje actual', key: 'km', type: 'number' }],
         (d) => {
           const km = safeFloat(d.km);
           if (km <= 0) return false;
@@ -58,22 +55,20 @@ const App = {
       );
     };
 
-    // ---------- CONFIG KM ----------
-    $('#btnConfigKM').onclick = () => requireKM();
+    bind('btnConfigKM', () => requireKM());
 
-    // ---------- TURNO ----------
-    $('#btnTurnoIniciar').onclick = () => {
+    bind('btnTurnoIniciar', () => {
       if (!store.parametros.ultimoKM) return requireKM();
       iniciarTurno();
       this.refreshAdmin();
-    };
+    });
 
-    $('#btnTurnoFinalizar').onclick = () => {
+    bind('btnTurnoFinalizar', () => {
       Modal.showInput(
         'Finalizar turno',
         [
-          { label: 'Kilometraje final', key: 'km', type: 'number', value: store.parametros.ultimoKM },
-          { label: 'Ganancia total ($)', key: 'gan', type: 'number' }
+          { label: 'KM final', key: 'km', type: 'number', value: store.parametros.ultimoKM },
+          { label: 'Ganancia', key: 'gan', type: 'number' }
         ],
         (d) => {
           const km = safeFloat(d.km);
@@ -84,24 +79,21 @@ const App = {
           return true;
         }
       );
-    };
+    });
 
-    // ---------- GASTOS ----------
-    const gastoWizard = (grupo, categorias) => {
+    const gastoWizard = (grupo, cats) => {
       if (!store.parametros.ultimoKM) return requireKM();
-
       Modal.showInput(
         `Gasto ${grupo}`,
         [
           { label: 'Descripción', key: 'desc', type: 'text' },
-          { label: 'Monto ($)', key: 'monto', type: 'number' },
+          { label: 'Monto', key: 'monto', type: 'number' },
           { label: 'Categoría', key: 'cat', type: 'select',
-            options: categorias.map(c => ({ value: c, text: c })) },
+            options: cats.map(c => ({ value: c, text: c })) },
           { label: 'Frecuencia', key: 'freq', type: 'select',
             options: Object.keys(FRECUENCIAS).map(f => ({ value: f, text: f })) }
         ],
         (d) => {
-          if (!d.desc || safeFloat(d.monto) <= 0) return false;
           procesarGasto(d.desc, d.monto, grupo, d.cat, d.freq);
           this.refreshAdmin();
           return true;
@@ -109,41 +101,33 @@ const App = {
       );
     };
 
-    $('#btnGastoHogar').onclick = () =>
-      gastoWizard('Hogar', CATEGORIAS.hogar);
+    bind('btnGastoHogar', () => gastoWizard('Hogar', CATEGORIAS.hogar));
+    bind('btnGastoOperativo', () => gastoWizard('Operativo', CATEGORIAS.operativo));
 
-    $('#btnGastoOperativo').onclick = () =>
-      gastoWizard('Operativo', CATEGORIAS.operativo);
-
-    // ---------- GASOLINA ----------
-    $('#btnGasolina').onclick = () => {
+    bind('btnGasolina', () => {
       if (!store.parametros.ultimoKM) return requireKM();
-
       Modal.showInput(
         'Registrar gasolina',
         [
           { label: 'Litros', key: 'l', type: 'number' },
-          { label: 'Costo total ($)', key: 'c', type: 'number' },
-          { label: 'Kilometraje actual', key: 'k', type: 'number', value: store.parametros.ultimoKM }
+          { label: 'Costo', key: 'c', type: 'number' },
+          { label: 'KM actual', key: 'k', type: 'number', value: store.parametros.ultimoKM }
         ],
         (d) => {
-          const k = safeFloat(d.k);
-          if (k <= store.parametros.ultimoKM) return false;
-          registrarGasolina(d.l, d.c, k);
+          registrarGasolina(d.l, d.c, d.k);
           this.refreshAdmin();
           return true;
         }
       );
-    };
+    });
 
-    // ---------- DEUDAS ----------
-    $('#btnDeudaNueva').onclick = () => {
+    bind('btnDeudaNueva', () => {
       Modal.showInput(
         'Nueva deuda',
         [
           { label: 'Nombre', key: 'desc', type: 'text' },
-          { label: 'Monto total ($)', key: 'total', type: 'number' },
-          { label: 'Cuota ($)', key: 'cuota', type: 'number' },
+          { label: 'Total', key: 'total', type: 'number' },
+          { label: 'Cuota', key: 'cuota', type: 'number' },
           { label: 'Frecuencia', key: 'freq', type: 'select',
             options: Object.keys(FRECUENCIAS).map(f => ({ value: f, text: f })) }
         ],
@@ -153,100 +137,28 @@ const App = {
           return true;
         }
       );
-    };
+    });
 
-    // ---------- ABONOS ----------
-    $('#btnAbonoCuota').onclick = () => {
-      const id = $('#abonoDeudaSelect').value;
-      if (!id) return;
-      const deuda = store.deudas.find(d => d.id === id);
-      if (!deuda) return;
-      abonarDeuda(id, deuda.montoCuota);
-      this.refreshAdmin();
-    };
-
-    $('#btnAbonoCustom').onclick = () => {
-      const id = $('#abonoDeudaSelect').value;
-      if (!id) return;
-      Modal.showInput(
-        'Abono personalizado',
-        [{ label: 'Monto ($)', key: 'm', type: 'number' }],
-        (d) => {
-          abonarDeuda(id, d.m);
-          this.refreshAdmin();
-          return true;
-        }
-      );
-    };
-
-    // ---------- BACKUP ----------
-    $('#btnExportJSON').onclick = () => {
+    bind('btnExportJSON', () => {
       navigator.clipboard.writeText(JSON.stringify(store));
       alert('JSON copiado');
-    };
+    });
 
-    $('#btnRestoreBackup').onclick = () => {
+    bind('btnRestoreBackup', () => {
       Modal.showInput(
         'Restaurar JSON',
         [{ label: 'Pegar JSON', key: 'json', type: 'text' }],
-        (d) => {
-          if (importarBackup(d.json)) {
-            location.reload();
-            return true;
-          }
-          return false;
-        }
+        (d) => importarBackup(d.json) && location.reload()
       );
-    };
+    });
   },
 
   updateAdminUI(store) {
-    $('#kmActual').innerText = store.parametros.ultimoKM
-      ? `${store.parametros.ultimoKM} km`
-      : '—';
+    const km = document.getElementById('kmActual');
+    if (km) km.innerText = store.parametros.ultimoKM || '—';
 
-    $('#metaDiariaValor').innerText = fmtMoney(store.parametros.metaDiaria);
-
-    if (store.turnoActivo) {
-      $('#turnoEstado').innerText = '🟢 Turno en curso';
-      $('#btnTurnoIniciar').classList.add('hidden');
-      $('#btnTurnoFinalizar').classList.remove('hidden');
-
-      if (timerInterval) clearInterval(timerInterval);
-      const start = store.turnoActivo.inicio;
-
-      timerInterval = setInterval(() => {
-        const diff = Date.now() - start;
-        const h = Math.floor(diff / 3600000);
-        const m = Math.floor((diff % 3600000) / 60000);
-        const s = Math.floor((diff % 60000) / 1000);
-        $('#turnoTimer').innerText = `${h}h ${m}m ${s}s`;
-      }, 1000);
-    } else {
-      if (timerInterval) clearInterval(timerInterval);
-      $('#turnoEstado').innerText = '🔴 Turno detenido';
-      $('#turnoTimer').innerText = '--:--:--';
-      $('#btnTurnoIniciar').classList.remove('hidden');
-      $('#btnTurnoFinalizar').classList.add('hidden');
-    }
-
-    const list = $('#listaDeudasAdmin');
-    const select = $('#abonoDeudaSelect');
-    list.innerHTML = '';
-    select.innerHTML = '<option value="">-- Seleccionar deuda --</option>';
-
-    store.deudas.forEach(d => {
-      if (d.saldo <= 0) return;
-      const li = document.createElement('li');
-      li.className = 'list-item';
-      li.innerHTML = `<span>${d.desc}</span><strong>${fmtMoney(d.saldo)}</strong>`;
-      list.appendChild(li);
-
-      const opt = document.createElement('option');
-      opt.value = d.id;
-      opt.innerText = `${d.desc} (${fmtMoney(d.montoCuota)})`;
-      select.appendChild(opt);
-    });
+    const meta = document.getElementById('metaDiariaValor');
+    if (meta) meta.innerText = fmtMoney(store.parametros.metaDiaria);
   },
 
   refreshAdmin() {
@@ -254,28 +166,9 @@ const App = {
     this.admin(getStore());
   },
 
-  index(store) {
-    renderCharts(store);
-  },
-
-  wallet(store) {
-    $('#valWallet').innerText = fmtMoney(store.wallet.saldo);
-  },
-
-  historial(store) {
-    const tbody = $('#tablaBody');
-    tbody.innerHTML = store.movimientos.slice().reverse().slice(0, 50).map(m => `
-      <tr>
-        <td>${fmtDate(m.fecha)}</td>
-        <td>${m.desc}</td>
-        <td class="${m.tipo === 'ingreso' ? 'text-green' : 'text-red'}">
-          ${fmtMoney(m.monto)}
-        </td>
-      </tr>
-    `).join('');
-
-    renderCharts(store);
-  }
+  index(store) { renderCharts(store); },
+  wallet(store) {},
+  historial(store) {}
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
