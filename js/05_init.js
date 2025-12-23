@@ -12,18 +12,17 @@ let timerInterval = null;
 
 const App = {
     init: () => {
-        // 1. Cargar Datos
+        // 1. Cargar Datos y contexto
         loadData();
         const store = getStore();
         const page = document.body.dataset.page;
 
-        // 2. Determinar contexto y ejecutar wiring
-        // IMPORTANTE: Los listeners se atan ANTES de validar onboarding
-        // para asegurar que la UI no quede muerta si el modal se cierra.
+        // 2. Wiring de Eventos (Dependiendo de la página)
         if (page === 'admin') {
             App.bindAdminEvents(store);
             App.updateAdminUI(store);
-            App.checkOnboarding(store);
+            // Onboarding automático (solo si falta KM)
+            if (store.parametros.ultimoKM === 0) App.triggerOnboarding();
         } else if (page === 'index') {
             App.renderDashboard(store);
         } else if (page === 'wallet') {
@@ -32,7 +31,7 @@ const App = {
             App.renderHistorial(store);
         }
 
-        // 3. Navegación Activa
+        // 3. Navegación Activa (Visual)
         const links = document.querySelectorAll('.nav-link');
         links.forEach(l => {
             if(l.getAttribute('href').includes(page)) l.classList.add('active');
@@ -50,35 +49,33 @@ const App = {
         if (page === 'historial') App.renderHistorial(store);
     },
 
-    checkOnboarding: (store) => {
-        if (store.parametros.ultimoKM === 0) {
-            Modal.showInput(
-                "Configuración Inicial",
-                [{ label: "Kilometraje Actual del Tablero", key: "km", type: "number", placeholder: "Ej. 12500" }],
-                (d) => {
-                    const val = safeFloat(d.km);
-                    if (val > 0) {
-                        setUltimoKM(val);
-                        App.refresh();
-                        return true;
-                    }
-                    return false;
+    triggerOnboarding: () => {
+        Modal.showInput(
+            "Configuración Inicial",
+            [{ label: "Kilometraje Actual del Tablero", key: "km", type: "number", placeholder: "Ej. 12500" }],
+            (d) => {
+                const val = safeFloat(d.km);
+                if (val > 0) {
+                    setUltimoKM(val);
+                    App.refresh();
+                    return true;
                 }
-            );
-        }
+                return false;
+            }
+        );
     },
 
     /* =========================================
        ADMINISTRACIÓN (Wiring & Logic)
        ========================================= */
     bindAdminEvents: (store) => {
-        // Helper para atar eventos solo si el elemento existe
+        // Helper seguro: si el ID no existe en el HTML, no rompe el script
         const bind = (id, handler) => {
-            const el = $(id);
+            const el = $(id); // $(id) usa getElementById, NO usar #
             if (el) el.onclick = handler;
         };
 
-        // 1. Configuración / Onboarding Manual
+        // 1. Kilometraje Manual
         bind('btnConfigKM', () => {
             const current = getStore().parametros.ultimoKM;
             Modal.showInput("Ajustar Kilometraje", [
@@ -117,7 +114,7 @@ const App = {
             });
         });
 
-        // 3. Gastos Inteligentes
+        // 3. Gastos Inteligentes (Botones Hogar / Operativo)
         const wizardGasto = (grupo, cats) => {
             Modal.showInput(`Gasto ${grupo}`, [
                 { label: "Descripción", key: "desc", type: "text" },
@@ -127,7 +124,7 @@ const App = {
             ], (d) => {
                 if(!d.desc || safeFloat(d.monto) <= 0) return false;
                 procesarGasto(d.desc, d.monto, grupo, d.cat, d.freq);
-                alert("✅ Registrado");
+                alert("✅ Gasto registrado");
                 App.refresh();
                 return true;
             });
@@ -167,14 +164,14 @@ const App = {
             });
         });
 
-        // 6. Abonos
+        // 6. Abonos (Cuota fija y Custom)
         bind('btnAbonoCuota', () => {
             const s = getStore();
             const id = $('abonoDeudaSelect')?.value;
             if(!id) return alert("Selecciona una deuda");
             
             const deuda = s.deudas.find(x => x.id == id);
-            if(confirm(`¿Pagar cuota de ${fmtMoney(deuda.montoCuota)} para ${deuda.desc}?`)) {
+            if(deuda && confirm(`¿Pagar cuota de ${fmtMoney(deuda.montoCuota)} para ${deuda.desc}?`)) {
                 abonarDeuda(id, deuda.montoCuota);
                 alert("✅ Abono registrado");
                 App.refresh();
@@ -194,15 +191,14 @@ const App = {
             });
         });
 
-        // 7. Datos
+        // 7. Datos y Backup
         bind('btnExportJSON', () => {
             const s = getStore();
             navigator.clipboard.writeText(JSON.stringify(s))
                 .then(() => alert("📋 JSON Copiado"))
-                .catch(() => alert("Error copiando"));
+                .catch(() => alert("Error copiando JSON"));
         });
 
-        // Maneja tanto el botón Restore como Import si existen en el HTML
         const restoreHandler = () => {
             Modal.showInput("Restaurar Backup", [{label:"Pegar JSON", key:"json", type:"text"}], (d)=>{
                 if(importarBackup(d.json)) { 
@@ -225,15 +221,15 @@ const App = {
         const btnFin = $('btnTurnoFinalizar');
         const timerTxt = $('turnoTimer');
 
+        // Limpiar intervalo previo para evitar aceleración
+        if (timerInterval) clearInterval(timerInterval);
+
         if (store.turnoActivo) {
             if (turnoTxt) turnoTxt.innerHTML = `<span style="color:var(--success)">🟢 EN CURSO</span>`;
             if (btnIni) btnIni.classList.add('hidden');
             if (btnFin) btnFin.classList.remove('hidden');
             
-            // Cronómetro
-            if (timerInterval) clearInterval(timerInterval);
             const inicio = new Date(store.turnoActivo.inicio).getTime();
-            
             const updateTimer = () => {
                 const diff = Date.now() - inicio;
                 const hrs = Math.floor(diff / 3600000);
@@ -244,22 +240,17 @@ const App = {
             timerInterval = setInterval(updateTimer, 1000);
             updateTimer(); 
         } else {
-            if (timerInterval) clearInterval(timerInterval);
             if (turnoTxt) turnoTxt.innerHTML = `🔴 Turno detenido`;
-            if (timerTxt) timerTxt.innerText = "00:00:00";
+            if (timerTxt) timerTxt.innerText = "--:--:--";
             if (btnIni) btnIni.classList.remove('hidden');
             if (btnFin) btnFin.classList.add('hidden');
         }
 
-        // KM
-        const elKm = $('kmActual');
-        if (elKm) elKm.innerText = `${store.parametros.ultimoKM} km`;
+        // KM y Meta
+        if ($('kmActual')) $('kmActual').innerText = `${store.parametros.ultimoKM} km`;
+        if ($('metaDiariaValor')) $('metaDiariaValor').innerText = fmtMoney(store.parametros.metaDiaria);
 
-        // Meta
-        const elMeta = $('metaDiariaValor');
-        if (elMeta) elMeta.innerText = fmtMoney(store.parametros.metaDiaria);
-
-        // Listas Deudas (Admin List & Select)
+        // Listas Deudas
         const list = $('listaDeudasAdmin');
         const select = $('abonoDeudaSelect');
         
@@ -269,6 +260,7 @@ const App = {
         store.deudas.forEach(d => {
             if (d.saldo <= 0.1) return; // Ocultar saldados
             
+            // Render Lista
             if (list) {
                 const li = document.createElement('li');
                 li.className = 'list-item';
@@ -280,6 +272,7 @@ const App = {
                 list.appendChild(li);
             }
 
+            // Render Select
             if (select) {
                 const opt = document.createElement('option');
                 opt.value = d.id;
@@ -290,7 +283,7 @@ const App = {
     },
 
     /* =========================================
-       OTRAS PÁGINAS (READ-ONLY VIEWS)
+       DASHBOARD & OTHERS
        ========================================= */
     renderDashboard: (store) => {
         const hoy = new Date().toDateString();
@@ -310,7 +303,6 @@ const App = {
         if($('progresoTexto')) $('progresoTexto').innerText = prog.toFixed(0) + '%';
         if($('progresoBarra')) $('progresoBarra').style.width = Math.min(prog, 100) + '%';
         
-        // Tabla Turnos
         const tabla = $('tablaTurnos');
         if(tabla) {
             tabla.innerHTML = store.turnos.slice(-5).reverse().map(t => `
@@ -322,13 +314,11 @@ const App = {
                 </tr>
             `).join('');
         }
-
         renderCharts(store);
     },
 
     renderWallet: (store) => {
         if($('valWallet')) $('valWallet').innerText = fmtMoney(store.wallet.saldo);
-        // Opcional: Renderizar lista deudas en wallet si existe el contenedor
         const list = $('listaDeudas');
         if(list) {
             list.innerHTML = store.deudas.filter(d=>d.saldo>0).map(d=>`
@@ -357,7 +347,6 @@ const App = {
                 </td>
             </tr>
         `).join('');
-        
         renderCharts(store);
     }
 };
