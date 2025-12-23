@@ -43,9 +43,6 @@
 
         <section class="card" style="border-left:5px solid var(--danger)">
             <h2>Registrar Gasto</h2>
-            <p style="font-size:0.8rem; color:var(--text-sec); margin-bottom:10px;">
-                Selecciona el tipo de gasto:
-            </p>
             <div class="grid-2">
                 <button id="btnGastoHogar" class="btn btn-outline">
                     🏠 Hogar
@@ -70,7 +67,7 @@
             </button>
 
             <div style="background:#f1f5f9; padding:10px; border-radius:8px;">
-                <label for="abonoDeudaSelect" style="font-size:0.8rem; display:block; margin-bottom:5px;">Seleccionar deuda a pagar:</label>
+                <label style="font-size:0.8rem; display:block; margin-bottom:5px;">Seleccionar deuda a pagar:</label>
                 <select id="abonoDeudaSelect" class="input-control" style="width:100%; margin-bottom:10px; padding:8px;">
                     <option value="">-- Cargar Deudas --</option>
                 </select>
@@ -104,7 +101,6 @@
                 <button id="btnRestoreBackup" class="btn btn-outline" style="border-color:var(--danger); color:var(--danger);">
                     ♻️ Restaurar
                 </button>
-                <button id="btnImportJSON" class="hidden"></button>
             </div>
         </section>
 
@@ -128,8 +124,7 @@
         <a href="historial.html" class="nav-link"><span>📜</span>Historial</a>
     </nav>
 
-<script src="app.js"></script>
-    
-    
-    </body>
+    <script src="app.js"></script>
+</body>
 </html>
+
