@@ -1,4 +1,4 @@
-/* 05_init.js — ORQUESTADOR FINAL (ADMIN / INDEX / WALLET / HISTORIAL) */
+/* 05_init.js — ADMIN FUNCIONAL REAL */
 
 import {
   loadData,
@@ -29,7 +29,6 @@ const App = {
     const store = getStore();
     const page = document.body.dataset.page;
 
-    // Router
     if (page === 'admin') this.admin(store);
     if (page === 'index') this.index(store);
     if (page === 'wallet') this.wallet(store);
@@ -40,8 +39,12 @@ const App = {
      ADMIN
   ========================= */
   admin(store) {
-    // ---------- ONBOARDING KM ----------
-    if (!store.parametros.ultimoKM || store.parametros.ultimoKM <= 0) {
+
+    // 🔹 RENDER SIEMPRE
+    this.updateAdminUI(store);
+
+    // 🔹 ONBOARDING PASIVO (NO ROMPE ADMIN)
+    const requireKM = () => {
       Modal.showInput(
         'Kilometraje inicial',
         [{ label: '¿Qué kilometraje marca tu moto?', key: 'km', type: 'number' }],
@@ -53,29 +56,14 @@ const App = {
           return true;
         }
       );
-      return;
-    }
-
-    // Render inicial
-    this.updateAdminUI(store);
+    };
 
     // ---------- CONFIG KM ----------
-    $('#btnConfigKM').onclick = () => {
-      Modal.showInput(
-        'Actualizar kilometraje',
-        [{ label: 'Kilometraje actual', key: 'km', type: 'number', value: store.parametros.ultimoKM }],
-        (d) => {
-          const km = safeFloat(d.km);
-          if (km <= store.parametros.ultimoKM) return false;
-          setUltimoKM(km);
-          this.refreshAdmin();
-          return true;
-        }
-      );
-    };
+    $('#btnConfigKM').onclick = () => requireKM();
 
     // ---------- TURNO ----------
     $('#btnTurnoIniciar').onclick = () => {
+      if (!store.parametros.ultimoKM) return requireKM();
       iniciarTurno();
       this.refreshAdmin();
     };
@@ -100,6 +88,8 @@ const App = {
 
     // ---------- GASTOS ----------
     const gastoWizard = (grupo, categorias) => {
+      if (!store.parametros.ultimoKM) return requireKM();
+
       Modal.showInput(
         `Gasto ${grupo}`,
         [
@@ -127,6 +117,8 @@ const App = {
 
     // ---------- GASOLINA ----------
     $('#btnGasolina').onclick = () => {
+      if (!store.parametros.ultimoKM) return requireKM();
+
       Modal.showInput(
         'Registrar gasolina',
         [
@@ -209,13 +201,12 @@ const App = {
   },
 
   updateAdminUI(store) {
-    // KM
-    $('#kmActual').innerText = `${store.parametros.ultimoKM} km`;
+    $('#kmActual').innerText = store.parametros.ultimoKM
+      ? `${store.parametros.ultimoKM} km`
+      : '—';
 
-    // META
     $('#metaDiariaValor').innerText = fmtMoney(store.parametros.metaDiaria);
 
-    // TURNO
     if (store.turnoActivo) {
       $('#turnoEstado').innerText = '🟢 Turno en curso';
       $('#btnTurnoIniciar').classList.add('hidden');
@@ -239,7 +230,6 @@ const App = {
       $('#btnTurnoFinalizar').classList.add('hidden');
     }
 
-    // DEUDAS
     const list = $('#listaDeudasAdmin');
     const select = $('#abonoDeudaSelect');
     list.innerHTML = '';
@@ -264,38 +254,14 @@ const App = {
     this.admin(getStore());
   },
 
-  /* =========================
-     INDEX
-  ========================= */
   index(store) {
-    const hoy = new Date().toDateString();
-    const turnosHoy = store.turnos.filter(t => new Date(t.fecha).toDateString() === hoy);
-    const ingresosHoy = store.movimientos
-      .filter(m => m.tipo === 'ingreso' && new Date(m.fecha).toDateString() === hoy)
-      .reduce((s, m) => s + m.monto, 0);
-
-    $('#valHoras').innerText = turnosHoy.reduce((s, t) => s + t.horas, 0).toFixed(1) + 'h';
-    $('#valGanancia').innerText = fmtMoney(ingresosHoy);
-
-    const meta = store.parametros.metaDiaria;
-    const prog = meta > 0 ? (ingresosHoy / meta) * 100 : 0;
-    $('#valMeta').innerText = fmtMoney(meta);
-    $('#txtProgreso').innerText = prog.toFixed(0) + '%';
-    $('#barProgreso').style.width = Math.min(prog, 100) + '%';
-
     renderCharts(store);
   },
 
-  /* =========================
-     WALLET
-  ========================= */
   wallet(store) {
     $('#valWallet').innerText = fmtMoney(store.wallet.saldo);
   },
 
-  /* =========================
-     HISTORIAL
-  ========================= */
   historial(store) {
     const tbody = $('#tablaBody');
     tbody.innerHTML = store.movimientos.slice().reverse().slice(0, 50).map(m => `
