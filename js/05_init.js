@@ -1,279 +1,365 @@
-/* 05_init.js — ADMIN FUNCIONAL v5 (SIN ALUCIN) */
-
-import {
-  loadData,
-  getStore,
-  setUltimoKM,
-  iniciarTurno,
-  finalizarTurno,
-  registrarGasolina,
-  procesarGasto,
-  agregarDeuda,
-  abonarDeuda,
-  importarBackup
+/* 05_init.js */
+import { 
+    loadData, getStore, setUltimoKM, iniciarTurno, finalizarTurno, 
+    registrarGasolina, procesarGasto, agregarDeuda, abonarDeuda, 
+    importarBackup 
 } from './02_data.js';
-
-import {
-  $, fmtMoney, fmtDate, safeFloat, CATEGORIAS, FRECUENCIAS
-} from './01_consts_utils.js';
-
+import { $, fmtMoney, safeFloat, CATEGORIAS, FRECUENCIAS } from './01_consts_utils.js';
 import { Modal } from './03_render.js';
 import { renderCharts } from './04_charts.js';
 
 let timerInterval = null;
-let listenersMounted = false;
 
-document.addEventListener('DOMContentLoaded', () => {
-  loadData();
-  const store = getStore();
-  const page = document.body.dataset.page;
+const App = {
+    init: () => {
+        // 1. Cargar Datos
+        loadData();
+        const store = getStore();
+        const page = document.body.dataset.page;
 
-  if (page === 'admin') initAdmin(store);
-  if (page === 'index') renderIndex(store);
-  if (page === 'wallet') renderWallet(store);
-  if (page === 'historial') renderHistorial(store);
-});
+        // 2. Determinar contexto y ejecutar wiring
+        // IMPORTANTE: Los listeners se atan ANTES de validar onboarding
+        // para asegurar que la UI no quede muerta si el modal se cierra.
+        if (page === 'admin') {
+            App.bindAdminEvents(store);
+            App.updateAdminUI(store);
+            App.checkOnboarding(store);
+        } else if (page === 'index') {
+            App.renderDashboard(store);
+        } else if (page === 'wallet') {
+            App.renderWallet(store);
+        } else if (page === 'historial') {
+            App.renderHistorial(store);
+        }
 
-/* =========================
-   ADMIN
-========================= */
-function initAdmin(store) {
-  updateAdminUI(store);
-  mountAdminListeners();
-}
+        // 3. Navegación Activa
+        const links = document.querySelectorAll('.nav-link');
+        links.forEach(l => {
+            if(l.getAttribute('href').includes(page)) l.classList.add('active');
+        });
+    },
 
-/* ---------- LISTENERS (UNA SOLA VEZ) ---------- */
-function mountAdminListeners() {
-  if (listenersMounted) return;
-  listenersMounted = true;
+    refresh: () => {
+        loadData();
+        const store = getStore();
+        const page = document.body.dataset.page;
+        
+        if (page === 'admin') App.updateAdminUI(store);
+        if (page === 'index') App.renderDashboard(store);
+        if (page === 'wallet') App.renderWallet(store);
+        if (page === 'historial') App.renderHistorial(store);
+    },
 
-  // KM
-  $('#btnConfigKM')?.addEventListener('click', () => {
-    const store = getStore();
-    Modal.showInput(
-      'Configurar kilometraje',
-      [{ label: 'Kilometraje actual', key: 'km', type: 'number', value: store.parametros.ultimoKM || '' }],
-      (d) => {
-        const km = safeFloat(d.km);
-        if (km <= 0) return false;
-        setUltimoKM(km);
-        reloadAdmin();
-        return true;
-      }
-    );
-  });
+    checkOnboarding: (store) => {
+        if (store.parametros.ultimoKM === 0) {
+            Modal.showInput(
+                "Configuración Inicial",
+                [{ label: "Kilometraje Actual del Tablero", key: "km", type: "number", placeholder: "Ej. 12500" }],
+                (d) => {
+                    const val = safeFloat(d.km);
+                    if (val > 0) {
+                        setUltimoKM(val);
+                        App.refresh();
+                        return true;
+                    }
+                    return false;
+                }
+            );
+        }
+    },
 
-  // TURNO
-  $('#btnTurnoIniciar')?.addEventListener('click', () => {
-    iniciarTurno();
-    reloadAdmin();
-  });
+    /* =========================================
+       ADMINISTRACIÓN (Wiring & Logic)
+       ========================================= */
+    bindAdminEvents: (store) => {
+        // Helper para atar eventos solo si el elemento existe
+        const bind = (id, handler) => {
+            const el = $(id);
+            if (el) el.onclick = handler;
+        };
 
-  $('#btnTurnoFinalizar')?.addEventListener('click', () => {
-    const store = getStore();
-    Modal.showInput(
-      'Finalizar turno',
-      [
-        { label: 'Kilometraje final', key: 'km', type: 'number', value: store.parametros.ultimoKM },
-        { label: 'Ganancia ($)', key: 'gan', type: 'number' }
-      ],
-      (d) => {
-        const km = safeFloat(d.km);
-        const gan = safeFloat(d.gan);
-        if (km <= store.parametros.ultimoKM) return false;
-        finalizarTurno(km, gan);
-        reloadAdmin();
-        return true;
-      }
-    );
-  });
+        // 1. Configuración / Onboarding Manual
+        bind('btnConfigKM', () => {
+            const current = getStore().parametros.ultimoKM;
+            Modal.showInput("Ajustar Kilometraje", [
+                { label: "KM Actual", key: "km", type: "number", value: current }
+            ], (d) => {
+                const val = safeFloat(d.km);
+                if (val > 0) {
+                    setUltimoKM(val);
+                    App.refresh();
+                    return true;
+                }
+                return false;
+            });
+        });
 
-  // GASTOS
-  $('#btnGastoHogar')?.addEventListener('click', () =>
-    gastoWizard('Hogar', CATEGORIAS.hogar)
-  );
+        // 2. Control de Turno
+        bind('btnTurnoIniciar', () => {
+            iniciarTurno();
+            App.refresh();
+        });
 
-  $('#btnGastoOperativo')?.addEventListener('click', () =>
-    gastoWizard('Operativo', CATEGORIAS.operativo)
-  );
+        bind('btnTurnoFinalizar', () => {
+            const s = getStore();
+            Modal.showInput("Finalizar Turno", [
+                { label: "Kilometraje Final", key: "km", type: "number", value: s.parametros.ultimoKM },
+                { label: "Ganancia Total ($)", key: "gan", type: "number" }
+            ], (d) => {
+                const k = safeFloat(d.km);
+                const g = safeFloat(d.gan);
+                if (k <= s.parametros.ultimoKM) { alert("❌ El KM debe ser mayor al inicial"); return false; }
+                if (g < 0) { alert("❌ Ganancia inválida"); return false; }
+                
+                finalizarTurno(k, g);
+                App.refresh();
+                return true;
+            });
+        });
 
-  // GASOLINA
-  $('#btnGasolina')?.addEventListener('click', () => {
-    const store = getStore();
-    Modal.showInput(
-      'Registrar gasolina',
-      [
-        { label: 'Litros', key: 'l', type: 'number' },
-        { label: 'Costo ($)', key: 'c', type: 'number' },
-        { label: 'Kilometraje actual', key: 'k', type: 'number', value: store.parametros.ultimoKM }
-      ],
-      (d) => {
-        const k = safeFloat(d.k);
-        if (k <= store.parametros.ultimoKM) return false;
-        registrarGasolina(d.l, d.c, k);
-        reloadAdmin();
-        return true;
-      }
-    );
-  });
+        // 3. Gastos Inteligentes
+        const wizardGasto = (grupo, cats) => {
+            Modal.showInput(`Gasto ${grupo}`, [
+                { label: "Descripción", key: "desc", type: "text" },
+                { label: "Monto ($)", key: "monto", type: "number" },
+                { label: "Categoría", key: "cat", type: "select", options: cats.map(c=>({value:c, text:c})) },
+                { label: "Frecuencia", key: "freq", type: "select", options: Object.keys(FRECUENCIAS).map(k=>({value:k, text:k})) }
+            ], (d) => {
+                if(!d.desc || safeFloat(d.monto) <= 0) return false;
+                procesarGasto(d.desc, d.monto, grupo, d.cat, d.freq);
+                alert("✅ Registrado");
+                App.refresh();
+                return true;
+            });
+        };
 
-  // DEUDAS
-  $('#btnDeudaNueva')?.addEventListener('click', () => {
-    Modal.showInput(
-      'Nueva deuda',
-      [
-        { label: 'Nombre', key: 'desc', type: 'text' },
-        { label: 'Monto total ($)', key: 'total', type: 'number' },
-        { label: 'Cuota ($)', key: 'cuota', type: 'number' },
-        { label: 'Frecuencia', key: 'freq', type: 'select',
-          options: Object.keys(FRECUENCIAS).map(f => ({ value: f, text: f })) }
-      ],
-      (d) => {
-        agregarDeuda(d.desc, d.total, d.cuota, d.freq);
-        reloadAdmin();
-        return true;
-      }
-    );
-  });
+        bind('btnGastoHogar', () => wizardGasto('Hogar', CATEGORIAS.hogar));
+        bind('btnGastoOperativo', () => wizardGasto('Operativo', CATEGORIAS.operativo));
 
-  // ABONOS
-  $('#btnAbonoCuota')?.addEventListener('click', () => {
-    const store = getStore();
-    const id = $('#abonoDeudaSelect')?.value;
-    const deuda = store.deudas.find(d => d.id === id);
-    if (!deuda) return;
-    abonarDeuda(id, deuda.montoCuota);
-    reloadAdmin();
-  });
+        // 4. Gasolina
+        bind('btnGasolina', () => {
+            const s = getStore();
+            Modal.showInput("Registrar Gasolina", [
+                { label: "Litros", key: "l", type: "number" },
+                { label: "Costo Total ($)", key: "c", type: "number" },
+                { label: "KM Actual", key: "k", type: "number", value: s.parametros.ultimoKM }
+            ], (d) => {
+                const k = safeFloat(d.k);
+                if (k <= s.parametros.ultimoKM) { alert("❌ KM debe ser mayor al anterior"); return false; }
+                registrarGasolina(d.l, d.c, k);
+                alert("✅ Gasolina procesada");
+                App.refresh();
+                return true;
+            });
+        });
 
-  $('#btnAbonoCustom')?.addEventListener('click', () => {
-    const id = $('#abonoDeudaSelect')?.value;
-    if (!id) return;
-    Modal.showInput(
-      'Abono personalizado',
-      [{ label: 'Monto ($)', key: 'm', type: 'number' }],
-      (d) => {
-        abonarDeuda(id, d.m);
-        reloadAdmin();
-        return true;
-      }
-    );
-  });
+        // 5. Deudas
+        bind('btnDeudaNueva', () => {
+            Modal.showInput("Nueva Deuda", [
+                { label: "Nombre", key: "desc", type: "text" },
+                { label: "Deuda Total ($)", key: "total", type: "number" },
+                { label: "Cuota Periódica ($)", key: "cuota", type: "number" },
+                { label: "Frecuencia", key: "freq", type: "select", options: Object.keys(FRECUENCIAS).map(k=>({value:k, text:k})) }
+            ], (d) => {
+                agregarDeuda(d.desc, d.total, d.cuota, d.freq);
+                App.refresh();
+                return true;
+            });
+        });
 
-  // BACKUP
-  $('#btnExportJSON')?.addEventListener('click', () => {
-    navigator.clipboard.writeText(JSON.stringify(getStore()));
-    alert('JSON copiado');
-  });
+        // 6. Abonos
+        bind('btnAbonoCuota', () => {
+            const s = getStore();
+            const id = $('abonoDeudaSelect')?.value;
+            if(!id) return alert("Selecciona una deuda");
+            
+            const deuda = s.deudas.find(x => x.id == id);
+            if(confirm(`¿Pagar cuota de ${fmtMoney(deuda.montoCuota)} para ${deuda.desc}?`)) {
+                abonarDeuda(id, deuda.montoCuota);
+                alert("✅ Abono registrado");
+                App.refresh();
+            }
+        });
 
-  $('#btnRestoreBackup')?.addEventListener('click', () => {
-    Modal.showInput(
-      'Restaurar JSON',
-      [{ label: 'Pegar JSON', key: 'json', type: 'text' }],
-      (d) => {
-        if (importarBackup(d.json)) location.reload();
-        return true;
-      }
-    );
-  });
-}
+        bind('btnAbonoCustom', () => {
+            const id = $('abonoDeudaSelect')?.value;
+            if(!id) return alert("Selecciona una deuda");
+            
+            Modal.showInput("Abono Personalizado", [{label:"Monto", key:"m", type:"number"}], (d)=>{
+                const val = safeFloat(d.m);
+                if(val <= 0) return false;
+                abonarDeuda(id, val);
+                App.refresh();
+                return true;
+            });
+        });
 
-/* ---------- UI ---------- */
-function updateAdminUI(store) {
-  $('#kmActual').innerText = store.parametros.ultimoKM
-    ? `${store.parametros.ultimoKM} km`
-    : '—';
+        // 7. Datos
+        bind('btnExportJSON', () => {
+            const s = getStore();
+            navigator.clipboard.writeText(JSON.stringify(s))
+                .then(() => alert("📋 JSON Copiado"))
+                .catch(() => alert("Error copiando"));
+        });
 
-  $('#metaDiariaValor').innerText = fmtMoney(store.parametros.metaDiaria);
+        // Maneja tanto el botón Restore como Import si existen en el HTML
+        const restoreHandler = () => {
+            Modal.showInput("Restaurar Backup", [{label:"Pegar JSON", key:"json", type:"text"}], (d)=>{
+                if(importarBackup(d.json)) { 
+                    alert("✅ Restaurado"); 
+                    window.location.reload(); 
+                    return true; 
+                }
+                alert("❌ JSON Inválido"); 
+                return false;
+            });
+        };
+        bind('btnRestoreBackup', restoreHandler);
+        bind('btnImportJSON', restoreHandler);
+    },
 
-  if (store.turnoActivo) {
-    $('#turnoEstado').innerText = '🟢 Turno en curso';
-    $('#btnTurnoIniciar').classList.add('hidden');
-    $('#btnTurnoFinalizar').classList.remove('hidden');
+    updateAdminUI: (store) => {
+        // UI Turno
+        const turnoTxt = $('turnoEstado');
+        const btnIni = $('btnTurnoIniciar');
+        const btnFin = $('btnTurnoFinalizar');
+        const timerTxt = $('turnoTimer');
 
-    if (timerInterval) clearInterval(timerInterval);
-    const start = store.turnoActivo.inicio;
+        if (store.turnoActivo) {
+            if (turnoTxt) turnoTxt.innerHTML = `<span style="color:var(--success)">🟢 EN CURSO</span>`;
+            if (btnIni) btnIni.classList.add('hidden');
+            if (btnFin) btnFin.classList.remove('hidden');
+            
+            // Cronómetro
+            if (timerInterval) clearInterval(timerInterval);
+            const inicio = new Date(store.turnoActivo.inicio).getTime();
+            
+            const updateTimer = () => {
+                const diff = Date.now() - inicio;
+                const hrs = Math.floor(diff / 3600000);
+                const min = Math.floor((diff % 3600000) / 60000);
+                const sec = Math.floor((diff % 60000) / 1000);
+                if (timerTxt) timerTxt.innerText = `${hrs}h ${min}m ${sec}s`;
+            };
+            timerInterval = setInterval(updateTimer, 1000);
+            updateTimer(); 
+        } else {
+            if (timerInterval) clearInterval(timerInterval);
+            if (turnoTxt) turnoTxt.innerHTML = `🔴 Turno detenido`;
+            if (timerTxt) timerTxt.innerText = "00:00:00";
+            if (btnIni) btnIni.classList.remove('hidden');
+            if (btnFin) btnFin.classList.add('hidden');
+        }
 
-    timerInterval = setInterval(() => {
-      const d = Date.now() - start;
-      const h = Math.floor(d / 3600000);
-      const m = Math.floor((d % 3600000) / 60000);
-      const s = Math.floor((d % 60000) / 1000);
-      $('#turnoTimer').innerText = `${h}h ${m}m ${s}s`;
-    }, 1000);
-  } else {
-    if (timerInterval) clearInterval(timerInterval);
-    $('#turnoEstado').innerText = '🔴 Turno detenido';
-    $('#turnoTimer').innerText = '--:--:--';
-    $('#btnTurnoIniciar').classList.remove('hidden');
-    $('#btnTurnoFinalizar').classList.add('hidden');
-  }
+        // KM
+        const elKm = $('kmActual');
+        if (elKm) elKm.innerText = `${store.parametros.ultimoKM} km`;
 
-  const list = $('#listaDeudasAdmin');
-  const select = $('#abonoDeudaSelect');
-  list.innerHTML = '';
-  select.innerHTML = '<option value="">-- Seleccionar deuda --</option>';
+        // Meta
+        const elMeta = $('metaDiariaValor');
+        if (elMeta) elMeta.innerText = fmtMoney(store.parametros.metaDiaria);
 
-  store.deudas.forEach(d => {
-    if (d.saldo <= 0) return;
-    const li = document.createElement('li');
-    li.className = 'list-item';
-    li.innerHTML = `<span>${d.desc}</span><strong>${fmtMoney(d.saldo)}</strong>`;
-    list.appendChild(li);
+        // Listas Deudas (Admin List & Select)
+        const list = $('listaDeudasAdmin');
+        const select = $('abonoDeudaSelect');
+        
+        if (list) list.innerHTML = '';
+        if (select) select.innerHTML = '<option value="">-- Seleccionar Deuda --</option>';
 
-    const opt = document.createElement('option');
-    opt.value = d.id;
-    opt.innerText = `${d.desc} (${fmtMoney(d.montoCuota)})`;
-    select.appendChild(opt);
-  });
-}
+        store.deudas.forEach(d => {
+            if (d.saldo <= 0.1) return; // Ocultar saldados
+            
+            if (list) {
+                const li = document.createElement('li');
+                li.className = 'list-item';
+                li.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; width:100%">
+                        <span>${d.desc} <small style="color:var(--text-sec)">(${d.frecuencia})</small></span>
+                        <strong>${fmtMoney(d.saldo)}</strong>
+                    </div>`;
+                list.appendChild(li);
+            }
 
-/* ---------- HELPERS ---------- */
-function reloadAdmin() {
-  loadData();
-  updateAdminUI(getStore());
-}
+            if (select) {
+                const opt = document.createElement('option');
+                opt.value = d.id;
+                opt.innerText = `${d.desc} (Cuota: ${fmtMoney(d.montoCuota)})`;
+                select.appendChild(opt);
+            }
+        });
+    },
 
-function gastoWizard(grupo, categorias) {
-  Modal.showInput(
-    `Gasto ${grupo}`,
-    [
-      { label: 'Descripción', key: 'desc', type: 'text' },
-      { label: 'Monto ($)', key: 'monto', type: 'number' },
-      { label: 'Categoría', key: 'cat', type: 'select',
-        options: categorias.map(c => ({ value: c, text: c })) },
-      { label: 'Frecuencia', key: 'freq', type: 'select',
-        options: Object.keys(FRECUENCIAS).map(f => ({ value: f, text: f })) }
-    ],
-    (d) => {
-      if (!d.desc || safeFloat(d.monto) <= 0) return false;
-      procesarGasto(d.desc, d.monto, grupo, d.cat, d.freq);
-      reloadAdmin();
-      return true;
+    /* =========================================
+       OTRAS PÁGINAS (READ-ONLY VIEWS)
+       ========================================= */
+    renderDashboard: (store) => {
+        const hoy = new Date().toDateString();
+        const turnosHoy = store.turnos.filter(t => new Date(t.fecha).toDateString() === hoy);
+        const movsHoy = store.movimientos.filter(m => new Date(m.fecha).toDateString() === hoy && m.tipo === 'ingreso');
+        
+        const horas = turnosHoy.reduce((a,b)=>a+b.horas,0);
+        const ganancia = movsHoy.reduce((a,b)=>a+b.monto,0);
+        
+        if($('resHoras')) $('resHoras').innerText = horas.toFixed(1) + 'h';
+        if($('resGananciaBruta')) $('resGananciaBruta').innerText = fmtMoney(ganancia);
+        
+        const meta = store.parametros.metaDiaria;
+        const prog = meta > 0 ? (ganancia/meta)*100 : 0;
+        
+        if($('dashboardMeta')) $('dashboardMeta').innerText = fmtMoney(meta);
+        if($('progresoTexto')) $('progresoTexto').innerText = prog.toFixed(0) + '%';
+        if($('progresoBarra')) $('progresoBarra').style.width = Math.min(prog, 100) + '%';
+        
+        // Tabla Turnos
+        const tabla = $('tablaTurnos');
+        if(tabla) {
+            tabla.innerHTML = store.turnos.slice(-5).reverse().map(t => `
+                <tr>
+                    <td>${new Date(t.fecha).toLocaleDateString(undefined, {weekday:'short'})}</td>
+                    <td>${t.horas.toFixed(1)}</td>
+                    <td>${t.kmRecorrido.toFixed(0)}</td>
+                    <td>${fmtMoney(t.ganancia)}</td>
+                </tr>
+            `).join('');
+        }
+
+        renderCharts(store);
+    },
+
+    renderWallet: (store) => {
+        if($('valWallet')) $('valWallet').innerText = fmtMoney(store.wallet.saldo);
+        // Opcional: Renderizar lista deudas en wallet si existe el contenedor
+        const list = $('listaDeudas');
+        if(list) {
+            list.innerHTML = store.deudas.filter(d=>d.saldo>0).map(d=>`
+                <li class="list-item">
+                    <span>${d.desc}</span>
+                    <span style="color:var(--danger)">${fmtMoney(d.saldo)}</span>
+                </li>
+            `).join('');
+        }
+    },
+
+    renderHistorial: (store) => {
+        const tbody = $('tablaBody');
+        if (!tbody) return;
+        
+        const movs = store.movimientos.slice().reverse().slice(0, 50);
+        tbody.innerHTML = movs.map(m => `
+            <tr>
+                <td>${new Date(m.fecha).toLocaleDateString()}</td>
+                <td>
+                    <strong>${m.desc}</strong><br>
+                    <small style="color:#64748b">${m.categoria || m.grupo}</small>
+                </td>
+                <td style="text-align:right" class="${m.tipo==='ingreso'?'text-green':'text-red'}">
+                    ${fmtMoney(m.monto)}
+                </td>
+            </tr>
+        `).join('');
+        
+        renderCharts(store);
     }
-  );
-}
+};
 
-/* =========================
-   OTRAS PÁGINAS
-========================= */
-function renderIndex(store) {
-  renderCharts(store);
-}
-
-function renderWallet(store) {
-  $('#valWallet').innerText = fmtMoney(store.wallet.saldo);
-}
-
-function renderHistorial(store) {
-  const tbody = $('#tablaBody');
-  tbody.innerHTML = store.movimientos.slice().reverse().slice(0, 50).map(m => `
-    <tr>
-      <td>${fmtDate(m.fecha)}</td>
-      <td>${m.desc}</td>
-      <td class="${m.tipo === 'ingreso' ? 'text-green' : 'text-red'}">
-        ${fmtMoney(m.monto)}
-      </td>
-    </tr>
-  `).join('');
-}
+document.addEventListener("DOMContentLoaded", App.init);
