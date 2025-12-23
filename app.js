@@ -48,6 +48,7 @@ function loadData() {
 }
 
 function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
+/* FIN PARTE 1 - SIGUE PARTE 2 */
 /* =========================================
    APP.JS - BLOQUE 2/3 (LÓGICA Y MODALES)
    ========================================= */
@@ -173,6 +174,7 @@ const Modal = {
         modal.style.display = 'flex';
     }
 };
+/* FIN PARTE 2 - SIGUE PARTE 3 */
 /* =========================================
    APP.JS - BLOQUE 3/3 (UI Y ARRANQUE)
    ========================================= */
@@ -283,7 +285,22 @@ function init() {
     if(page === 'wallet') {
         if($('valWallet')) $('valWallet').innerText = fmtMoney(store.wallet.saldo);
     }
+
+    if(page === 'historial') {
+        const tbody = $('tablaBody');
+        if (tbody) {
+            const movs = store.movimientos.slice().reverse().slice(0, 50);
+            tbody.innerHTML = movs.map(m => `
+                <tr>
+                    <td>${new Date(m.fecha).toLocaleDateString()}</td>
+                    <td><strong>${m.desc}</strong><br><small style="color:#64748b">${m.categoria || 'Gasto'}</small></td>
+                    <td style="text-align:right">${fmtMoney(m.monto)}</td>
+                </tr>
+            `).join('');
+        }
+    }
 }
 
 // ARRANQUE SEGURO
 document.addEventListener('DOMContentLoaded', init);
+       
