@@ -1,5 +1,5 @@
 /* =========================================
-   APP.JS - BLOQUE 1/3 (CEREBRO BLINDADO)
+   APP.JS - BLOQUE 1/3 (CEREBRO V3)
    ========================================= */
 
 // --- CONSTANTES ---
@@ -30,33 +30,29 @@ const safeFloat = (val) => { const n = parseFloat(val); return isFinite(n) ? n :
 const fmtMoney = (amount) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount || 0);
 const uuid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
-// --- LÓGICA DE DATOS (STATE) ---
+// --- STATE ---
 const INITIAL_STATE = {
     schemaVersion: SCHEMA_VERSION,
     turnos: [], movimientos: [], cargasCombustible: [], 
     deudas: [], gastosFijosMensuales: [],
     wallet: { saldo: 0, sobres: [], historial: [] },
-    parametros: { 
-        metaDiaria: 0, ultimoKM: 0, costoPorKm: 0, promedioDiarioKm: 120 
-    },
+    parametros: { metaDiaria: 0, ultimoKM: 0, costoPorKm: 0, promedioDiarioKm: 120 },
     turnoActivo: null
 };
 
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
-// --- MOTOR DE INTEGRIDAD (ANTI-CRASH) ---
+// --- MOTOR DE INTEGRIDAD Y CÁLCULOS ---
 function sanearDatos() {
-    // 1. Protección contra datos nulos
+    // 1. Validaciones de Arrays
     if(!Array.isArray(store.movimientos)) store.movimientos = [];
     if(!Array.isArray(store.cargasCombustible)) store.cargasCombustible = [];
     if(!Array.isArray(store.turnos)) store.turnos = [];
     if(!Array.isArray(store.deudas)) store.deudas = [];
-    if(!Array.isArray(store.gastosFijosMensuales)) store.gastosFijosMensuales = [];
     if(!store.wallet) store.wallet = { saldo: 0, sobres: [], historial: [] };
     if(!Array.isArray(store.wallet.sobres)) store.wallet.sobres = [];
-    if(!store.parametros) store.parametros = { ...INITIAL_STATE.parametros };
 
-    // 2. Recalcular Saldo Real
+    // 2. RECALCULAR SALDO REAL (Fuente de Verdad)
     let saldoCalculado = 0;
     store.movimientos.forEach(m => {
         if(m.tipo === 'ingreso') saldoCalculado += safeFloat(m.monto);
@@ -67,30 +63,45 @@ function sanearDatos() {
     });
     store.wallet.saldo = saldoCalculado;
 
-    // 3. Blindaje KM
+    // 3. BLINDAJE KM Y EFICIENCIA REAL DE GASOLINA
     const maxTurno = store.turnos.length > 0 ? Math.max(...store.turnos.map(t=>t.kmFinal||0)) : 0;
     const maxGas = store.cargasCombustible.length > 0 ? Math.max(...store.cargasCombustible.map(c=>c.km||0)) : 0;
     const maxLogico = Math.max(store.parametros.ultimoKM || 0, maxTurno, maxGas);
     store.parametros.ultimoKM = maxLogico;
 
-    // 4. Generar Sobres Faltantes
-    store.deudas.forEach(d => {
-        if(!store.wallet.sobres.find(s => s.refId === d.id)) {
-            store.wallet.sobres.push({
-                id: uuid(), refId: d.id, tipo: 'deuda', 
-                desc: d.desc, acumulado: 0, meta: safeFloat(d.montoCuota)
-            });
+    // Cálculo de Eficiencia Real ($/KM)
+    // costoRealKm = totalGasolinaPagada / kmRecorridos
+    const totalGas = store.cargasCombustible.reduce((a, b) => a + safeFloat(b.costo), 0);
+    // Aproximación de KM recorridos totales basada en la diferencia histórica
+    // Si no hay historial suficiente, mantenemos el manual o default
+    if(store.cargasCombustible.length >= 2) {
+        const minKM = Math.min(...store.cargasCombustible.map(c=>c.km));
+        const maxKM_Gas = Math.max(...store.cargasCombustible.map(c=>c.km));
+        const deltaKM = maxKM_Gas - minKM;
+        if(deltaKM > 100 && totalGas > 0) {
+             // Ajuste simple: Costo total / Delta KM (excluyendo la primera carga "base")
+             store.parametros.costoPorKm = (totalGas / deltaKM).toFixed(2);
         }
-        if(d.frecuencia === 'Semanal' && (d.diaPago === undefined || d.diaPago === "")) d.diaPago = "0"; 
+    }
+
+    // 4. GENERAR/ACTUALIZAR SOBRES
+    store.deudas.forEach(d => {
+        let sobre = store.wallet.sobres.find(s => s.refId === d.id);
+        if(!sobre) {
+            sobre = { id: uuid(), refId: d.id, tipo: 'deuda', desc: d.desc, acumulado: 0 };
+            store.wallet.sobres.push(sobre);
+        }
+        sobre.meta = safeFloat(d.montoCuota); // La meta es la cuota
+        if(d.frecuencia === 'Semanal' && !d.diaPago) d.diaPago = "0";
     });
 
     store.gastosFijosMensuales.forEach(g => {
-        if(!store.wallet.sobres.find(s => s.refId === g.id)) {
-            store.wallet.sobres.push({
-                id: uuid(), refId: g.id, tipo: 'gasto', 
-                desc: g.desc, acumulado: 0, meta: safeFloat(g.monto)
-            });
+        let sobre = store.wallet.sobres.find(s => s.refId === g.id);
+        if(!sobre) {
+            sobre = { id: uuid(), refId: g.id, tipo: 'gasto', desc: g.desc, acumulado: 0 };
+            store.wallet.sobres.push(sobre);
         }
+        sobre.meta = safeFloat(g.monto);
     });
 
     recalcularMetaDiaria();
@@ -104,23 +115,17 @@ function loadData() {
             store = { ...INITIAL_STATE, ...parsed };
             sanearDatos(); 
         } catch (e) { 
-            console.error("CRASH DETECTADO:", e);
-            alert("⚠️ Se detectaron datos corruptos.\nLa app se reiniciará en modo seguro.");
-            localStorage.removeItem(STORAGE_KEY);
-            store = JSON.parse(JSON.stringify(INITIAL_STATE));
-            location.reload();
+            console.error("Error datos", e);
+            // No borramos datos automáticamente para evitar pérdida accidental, solo alertamos
+            alert("⚠️ Error en datos. Se intentará recuperar.");
         }
     }
 }
 
-function saveData() { 
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); 
-    } catch(e) { alert("⚠️ Memoria llena"); }
-}
+function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
 /* FIN PARTE 1 - SIGUE PARTE 2 */
 /* =========================================
-   APP.JS - BLOQUE 2/3 (LÓGICA)
+   APP.JS - BLOQUE 2/3 (LÓGICA Y REPORTES)
    ========================================= */
 
 function recalcularMetaDiaria() {
@@ -141,43 +146,109 @@ function recalcularMetaDiaria() {
     saveData();
 }
 
+// Generador de Reporte Semanal Definitivo
+function verReporteSemanal() {
+    const saldoTotal = safeFloat(store.wallet.saldo);
+    
+    // Cálculo Saldo Comprometido: Suma de (Meta - Acumulado) de sobres activos
+    // En este modelo simplificado, asumimos que la 'Meta' es lo que debes tener apartado.
+    // Si no has apartado nada, todo el monto de la meta es "dinero necesario" (comprometido virtualmente).
+    let saldoComprometido = 0;
+    store.wallet.sobres.forEach(s => {
+        // Cuánto me falta para llenar el sobre
+        saldoComprometido += safeFloat(s.meta); 
+    });
+    
+    // Ajuste: El saldo comprometido no puede exceder la realidad de las deudas
+    // Pero para simplificar visualización: Comprometido = Suma de Cuotas/Gastos inminentes
+    
+    const saldoLibre = saldoTotal - saldoComprometido;
+    const colorLibre = saldoLibre >= 0 ? 'green' : 'red';
+
+    // Eficiencia Gasolina
+    const gasCost = safeFloat(store.parametros.costoPorKm);
+
+    // HTML del Reporte
+    const html = `
+        <div style="font-family:sans-serif; color:#334155;">
+            <div style="margin-bottom:20px; text-align:center;">
+                <h2 style="margin:0; font-size:1.5rem;">${fmtMoney(saldoTotal)}</h2>
+                <small style="color:#64748b">Saldo Total en Wallet</small>
+            </div>
+
+            <div style="background:#f1f5f9; padding:15px; border-radius:12px; margin-bottom:20px;">
+                <h4 style="margin:0 0 10px 0; font-size:0.9rem;">Distribución de Capital</h4>
+                
+                <div style="display:flex; align-items:center; margin-bottom:5px; font-size:0.8rem;">
+                    <div style="width:80px;">Ingresos</div>
+                    <div style="flex:1; background:#e2e8f0; height:10px; border-radius:5px; overflow:hidden;">
+                        <div style="width:100%; background:#2563eb; height:100%;"></div>
+                    </div>
+                </div>
+
+                <div style="display:flex; align-items:center; margin-bottom:5px; font-size:0.8rem;">
+                    <div style="width:80px;">Comprometido</div>
+                    <div style="flex:1; background:#e2e8f0; height:10px; border-radius:5px; overflow:hidden;">
+                        <div style="width:${Math.min((saldoComprometido/saldoTotal)*100, 100)}%; background:#f59e0b; height:100%;"></div>
+                    </div>
+                    <div style="width:70px; text-align:right; font-weight:bold;">${fmtMoney(saldoComprometido)}</div>
+                </div>
+
+                <div style="display:flex; align-items:center; font-size:0.8rem;">
+                    <div style="width:80px;">Libre</div>
+                    <div style="flex:1; background:#e2e8f0; height:10px; border-radius:5px; overflow:hidden;">
+                        <div style="width:${Math.min((Math.max(0, saldoLibre)/saldoTotal)*100, 100)}%; background:${colorLibre}; height:100%;"></div>
+                    </div>
+                    <div style="width:70px; text-align:right; font-weight:bold; color:${colorLibre}">${fmtMoney(saldoLibre)}</div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px;">
+                <div style="border:1px solid #e2e8f0; padding:10px; border-radius:8px; text-align:center;">
+                    <div style="font-size:0.8rem; color:#64748b">Eficiencia Motor</div>
+                    <div style="font-weight:bold; font-size:1.1rem;">$${gasCost}/km</div>
+                </div>
+                <div style="border:1px solid #e2e8f0; padding:10px; border-radius:8px; text-align:center;">
+                    <div style="font-size:0.8rem; color:#64748b">Estado</div>
+                    <div style="font-weight:bold; font-size:1.1rem; color:${saldoLibre<0?'red':'green'}">${saldoLibre<0?'DÉFICIT':'SANO'}</div>
+                </div>
+            </div>
+
+            <div style="background:#fff7ed; border-left:4px solid #f59e0b; padding:10px; font-size:0.9rem;">
+                <strong>⚠️ Alerta de Sobres:</strong><br>
+                Tienes <strong>${fmtMoney(saldoComprometido)}</strong> comprometidos en Sobres (Deudas y Gastos) para esta semana/periodo.
+            </div>
+        </div>
+    `;
+
+    Modal.showHtml("Reporte Semanal", html);
+}
+
 function updateConfigVehiculo(km, costo) { 
-    const nuevoKM = safeFloat(km);
-    if (nuevoKM < store.parametros.ultimoKM) {
-        alert(`⛔ BLOQUEADO: No puedes reducir el kilometraje.\nActual: ${store.parametros.ultimoKM}`);
+    if (safeFloat(km) < store.parametros.ultimoKM) {
+        alert("⛔ BLOQUEADO: No puedes bajar el kilometraje.");
         return false;
     }
-    store.parametros.ultimoKM = nuevoKM; 
+    store.parametros.ultimoKM = safeFloat(km); 
+    // Si el usuario edita manual, respetamos su input, aunque el sistema calcula el real
     store.parametros.costoPorKm = safeFloat(costo);
     recalcularMetaDiaria();
     return true;
 }
 
-function iniciarTurno() {
-    if(store.turnoActivo) return;
-    store.turnoActivo = { inicio: Date.now(), kmInicial: store.parametros.ultimoKM };
-    saveData();
-}
-
 function finalizarTurno(kmFinal, ganancia) {
-    if(!store.turnoActivo) return;
     const kF = safeFloat(kmFinal);
-    const g = safeFloat(ganancia);
-    
-    if(kF < store.turnoActivo.kmInicial) {
-        alert("❌ Error: KM Final menor al inicial.");
-        return;
-    }
+    if(kF < store.parametros.ultimoKM) { alert("❌ Error: KM menor al actual."); return; }
 
     store.turnos.push({
-        id: uuid(), fecha: new Date().toISOString(), horas: (Date.now() - store.turnoActivo.inicio) / 36e5,
-        ganancia: g, kmRecorrido: kF - store.turnoActivo.kmInicial, kmFinal: kF
+        id: uuid(), fecha: new Date().toISOString(), horas: (Date.now() - (store.turnoActivo?.inicio || Date.now())) / 36e5,
+        ganancia: safeFloat(ganancia), kmRecorrido: kF - store.parametros.ultimoKM, kmFinal: kF
     });
     store.movimientos.push({
-        id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Turno Finalizado', monto: g
+        id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Turno', monto: safeFloat(ganancia)
     });
 
-    if(kF > store.parametros.ultimoKM) store.parametros.ultimoKM = kF;
+    store.parametros.ultimoKM = kF;
     store.turnoActivo = null;
     sanearDatos();
 }
@@ -188,56 +259,47 @@ function registrarGasolina(l, c, k) {
     sanearDatos();
 }
 
-function procesarGasto(desc, monto, grupo, cat, freq) {
-    const idRef = uuid();
-    if(freq !== 'Unico') {
-        store.gastosFijosMensuales.push({ id: idRef, desc, monto, categoria: cat, frecuencia: freq });
-    }
-    store.movimientos.push({ id: idRef, fecha: new Date().toISOString(), tipo: 'gasto', desc, monto, categoria: cat });
-    sanearDatos();
-}
-
-function agregarDeuda(desc, total, cuota, freq, diaPago) {
-    const idRef = uuid();
-    store.deudas.push({ 
-        id: idRef, desc, montoTotal: total, montoCuota: cuota, 
-        frecuencia: freq, diaPago: diaPago, saldo: total 
-    });
-    sanearDatos();
-}
-
 function abonarDeuda(id, monto) {
     if(!id) return;
     const d = store.deudas.find(x => x.id == id);
     if(!d) return;
 
-    if(d.frecuencia === 'Semanal' && d.diaPago !== undefined && d.diaPago !== "") {
+    // REGLA: NO BLOQUEAR, SOLO AVISAR (Pagos adelantados permitidos)
+    if(d.frecuencia === 'Semanal' && d.diaPago) {
         const hoy = new Date().getDay().toString();
         if(d.diaPago !== hoy) {
-            const diaNombre = DIAS_SEMANA.find(x => x.value == d.diaPago)?.text || "Otro día";
-            alert(`⛔ BLOQUEADO\nEsta deuda se paga los: ${diaNombre.toUpperCase()}.\nHoy no se permite el pago.`);
-            return;
+            if(!confirm(`📅 Esta deuda toca el ${DIAS_SEMANA.find(x=>x.value==d.diaPago)?.text}.\n¿Quieres adelantar el pago?`)) return;
         }
     }
     
     const val = safeFloat(monto);
-    if(val <= 0) return;
     d.saldo -= val;
     if(d.saldo < 0) d.saldo = 0;
     
     store.movimientos.push({
         id: uuid(), fecha: new Date().toISOString(), tipo: 'gasto', 
-        desc: `Abono: ${d.desc}`, monto: val, categoria: 'Deuda'
+        desc: `Pago: ${d.desc}`, monto: val, categoria: 'Deuda'
     });
+    sanearDatos();
+}
+
+function procesarGasto(desc, monto, grupo, cat, freq) {
+    const id = uuid();
+    if(freq !== 'Unico') store.gastosFijosMensuales.push({ id, desc, monto, categoria: cat, frecuencia: freq });
+    store.movimientos.push({ id, fecha: new Date().toISOString(), tipo: 'gasto', desc, monto, categoria: cat });
+    sanearDatos();
+}
+
+function agregarDeuda(desc, total, cuota, freq, diaPago) {
+    store.deudas.push({ id: uuid(), desc, montoTotal: total, montoCuota: cuota, frecuencia: freq, diaPago, saldo: total });
     sanearDatos();
 }
 
 const Modal = {
     showInput: (title, inputsConfig, onConfirm) => {
         const modal = $('appModal');
-        const body = $('modalBody');
         $('modalTitle').innerText = title;
-        body.innerHTML = '';
+        $('modalBody').innerHTML = '';
         const values = {};
         
         inputsConfig.forEach(conf => {
@@ -245,37 +307,30 @@ const Modal = {
             div.innerHTML = `<label style="display:block;font-size:0.8rem;color:#666;margin-top:5px">${conf.label}</label>`;
             const input = document.createElement(conf.type === 'select' ? 'select' : 'input');
             input.className = 'input-control';
-            input.style.width = '100%'; input.style.padding='8px'; input.style.marginBottom='5px';
-            
+            input.style.width = '100%'; input.style.padding='8px';
             if(conf.type === 'select') {
-                conf.options.forEach(opt => {
-                    const o = document.createElement('option');
-                    o.value = opt.value; o.innerText = opt.text;
-                    input.appendChild(o);
-                });
-            } else {
-                input.type = conf.type || 'text';
-                if(conf.value !== undefined) input.value = conf.value;
-            }
+                conf.options.forEach(opt => { const o = document.createElement('option'); o.value = opt.value; o.innerText = opt.text; input.appendChild(o); });
+            } else { input.type = conf.type || 'text'; if(conf.value !== undefined) input.value = conf.value; }
             input.onchange = (e) => values[conf.key] = e.target.value;
             values[conf.key] = conf.value || (conf.type==='select'?conf.options[0].value:'');
-            div.appendChild(input);
-            body.appendChild(div);
+            div.appendChild(input); $('modalBody').appendChild(div);
         });
 
         const btnOk = $('modalConfirm');
-        const btnNo = $('modalCancel');
-        const newOk = btnOk.cloneNode(true);
-        const newNo = btnNo.cloneNode(true);
-        btnOk.parentNode.replaceChild(newOk, btnOk);
-        btnNo.parentNode.replaceChild(newNo, btnNo);
-
-        newNo.onclick = () => modal.style.display = 'none';
-        newOk.onclick = () => {
-            const inputs = body.querySelectorAll('input, select');
+        btnOk.onclick = () => {
+            const inputs = $('modalBody').querySelectorAll('input, select');
             inputs.forEach((inp, i) => values[inputsConfig[i].key] = inp.value);
             if(onConfirm(values) !== false) modal.style.display = 'none';
         };
+        $('modalCancel').onclick = () => modal.style.display = 'none';
+        modal.style.display = 'flex';
+    },
+    showHtml: (title, html) => {
+        const modal = $('appModal');
+        $('modalTitle').innerText = title;
+        $('modalBody').innerHTML = html;
+        $('modalConfirm').onclick = () => modal.style.display = 'none';
+        $('modalCancel').style.display = 'none'; // Solo confirmar para cerrar
         modal.style.display = 'flex';
     }
 };
@@ -295,6 +350,18 @@ function updateAdminUI() {
         $('btnTurnoFinalizar').classList.toggle('hidden', !t);
     }
     
+    // Inyectar Botón de Reporte si no existe
+    const dataZone = document.querySelector('#btnExportJSON')?.parentNode;
+    if(dataZone && !document.getElementById('btnVerReporte')) {
+        const btn = document.createElement('button');
+        btn.id = 'btnVerReporte';
+        btn.className = 'btn btn-primary';
+        btn.style.marginBottom = '10px';
+        btn.innerText = '📈 Ver Reporte Semanal';
+        btn.onclick = verReporteSemanal;
+        dataZone.prepend(btn); // Poner al principio de la zona de datos
+    }
+
     const list = $('listaDeudasAdmin');
     const sel = $('abonoDeudaSelect');
     if(list && sel) {
@@ -304,8 +371,7 @@ function updateAdminUI() {
             if(d.saldo < 1) return;
             const li = document.createElement('li');
             li.className = 'list-item';
-            const diaTxt = d.diaPago ? ` <small style="color:#2563eb">(${DIAS_SEMANA.find(x=>x.value==d.diaPago)?.text || ''})</small>` : '';
-            li.innerHTML = `<span>${d.desc}${diaTxt}</span> <strong>${fmtMoney(d.saldo)}</strong>`;
+            li.innerHTML = `<span>${d.desc}</span> <strong>${fmtMoney(d.saldo)}</strong>`;
             list.appendChild(li);
             const opt = document.createElement('option');
             opt.value = d.id; opt.innerText = `${d.desc} (${fmtMoney(d.montoCuota)})`;
@@ -314,24 +380,8 @@ function updateAdminUI() {
     }
 }
 
-let timerInterval = null;
-function startTimer() {
-    if(timerInterval) clearInterval(timerInterval);
-    const el = $('turnoTimer');
-    if(!el) return;
-    timerInterval = setInterval(() => {
-        if(store.turnoActivo) {
-            const diff = Date.now() - store.turnoActivo.inicio;
-            const h = Math.floor(diff/3600000);
-            const m = Math.floor((diff%3600000)/60000);
-            const s = Math.floor((diff%60000)/1000);
-            el.innerText = `${h}h ${m}m ${s}s`;
-        } else { el.innerText = "--:--:--"; }
-    }, 1000);
-}
-
 function init() {
-    console.log("🚀 APP V3.1 WALLET-UI INICIADA");
+    console.log("🚀 APP V3 DEFINITIVA INICIADA");
     loadData();
     const page = document.body.dataset.page;
     
@@ -339,143 +389,77 @@ function init() {
         if(l.getAttribute('href').includes(page)) l.classList.add('active');
     });
 
-    // --- LÓGICA ESPECÍFICA POR PÁGINA ---
-
     if(page === 'admin') {
         updateAdminUI();
-        startTimer();
+        
+        // Timer visual
+        setInterval(() => {
+            const el = $('turnoTimer');
+            if(el && store.turnoActivo) {
+                const diff = Date.now() - store.turnoActivo.inicio;
+                const h = Math.floor(diff/3600000);
+                const m = Math.floor((diff%3600000)/60000);
+                el.innerText = `${h}h ${m}m`;
+            }
+        }, 1000);
 
         if(store.parametros.ultimoKM === 0) {
-            Modal.showInput("Configuración Inicial", [
-                {label:"KM Tablero", key:"km", type:"number"},
-                {label:"Costo Operativo $/km", key:"c", type:"number", value:1.5}
-            ], (d)=>{
-                if(safeFloat(d.km) > 0) { 
-                    updateConfigVehiculo(d.km, d.c); 
-                    updateAdminUI(); 
-                    return true; 
-                }
-                return false;
+            Modal.showInput("Configuración Inicial", [{label:"KM Tablero", key:"km", type:"number"}], d=>{
+                if(safeFloat(d.km)>0) { updateConfigVehiculo(d.km, 1.5); updateAdminUI(); return true; } return false;
             });
         }
 
-        const bind = (id, fn) => {
-            const el = $(id);
-            if(el) el.onclick = (e) => { e.preventDefault(); fn(); updateAdminUI(); };
-        };
+        const bind = (id, fn) => { const el=$(id); if(el) el.onclick = (e) => { e.preventDefault(); fn(); updateAdminUI(); }; };
 
-        bind('btnConfigKM', () => Modal.showInput("Ajustar Vehículo", [
-            {label:"KM Actual (Solo subir)", key:"k", type:"number", value:store.parametros.ultimoKM},
-            {label:"Costo $/KM", key:"c", type:"number", value:store.parametros.costoPorKm}
-        ], d=>updateConfigVehiculo(d.k, d.c)));
-
-        bind('btnTurnoIniciar', iniciarTurno);
-        bind('btnTurnoFinalizar', () => Modal.showInput("Fin Turno", [{label:"KM Final", key:"km", type:"number"}, {label:"Ganancia Total", key:"g", type:"number"}], d=>finalizarTurno(d.km, d.g)));
+        bind('btnConfigKM', () => Modal.showInput("Ajustar Vehículo", [{label:"KM (Solo subir)", key:"k", type:"number", value:store.parametros.ultimoKM}], d=>updateConfigVehiculo(d.k, store.parametros.costoPorKm)));
+        bind('btnTurnoIniciar', () => { if(!store.turnoActivo) iniciarTurno(); });
+        bind('btnTurnoFinalizar', () => Modal.showInput("Fin Turno", [{label:"KM Final", key:"km", type:"number"}, {label:"Ganancia", key:"g", type:"number"}], d=>finalizarTurno(d.km, d.g)));
         
-        const wiz = (grp) => Modal.showInput(`Gasto ${grp}`, [
-            {label:"Desc", key:"d"}, {label:"Monto", key:"m", type:"number"}, 
-            {label:"Cat", key:"c", type:"select", options:CATEGORIAS[grp.toLowerCase()].map(x=>({value:x, text:x}))},
-            {label:"Freq", key:"f", type:"select", options:Object.keys(FRECUENCIAS).map(x=>({value:x, text:x}))}
-        ], d=>procesarGasto(d.d, d.m, grp, d.c, d.f));
-
-        bind('btnGastoHogar', () => wiz( 'Hogar'));
+        const wiz = (grp) => Modal.showInput(`Gasto ${grp}`, [{label:"Desc", key:"d"}, {label:"$$", key:"m", type:"number"}, {label:"Cat", key:"c", type:"select", options:CATEGORIAS[grp.toLowerCase()].map(x=>({value:x, text:x}))}, {label:"Freq", key:"f", type:"select", options:Object.keys(FRECUENCIAS).map(x=>({value:x, text:x}))}], d=>procesarGasto(d.d, d.m, grp, d.c, d.f));
+        bind('btnGastoHogar', () => wiz('Hogar'));
         bind('btnGastoOperativo', () => wiz('Operativo'));
-        
         bind('btnGasolina', () => Modal.showInput("Gasolina", [{label:"Litros", key:"l", type:"number"}, {label:"$$ Total", key:"c", type:"number"}, {label:"KM", key:"k", type:"number"}], d=>registrarGasolina(d.l, d.c, d.k)));
-        
-        bind('btnDeudaNueva', () => Modal.showInput("Nueva Deuda", [
-            {label:"Nombre", key:"n"}, 
-            {label:"Total", key:"t", type:"number"}, 
-            {label:"Cuota", key:"c", type:"number"}, 
-            {label:"Freq", key:"f", type:"select", options:Object.keys(FRECUENCIAS).map(x=>({value:x, text:x}))},
-            {label:"Día de Pago (Semanal)", key:"dp", type:"select", options:DIAS_SEMANA}
-        ], d=>agregarDeuda(d.n, d.t, d.c, d.f, d.dp)));
-        
+        bind('btnDeudaNueva', () => Modal.showInput("Nueva Deuda", [{label:"Nombre", key:"n"}, {label:"Total", key:"t", type:"number"}, {label:"Cuota", key:"c", type:"number"}, {label:"Freq", key:"f", type:"select", options:Object.keys(FRECUENCIAS).map(x=>({value:x, text:x}))}, {label:"Día Pago", key:"dp", type:"select", options:DIAS_SEMANA}], d=>agregarDeuda(d.n, d.t, d.c, d.f, d.dp)));
         bind('btnAbonoCuota', () => { const id = $('abonoDeudaSelect').value; if(id) abonarDeuda(id, store.deudas.find(x=>x.id==id)?.montoCuota); });
-        
         bind('btnExportJSON', () => navigator.clipboard.writeText(JSON.stringify(store)).then(()=>alert("Copiado")));
-        
-        bind('btnRestoreBackup', () => Modal.showInput("Pegar JSON Legacy/Backup", [{label:"JSON", key:"j"}], d=>{ 
-            try {
-                const parsed = JSON.parse(d.j);
-                if(confirm("⚠️ ¿Sobrescribir datos?")) {
-                    store = { ...INITIAL_STATE, ...parsed };
-                    sanearDatos(); saveData(); location.reload(); 
-                }
-            } catch(e) { alert("❌ JSON Inválido."); }
-        }));
+        bind('btnRestoreBackup', () => Modal.showInput("Pegar JSON", [{label:"JSON", key:"j"}], d=>{ try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); saveData(); location.reload(); } catch(e){alert("Error JSON");} }));
     }
 
     if(page === 'index') {
         const hoy = new Date().toDateString();
-        const turnosHoy = store.turnos.filter(t => new Date(t.fecha).toDateString() === hoy);
-        const gan = turnosHoy.reduce((a,b)=>a+b.ganancia,0);
+        const gan = store.turnos.filter(t => new Date(t.fecha).toDateString() === hoy).reduce((a,b)=>a+b.ganancia,0);
         if($('resGananciaBruta')) $('resGananciaBruta').innerText = fmtMoney(gan);
     }
     
-    // --- LÓGICA DE WALLET (VISUALIZACIÓN DE SOBRES) ---
     if(page === 'wallet') {
-        if($('valWallet')) $('valWallet').innerText = fmtMoney(store.wallet.saldo);
+        const saldo = store.wallet.saldo;
+        // Calculo visual de libre vs comprometido
+        let comprometido = 0;
+        store.wallet.sobres.forEach(s => comprometido += safeFloat(s.meta));
+        const libre = saldo - comprometido;
+
+        if($('valWallet')) $('valWallet').innerHTML = `
+            ${fmtMoney(saldo)}<br>
+            <span style="font-size:0.8rem; color:${libre>=0?'green':'red'}">Libre: ${fmtMoney(libre)}</span>
+        `;
         
-        // Inyectar UI de sobres dinámicamente (sin tocar HTML)
+        // Render Sobres
         const main = document.querySelector('main.container');
-        let sobresContainer = document.getElementById('sobresContainer');
-        
-        if(!sobresContainer && main) {
-            sobresContainer = document.createElement('section');
-            sobresContainer.id = 'sobresContainer';
-            sobresContainer.className = 'card';
-            sobresContainer.style.marginTop = '15px';
-            main.appendChild(sobresContainer);
-        }
-
-        if(sobresContainer) {
-            const sobres = store.wallet.sobres || [];
-            if(sobres.length === 0) {
-                sobresContainer.innerHTML = `<h2>Mis Sobres</h2><p style="color:#94a3b8; font-style:italic">No hay sobres activos.</p>`;
-            } else {
-                let html = `<h2>Mis Sobres (Metas)</h2><div style="display:grid; gap:10px;">`;
-                sobres.forEach(s => {
-                    const pct = Math.min((s.acumulado / s.meta) * 100, 100) || 0;
-                    const color = s.tipo === 'deuda' ? '#ef4444' : '#3b82f6';
-                    html += `
-                    <div style="border:1px solid #e2e8f0; padding:12px; border-radius:8px; background:#fff;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                            <strong style="font-size:0.95rem; color:#334155">${s.desc}</strong>
-                            <small style="color:${color}; font-weight:bold">${s.tipo.toUpperCase()}</small>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; font-size:0.9rem; margin-bottom:8px;">
-                            <span>${fmtMoney(s.acumulado)}</span>
-                            <span style="color:#64748b">/ ${fmtMoney(s.meta)}</span>
-                        </div>
-                        <div style="background:#f1f5f9; height:8px; border-radius:4px; overflow:hidden;">
-                            <div style="background:${color}; height:100%; width:${pct}%"></div>
-                        </div>
-                    </div>`;
-                });
-                html += `</div>`;
-                sobresContainer.innerHTML = html;
-            }
-        }
-    }
-
-    if(page === 'historial') {
-        const tbody = $('tablaBody');
-        if (tbody) {
-            const movs = store.movimientos.slice().reverse().slice(0, 50);
-            tbody.innerHTML = movs.map(m => `
-                <tr>
-                    <td>${new Date(m.fecha).toLocaleDateString()}</td>
-                    <td><strong>${m.desc}</strong><br><small style="color:#64748b">${m.categoria || 'Gasto'}</small></td>
-                    <td style="text-align:right; color:${m.tipo==='ingreso'?'green':'red'}">
-                        ${m.tipo==='ingreso'?'+':'-'} ${fmtMoney(m.monto)}
-                    </td>
-                </tr>
+        let container = document.getElementById('sobresContainer');
+        if(!container && main) { container=document.createElement('div'); container.id='sobresContainer'; main.appendChild(container); }
+        if(container) {
+            container.innerHTML = store.wallet.sobres.map(s => `
+                <div class="card" style="padding:10px; margin-top:10px; border-left:4px solid ${s.tipo==='deuda'?'#ef4444':'#3b82f6'}">
+                    <div style="display:flex; justify-content:space-between">
+                        <strong>${s.desc}</strong>
+                        <small>${s.tipo.toUpperCase()}</small>
+                    </div>
+                    <div style="text-align:right; font-weight:bold; color:#64748b">Meta: ${fmtMoney(s.meta)}</div>
+                </div>
             `).join('');
         }
     }
 }
 
 document.addEventListener('DOMContentLoaded', init);
-               
-  
+             
