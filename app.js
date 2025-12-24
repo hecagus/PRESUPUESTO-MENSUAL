@@ -1,27 +1,27 @@
 /* =========================================
-APP.JS - BLOQUE 1/3 (CONSTANTES Y STATE)
-========================================= */
+   APP.JS - BLOQUE 1/3 (CONSTANTES Y STATE BLINDADO)
+   ========================================= */
 
 // --- CONSTANTES ---
 const STORAGE_KEY = "moto_finanzas_vFinal";
 const SCHEMA_VERSION = 2;
 
 const FRECUENCIAS = {
-'Diario': 1, 'Semanal': 7, 'Quincenal': 15,
-'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0
+    'Diario': 1, 'Semanal': 7, 'Quincenal': 15, 
+    'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0
 };
 
 const DIAS_SEMANA = [
-{value: "", text: "Seleccionar..."},
-{value: "1", text: "Lunes"}, {value: "2", text: "Martes"},
-{value: "3", text: "Miércoles"}, {value: "4", text: "Jueves"},
-{value: "5", text: "Viernes"}, {value: "6", text: "Sábado"},
-{value: "0", text: "Domingo"}
+    {value: "", text: "Seleccionar..."},
+    {value: "1", text: "Lunes"}, {value: "2", text: "Martes"},
+    {value: "3", text: "Miércoles"}, {value: "4", text: "Jueves"},
+    {value: "5", text: "Viernes"}, {value: "6", text: "Sábado"},
+    {value: "0", text: "Domingo"}
 ];
 
 const CATEGORIAS = {
-operativo: ["Gasolina", "Mantenimiento", "Reparación", "Equipo", "Seguro"],
-hogar: ["Renta", "Comida", "Servicios", "Internet", "Salud", "Deudas", "Otro"]
+    operativo: ["Gasolina", "Mantenimiento", "Reparación", "Equipo", "Seguro"],
+    hogar: ["Renta", "Comida", "Servicios", "Internet", "Salud", "Deudas", "Otro"]
 };
 
 // Utilidades
@@ -32,100 +32,94 @@ const uuid = () => Date.now().toString(36) + Math.random().toString(36).substr(2
 
 // --- LÓGICA DE DATOS (STATE) ---
 const INITIAL_STATE = {
-schemaVersion: SCHEMA_VERSION,
-turnos: [], movimientos: [], cargasCombustible: [],
-deudas: [], gastosFijosMensuales: [],
-wallet: { saldo: 0, sobres: [], historial: [] },
-parametros: {
-metaDiaria: 0,
-ultimoKM: 0,
-costoPorKm: 0,
-promedioDiarioKm: 120
-},
-turnoActivo: null
+    schemaVersion: SCHEMA_VERSION,
+    turnos: [], movimientos: [], cargasCombustible: [], 
+    deudas: [], gastosFijosMensuales: [],
+    wallet: { saldo: 0, sobres: [], historial: [] },
+    parametros: { 
+        metaDiaria: 0, ultimoKM: 0, costoPorKm: 0, promedioDiarioKm: 120 
+    },
+    turnoActivo: null
 };
 
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
-// --- MOTOR DE INTEGRIDAD Y MIGRACIÓN ---
+// --- MOTOR DE INTEGRIDAD (ANTI-CRASH) ---
 function sanearDatos() {
-console.log("🔄 Ejecutando saneamiento de datos...");
+    // 1. Protección contra arrays nulos (Esto causó el crash anterior)
+    if(!Array.isArray(store.movimientos)) store.movimientos = [];
+    if(!Array.isArray(store.cargasCombustible)) store.cargasCombustible = [];
+    if(!Array.isArray(store.turnos)) store.turnos = [];
+    if(!Array.isArray(store.deudas)) store.deudas = [];
+    if(!Array.isArray(store.gastosFijosMensuales)) store.gastosFijosMensuales = [];
+    if(!store.wallet) store.wallet = { saldo: 0, sobres: [], historial: [] };
+    if(!Array.isArray(store.wallet.sobres)) store.wallet.sobres = [];
+    if(!store.parametros) store.parametros = { ...INITIAL_STATE.parametros };
 
-// 1. RECALCULAR SALDO (FUENTE DE VERDAD: Movimientos + Gasolina)  
-let saldoCalculado = 0;  
-store.movimientos.forEach(m => {  
-    if(m.tipo === 'ingreso') saldoCalculado += safeFloat(m.monto);  
-    if(m.tipo === 'gasto') saldoCalculado -= safeFloat(m.monto);  
-});  
-// La gasolina se resta porque en este modelo se guarda en array aparte pero afecta saldo  
-store.cargasCombustible.forEach(c => {  
-    saldoCalculado -= safeFloat(c.costo);  
-});  
-  
-store.wallet.saldo = saldoCalculado;  
+    // 2. RECALCULAR SALDO
+    let saldoCalculado = 0;
+    store.movimientos.forEach(m => {
+        if(m.tipo === 'ingreso') saldoCalculado += safeFloat(m.monto);
+        if(m.tipo === 'gasto') saldoCalculado -= safeFloat(m.monto);
+    });
+    store.cargasCombustible.forEach(c => {
+        saldoCalculado -= safeFloat(c.costo);
+    });
+    store.wallet.saldo = saldoCalculado;
 
-// 2. BLINDAJE DE KM (Máximo histórico lógico)  
-const maxTurno = store.turnos.length > 0 ? Math.max(...store.turnos.map(t=>t.kmFinal||0)) : 0;  
-const maxGas = store.cargasCombustible.length > 0 ? Math.max(...store.cargasCombustible.map(c=>c.km||0)) : 0;  
-const maxLogico = Math.max(store.parametros.ultimoKM, maxTurno, maxGas);  
-store.parametros.ultimoKM = maxLogico;  
+    // 3. BLINDAJE KM
+    const maxTurno = store.turnos.length > 0 ? Math.max(...store.turnos.map(t=>t.kmFinal||0)) : 0;
+    const maxGas = store.cargasCombustible.length > 0 ? Math.max(...store.cargasCombustible.map(c=>c.km||0)) : 0;
+    const maxLogico = Math.max(store.parametros.ultimoKM || 0, maxTurno, maxGas);
+    store.parametros.ultimoKM = maxLogico;
 
-// 3. GENERACIÓN DE SOBRES (Deudas y Fijos)  
-// Asegurar array  
-if(!store.wallet.sobres) store.wallet.sobres = [];  
-  
-// Deudas -> Sobres  
-store.deudas.forEach(d => {  
-    if(!store.wallet.sobres.find(s => s.refId === d.id)) {  
-        store.wallet.sobres.push({  
-            id: uuid(), refId: d.id, tipo: 'deuda',   
-            desc: d.desc, acumulado: 0, meta: safeFloat(d.montoCuota)  
-        });  
-    }  
-    // Migración DiaPago: Si es semanal y no tiene día, asignar Domingo (0) por defecto para obligar revisión  
-    if(d.frecuencia === 'Semanal' && (d.diaPago === undefined || d.diaPago === "")) {  
-        d.diaPago = "0";   
-    }  
-});  
+    // 4. GENERAR SOBRES FALTANTES
+    store.deudas.forEach(d => {
+        if(!store.wallet.sobres.find(s => s.refId === d.id)) {
+            store.wallet.sobres.push({
+                id: uuid(), refId: d.id, tipo: 'deuda', 
+                desc: d.desc, acumulado: 0, meta: safeFloat(d.montoCuota)
+            });
+        }
+        if(d.frecuencia === 'Semanal' && (d.diaPago === undefined || d.diaPago === "")) d.diaPago = "0"; 
+    });
 
-// Gastos Fijos -> Sobres  
-store.gastosFijosMensuales.forEach(g => {  
-    if(!store.wallet.sobres.find(s => s.refId === g.id)) {  
-        store.wallet.sobres.push({  
-            id: uuid(), refId: g.id, tipo: 'gasto',   
-            desc: g.desc, acumulado: 0, meta: safeFloat(g.monto)  
-        });  
-    }  
-});  
+    store.gastosFijosMensuales.forEach(g => {
+        if(!store.wallet.sobres.find(s => s.refId === g.id)) {
+            store.wallet.sobres.push({
+                id: uuid(), refId: g.id, tipo: 'gasto', 
+                desc: g.desc, acumulado: 0, meta: safeFloat(g.monto)
+            });
+        }
+    });
 
-recalcularMetaDiaria();
-
+    recalcularMetaDiaria();
 }
 
 function loadData() {
-const raw = localStorage.getItem(STORAGE_KEY);
-if (raw) {
-try {
-const parsed = JSON.parse(raw);
-store = { ...INITIAL_STATE, ...parsed };
-// Forzar estructura wallet
-store.wallet = { ...INITIAL_STATE.wallet, ...parsed.wallet };
-store.parametros = { ...INITIAL_STATE.parametros, ...parsed.parametros };
-
-sanearDatos(); // <--- SIEMPRE CORRE AL INICIO  
-    } catch (e) {   
-        console.error("Error crítico carga:", e);   
-    }  
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+        try {
+            const parsed = JSON.parse(raw);
+            store = { ...INITIAL_STATE, ...parsed };
+            sanearDatos(); 
+        } catch (e) { 
+            console.error("CRASH DETECTADO:", e);
+            alert("⚠️ Se detectaron datos corruptos (JSON mal pegado).\nLa aplicación se reiniciará para repararse.");
+            localStorage.removeItem(STORAGE_KEY); // BORRADO DE EMERGENCIA
+            store = JSON.parse(JSON.stringify(INITIAL_STATE));
+            location.reload();
+        }
+    }
 }
 
-}
-
-function saveData() {
-try {
-localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-} catch(e) { alert("⚠️ Memoria llena"); }
+function saveData() { 
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); 
+    } catch(e) { alert("⚠️ Memoria llena"); }
 }
 /* FIN PARTE 1 - SIGUE PARTE 2 */
+
 
 /* =========================================
 APP.JS - BLOQUE 2/3 (LÓGICA BLINDADA)
