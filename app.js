@@ -1,5 +1,5 @@
 /* =========================================
-   APP.JS - BLOQUE 1/3 (CORE & ACUMULACIÓN)
+   APP.JS - ARCHIVO MAESTRO DEFINITIVO (V3.2)
    ========================================= */
 
 // --- CONSTANTES ---
@@ -46,12 +46,15 @@ const INITIAL_STATE = {
 
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
-// --- MOTOR DE INTEGRIDAD ---
+// --- MOTOR DE INTEGRIDAD Y SANEAMIENTO ---
 function sanearDatos() {
+    // Validar Arrays
     if(!Array.isArray(store.movimientos)) store.movimientos = [];
     if(!Array.isArray(store.cargasCombustible)) store.cargasCombustible = [];
+    if(!Array.isArray(store.turnos)) store.turnos = [];
     if(!Array.isArray(store.deudas)) store.deudas = [];
     if(!store.wallet) store.wallet = { saldo: 0, sobres: [], historial: [] };
+    if(!Array.isArray(store.wallet.sobres)) store.wallet.sobres = [];
     
     // 1. RECALCULAR SALDO REAL (Fuente Matemática)
     let saldoCalculado = 0;
@@ -59,6 +62,7 @@ function sanearDatos() {
         if(m.tipo === 'ingreso') saldoCalculado += safeFloat(m.monto);
         if(m.tipo === 'gasto') saldoCalculado -= safeFloat(m.monto);
     });
+    // La gasolina se resta porque sale del bolsillo (wallet)
     store.cargasCombustible.forEach(c => saldoCalculado -= safeFloat(c.costo));
     store.wallet.saldo = saldoCalculado;
 
@@ -68,10 +72,16 @@ function sanearDatos() {
         (Math.max(...store.cargasCombustible.map(c=>c.km)) - Math.min(...store.cargasCombustible.map(c=>c.km))) : 0;
     if(kmsGas > 100) store.parametros.costoPorKm = (totalGas / kmsGas).toFixed(2);
 
-    // 3. GENERAR SOBRES (Modelo V3)
+    // 3. BLINDAJE KM
+    const maxTurno = store.turnos.length > 0 ? Math.max(...store.turnos.map(t=>t.kmFinal||0)) : 0;
+    const maxGas = store.cargasCombustible.length > 0 ? Math.max(...store.cargasCombustible.map(c=>c.km||0)) : 0;
+    const maxLogico = Math.max(store.parametros.ultimoKM || 0, maxTurno, maxGas);
+    store.parametros.ultimoKM = maxLogico;
+
+    // 4. SINCRONIZAR SOBRES
     actualizarSobresEstructural();
 
-    // 4. ACUMULACIÓN DIARIA
+    // 5. ACUMULACIÓN DIARIA
     procesarAcumulacionDiaria();
 }
 
@@ -83,7 +93,6 @@ function actualizarSobresEstructural() {
             s = { id: uuid(), refId, tipo, desc, acumulado: 0, ultimoCalculo: getFechaHoy() };
             store.wallet.sobres.push(s);
         }
-        // Actualizar datos base
         s.meta = safeFloat(meta);
         s.frecuencia = freq;
         s.diaPago = diaPago;
@@ -106,29 +115,24 @@ function actualizarSobresEstructural() {
 
 function procesarAcumulacionDiaria() {
     const hoy = getFechaHoy();
-    if (store.parametros.ultimoProcesamiento === hoy) return; // Ya se procesó hoy
+    if (store.parametros.ultimoProcesamiento === hoy) return; 
 
-    console.log("🔄 Procesando acumulación diaria...");
-    
     store.wallet.sobres.forEach(s => {
-        if(s.acumulado >= s.meta) return; // Ya está lleno
+        if(s.acumulado >= s.meta) return; 
 
-        let diasRestantes = 1; // Default
+        let diasRestantes = 1; 
         const hoyObj = new Date();
-        const diaSemana = hoyObj.getDay(); // 0 Dom - 6 Sab
+        const diaSemana = hoyObj.getDay(); 
 
         if(s.frecuencia === 'Semanal' && s.diaPago) {
             let target = parseInt(s.diaPago);
             let diff = target - diaSemana;
             if(diff < 0) diff += 7;
-            diasRestantes = diff === 0 ? 1 : diff + 1; // +1 para incluir hoy
+            diasRestantes = diff === 0 ? 1 : diff + 1; 
         } else if(s.frecuencia === 'Mensual') {
-             diasRestantes = 30; // Simplificado para mensual
-        } else if(s.frecuencia === 'Diario') {
-             diasRestantes = 1;
+             diasRestantes = 30; 
         }
 
-        // Cálculo Cuota Diaria
         const faltante = s.meta - s.acumulado;
         const aporteHoy = faltante / diasRestantes;
         
@@ -146,27 +150,69 @@ function loadData() {
         try {
             store = { ...INITIAL_STATE, ...JSON.parse(raw) };
             sanearDatos();
-        } catch(e) { console.error(e); alert("Datos recuperados parcialmente."); }
+        } catch(e) { console.error(e); }
     }
 }
 function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
-/* FIN PARTE 1 - SIGUE PARTE 2 */
-/* =========================================
-   APP.JS - BLOQUE 2/3 (LÓGICA Y REPORTES)
-   ========================================= */
 
-// --- GENERADOR DE REPORTES ---
+
+// --- LÓGICA DE REPORTES (TEXTO Y VISUAL) ---
+
+function generarResumenHumanoHoy(store) {
+    const saldoTotal = safeFloat(store.wallet.saldo);
+    let saldoComprometido = 0;
+    store.wallet.sobres.forEach(s => saldoComprometido += safeFloat(s.acumulado));
+    const saldoLibre = saldoTotal - saldoComprometido;
+    
+    let recomendacionesHTML = '';
+    const hoyDia = new Date().getDay(); 
+
+    store.wallet.sobres.forEach(s => {
+        const meta = safeFloat(s.meta);
+        const acumulado = safeFloat(s.acumulado);
+        const pendiente = meta - acumulado;
+
+        if (pendiente <= 1) return; 
+
+        let diasRestantes = 1;
+        if (s.frecuencia === 'Semanal') {
+            const target = parseInt(s.diaPago || 0); 
+            let diff = target - hoyDia;
+            if (diff < 0) diff += 7;
+            diasRestantes = diff === 0 ? 1 : diff; 
+        } else if (s.frecuencia === 'Mensual') {
+            diasRestantes = 30; 
+        }
+
+        const guardarHoy = pendiente / diasRestantes;
+        recomendacionesHTML += `<li style="margin-bottom:6px; font-size:0.9rem;">Guardar <strong>${fmtMoney(guardarHoy)}</strong> para <em>${s.desc}</em>.</li>`;
+    });
+
+    if (!recomendacionesHTML) recomendacionesHTML = '<li>¡Todo cubierto!</li>';
+
+    return `
+        <div style="background:#f8fafc; padding:15px; border-radius:12px; margin-bottom:20px; border:1px solid #e2e8f0; margin-top:15px;">
+            <h3 style="margin:0 0 10px 0; font-size:1.1rem; color:#1e293b;">Resumen Financiero</h3>
+            <p style="margin-bottom:10px; font-size:0.95rem; line-height:1.5;">
+                Tienes un total de <strong>${fmtMoney(saldoTotal)}</strong>.<br>
+                Comprometido en sobres: <span style="color:#f59e0b; font-weight:bold;">${fmtMoney(saldoComprometido)}</span>.<br>
+                Tu saldo real libre es: <span style="color:${saldoLibre>=0?'#16a34a':'#dc2626'}; font-weight:bold;">${fmtMoney(saldoLibre)}</span>.
+            </p>
+            <div style="background:#fff; padding:10px; border-radius:8px; border:1px solid #cbd5e1;">
+                <strong style="color:#334155; font-size:0.85rem; text-transform:uppercase;">Meta de Ahorro para HOY:</strong>
+                <ul style="margin:5px 0 0 20px; color:#475569;">${recomendacionesHTML}</ul>
+            </div>
+        </div>
+    `;
+}
+
 function generarReporteSemanal() {
-    // 1. Datos Financieros
     const saldoTotal = safeFloat(store.wallet.saldo);
     let comprometido = 0;
-    store.wallet.sobres.forEach(s => comprometido += safeFloat(s.acumulado)); // Lo acumulado es lo comprometido hoy
+    store.wallet.sobres.forEach(s => comprometido += safeFloat(s.acumulado));
     const libre = saldoTotal - comprometido;
-    
-    // 2. Eficiencia
     const eficiencia = store.parametros.costoPorKm || 0;
 
-    // 3. Generar Gráfica de Barras (HTML Puro)
     let barrasHTML = '';
     store.wallet.sobres.forEach(s => {
         const pct = Math.min((s.acumulado / s.meta) * 100, 100);
@@ -183,24 +229,6 @@ function generarReporteSemanal() {
             </div>`;
     });
 
-    // 4. Generar Gráfica de Línea (SVG Simple) - Últimos 7 días
-    // Recopilar ingresos vs gastos
-    const ultimos7 = {};
-    for(let i=6; i>=0; i--) {
-        const d = new Date(); d.setDate(d.getDate() - i);
-        ultimos7[d.toISOString().split('T')[0]] = {ing:0, gas:0};
-    }
-    store.movimientos.forEach(m => {
-        const fecha = m.fecha.split('T')[0];
-        if(ultimos7[fecha]) {
-            if(m.tipo==='ingreso') ultimos7[fecha].ing += safeFloat(m.monto);
-            else ultimos7[fecha].gas += safeFloat(m.monto);
-        }
-    });
-    // Convertir a coordenadas SVG
-    const puntosIng = Object.values(ultimos7).map((v, i) => `${i * 40},${100 - (v.ing/10)}`).join(' '); // Escala simple
-    const puntosGas = Object.values(ultimos7).map((v, i) => `${i * 40},${100 - (v.gas/10)}`).join(' ');
-
     const html = `
         <div style="font-family:sans-serif; color:#334155;">
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; text-align:center; margin-bottom:15px;">
@@ -211,29 +239,53 @@ function generarReporteSemanal() {
                     <small>Comprometido</small><br><strong style="color:#f97316; font-size:1.1rem">${fmtMoney(comprometido)}</strong>
                 </div>
             </div>
-            
-            <div style="margin-bottom:15px; font-size:0.9rem;">
-                <strong>⛽ Eficiencia:</strong> $${eficiencia} / km
-            </div>
-
+            <div style="margin-bottom:15px; font-size:0.9rem;"><strong>⛽ Eficiencia:</strong> $${eficiencia} / km</div>
             <h4 style="margin:0 0 10px 0;">Estado de Sobres</h4>
             <div style="margin-bottom:20px;">${barrasHTML || 'Sin sobres activos'}</div>
-
-            <h4 style="margin:0 0 10px 0;">Tendencia (7 días)</h4>
-            <svg viewBox="0 0 240 100" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; width:100%;">
-                <polyline fill="none" stroke="#22c55e" stroke-width="2" points="${puntosIng}" />
-                <polyline fill="none" stroke="#ef4444" stroke-width="2" points="${puntosGas}" />
-            </svg>
-            <div style="display:flex; justify-content:center; gap:15px; font-size:0.75rem; margin-top:5px;">
-                <span style="color:#22c55e">● Ingresos</span>
-                <span style="color:#ef4444">● Gastos</span>
-            </div>
         </div>
     `;
     Modal.showHtml("Reporte Semanal", html);
 }
 
+function renderHistorialBlindado(store) {
+    const tbody = document.getElementById('tablaBody');
+    if (!tbody) return;
+
+    // FUENTE DE VERDAD: store.movimientos
+    if (!store.movimientos || store.movimientos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:20px; color:#94a3b8;">Sin movimientos registrados</td></tr>`;
+        return;
+    }
+
+    // Ordenar descendente y mostrar últimos 50
+    const movs = [...store.movimientos]
+        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+        .slice(0, 50);
+
+    tbody.innerHTML = movs.map(m => {
+        const fecha = new Date(m.fecha).toLocaleDateString('es-MX', {day: '2-digit', month: 'short'});
+        const esIngreso = m.tipo === 'ingreso';
+        const color = esIngreso ? '#16a34a' : '#ef4444'; 
+        const signo = esIngreso ? '+' : '-';
+        
+        return `
+            <tr>
+                <td style="color:#64748b; font-size:0.85rem;">${fecha}</td>
+                <td>
+                    <div style="font-weight:600; font-size:0.9rem; color:#334155;">${m.desc}</div>
+                    <div style="font-size:0.75rem; color:#94a3b8;">${m.categoria || 'General'}</div>
+                </td>
+                <td style="text-align:right; font-weight:bold; color:${color};">
+                    ${signo}${fmtMoney(m.monto)}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+
 // --- OPERACIONES ---
+
 function finalizarTurno(kmFinal, ganancia) {
     const kF = safeFloat(kmFinal);
     if(kF < store.parametros.ultimoKM) return alert("⛔ El KM no puede ser menor al actual.");
@@ -255,7 +307,7 @@ function abonarDeuda(id, monto) {
     const d = store.deudas.find(x => x.id == id);
     if(!d) return;
 
-    // NO BLOQUEAR PAGOS
+    // Pago permitido siempre
     const val = safeFloat(monto);
     d.saldo -= val;
     if(d.saldo < 0) d.saldo = 0;
@@ -263,7 +315,7 @@ function abonarDeuda(id, monto) {
     // Resetear acumulado del sobre correspondiente
     const s = store.wallet.sobres.find(x => x.refId === id);
     if(s) {
-        s.acumulado = 0; // Reiniciar acumulación tras pago
+        s.acumulado = 0; // Reiniciar
         s.ultimoCalculo = getFechaHoy();
     }
 
@@ -295,16 +347,11 @@ function agregarDeuda(desc, total, cuota, freq, diaPago) {
 function updateConfigVehiculo(km, costo) { 
     if(safeFloat(km) < store.parametros.ultimoKM) return alert("⛔ KM inválido");
     store.parametros.ultimoKM = safeFloat(km);
-    // Costo es histórico, pero permitimos ajuste manual si no hay historial
     if(store.cargasCombustible.length < 2) store.parametros.costoPorKm = safeFloat(costo);
     sanearDatos(); 
 }
 
-/* FIN PARTE 2 - SIGUE PARTE 3 */
-
-/* =========================================
-   APP.JS - BLOQUE 3/3 (UI Y ARRANQUE)
-   ========================================= */
+// --- UI Y ARRANQUE ---
 
 const Modal = {
     showInput: (title, inputsConfig, onConfirm) => {
@@ -342,23 +389,22 @@ const Modal = {
 
 function updateAdminUI() {
     if($('kmActual')) $('kmActual').innerText = `${store.parametros.ultimoKM} km`;
-    // Meta diaria ahora es dinámica basada en sobres, no estática
+    
+    // Meta diaria ahora es dinámica basada en sobres
     const metaHoy = store.wallet.sobres.reduce((a,b) => a + (b.meta - b.acumulado > 0 ? (b.meta/7) : 0), 0) + (120 * safeFloat(store.parametros.costoPorKm));
     if($('metaDiariaValor')) $('metaDiariaValor').innerText = fmtMoney(metaHoy);
 
     if($('turnoEstado')) $('turnoEstado').innerHTML = store.turnoActivo ? `<span style="color:green">🟢 EN CURSO</span>` : `🔴 Detenido`;
     
-    // Inyectar Botón Reporte
     const zone = document.querySelector('#btnExportJSON')?.parentNode;
     if(zone && !document.getElementById('btnVerReporte')) {
         const btn = document.createElement('button');
         btn.id = 'btnVerReporte'; btn.className = 'btn btn-primary'; btn.style.marginBottom='10px';
-        btn.innerText = '📈 Ver Reporte y Gráficas';
+        btn.innerText = '📈 Ver Reporte';
         btn.onclick = generarReporteSemanal;
         zone.prepend(btn);
     }
     
-    // Render lista deudas admin
     const list = $('listaDeudasAdmin'); const sel = $('abonoDeudaSelect');
     if(list && sel) {
         list.innerHTML = ''; sel.innerHTML = '<option value="">-- Pagar Deuda --</option>';
@@ -373,36 +419,36 @@ function updateAdminUI() {
 }
 
 function init() {
-    console.log("🚀 APP V3 SOBRES AVANZADOS");
+    console.log("🚀 APP V3.2 DEFINITIVA");
     loadData();
     const page = document.body.dataset.page;
     document.querySelectorAll('.nav-link').forEach(l => { if(l.getAttribute('href').includes(page)) l.classList.add('active'); });
 
-    // --- ALERTAS INFORMATIVAS ---
-    if(page === 'index' || page === 'admin') {
-        const sobresUrgentes = store.wallet.sobres.filter(s => {
-            // Lógica: Si faltan menos de 2 días para llenarlo y falta $
-            if(s.acumulado >= s.meta) return false;
-            if(s.frecuencia === 'Semanal') {
-                const hoy = new Date().getDay();
-                const target = parseInt(s.diaPago || 0);
-                let diff = target - hoy; if(diff < 0) diff += 7;
-                return diff <= 1; // Vence hoy o mañana
-            }
-            return false;
-        });
-        if(sobresUrgentes.length > 0) {
-            // Inyectar alerta visual no intrusiva
-            const main = document.querySelector('main');
-            if(main && !document.getElementById('alertBox')) {
-                const div = document.createElement('div'); div.id = 'alertBox';
-                div.style = "background:#fff7ed; border:1px solid #f97316; padding:10px; margin:10px; border-radius:8px; font-size:0.9rem";
-                div.innerHTML = `⚠️ <strong>Atención:</strong> ${sobresUrgentes.map(s => `${s.desc} vence pronto`).join(', ')}`;
-                main.prepend(div);
-            }
+    // --- PANEL (INDEX) ---
+    if(page === 'index') {
+        const hoy = new Date().toDateString();
+        const gan = store.turnos.filter(t => new Date(t.fecha).toDateString() === hoy).reduce((a,b)=>a+b.ganancia,0);
+        if($('resGananciaBruta')) $('resGananciaBruta').innerText = fmtMoney(gan);
+
+        // Inyectar Resumen Humano
+        const main = document.querySelector('main.container');
+        let resumenDiv = document.getElementById('resumenHumano');
+        if (!resumenDiv && main) {
+            resumenDiv = document.createElement('div');
+            resumenDiv.id = 'resumenHumano';
+            const primerCard = main.querySelector('.card');
+            if(primerCard) primerCard.insertAdjacentElement('afterend', resumenDiv);
+            else main.prepend(resumenDiv);
         }
+        if (resumenDiv) resumenDiv.innerHTML = generarResumenHumanoHoy(store);
     }
 
+    // --- HISTORIAL ---
+    if(page === 'historial') {
+        renderHistorialBlindado(store);
+    }
+
+    // --- ADMIN ---
     if(page === 'admin') {
         updateAdminUI();
         setInterval(() => { if($('turnoTimer') && store.turnoActivo) {
@@ -424,13 +470,8 @@ function init() {
         bind('btnExportJSON', () => navigator.clipboard.writeText(JSON.stringify(store)).then(()=>alert("Copiado")));
         bind('btnRestoreBackup', () => Modal.showInput("Restaurar", [{label:"JSON", key:"j"}], d=>{ try{store={...INITIAL_STATE,...JSON.parse(d.j)};sanearDatos();saveData();location.reload();}catch(e){alert("Error");} }));
     }
-
-    if(page === 'index') {
-        const hoy = new Date().toDateString();
-        const gan = store.turnos.filter(t => new Date(t.fecha).toDateString() === hoy).reduce((a,b)=>a+b.ganancia,0);
-        if($('resGananciaBruta')) $('resGananciaBruta').innerText = fmtMoney(gan);
-    }
     
+    // --- WALLET ---
     if(page === 'wallet') {
         let comprometido = 0;
         store.wallet.sobres.forEach(s => comprometido += safeFloat(s.acumulado));
@@ -456,4 +497,3 @@ function init() {
     }
 }
 document.addEventListener('DOMContentLoaded', init);
-                                                                                                                                                                                                                                                                                                  
