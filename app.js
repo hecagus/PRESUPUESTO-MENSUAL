@@ -331,13 +331,15 @@ function startTimer() {
 }
 
 function init() {
-    console.log("🚀 APP V3 BLINDADA INICIADA");
+    console.log("🚀 APP V3.1 WALLET-UI INICIADA");
     loadData();
     const page = document.body.dataset.page;
     
     document.querySelectorAll('.nav-link').forEach(l => {
         if(l.getAttribute('href').includes(page)) l.classList.add('active');
     });
+
+    // --- LÓGICA ESPECÍFICA POR PÁGINA ---
 
     if(page === 'admin') {
         updateAdminUI();
@@ -393,17 +395,14 @@ function init() {
         
         bind('btnExportJSON', () => navigator.clipboard.writeText(JSON.stringify(store)).then(()=>alert("Copiado")));
         
-        // RESTORE SEGURO
         bind('btnRestoreBackup', () => Modal.showInput("Pegar JSON Legacy/Backup", [{label:"JSON", key:"j"}], d=>{ 
             try {
                 const parsed = JSON.parse(d.j);
                 if(confirm("⚠️ ¿Sobrescribir datos?")) {
                     store = { ...INITIAL_STATE, ...parsed };
-                    sanearDatos(); 
-                    saveData();
-                    location.reload(); 
+                    sanearDatos(); saveData(); location.reload(); 
                 }
-            } catch(e) { alert("❌ JSON Inválido. Intenta copiarlo de nuevo."); }
+            } catch(e) { alert("❌ JSON Inválido."); }
         }));
     }
 
@@ -414,8 +413,50 @@ function init() {
         if($('resGananciaBruta')) $('resGananciaBruta').innerText = fmtMoney(gan);
     }
     
+    // --- LÓGICA DE WALLET (VISUALIZACIÓN DE SOBRES) ---
     if(page === 'wallet') {
         if($('valWallet')) $('valWallet').innerText = fmtMoney(store.wallet.saldo);
+        
+        // Inyectar UI de sobres dinámicamente (sin tocar HTML)
+        const main = document.querySelector('main.container');
+        let sobresContainer = document.getElementById('sobresContainer');
+        
+        if(!sobresContainer && main) {
+            sobresContainer = document.createElement('section');
+            sobresContainer.id = 'sobresContainer';
+            sobresContainer.className = 'card';
+            sobresContainer.style.marginTop = '15px';
+            main.appendChild(sobresContainer);
+        }
+
+        if(sobresContainer) {
+            const sobres = store.wallet.sobres || [];
+            if(sobres.length === 0) {
+                sobresContainer.innerHTML = `<h2>Mis Sobres</h2><p style="color:#94a3b8; font-style:italic">No hay sobres activos.</p>`;
+            } else {
+                let html = `<h2>Mis Sobres (Metas)</h2><div style="display:grid; gap:10px;">`;
+                sobres.forEach(s => {
+                    const pct = Math.min((s.acumulado / s.meta) * 100, 100) || 0;
+                    const color = s.tipo === 'deuda' ? '#ef4444' : '#3b82f6';
+                    html += `
+                    <div style="border:1px solid #e2e8f0; padding:12px; border-radius:8px; background:#fff;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <strong style="font-size:0.95rem; color:#334155">${s.desc}</strong>
+                            <small style="color:${color}; font-weight:bold">${s.tipo.toUpperCase()}</small>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.9rem; margin-bottom:8px;">
+                            <span>${fmtMoney(s.acumulado)}</span>
+                            <span style="color:#64748b">/ ${fmtMoney(s.meta)}</span>
+                        </div>
+                        <div style="background:#f1f5f9; height:8px; border-radius:4px; overflow:hidden;">
+                            <div style="background:${color}; height:100%; width:${pct}%"></div>
+                        </div>
+                    </div>`;
+                });
+                html += `</div>`;
+                sobresContainer.innerHTML = html;
+            }
+        }
     }
 
     if(page === 'historial') {
@@ -426,7 +467,9 @@ function init() {
                 <tr>
                     <td>${new Date(m.fecha).toLocaleDateString()}</td>
                     <td><strong>${m.desc}</strong><br><small style="color:#64748b">${m.categoria || 'Gasto'}</small></td>
-                    <td style="text-align:right">${fmtMoney(m.monto)}</td>
+                    <td style="text-align:right; color:${m.tipo==='ingreso'?'green':'red'}">
+                        ${m.tipo==='ingreso'?'+':'-'} ${fmtMoney(m.monto)}
+                    </td>
                 </tr>
             `).join('');
         }
@@ -434,4 +477,5 @@ function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
-                                                               
+               
+  
