@@ -301,8 +301,8 @@ function updateConfigVehiculo(km, costo) {
 }
 
 /* FIN PARTE 2 - SIGUE PARTE 3 */
+
 /* =========================================
-   /* =========================================
    APP.JS - BLOQUE 3/3 (UI Y ARRANQUE)
    ========================================= */
 
@@ -456,4 +456,4 @@ function init() {
     }
 }
 document.addEventListener('DOMContentLoaded', init);
-                           
+                                                                                                                                                                                                                                                                                                  
