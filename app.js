@@ -1,5 +1,5 @@
 /* =========================================
-   APP.JS - ARCHIVO MAESTRO DEFINITIVO (V3.2)
+   APP.JS - ARCHIVO MAESTRO V3.3 (VACIADO INTELIGENTE)
    ========================================= */
 
 // --- CONSTANTES ---
@@ -48,7 +48,7 @@ let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 // --- MOTOR DE INTEGRIDAD Y SANEAMIENTO ---
 function sanearDatos() {
-    // Validar Arrays
+    // Validar Arrays para evitar pantalla blanca
     if(!Array.isArray(store.movimientos)) store.movimientos = [];
     if(!Array.isArray(store.cargasCombustible)) store.cargasCombustible = [];
     if(!Array.isArray(store.turnos)) store.turnos = [];
@@ -334,8 +334,29 @@ function registrarGasolina(l, c, k) {
 
 function procesarGasto(desc, monto, grupo, cat, freq) {
     const id = uuid();
-    if(freq !== 'Unico') store.gastosFijosMensuales.push({ id, desc, monto, categoria: cat, frecuencia: freq });
-    store.movimientos.push({ id, fecha: new Date().toISOString(), tipo: 'gasto', desc, monto, categoria: cat });
+    const m = safeFloat(monto);
+
+    // 1. Guardar definición si es recurrente
+    if(freq !== 'Unico') {
+        store.gastosFijosMensuales.push({ id, desc, monto: m, categoria: cat, frecuencia: freq });
+    }
+
+    // 2. Guardar movimiento en Historial
+    store.movimientos.push({ id, fecha: new Date().toISOString(), tipo: 'gasto', desc, monto: m, categoria: cat });
+
+    // 3. VACIADO INTELIGENTE DE SOBRES
+    // Si gastas en "Comida", se busca el sobre correspondiente y se le resta el dinero
+    store.wallet.sobres.forEach(s => {
+        if(s.tipo === 'gasto') {
+            const gastoFijo = store.gastosFijosMensuales.find(gf => gf.id === s.refId);
+            // Coincidencia por categoría (ej: "Comida" con "Comida")
+            if(gastoFijo && gastoFijo.categoria === cat) {
+                s.acumulado -= m;
+                if(s.acumulado < 0) s.acumulado = 0;
+            }
+        }
+    });
+
     sanearDatos();
 }
 
@@ -390,7 +411,7 @@ const Modal = {
 function updateAdminUI() {
     if($('kmActual')) $('kmActual').innerText = `${store.parametros.ultimoKM} km`;
     
-    // Meta diaria ahora es dinámica basada en sobres
+    // Meta diaria dinámica
     const metaHoy = store.wallet.sobres.reduce((a,b) => a + (b.meta - b.acumulado > 0 ? (b.meta/7) : 0), 0) + (120 * safeFloat(store.parametros.costoPorKm));
     if($('metaDiariaValor')) $('metaDiariaValor').innerText = fmtMoney(metaHoy);
 
@@ -419,7 +440,7 @@ function updateAdminUI() {
 }
 
 function init() {
-    console.log("🚀 APP V3.2 DEFINITIVA");
+    console.log("🚀 APP V3.3 DEFINITIVA (HISTORIAL + SOBRES)");
     loadData();
     const page = document.body.dataset.page;
     document.querySelectorAll('.nav-link').forEach(l => { if(l.getAttribute('href').includes(page)) l.classList.add('active'); });
@@ -447,8 +468,7 @@ function init() {
     if(page === 'historial') {
         renderHistorialBlindado(store);
     }
-
-    // --- ADMIN ---
+  // --- ADMIN ---
     if(page === 'admin') {
         updateAdminUI();
         setInterval(() => { if($('turnoTimer') && store.turnoActivo) {
