@@ -1,5 +1,5 @@
 /* =========================================
-   APP.JS - PARTE 1/2 (LÓGICA V3.6 + LIMPIEZA)
+   APP.JS - PARTE 1/2 (V3.7 LIMPIEZA TOTAL)
    ========================================= */
 
 const STORAGE_KEY = "moto_finanzas_vFinal";
@@ -41,6 +41,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function sanearDatos() {
+    // Inicializar arrays si no existen
     if(!Array.isArray(store.movimientos)) store.movimientos = [];
     if(!Array.isArray(store.cargasCombustible)) store.cargasCombustible = [];
     if(!Array.isArray(store.turnos)) store.turnos = [];
@@ -48,17 +49,22 @@ function sanearDatos() {
     if(!store.wallet) store.wallet = { saldo: 0, sobres: [], historial: [] };
     if(!Array.isArray(store.wallet.sobres)) store.wallet.sobres = [];
 
-    // --- LIMPIEZA DE DUPLICADOS (FIX V3.6) ---
-    // Elimina definiciones de gastos repetidos con el mismo nombre
-    const vistos = new Set();
-    store.gastosFijosMensuales = store.gastosFijosMensuales.filter(g => {
-        const key = g.desc.toLowerCase() + '-' + g.categoria;
-        if (vistos.has(key)) return false; // Ya existe uno igual, eliminar este
-        vistos.add(key);
-        return true;
-    });
+    // --- 🚨 LIMPIEZA AGRESIVA DE DUPLICADOS ---
+    // Si tienes "Comida diaria" dos veces, esto elimina la copia.
+    const unicos = [];
+    const nombresVistos = new Set();
     
-    // 1. RECALCULAR SALDO
+    // Primero ordenamos para quedarnos con el más reciente o el original
+    store.gastosFijosMensuales.forEach(g => {
+        const key = g.desc.toLowerCase().trim();
+        if (!nombresVistos.has(key)) {
+            nombresVistos.add(key);
+            unicos.push(g);
+        }
+    });
+    store.gastosFijosMensuales = unicos;
+
+    // 1. RECALCULAR SALDO REAL
     let saldoCalculado = 0;
     store.movimientos.forEach(m => {
         if(m.tipo === 'ingreso') saldoCalculado += safeFloat(m.monto);
@@ -78,7 +84,7 @@ function sanearDatos() {
     const maxGas = store.cargasCombustible.length > 0 ? Math.max(...store.cargasCombustible.map(c=>c.km||0)) : 0;
     store.parametros.ultimoKM = Math.max(store.parametros.ultimoKM || 0, maxTurno, maxGas);
 
-    // 4. ESTRUCTURA SOBRES
+    // 4. RECONSTRUIR SOBRES (Solo crea sobres para los gastos ÚNICOS)
     actualizarSobresEstructural();
 
     // 5. CALENDARIO
@@ -92,12 +98,17 @@ function actualizarSobresEstructural() {
             s = { id: uuid(), refId, tipo, desc, acumulado: 0, ultimoCalculo: getFechaHoy() };
             store.wallet.sobres.push(s);
         }
+        // Actualizamos datos por si cambiaste la configuración
         s.meta = safeFloat(meta); s.frecuencia = freq; s.diaPago = diaPago; s.desc = desc;
     };
+    
+    // Crear sobres de deuda
     store.deudas.forEach(d => { if(d.saldo > 0) crearSobre(d.id, 'deuda', d.desc, d.montoCuota, d.frecuencia, d.diaPago); });
+    
+    // Crear sobres de gastos fijos
     store.gastosFijosMensuales.forEach(g => { crearSobre(g.id, 'gasto', g.desc, g.monto, g.frecuencia); });
     
-    // Filtro estricto para eliminar sobres fantasmas
+    // ELIMINAR SOBRES HUÉRFANOS (Esto borrará el sobre duplicado de la vista)
     store.wallet.sobres = store.wallet.sobres.filter(s => {
         if(s.tipo === 'deuda') return store.deudas.some(d => d.id === s.refId && d.saldo > 0.1);
         if(s.tipo === 'gasto') return store.gastosFijosMensuales.some(g => g.id === s.refId);
@@ -116,6 +127,7 @@ function recalcularSobresPorCalendario() {
             let diasTranscurridos = (hoyIndex - pagoIndex + 7) % 7;
             if (diasTranscurridos === 0 && s.acumulado < s.meta) diasTranscurridos = 7;
             const montoIdeal = (s.meta / 7) * diasTranscurridos;
+            // Solo ajustamos si el acumulado es menor al ideal
             if(s.acumulado < montoIdeal) s.acumulado = montoIdeal;
             if(s.acumulado > s.meta) s.acumulado = s.meta;
         }
@@ -139,7 +151,7 @@ function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); 
 
 /* SIGUE PARTE 2... */
 /* =========================================
-   APP.JS - PARTE 2/2 (UI Y REPORTES)
+   APP.JS - PARTE 2/2 (UI y MENÚ DE GASTOS)
    ========================================= */
 
 function generarResumenHumanoHoy(store) {
@@ -202,22 +214,44 @@ function registrarGasolina(l, c, k) {
     store.cargasCombustible.push({ id: uuid(), fecha: new Date().toISOString(), litros:l, costo:c, km:k });
     if(k > store.parametros.ultimoKM) store.parametros.ultimoKM = k; sanearDatos();
 }
-// CREAR NUEVO GASTO (Configuración)
+
+// 1. CONFIGURAR NUEVO GASTO (Solo se usa una vez para crear la "Definición")
 function procesarNuevoGasto(desc, monto, grupo, cat, freq) {
+    // Verificar si ya existe un gasto con ese nombre
+    const existe = store.gastosFijosMensuales.find(g => g.desc.toLowerCase() === desc.toLowerCase());
+    if (existe) return alert("⚠️ Ya existe un gasto con este nombre. Usa el menú 'Pagar Gasto Recurrente' para pagarlo.");
+
     const id = uuid(); const m = safeFloat(monto);
     if(freq !== 'Unico') store.gastosFijosMensuales.push({ id, desc, monto: m, categoria: cat, frecuencia: freq });
     store.movimientos.push({ id, fecha: new Date().toISOString(), tipo: 'gasto', desc, monto: m, categoria: cat });
     sanearDatos();
 }
-// PAGAR GASTO RECURRENTE (Existente)
-function pagarGastoRecurrente(id, monto) {
-    const gf = store.gastosFijosMensuales.find(x => x.id === id); if(!gf) return;
-    const val = safeFloat(monto);
-    store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'gasto', desc: gf.desc, monto: val, categoria: gf.categoria });
+
+// 2. PAGAR GASTO EXISTENTE (Usa la definición existente)
+function pagarGastoRecurrente(id) {
+    const gf = store.gastosFijosMensuales.find(x => x.id === id); 
+    if(!gf) return;
+    
+    // Crear movimiento de gasto
+    store.movimientos.push({ 
+        id: uuid(), 
+        fecha: new Date().toISOString(), 
+        tipo: 'gasto', 
+        desc: gf.desc, // Usa el mismo nombre
+        monto: safeFloat(gf.monto), 
+        categoria: gf.categoria 
+    });
+
+    // Vaciar el sobre correspondiente
     const s = store.wallet.sobres.find(x => x.refId === id);
-    if(s) { s.acumulado -= val; if(s.acumulado < 0) s.acumulado = 0; }
+    if(s) { 
+        s.acumulado -= safeFloat(gf.monto); 
+        if(s.acumulado < 0) s.acumulado = 0; 
+    }
     sanearDatos();
+    alert(`✅ Pagado: ${gf.desc}`);
 }
+
 function agregarDeuda(desc, total, cuota, freq, diaPago) { store.deudas.push({ id: uuid(), desc, montoTotal: total, montoCuota: cuota, frecuencia: freq, diaPago, saldo: total }); sanearDatos(); }
 function updateConfigVehiculo(km, costo) { store.parametros.ultimoKM = safeFloat(km); if(store.cargasCombustible.length < 2) store.parametros.costoPorKm = safeFloat(costo); sanearDatos(); }
 
@@ -243,37 +277,46 @@ function updateAdminUI() {
     if($('metaDiariaValor')) $('metaDiariaValor').innerText=fmtMoney(metaHoy);
     if($('turnoEstado')) $('turnoEstado').innerHTML=store.turnoActivo?`<span style="color:green">🟢 EN CURSO</span>`:`🔴 Detenido`;
     
-    // INYECCIÓN: Botón Reporte
+    // BOTÓN REPORTE
     const zone=document.querySelector('#btnExportJSON')?.parentNode;
     if(zone && !document.getElementById('btnVerReporte')) {
         const btn=document.createElement('button'); btn.id='btnVerReporte'; btn.className='btn btn-primary'; btn.style.marginBottom='10px'; btn.innerText='📈 Ver Reporte'; btn.onclick=generarReporteSemanal; zone.prepend(btn);
     }
     
-    // INYECCIÓN: Menú Gastos Recurrentes (NUEVO V3.6)
-    const cardGasto = $('btnGastoHogar')?.closest('.card');
-    if(cardGasto && !document.getElementById('pagarRecurrenteContainer')) {
-        const div = document.createElement('div'); div.id='pagarRecurrenteContainer'; div.style="background:#f1f5f9; padding:10px; border-radius:8px; margin-bottom:15px;";
+    // --- MENÚ DE GASTOS RECURRENTES (SOLUCIÓN PEDIDA) ---
+    // Buscamos dónde insertar el menú (usamos la card de Hogar como referencia)
+    const cardHogar = $('btnGastoHogar')?.closest('.card');
+    if(cardHogar && !document.getElementById('zoneRecurrentes')) {
+        const div = document.createElement('div');
+        div.id = 'zoneRecurrentes';
+        div.style = "background:#f1f5f9; padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #cbd5e1;";
         div.innerHTML = `
-            <label style="font-size:0.8rem; display:block; margin-bottom:5px;">Pagar Gasto Recurrente (Sobres):</label>
-            <select id="selGastoRecurrente" class="input-control" style="width:100%; margin-bottom:10px; padding:8px;"><option value="">-- Seleccionar --</option></select>
-            <button id="btnPagarRecurrente" class="btn btn-success" style="font-size:0.9rem;">💵 Pagar del Sobre</button>
+            <h4 style="margin-top:0; font-size:0.9rem; color:#475569">Pagar Gasto Recurrente</h4>
+            <div style="display:flex; gap:5px;">
+                <select id="selRecurrente" class="input-control" style="flex:1;"><option value="">Seleccionar...</option></select>
+                <button id="btnPagarRecurrente" class="btn btn-success" style="padding:5px 10px;">Pagar</button>
+            </div>
         `;
-        cardGasto.insertBefore(div, cardGasto.children[1]); // Insertar después del título
+        // Insertar antes de los botones de nuevo gasto
+        cardHogar.insertBefore(div, $('btnGastoHogar'));
         
-        // Evento Click
+        // Lógica del botón Pagar
         div.querySelector('#btnPagarRecurrente').onclick = () => {
-            const id = $('selGastoRecurrente').value;
-            const item = store.gastosFijosMensuales.find(x => x.id === id);
-            if(item) pagarGastoRecurrente(id, item.monto);
-            else alert("Selecciona un gasto");
+            const id = $('selRecurrente').value;
+            if(!id) return alert("Selecciona un gasto primero");
+            if(confirm("¿Confirmar pago de este gasto?")) pagarGastoRecurrente(id);
         };
     }
-    // Rellenar Select Gastos Recurrentes
-    const selGr = $('selGastoRecurrente');
-    if(selGr) {
-        selGr.innerHTML = '<option value="">-- Seleccionar --</option>';
+    
+    // Llenar el select con los gastos guardados
+    const selR = $('selRecurrente');
+    if(selR) {
+        selR.innerHTML = '<option value="">Seleccionar...</option>';
         store.gastosFijosMensuales.forEach(g => {
-            const opt = document.createElement('option'); opt.value = g.id; opt.innerText = `${g.desc} (${fmtMoney(g.monto)})`; selGr.appendChild(opt);
+            const opt = document.createElement('option');
+            opt.value = g.id;
+            opt.innerText = `${g.desc} (${fmtMoney(g.monto)})`;
+            selR.appendChild(opt);
         });
     }
 
@@ -282,7 +325,7 @@ function updateAdminUI() {
 }
 
 function init() {
-    console.log("🚀 APP V3.6 FINAL (MENÚ RECURRENTES + AUTOFIX)"); loadData();
+    console.log("🚀 APP V3.7 LIMPIEZA TOTAL"); loadData();
     const page = document.body.dataset.page;
     document.querySelectorAll('.nav-link').forEach(l=>{if(l.getAttribute('href').includes(page))l.classList.add('active')});
 
@@ -314,8 +357,8 @@ function init() {
         bind('btnTurnoIniciar',()=>!store.turnoActivo&&(store.turnoActivo={inicio:Date.now()},saveData(),updateAdminUI()));
         bind('btnTurnoFinalizar',()=>Modal.showInput("Fin",[{label:"KM",key:"km",type:"number"},{label:"$$",key:"g",type:"number"}],d=>finalizarTurno(d.km,d.g)));
         
-        // AQUÍ ESTÁ EL CAMBIO IMPORTANTE: btnGastoHogar ahora llama a procesarNuevoGasto
-        const wiz=(g)=>Modal.showInput(`Gasto ${g}`,[{label:"D",key:"d"},{label:"$$",key:"m",type:"number"},{label:"Cat",key:"c",type:"select",options:CATEGORIAS[g.toLowerCase()].map(x=>({value:x,text:x}))},{label:"F",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({value:x,text:x}))}],d=>procesarNuevoGasto(d.d,d.m,g,d.c,d.f));
+        // CONFIGURAR NUEVO GASTO (Solo la primera vez)
+        const wiz=(g)=>Modal.showInput(`Nuevo Gasto ${g}`,[{label:"Desc",key:"d"},{label:"$$",key:"m",type:"number"},{label:"Cat",key:"c",type:"select",options:CATEGORIAS[g.toLowerCase()].map(x=>({value:x,text:x}))},{label:"Freq",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({value:x,text:x}))}],d=>procesarNuevoGasto(d.d,d.m,g,d.c,d.f));
         bind('btnGastoHogar',()=>wiz('Hogar')); bind('btnGastoOperativo',()=>wiz('Operativo'));
         
         bind('btnGasolina',()=>Modal.showInput("Gas",[{label:"L",key:"l",type:"number"},{label:"$$",key:"c",type:"number"},{label:"KM",key:"k",type:"number"}],d=>registrarGasolina(d.l,d.c,d.k)));
@@ -326,4 +369,4 @@ function init() {
     }
 }
 document.addEventListener('DOMContentLoaded', init);
-           
+                            
