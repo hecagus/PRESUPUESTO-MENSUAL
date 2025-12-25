@@ -36,71 +36,45 @@
                 ▶️ Iniciar Turno
             </button>
 
-            <button id="btnTurnoFinalizar" class="btn btn-danger hidden">
-                ⏹️ Finalizar Turno
+            <button id="btnTurnoFinalizar" class="btn" style="background-color:var(--danger); color:white; display:none;">
+                ⏹ Finalizar Turno
+            </button>
+        </section>
+
+        <section class="card">
+            <h2>Registrar Gasto</h2>
+            
+            <div class="grid-2">
+                <button id="btnGastoHogar" class="btn btn-outline">🏠 Hogar</button>
+                <button id="btnGastoOperativo" class="btn btn-primary">🛠️ Operativo</button>
+            </div>
+            <button id="btnGasolina" class="btn btn-warning" style="margin-top:10px; width:100%">
+                ⛽ Registrar Gasolina
             </button>
         </section>
 
         <section class="card" style="border-left:5px solid var(--danger)">
-            <h2>Registrar Gasto</h2>
-            <div class="grid-2">
-                <button id="btnGastoHogar" class="btn btn-outline">
-                    🏠 Hogar
-                </button>
-                <button id="btnGastoOperativo" class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);">
-                    🛵 Operativo
-                </button>
-            </div>
-        </section>
-
-        <section class="card" style="border-left:5px solid var(--warning)">
-            <h2>Gasolina</h2>
-            <button id="btnGasolina" class="btn btn-outline" style="color:var(--warning); border-color:var(--warning); font-weight:bold;">
-                ⛽ Registrar Carga
-            </button>
-        </section>
-
-        <section class="card" style="border-left:5px solid var(--primary)">
             <h2>Deudas</h2>
-            <button id="btnDeudaNueva" class="btn btn-primary" style="margin-bottom:15px;">
-                ➕ Nueva Deuda
+            <button id="btnDeudaNueva" class="btn btn-outline" style="margin-bottom:10px; font-size:0.8rem;">
+                + Nueva Deuda
             </button>
-
-            <div style="background:#f1f5f9; padding:10px; border-radius:8px;">
-                <label style="font-size:0.8rem; display:block; margin-bottom:5px;">Seleccionar deuda a pagar:</label>
-                <select id="abonoDeudaSelect" class="input-control" style="width:100%; margin-bottom:10px; padding:8px;">
-                    <option value="">-- Cargar Deudas --</option>
+            
+            <div style="display:flex; gap:5px;">
+                <select id="abonoDeudaSelect" class="input-control" style="flex:1;">
+                    <option value="">-- Seleccionar --</option>
                 </select>
-                
-                <div class="grid-2">
-                    <button id="btnAbonoCuota" class="btn btn-success" style="font-size:0.9rem;">
-                        💵 Pagar Cuota
-                    </button>
-                    <button id="btnAbonoCustom" class="btn btn-outline" style="font-size:0.9rem;">
-                        ✏️ Otro Monto
-                    </button>
-                </div>
+                <button id="btnAbonoCuota" class="btn btn-success" style="padding:0 15px;">
+                    Pagar
+                </button>
             </div>
-
-            <ul id="listaDeudasAdmin" class="list-group" style="margin-top:15px;"></ul>
-        </section>
-
-        <section class="card" style="text-align:center;">
-            <h2>Meta Diaria Calculada</h2>
-            <div class="value text-green" id="metaDiariaValor" style="font-size:2rem;">
-                $0.00
-            </div>
+            <ul id="listaDeudasAdmin" class="list-group" style="margin-top:10px; display:none;"></ul>
         </section>
 
         <section class="card">
             <h2>Zona de Datos</h2>
             <div class="grid-2">
-                <button id="btnExportJSON" class="btn btn-outline">
-                    📋 Copiar
-                </button>
-                <button id="btnRestoreBackup" class="btn btn-outline" style="border-color:var(--danger); color:var(--danger);">
-                    ♻️ Restaurar
-                </button>
+                <button id="btnExportJSON" class="btn btn-outline">📋 Copiar</button>
+                <button id="btnRestoreBackup" class="btn btn-outline" style="border-color:var(--danger); color:var(--danger);">♻️ Restaurar</button>
             </div>
         </section>
 
