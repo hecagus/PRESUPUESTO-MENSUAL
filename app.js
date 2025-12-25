@@ -1,5 +1,5 @@
 /* =========================================
-   APP.JS - V3.6 FINAL (FIX HTML ID) - PARTE 1/2
+   APP.JS - V4.1 RECUPERACIÓN + VISIBILIDAD DEUDAS
    ========================================= */
 
 // --- 1. CONSTANTES ---
@@ -45,49 +45,51 @@ let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 // --- 2. MOTOR DE INTEGRIDAD ---
 function sanearDatos() {
-    if(!Array.isArray(store.movimientos)) store.movimientos = [];
-    if(!Array.isArray(store.cargasCombustible)) store.cargasCombustible = [];
-    if(!Array.isArray(store.turnos)) store.turnos = [];
-    if(!Array.isArray(store.deudas)) store.deudas = [];
-    if(!store.wallet) store.wallet = { saldo: 0, sobres: [], historial: [] };
-    if(!Array.isArray(store.wallet.sobres)) store.wallet.sobres = [];
-    
-    // Fix Duplicados Gastos
-    const unicos = [];
-    const nombresVistos = new Set();
-    store.gastosFijosMensuales.forEach(g => {
-        const key = g.desc.toLowerCase().trim();
-        if (!nombresVistos.has(key)) {
-            nombresVistos.add(key);
-            unicos.push(g);
-        }
-    });
-    store.gastosFijosMensuales = unicos;
+    try {
+        if(!Array.isArray(store.movimientos)) store.movimientos = [];
+        if(!Array.isArray(store.cargasCombustible)) store.cargasCombustible = [];
+        if(!Array.isArray(store.turnos)) store.turnos = [];
+        if(!Array.isArray(store.deudas)) store.deudas = [];
+        if(!store.wallet) store.wallet = { saldo: 0, sobres: [], historial: [] };
+        if(!Array.isArray(store.wallet.sobres)) store.wallet.sobres = [];
+        
+        // Fix Duplicados Gastos
+        const unicos = [];
+        const nombresVistos = new Set();
+        store.gastosFijosMensuales.forEach(g => {
+            const key = g.desc.toLowerCase().trim();
+            if (!nombresVistos.has(key)) {
+                nombresVistos.add(key);
+                unicos.push(g);
+            }
+        });
+        store.gastosFijosMensuales = unicos;
 
-    // 1. Recalcular Saldo
-    let saldoCalculado = 0;
-    store.movimientos.forEach(m => {
-        if(m.tipo === 'ingreso') saldoCalculado += safeFloat(m.monto);
-        if(m.tipo === 'gasto') saldoCalculado -= safeFloat(m.monto);
-    });
-    store.cargasCombustible.forEach(c => saldoCalculado -= safeFloat(c.costo));
-    store.wallet.saldo = saldoCalculado;
+        // 1. Recalcular Saldo
+        let saldoCalculado = 0;
+        store.movimientos.forEach(m => {
+            if(m.tipo === 'ingreso') saldoCalculado += safeFloat(m.monto);
+            if(m.tipo === 'gasto') saldoCalculado -= safeFloat(m.monto);
+        });
+        store.cargasCombustible.forEach(c => saldoCalculado -= safeFloat(c.costo));
+        store.wallet.saldo = saldoCalculado;
 
-    // 2. Eficiencia
-    const totalGas = store.cargasCombustible.reduce((a,b)=>a+safeFloat(b.costo),0);
-    const kmsGas = store.cargasCombustible.length > 1 ? 
-        (Math.max(...store.cargasCombustible.map(c=>c.km)) - Math.min(...store.cargasCombustible.map(c=>c.km))) : 0;
-    if(kmsGas > 100) store.parametros.costoPorKm = (totalGas / kmsGas).toFixed(2);
+        // 2. Eficiencia
+        const totalGas = store.cargasCombustible.reduce((a,b)=>a+safeFloat(b.costo),0);
+        const kmsGas = store.cargasCombustible.length > 1 ? 
+            (Math.max(...store.cargasCombustible.map(c=>c.km)) - Math.min(...store.cargasCombustible.map(c=>c.km))) : 0;
+        if(kmsGas > 100) store.parametros.costoPorKm = (totalGas / kmsGas).toFixed(2);
 
-    // 3. Blindaje KM
-    const maxTurno = store.turnos.length > 0 ? Math.max(...store.turnos.map(t=>t.kmFinal||0)) : 0;
-    const maxGas = store.cargasCombustible.length > 0 ? Math.max(...store.cargasCombustible.map(c=>c.km||0)) : 0;
-    store.parametros.ultimoKM = Math.max(store.parametros.ultimoKM || 0, maxTurno, maxGas);
+        // 3. Blindaje KM
+        const maxTurno = store.turnos.length > 0 ? Math.max(...store.turnos.map(t=>t.kmFinal||0)) : 0;
+        const maxGas = store.cargasCombustible.length > 0 ? Math.max(...store.cargasCombustible.map(c=>c.km||0)) : 0;
+        store.parametros.ultimoKM = Math.max(store.parametros.ultimoKM || 0, maxTurno, maxGas);
 
-    // 4. Estructura Sobres
-    actualizarSobresEstructural();
-    // 5. Calendario
-    recalcularSobresPorCalendario();
+        // 4. Estructura Sobres
+        actualizarSobresEstructural();
+        // 5. Calendario
+        recalcularSobresPorCalendario();
+    } catch (e) { console.error("Error saneando", e); }
 }
 
 function actualizarSobresEstructural() {
@@ -191,11 +193,6 @@ function updateConfigVehiculo(km, costo) {
     if(store.cargasCombustible.length < 2) store.parametros.costoPorKm = safeFloat(costo); sanearDatos();
 }
 
-/* SIGUE PARTE 2... */
-/* =========================================
-   APP.JS - PARTE 2/2 (UI y EVENTOS)
-   ========================================= */
-
 // --- UI HELPERS ---
 const Modal = {
     showInput: (title, inputs, onConfirm) => {
@@ -255,7 +252,7 @@ function updateAdminUI() {
     const metaHoy = store.wallet.sobres.reduce((a,b) => a + (b.meta - b.acumulado > 0 ? (b.meta/7) : 0), 0) + (120 * safeFloat(store.parametros.costoPorKm));
     if($('metaDiariaValor')) $('metaDiariaValor').innerText = fmtMoney(metaHoy);
     
-    // 3. TURNO (CORRECCIÓN VITAL)
+    // 3. TURNO (CORRECCIÓN VITAL PARA BOTÓN QUE NO SE VE)
     const activo = !!store.turnoActivo;
     const btnIni = $('btnTurnoIniciar');
     const btnFin = $('btnTurnoFinalizar');
@@ -268,10 +265,13 @@ function updateAdminUI() {
     
     if(btnIni) btnIni.style.display = activo ? 'none' : 'block';
     
-    // AQUÍ ESTABA EL ERROR: Aseguramos que el botón se muestre si el turno está activo
     if(btnFin) {
         btnFin.style.display = activo ? 'block' : 'none';
         btnFin.style.visibility = activo ? 'visible' : 'hidden'; // Forzamos visibilidad
+        if(activo) {
+            // Asegurar que no tenga clases ocultas
+            btnFin.classList.remove('hidden');
+        }
     }
 
     // 4. MENÚ GASTOS RECURRENTES
@@ -304,7 +304,7 @@ function updateAdminUI() {
         });
     }
 
-    // 5. DEUDAS
+    // 5. DEUDAS (SELECT Y LISTA)
     const sel = $('abonoDeudaSelect');
     if(sel) { 
         sel.innerHTML = '<option value="">-- Pagar Deuda --</option>'; 
@@ -317,6 +317,21 @@ function updateAdminUI() {
             const o = document.createElement('option'); o.value = d.id; o.innerText = `${d.desc} ${textoInfo}`; sel.appendChild(o);
         });
     }
+    // --- AQUÍ HACEMOS VISIBLES LAS DEUDAS EN UNA LISTA ---
+    const listaDeudas = $('listaDeudasAdmin');
+    if(listaDeudas) {
+        if(store.deudas.length > 0) {
+            listaDeudas.style.display = 'block';
+            listaDeudas.innerHTML = store.deudas.map(d => `
+                <li style="padding:5px 0; border-bottom:1px solid #eee; display:flex; justify-content:space-between; font-size:0.85rem;">
+                    <span>${d.desc}</span>
+                    <span style="color:${d.saldo>0?'red':'green'}">${fmtMoney(d.saldo)}</span>
+                </li>
+            `).join('');
+        } else {
+            listaDeudas.style.display = 'none';
+        }
+    }
 
     // Botón Reporte
     const zone = document.querySelector('#btnExportJSON')?.parentNode;
@@ -326,7 +341,7 @@ function updateAdminUI() {
 }
 
 function init() {
-    console.log("🚀 APP V3.6 (HTML+JS SYNC)"); loadData();
+    console.log("🚀 APP V4.1 RECUPERACIÓN"); loadData();
     const page = document.body.dataset.page;
     document.querySelectorAll('.nav-link').forEach(l=>{if(l.getAttribute('href').includes(page))l.classList.add('active')});
 
@@ -363,7 +378,7 @@ function init() {
         // Aseguramos que el ID coincida con el HTML nuevo (btnTurnoFinalizar)
         bind('btnTurnoFinalizar',()=>Modal.showInput("Fin",[{label:"KM Final",key:"km",type:"number"},{label:"Ganancia",key:"g",type:"number"}],d=>finalizarTurno(d.km,d.g)));
         
-        const wiz=(g)=>Modal.showInput(`Gasto ${g}`,[{label:"Desc",key:"d"},{label:"$$",key:"m",type:"number"},{label:"Cat",key:"c",type:"select",options:CATEGORIAS[g.toLowerCase()].map(x=>({value:x,text:x}))},{label:"Freq",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({value:x,text:x}))}],d=>procesarNuevoGasto(d.d,d.m,g,d.c,d.f));
+        const wiz=(g)=>Modal.showInput(`Nuevo Gasto ${g}`,[{label:"Desc",key:"d"},{label:"$$",key:"m",type:"number"},{label:"Cat",key:"c",type:"select",options:CATEGORIAS[g.toLowerCase()].map(x=>({value:x,text:x}))},{label:"Freq",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({value:x,text:x}))}],d=>procesarNuevoGasto(d.d,d.m,g,d.c,d.f));
         bind('btnGastoHogar',()=>wiz('Hogar')); 
         
         // Bloque de gasto operativo seguro
@@ -377,4 +392,3 @@ function init() {
     }
 }
 document.addEventListener('DOMContentLoaded', init);
-   
