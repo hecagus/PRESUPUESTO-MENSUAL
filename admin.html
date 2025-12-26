@@ -62,6 +62,17 @@
             </div>
         </section>
 
+        <section class="card">
+            <h2>Saldo Real en Caja</h2>
+            <div style="margin-bottom:10px;">
+                <div id="valSaldoAdmin" style="font-size:1.6rem; font-weight:bold; color:var(--text-main);">$0.00</div>
+                <div id="valDesgloseAdmin" style="font-size:0.85rem; color:var(--text-sec);">($0.00 en sobres / $0.00 libre)</div>
+            </div>
+            <button id="btnConfigSaldo" class="btn btn-outline">
+                🔒 Auto
+            </button>
+        </section>
+
         <section class="card card-hero">
             <div class="hero-title">🎯 Meta Diaria Obligatoria</div>
             <div id="metaDiariaValor" class="hero-value">$0.00</div>
@@ -70,7 +81,6 @@
 
         <section class="card" style="opacity: 0.8;">
             <h2>Sistema</h2>
-            <button id="btnSaldoInicial" class="btn btn-primary" style="margin-bottom:10px; background:#475569;">💰 Registrar Saldo Inicial</button>
             <div class="grid-2">
                 <button id="btnExportJSON" class="btn btn-outline">📋 Copiar Datos</button>
                 <button id="btnRestoreBackup" class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);">♻️ Restaurar</button>
@@ -100,4 +110,3 @@
     <script src="app.js" defer></script>
 </body>
 </html>
-
