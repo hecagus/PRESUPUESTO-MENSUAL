@@ -1,38 +1,42 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Historial</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body data-page="historial">
 
-<header class="header">
-  <h1>📜 Historial</h1>
-</header>
+    <header class="header">
+        <h1>📜 Historial</h1>
+    </header>
 
-<main class="container">
-  <section class="card">
-    <h2>Últimos Movimientos</h2>
-    <table>
-      <thead>
-        <tr><th>Fecha</th><th>Concepto</th><th>Monto</th></tr>
-      </thead>
-      <tbody id="tablaBody"></tbody>
-    </table>
-  </section>
-</main>
+    <main class="container">
+        <section class="card">
+            <h2>Últimos Movimientos</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 25%">Fecha</th>
+                        <th>Detalle</th>
+                        <th style="text-align:right;">Monto</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaBody">
+                    </tbody>
+            </table>
+        </section>
+    </main>
 
-<nav class="bottom-nav">
-  <a href="index.html" class="nav-link"><span>📊</span>Panel</a>
-  <a href="wallet.html" class="nav-link"><span>💰</span>Wallet</a>
-  <a href="admin.html" class="nav-link"><span>⚙️</span>Admin</a>
-  <a href="historial.html" class="nav-link active"><span>📜</span>Historial</a>
-</nav>
+    <nav class="bottom-nav">
+        <a href="index.html" class="nav-link"><span>📊</span>Panel</a>
+        <a href="wallet.html" class="nav-link"><span>💰</span>Wallet</a>
+        <a href="admin.html" class="nav-link"><span>⚙️</span>Admin</a>
+        <a href="historial.html" class="nav-link active"><span>📜</span>Historial</a>
+    </nav>
 
-<script src="app.js"></script>
-
+    <script src="app.js" defer></script>
 </body>
 </html>
 
