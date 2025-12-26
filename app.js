@@ -1,5 +1,5 @@
 /* =============================================================
-   APP.JS - V7.8 (AUDITORÍA DE LÓGICA DE NEGOCIO Y FUENTES DE VERDAD)
+   APP.JS - V7.8.1 (FINAL STABLE + HOTFIX DISPONIBILIDAD REAL)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -46,7 +46,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V7.8] Cargando datos...");
+    console.log("♻️ [V7.8.1] Cargando datos...");
     let raw = localStorage.getItem(STORAGE_KEY);
     
     if (!raw || raw.length < 50) {
@@ -69,7 +69,7 @@ function loadData() {
             if(saved.parametros) store.parametros = { ...INITIAL_STATE.parametros, ...saved.parametros };
             if(saved.turnoActivo) store.turnoActivo = saved.turnoActivo;
 
-            // AUTO-MIGRACIÓN: Si ya hay datos, activar candados
+            // AUTO-MIGRACIÓN
             if (store.parametros.ultimoKM > 0) store.parametros.kmInicialConfigurado = true;
             
             sanearDatos();
@@ -80,7 +80,7 @@ function loadData() {
 function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
 
 function sanearDatos() {
-    // 1. Recalcular Saldo desde Cero (Fuente de Verdad Financiera)
+    // 1. Recalcular Saldo
     let saldo = 0;
     store.movimientos.forEach(m => {
         if (m.tipo === 'ingreso') saldo += safeFloat(m.monto);
@@ -88,7 +88,7 @@ function sanearDatos() {
     });
     store.wallet.saldo = saldo;
 
-    // 2. Recalcular KM (Fuente de Verdad Física)
+    // 2. Recalcular KM
     const kms = [
         store.parametros.ultimoKM || 0,
         ...store.turnos.map(t => t.kmFinal || 0),
@@ -101,9 +101,8 @@ function sanearDatos() {
         store.turnoActivo = null;
     }
 
-    // 4. Reconstrucción de Lógica de Negocio
     reconstruirSobres();
-    calcularObjetivosYMeta(); // Fix bug $0.00
+    calcularObjetivosYMeta();
     saveData();
 }
 
@@ -131,17 +130,15 @@ function calcularObjetivosYMeta() {
         if(s.frecuencia === 'Semanal') ideal = (s.meta / 7) * (hoyIdx === 0 ? 7 : hoyIdx);
         else if(s.frecuencia === 'Mensual') ideal = (s.meta / 30) * diaMes;
         else if(s.frecuencia === 'Diario') ideal = s.meta;
+        else if(s.frecuencia === 'Anual') ideal = s.meta / 365;
         
         s.objetivoHoy = Math.min(ideal, s.meta);
         
-        // Cálculo de Meta Diaria
         let aporteDiario = 0;
         if(s.frecuencia === 'Semanal') aporteDiario = s.meta / 7;
         else if(s.frecuencia === 'Mensual') aporteDiario = s.meta / 30;
         else if(s.frecuencia === 'Diario') aporteDiario = s.meta;
-        else if(s.frecuencia === 'Anual') aporteDiario = s.meta / 365;
         
-        // Solo sumamos si no está lleno
         if(s.acumulado < s.meta) sumaMetasDiarias += aporteDiario;
     });
 
@@ -203,43 +200,19 @@ function actionPagarRecurrente(id) {
 }
 
 // === ACCIONES DE FUENTE DE VERDAD ===
-
 function actionConfigurarKM(nuevoKM) {
-    // DOBLE CANDADO: Flag OR Valor Existente
-    if(store.parametros.kmInicialConfigurado || store.parametros.ultimoKM > 0) {
-        return alert("⛔ ACCIÓN DENEGADA. El kilometraje ya existe.");
-    }
-    
-    const km = safeFloat(nuevoKM);
-    if(km <= 0) return alert("❌ El kilometraje debe ser mayor a 0.");
-    
-    store.parametros.ultimoKM = km;
-    store.parametros.kmInicialConfigurado = true;
-    saveData();
-    renderAdmin();
-    alert("✅ Kilometraje base establecido. Modo automático activado.");
+    if(store.parametros.kmInicialConfigurado || store.parametros.ultimoKM > 0) return alert("⛔ ACCIÓN DENEGADA. El kilometraje ya existe.");
+    const km = safeFloat(nuevoKM); if(km <= 0) return alert("❌ El kilometraje debe ser mayor a 0.");
+    store.parametros.ultimoKM = km; store.parametros.kmInicialConfigurado = true;
+    saveData(); renderAdmin(); alert("✅ Kilometraje base establecido. Modo automático activado.");
 }
 
 function actionSaldoInicial(monto) {
-    // CANDADO SIMPLE
     if(store.parametros.saldoInicialConfigurado) return alert("⛔ ACCIÓN DENEGADA. El saldo inicial ya fue configurado.");
-    
-    const inicial = safeFloat(monto);
-    if(inicial < 0) return alert("❌ El saldo no puede ser negativo.");
-    
-    store.movimientos.push({
-        id: uuid(),
-        fecha: new Date().toISOString(),
-        tipo: 'ingreso',
-        desc: 'Saldo Inicial',
-        monto: inicial,
-        categoria: 'Sistema'
-    });
-    
+    const inicial = safeFloat(monto); if(inicial < 0) return alert("❌ El saldo no puede ser negativo.");
+    store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Saldo Inicial', monto: inicial, categoria: 'Sistema' });
     store.parametros.saldoInicialConfigurado = true;
-    sanearDatos();
-    renderAdmin();
-    alert("✅ Capital inicial registrado. Billetera activada.");
+    sanearDatos(); renderAdmin(); alert("✅ Capital inicial registrado. Billetera activada.");
 }
 
 /* -------------------------------------------------------------
@@ -294,26 +267,45 @@ function renderIndex() {
     const container = $('resumenHumanoContainer'); if(container) container.innerHTML = html;
 }
 
+// === FIX WALLET: LÓGICA DE DISPONIBILIDAD REAL ===
 function renderWallet() {
     if (!$('valWallet')) return;
     const saldo = store.wallet.saldo;
-    const comprometido = store.wallet.sobres.reduce((a,b)=>a+b.acumulado,0);
+
+    // 1. CÁLCULO DE LIQUIDEZ REAL (CONTABILIDAD PREVENTIVA)
+    // El dinero "ideal hoy" se descuenta del libre automáticamente.
+    const comprometido = store.wallet.sobres.reduce((acc, s) => {
+        return acc + Math.max(s.acumulado, s.objetivoHoy);
+    }, 0);
+
     const libre = saldo - comprometido;
+
     $('valWallet').innerHTML = `${fmtMoney(saldo)}<br><small style="font-size:0.9rem; opacity:0.9; font-weight:normal">(${fmtMoney(comprometido)} en sobres / ${fmtMoney(libre)} libre)</small>`;
     
-    const container = $('sobresContainer'); if(!container) return;
+    const container = $('sobresContainer'); 
+    if(!container) return;
     container.innerHTML = '';
     
     store.wallet.sobres.forEach(s => {
-        const pct = Math.min((s.acumulado/s.meta)*100, 100);
+        // Visualización: Si no has guardado ($0), mostramos lo que TE TOCA ($320).
+        const valorVisual = Math.max(s.acumulado, s.objetivoHoy);
+        const pct = Math.min((valorVisual/s.meta)*100, 100);
         const pctIdeal = Math.min((s.objetivoHoy/s.meta)*100, 100);
         const diaTxt = s.diaPago ? ` (Día ${s.diaPago})` : '';
         
+        // Alerta si vamos atrasados
+        const avisoIdeal = (s.objetivoHoy > s.acumulado) 
+            ? `<div style="font-size:0.75rem; color:#d97706; margin-top:2px;">⚠️ Reservado: ${fmtMoney(s.objetivoHoy)}</div>` 
+            : '';
+
         container.innerHTML += `
         <div class="card" style="padding:15px; border-left:5px solid ${s.tipo==='deuda'?'#dc2626':'#2563eb'}">
-            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px; align-items: flex-start;">
                 <strong>${s.desc}${diaTxt}</strong>
-                <small>${fmtMoney(s.acumulado)} / ${fmtMoney(s.meta)}</small>
+                <div style="text-align:right;">
+                    <small style="display:block; font-weight:bold;">${fmtMoney(valorVisual)} / ${fmtMoney(s.meta)}</small>
+                    ${avisoIdeal}
+                </div>
             </div>
             <div style="height:10px; background:#e2e8f0; border-radius:5px; position:relative; overflow:hidden;">
                 <div style="width:${pct}%; background:${s.tipo==='deuda'?'#dc2626':'#2563eb'}; height:100%;"></div>
@@ -344,25 +336,17 @@ function renderHistorial() {
 function renderAdmin() {
     if (!$('kmActual')) return;
     
-    // 1. RENDER KILOMETRAJE
     $('kmActual').innerText = `${store.parametros.ultimoKM} km`;
     const btnKM = $('btnConfigKM');
     
     if (store.parametros.kmInicialConfigurado || store.parametros.ultimoKM > 0) {
-        btnKM.innerText = "🔒 Auto";
-        btnKM.classList.remove('btn-primary');
-        btnKM.classList.add('btn-outline');
-        btnKM.style.opacity = "0.7";
+        btnKM.innerText = "🔒 Auto"; btnKM.className = "btn btn-outline"; btnKM.style.opacity = "0.7";
         btnKM.onclick = () => alert("🔒 El kilometraje es automático. Se actualiza con Turnos y Gasolina.");
     } else {
-        btnKM.innerText = "🔓 Configurar";
-        btnKM.classList.remove('btn-outline');
-        btnKM.classList.add('btn-primary');
-        btnKM.style.opacity = "1";
+        btnKM.innerText = "🔓 Configurar"; btnKM.className = "btn btn-primary"; btnKM.style.opacity = "1";
         btnKM.onclick = () => Modal.show("Configurar KM Inicial", [{label:"Kilometraje Real Tablero",key:"km",type:"number"}], d => actionConfigurarKM(d.km));
     }
 
-    // 2. RENDER SALDO REAL
     const saldo = store.wallet.saldo;
     const comprometido = store.wallet.sobres.reduce((a,b)=>a+b.acumulado,0);
     const libre = saldo - comprometido;
@@ -372,24 +356,16 @@ function renderAdmin() {
 
     const btnSaldo = $('btnConfigSaldo');
     if (store.parametros.saldoInicialConfigurado) {
-        btnSaldo.innerText = "🔒 Auto";
-        btnSaldo.classList.remove('btn-primary');
-        btnSaldo.classList.add('btn-outline');
-        btnSaldo.style.opacity = "0.7";
+        btnSaldo.innerText = "🔒 Auto"; btnSaldo.className = "btn btn-outline"; btnSaldo.style.opacity = "0.7";
         btnSaldo.onclick = () => alert("🔒 El saldo es automático. Se actualiza con tus operaciones diarias.");
     } else {
-        btnSaldo.innerText = "🔓 Registrar capital inicial";
-        btnSaldo.classList.remove('btn-outline');
-        btnSaldo.classList.add('btn-primary');
-        btnSaldo.style.opacity = "1";
+        btnSaldo.innerText = "🔓 Registrar capital inicial"; btnSaldo.className = "btn btn-primary"; btnSaldo.style.opacity = "1";
         btnSaldo.onclick = () => Modal.show("Capital Inicial", [{label:"¿Cuánto dinero tienes actualmente?",key:"s",type:"number"}], d => actionSaldoInicial(d.s));
     }
 
-    // 3. META DIARIA (FALLBACK VISUAL)
     if ($('metaDiariaValor')) $('metaDiariaValor').innerText = fmtMoney(store.parametros.metaDiaria || 0);
 
-    // 4. CONTROL DE TURNO (BUGFIX)
-    const activo = !!store.turnoActivo; // Verifica si hay objeto turnoActivo
+    const activo = !!store.turnoActivo;
     const btnIni = $('btnTurnoIniciar');
     const btnFin = $('btnTurnoFinalizar');
     
@@ -397,8 +373,6 @@ function renderAdmin() {
         $('turnoEstado').innerHTML = '<span class="text-green">🟢 EN CURSO</span>';
         btnIni.classList.add('hidden');
         btnFin.classList.remove('hidden');
-        
-        // Reiniciar Timer si se perdió
         if(!window.timerInterval) {
             window.timerInterval = setInterval(() => {
                 if(!store.turnoActivo) return;
@@ -417,7 +391,6 @@ function renderAdmin() {
         if(window.timerInterval) { clearInterval(window.timerInterval); window.timerInterval = null; }
     }
 
-    // 5. RECURRENTES
     if(!document.getElementById('zoneRecurrentes') && $('btnGastoHogar')) {
         const div = document.createElement('div'); div.id = 'zoneRecurrentes';
         div.className = 'card'; div.style.padding = '10px'; div.style.background = '#f8fafc';
@@ -431,7 +404,6 @@ function renderAdmin() {
         store.gastosFijosMensuales.forEach(g => { const opt = document.createElement('option'); opt.value = g.id; opt.innerText = `${g.desc} (${fmtMoney(g.monto)})`; selR.add(opt); });
     }
 
-    // 6. DEUDAS
     const ul = $('listaDeudasAdmin');
     if(ul) {
         ul.innerHTML = store.deudas.map(d => `<li style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;"><span>${d.desc}</span><span style="font-weight:bold; color:${d.saldo>0?'var(--danger)':'var(--success)'}">${fmtMoney(d.saldo)}</span></li>`).join('');
@@ -451,7 +423,7 @@ function renderAdmin() {
    SECCIÓN 5: ORQUESTADOR
    ------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V7.8 AUDIT READY");
+    console.log("🚀 V7.8.1 STABLE + HOTFIX");
     loadData();
     
     const page = document.body.dataset.page;
