@@ -1,5 +1,6 @@
+
 /* =============================================================
-   APP.JS - V7.4 (LEY DE ORO: KM BLINDADO + SALDO INICIAL)
+   APP.JS - V7.5 (LEY DE ORO: KILOMETRAJE BLINDADO)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -7,7 +8,7 @@
    ------------------------------------------------------------- */
 const STORAGE_KEY = "moto_finanzas_vFinal";
 const LEGACY_KEYS = ["moto_finanzas_v3", "moto_finanzas", "app_moto_data"];
-const SCHEMA_VERSION = 7.4;
+const SCHEMA_VERSION = 7.5;
 
 const FRECUENCIAS = { 'Diario': 1, 'Semanal': 7, 'Quincenal': 15, 'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0 };
 const DIAS_SEMANA = [
@@ -40,7 +41,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V7.4] Cargando datos...");
+    console.log("♻️ [V7.5] Cargando datos...");
     let raw = localStorage.getItem(STORAGE_KEY);
     
     if (!raw || raw.length < 50) {
@@ -153,7 +154,7 @@ function actionGasolina(l, c, k) {
     store.cargasCombustible.push({ id: uuid(), fecha: new Date().toISOString(), litros: l, costo: c, km: km });
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'gasto', desc: '⛽ Gasolina', monto: safeFloat(c), categoria: 'Operativo' });
     if(km > store.parametros.ultimoKM) store.parametros.ultimoKM = km;
-    sanearDatos(); alert("✅ Gasolina registrada");
+    sanearDatos(); alert("✅ Registrado");
 }
 
 function actionNuevoGasto(desc, monto, cat, freq) {
@@ -187,28 +188,30 @@ function actionPagarRecurrente(id) {
     sanearDatos(); alert("✅ Pagado");
 }
 
-// === LEY DE ORO: KM Y SALDO INICIAL ===
-
+// === ACCIÓN KM ESTRICTA ===
 function actionConfigurarKM(nuevoKM) {
-    // REGLA: Si ya hay historial (>0), prohibido editar.
+    // 1. REGLA DE ORO: Si ya existe historial, se rechaza.
     if(store.parametros.ultimoKM > 0) {
-        return alert("🔒 PROHIBIDO: El kilometraje es la fuente de verdad. Solo se actualiza mediante Turnos o Gasolina.");
+        return alert("⛔ ACCIÓN DENEGADA.\nEl kilometraje ya está configurado y es la fuente de verdad física.\nSolo se actualiza automáticamente al finalizar turnos o cargar gasolina.");
     }
     
+    // 2. Validación de Entrada
     const km = safeFloat(nuevoKM);
-    if(km <= 0) return alert("⚠️ Ingresa un kilometraje válido");
+    if(km <= 0) return alert("❌ El kilometraje inicial debe ser mayor a 0.");
     
+    // 3. Persistencia
     store.parametros.ultimoKM = km;
     saveData();
-    renderAdmin();
-    alert("✅ Kilometraje base configurado.");
+    
+    // 4. Feedback
+    renderAdmin(); // Esto cambiará el botón a "Auto" inmediatamente
+    alert(`✅ Kilometraje base configurado: ${km} km.\nEl sistema ahora está en modo automático.`);
 }
 
 function actionSaldoInicial(monto) {
     const inicial = safeFloat(monto);
     if(inicial <= 0) return;
     
-    // REGLA: Es un registro único de arranque
     store.movimientos.push({
         id: uuid(),
         fecha: new Date().toISOString(),
@@ -327,14 +330,24 @@ function renderAdmin() {
     $('kmActual').innerText = `${store.parametros.ultimoKM} km`;
     if ($('metaDiariaValor')) $('metaDiariaValor').innerText = fmtMoney(store.parametros.metaDiaria || 0);
     
-    // Configuración Visual del Botón KM (Bloqueado o Abierto)
+    // === LÓGICA DE BOTÓN KM BLINDADO ===
     const btnKM = $('btnConfigKM');
-    if(store.parametros.ultimoKM > 0) {
-        btnKM.innerText = "🔒 Bloqueado";
-        btnKM.style.opacity = "0.6";
+    if (store.parametros.ultimoKM > 0) {
+        // CASO 1: YA EXISTE KM -> BLOQUEADO
+        btnKM.innerText = "🔒 Auto";
+        btnKM.classList.remove('btn-primary');
+        btnKM.classList.add('btn-outline');
+        btnKM.style.opacity = "0.7";
+        // Alerta informativa solamente
+        btnKM.onclick = () => alert("🔒 El kilometraje es automático. Se actualiza con Turnos y Gasolina.");
     } else {
+        // CASO 2: ES CERO (Primer uso) -> HABILITADO
         btnKM.innerText = "🔓 Configurar";
+        btnKM.classList.remove('btn-outline');
+        btnKM.classList.add('btn-primary');
         btnKM.style.opacity = "1";
+        // Abre Modal
+        btnKM.onclick = () => Modal.show("Configurar KM Inicial", [{label:"Kilometraje Real Tablero",key:"km",type:"number"}], d => actionConfigurarKM(d.km));
     }
 
     // Turno
@@ -394,11 +407,12 @@ function renderAdmin() {
     }
 }
 
+
 /* -------------------------------------------------------------
    SECCIÓN 5: ORQUESTADOR
    ------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V7.4 GOLDEN RULE STARTUP");
+    console.log("🚀 V7.5 STRICT MILEAGE");
     loadData();
     
     const page = document.body.dataset.page;
@@ -407,6 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (page === 'historial') renderHistorial();
     if (page === 'admin') {
         renderAdmin();
+        
         $('btnTurnoIniciar').onclick = () => { store.turnoActivo = { inicio: Date.now() }; saveData(); renderAdmin(); };
         $('btnTurnoFinalizar').onclick = () => Modal.show("Fin Turno", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
         $('btnGasolina').onclick = () => Modal.show("Gasolina", [{label:"Litros",key:"l",type:"number"},{label:"Costo ($)",key:"c",type:"number"},{label:"KM Actual",key:"k",type:"number"}], d => actionGasolina(d.l, d.c, d.k));
@@ -429,10 +444,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if(confirm("¿Confirmar abono de cuota?")) actionAbonarDeuda(v); 
         };
 
-        // AJUSTES BLOQUEABLES (LEY DE ORO)
-        $('btnConfigKM').onclick = () => Modal.show("Configurar KM Base", [{label:"Kilometraje",key:"km",type:"number"}], d => actionConfigurarKM(d.km));
-        $('btnSaldoInicial').onclick = () => Modal.show("Saldo Inicial", [{label:"Dinero actual en mano",key:"s",type:"number"}], d => actionSaldoInicial(d.s));
+        // NOTA: btnConfigKM YA NO SE ASIGNA AQUÍ.
+        // Se asigna dinámicamente en renderAdmin() para respetar la lógica de bloqueo.
 
+        $('btnSaldoInicial').onclick = () => Modal.show("Saldo Inicial", [{label:"Dinero actual en mano",key:"s",type:"number"}], d => actionSaldoInicial(d.s));
         $('btnExportJSON').onclick = () => navigator.clipboard.writeText(JSON.stringify(store)).then(() => alert("Copiado"));
         $('btnRestoreBackup').onclick = () => Modal.show("Restaurar", [{label:"Pegar JSON",key:"j"}], d => { try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); location.reload(); } catch(e){ alert("JSON Inválido"); } });
     }
