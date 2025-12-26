@@ -1,5 +1,5 @@
 /* =============================================================
-   APP.JS - V7.1 FINAL (AUDITORÍA EXTREMA APLICADA)
+   APP.JS - V7.2 (FIX DEUDAS Y ABONOS)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -7,7 +7,7 @@
    ------------------------------------------------------------- */
 const STORAGE_KEY = "moto_finanzas_vFinal";
 const LEGACY_KEYS = ["moto_finanzas_v3", "moto_finanzas", "app_moto_data"];
-const SCHEMA_VERSION = 7.1;
+const SCHEMA_VERSION = 7.2;
 
 const FRECUENCIAS = { 'Diario': 1, 'Semanal': 7, 'Quincenal': 15, 'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0 };
 const DIAS_SEMANA = [
@@ -27,7 +27,7 @@ const fmtMoney = n => new Intl.NumberFormat('es-MX', { style: 'currency', curren
 const uuid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
 /* -------------------------------------------------------------
-   SECCIÓN 2: ESTADO Y RECUPERACIÓN (CORREGIDO ERROR 1)
+   SECCIÓN 2: ESTADO Y RECUPERACIÓN
    ------------------------------------------------------------- */
 const INITIAL_STATE = {
     schemaVersion: SCHEMA_VERSION,
@@ -40,22 +40,19 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V7.1] Cargando datos con Merge Defensivo...");
+    console.log("♻️ [V7.2] Cargando datos...");
     let raw = localStorage.getItem(STORAGE_KEY);
     
-    // Recuperación Legacy (Si no hay datos nuevos)
     if (!raw || raw.length < 50) {
         for (const key of LEGACY_KEYS) {
             const leg = localStorage.getItem(key);
-            if (leg && leg.length > 50) { raw = leg; console.warn(`⚠️ Recuperado de Legacy: ${key}`); break; }
+            if (leg && leg.length > 50) { raw = leg; break; }
         }
     }
 
     if (raw) {
         try {
             const saved = JSON.parse(raw);
-            // MERGE DEFENSIVO (SOLUCIÓN ERROR 1)
-            // Solo sobrescribimos si el dato guardado es un array válido y tiene longitud.
             if(Array.isArray(saved.movimientos)) store.movimientos = saved.movimientos;
             if(Array.isArray(saved.turnos)) store.turnos = saved.turnos;
             if(Array.isArray(saved.cargasCombustible)) store.cargasCombustible = saved.cargasCombustible;
@@ -67,15 +64,14 @@ function loadData() {
             if(saved.turnoActivo) store.turnoActivo = saved.turnoActivo;
 
             sanearDatos();
-        } catch (e) { console.error("❌ Error fatal en carga:", e); }
+        } catch (e) { console.error("❌ Error carga:", e); }
     }
 }
 
 function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
 
-// MOTOR DE INTEGRIDAD (CORRIGE ERROR 2, 3 y 4)
 function sanearDatos() {
-    // 1. Saldo Real (Fuente Única: Movimientos)
+    // 1. Saldo
     let saldo = 0;
     store.movimientos.forEach(m => {
         if (m.tipo === 'ingreso') saldo += safeFloat(m.monto);
@@ -83,7 +79,7 @@ function sanearDatos() {
     });
     store.wallet.saldo = saldo;
 
-    // 2. KM Máximo
+    // 2. KM
     const kms = [
         store.parametros.ultimoKM || 0,
         ...store.turnos.map(t => t.kmFinal || 0),
@@ -91,29 +87,30 @@ function sanearDatos() {
     ];
     store.parametros.ultimoKM = Math.max(...kms);
 
-    // 3. Turno Fantasma (SOLUCIÓN ERROR 4)
+    // 3. Turno
     if (store.turnoActivo && (!store.turnoActivo.inicio || !Number.isFinite(store.turnoActivo.inicio))) {
-        console.warn("👻 Turno fantasma detectado. Eliminando.");
         store.turnoActivo = null;
     }
 
-    // 4. Sobres y Metas (SOLUCIÓN ERROR 2 y 3)
+    // 4. Sobres
     reconstruirSobres();
     calcularObjetivosYMeta();
     saveData();
 }
 
 function reconstruirSobres() {
-    const ensureSobre = (refId, tipo, desc, meta, freq) => {
+    // AHORA ACEPTA DIA DE PAGO (dp)
+    const ensureSobre = (refId, tipo, desc, meta, freq, dp) => {
         let s = store.wallet.sobres.find(x => x.refId === refId);
         if (!s) {
-            // No tocamos acumulado si ya existe, si es nuevo empieza en 0
             s = { id: uuid(), refId, tipo, desc, acumulado: 0, objetivoHoy: 0 };
             store.wallet.sobres.push(s);
         }
-        s.meta = safeFloat(meta); s.frecuencia = freq; s.desc = desc;
+        s.meta = safeFloat(meta); s.frecuencia = freq; s.desc = desc; 
+        if(dp) s.diaPago = dp; // Guardamos el día de pago en el sobre
     };
-    store.deudas.forEach(d => { if(d.saldo > 0) ensureSobre(d.id, 'deuda', d.desc, d.montoCuota, d.frecuencia); });
+    // Pasamos d.diaPago al sobre
+    store.deudas.forEach(d => { if(d.saldo > 0) ensureSobre(d.id, 'deuda', d.desc, d.montoCuota, d.frecuencia, d.diaPago); });
     store.gastosFijosMensuales.forEach(g => ensureSobre(g.id, 'gasto', g.desc, g.monto, g.frecuencia));
 }
 
@@ -124,13 +121,13 @@ function calcularObjetivosYMeta() {
 
     store.wallet.sobres.forEach(s => {
         let ideal = 0;
+        // Lógica simple de acumulación lineal
         if(s.frecuencia === 'Semanal') ideal = (s.meta / 7) * (hoyIdx === 0 ? 7 : hoyIdx);
         else if(s.frecuencia === 'Mensual') ideal = (s.meta / 30) * diaMes;
         else if(s.frecuencia === 'Diario') ideal = s.meta;
         
         s.objetivoHoy = Math.min(ideal, s.meta);
         
-        // Para la Meta Diaria Global: cuánto necesito guardar AL DÍA para este sobre
         let aporteDiario = 0;
         if(s.frecuencia === 'Semanal') aporteDiario = s.meta / 7;
         else if(s.frecuencia === 'Mensual') aporteDiario = s.meta / 30;
@@ -139,13 +136,11 @@ function calcularObjetivosYMeta() {
         if(s.acumulado < s.meta) sumaMetasDiarias += aporteDiario;
     });
 
-    // Costo Operativo Estimado (120km * costo/km) + Ahorro Sobres
-    // Guardamos en parámetros para que la UI solo lea
     store.parametros.metaDiaria = sumaMetasDiarias + (120 * safeFloat(store.parametros.costoPorKm));
 }
 
 /* -------------------------------------------------------------
-   SECCIÓN 3: ACCIONES DE NEGOCIO
+   SECCIÓN 3: ACCIONES
    ------------------------------------------------------------- */
 function actionFinalizarTurno(kmFinal, ganancia) {
     const kF = safeFloat(kmFinal);
@@ -173,6 +168,48 @@ function actionNuevoGasto(desc, monto, cat, freq) {
     sanearDatos();
 }
 
+// CORREGIDO: Acepta día de pago (dp)
+function actionNuevaDeuda(desc, total, cuota, freq, dp) {
+    store.deudas.push({ 
+        id: uuid(), 
+        desc, 
+        montoTotal: total, 
+        montoCuota: cuota, 
+        frecuencia: freq, 
+        diaPago: dp, // Guardamos el día
+        saldo: total 
+    });
+    sanearDatos();
+    alert("✅ Deuda creada correctamente");
+}
+
+// CORREGIDO: Lógica de abono y feedback
+function actionAbonarDeuda(id) {
+    const d = store.deudas.find(x => x.id === id); 
+    if(!d) return alert("❌ Error: Deuda no encontrada");
+    
+    // Descontar saldo y crear movimiento
+    d.saldo -= d.montoCuota; 
+    if(d.saldo < 0) d.saldo = 0;
+    
+    // Vaciar el sobre asociado (ya se pagó)
+    const s = store.wallet.sobres.find(x => x.refId === id); 
+    if(s) s.acumulado = 0;
+    
+    store.movimientos.push({ 
+        id: uuid(), 
+        fecha: new Date().toISOString(), 
+        tipo: 'gasto', 
+        desc: `Abono: ${d.desc}`, 
+        monto: d.montoCuota, 
+        categoria: 'Deuda' 
+    });
+    
+    sanearDatos();
+    alert(`✅ Abono de ${fmtMoney(d.montoCuota)} registrado para ${d.desc}`);
+    renderAdmin(); // Refrescar UI inmediatamente
+}
+
 function actionPagarRecurrente(id) {
     const gf = store.gastosFijosMensuales.find(x => x.id === id); if(!gf) return;
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'gasto', desc: gf.desc, monto: gf.monto, categoria: gf.categoria });
@@ -181,25 +218,8 @@ function actionPagarRecurrente(id) {
     sanearDatos(); alert("✅ Pagado");
 }
 
-function actionNuevaDeuda(desc, total, cuota, freq) {
-    store.deudas.push({ id: uuid(), desc, montoTotal: total, montoCuota: cuota, frecuencia: freq, saldo: total });
-    sanearDatos();
-}
-
-function actionAbonarDeuda(id) {
-    const d = store.deudas.find(x => x.id === id); if(!d) return;
-    d.saldo -= d.montoCuota; if(d.saldo < 0) d.saldo = 0;
-    const s = store.wallet.sobres.find(x => x.refId === id); if(s) s.acumulado = 0;
-    store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'gasto', desc: `Abono: ${d.desc}`, monto: d.montoCuota, categoria: 'Deuda' });
-    sanearDatos();
-}
-/* FIN PARTE 1 */
-/* =============================================================
-   APP.JS - V7.1 FINAL (PARTE 2 - UI Y ORQUESTADOR)
-   ============================================================= */
-
 /* -------------------------------------------------------------
-   SECCIÓN 4: RENDERIZADO (CORRIGE ERROR 5 y 3)
+   SECCIÓN 4: RENDERIZADO (UI)
    ------------------------------------------------------------- */
 const Modal = {
     show: (t, inputs, cb) => {
@@ -227,7 +247,6 @@ function renderIndex() {
     const gan = store.turnos.filter(t => new Date(t.fecha).toDateString() === hoy).reduce((a, b) => a + b.ganancia, 0);
     $('resGananciaBruta').innerText = fmtMoney(gan);
 
-    // Resumen Humano en Contenedor Fijo (ERROR 2 corregido)
     const saldo = store.wallet.saldo;
     const comprometido = store.wallet.sobres.reduce((a,b)=>a+b.acumulado,0);
     const libre = saldo - comprometido;
@@ -248,9 +267,7 @@ function renderIndex() {
             ${avisos.length ? avisos.join('') : '<li style="color:var(--success)">✨ Todo al día.</li>'}
         </ul>
     </div>`;
-    
-    const container = $('resumenHumanoContainer');
-    if(container) container.innerHTML = html;
+    const container = $('resumenHumanoContainer'); if(container) container.innerHTML = html;
 }
 
 function renderWallet() {
@@ -258,20 +275,21 @@ function renderWallet() {
     const saldo = store.wallet.saldo;
     const comprometido = store.wallet.sobres.reduce((a,b)=>a+b.acumulado,0);
     const libre = saldo - comprometido;
-
     $('valWallet').innerHTML = `${fmtMoney(saldo)}<br><small style="font-size:0.9rem; opacity:0.9; font-weight:normal">(${fmtMoney(comprometido)} en sobres / ${fmtMoney(libre)} libre)</small>`;
     
-    const container = $('sobresContainer'); 
-    if(!container) return;
+    const container = $('sobresContainer'); if(!container) return;
     container.innerHTML = '';
     
     store.wallet.sobres.forEach(s => {
         const pct = Math.min((s.acumulado/s.meta)*100, 100);
         const pctIdeal = Math.min((s.objetivoHoy/s.meta)*100, 100);
+        // Mostramos el día de pago si existe
+        const diaTxt = s.diaPago ? ` (Día ${s.diaPago})` : '';
+        
         container.innerHTML += `
         <div class="card" style="padding:15px; border-left:5px solid ${s.tipo==='deuda'?'#dc2626':'#2563eb'}">
             <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                <strong>${s.desc}</strong>
+                <strong>${s.desc}${diaTxt}</strong>
                 <small>${fmtMoney(s.acumulado)} / ${fmtMoney(s.meta)}</small>
             </div>
             <div style="height:10px; background:#e2e8f0; border-radius:5px; position:relative; overflow:hidden;">
@@ -284,7 +302,6 @@ function renderWallet() {
 
 function renderHistorial() {
     if (!$('tablaBody')) return;
-    // Fix: Si movimientos es undefined o vacío, mostrar mensaje
     if (!store.movimientos || store.movimientos.length === 0) {
          $('tablaBody').innerHTML = '<tr><td colspan="3" class="text-center" style="padding:20px;">Sin datos recientes</td></tr>';
          return;
@@ -304,10 +321,9 @@ function renderHistorial() {
 function renderAdmin() {
     if (!$('kmActual')) return;
     $('kmActual').innerText = `${store.parametros.ultimoKM} km`;
-    // Meta diaria leída de parámetros (ERROR 2 corregido)
     if ($('metaDiariaValor')) $('metaDiariaValor').innerText = fmtMoney(store.parametros.metaDiaria || 0);
     
-    // Turno y Botones (Estado Visual Consistente)
+    // Turno
     const activo = !!store.turnoActivo;
     const btnIni = $('btnTurnoIniciar');
     const btnFin = $('btnTurnoFinalizar');
@@ -316,7 +332,6 @@ function renderAdmin() {
         $('turnoEstado').innerHTML = '<span class="text-green">🟢 EN CURSO</span>';
         btnIni.classList.add('hidden');
         btnFin.classList.remove('hidden');
-        
         if(!window.timerInterval) {
             window.timerInterval = setInterval(() => {
                 if(!store.turnoActivo) return;
@@ -326,11 +341,7 @@ function renderAdmin() {
                 if($('turnoTimer')) $('turnoTimer').innerText = `${h}h ${m}m`;
             }, 1000);
         }
-        
-        // Rescate si el botón no aparece
-        if(btnFin.offsetParent === null) {
-            $('turnoEstado').innerHTML += ` <a href="#" onclick="actionFinalizarTurno(prompt('KM'), prompt('$$'))" style="color:red; font-size:0.8rem">[FORZAR]</a>`;
-        }
+        if(btnFin.offsetParent === null) $('turnoEstado').innerHTML += ` <a href="#" onclick="actionFinalizarTurno(prompt('KM'), prompt('$$'))" style="color:red; font-size:0.8rem">[FORZAR]</a>`;
     } else {
         $('turnoEstado').innerHTML = '🔴 Detenido';
         if($('turnoTimer')) $('turnoTimer').innerText = "00:00:00";
@@ -339,7 +350,7 @@ function renderAdmin() {
         if(window.timerInterval) { clearInterval(window.timerInterval); window.timerInterval = null; }
     }
 
-    // Inyectar Recurrentes
+    // Recurrentes UI
     if(!document.getElementById('zoneRecurrentes') && $('btnGastoHogar')) {
         const div = document.createElement('div'); div.id = 'zoneRecurrentes';
         div.className = 'card'; div.style.padding = '10px'; div.style.background = '#f8fafc';
@@ -347,27 +358,25 @@ function renderAdmin() {
         $('btnGastoHogar').parentElement.parentElement.insertBefore(div, $('btnGastoHogar').parentElement);
         div.querySelector('#btnDoPay').onclick = () => { const v=$('selRecurrente').value; if(v && confirm("¿Pagar?")) actionPagarRecurrente(v); };
     }
-    
     const selR = $('selRecurrente');
     if(selR) {
         selR.innerHTML = '<option value="">Seleccionar...</option>';
-        store.gastosFijosMensuales.forEach(g => {
-            const opt = document.createElement('option'); opt.value = g.id; opt.innerText = `${g.desc} (${fmtMoney(g.monto)})`;
-            selR.add(opt);
-        });
+        store.gastosFijosMensuales.forEach(g => { const opt = document.createElement('option'); opt.value = g.id; opt.innerText = `${g.desc} (${fmtMoney(g.monto)})`; selR.add(opt); });
     }
 
+    // Deudas UI
     const ul = $('listaDeudasAdmin');
     if(ul) {
         ul.innerHTML = store.deudas.map(d => `<li style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;"><span>${d.desc}</span><span style="font-weight:bold; color:${d.saldo>0?'var(--danger)':'var(--success)'}">${fmtMoney(d.saldo)}</span></li>`).join('');
     }
     
+    // Select Deudas (CORREGIDO PARA QUE EL BOTÓN FUNCIONE)
     const selD = $('abonoDeudaSelect');
     if(selD) {
         selD.innerHTML = '<option value="">Seleccionar...</option>';
         store.deudas.forEach(d => {
             if(d.saldo < 1) return;
-            const opt = document.createElement('option'); opt.value = d.id; opt.innerText = d.desc;
+            const opt = document.createElement('option'); opt.value = d.id; opt.innerText = `${d.desc} (${fmtMoney(d.montoCuota)})`;
             selD.add(opt);
         });
     }
@@ -377,7 +386,7 @@ function renderAdmin() {
    SECCIÓN 5: ORQUESTADOR
    ------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V7.1 HYBRID FINAL INITIALIZED");
+    console.log("🚀 V7.2 DEBT FIX INITIALIZED");
     loadData();
     
     const page = document.body.dataset.page;
@@ -389,14 +398,29 @@ document.addEventListener('DOMContentLoaded', () => {
         $('btnTurnoIniciar').onclick = () => { store.turnoActivo = { inicio: Date.now() }; saveData(); renderAdmin(); };
         $('btnTurnoFinalizar').onclick = () => Modal.show("Fin Turno", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
         $('btnGasolina').onclick = () => Modal.show("Gasolina", [{label:"Litros",key:"l",type:"number"},{label:"Costo ($)",key:"c",type:"number"},{label:"KM Actual",key:"k",type:"number"}], d => actionGasolina(d.l, d.c, d.k));
+        
         const gastoWiz = (g) => Modal.show(`Nuevo ${g}`, [{label:"Descripción",key:"d"},{label:"Monto",key:"m",type:"number"},{label:"Categoría",key:"c",type:"select",options:CATEGORIAS[g.toLowerCase()].map(x=>({val:x,txt:x}))},{label:"Frecuencia",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({val:x,txt:x}))}], d => actionNuevoGasto(d.d, d.m, d.c, d.f));
         $('btnGastoHogar').onclick = () => gastoWiz('Hogar');
         $('btnGastoOperativo').onclick = () => gastoWiz('Operativo');
-        $('btnDeudaNueva').onclick = () => Modal.show("Nueva Deuda", [{label:"Nombre",key:"d"},{label:"Total Deuda",key:"t",type:"number"},{label:"Cuota Mensual",key:"c",type:"number"},{label:"Frecuencia",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({val:x,txt:x}))}], d => actionNuevaDeuda(d.d, d.t, d.c, d.f));
-        $('btnAbonoCuota').onclick = () => { const v=$('abonoDeudaSelect').value; if(v) actionAbonarDeuda(v); };
+        
+        // CORREGIDO: Botón Nueva Deuda con Día de Pago (dp)
+        $('btnDeudaNueva').onclick = () => Modal.show("Nueva Deuda", [
+            {label:"Nombre",key:"d"},
+            {label:"Total Deuda",key:"t",type:"number"},
+            {label:"Cuota Mensual",key:"c",type:"number"},
+            {label:"Frecuencia",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({val:x,txt:x}))},
+            {label:"Día de Pago",key:"dp",type:"select",options:DIAS_SEMANA} // NUEVO CAMPO
+        ], d => actionNuevaDeuda(d.d, d.t, d.c, d.f, d.dp));
+        
+             // CORREGIDO: Botón Abono con Validación
+        $('btnAbonoCuota').onclick = () => { 
+            const v = $('abonoDeudaSelect').value; 
+            if(!v) return alert("⚠️ Selecciona una deuda primero");
+            if(confirm("¿Confirmar abono de cuota?")) actionAbonarDeuda(v); 
+        };
+
         $('btnExportJSON').onclick = () => navigator.clipboard.writeText(JSON.stringify(store)).then(() => alert("Copiado"));
         $('btnRestoreBackup').onclick = () => Modal.show("Restaurar", [{label:"Pegar JSON",key:"j"}], d => { try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); location.reload(); } catch(e){ alert("JSON Inválido"); } });
         $('btnConfigKM').onclick = () => alert("🔒 El kilometraje se actualiza automáticamente.");
     }
 });
-           
