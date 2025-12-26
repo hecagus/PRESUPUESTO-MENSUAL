@@ -1,6 +1,5 @@
-
 /* =============================================================
-   APP.JS - V7.5 (LEY DE ORO: KILOMETRAJE BLINDADO)
+   APP.JS - V7.6 (FUENTES DE VERDAD: KM Y SALDO BLOQUEADOS)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -8,7 +7,7 @@
    ------------------------------------------------------------- */
 const STORAGE_KEY = "moto_finanzas_vFinal";
 const LEGACY_KEYS = ["moto_finanzas_v3", "moto_finanzas", "app_moto_data"];
-const SCHEMA_VERSION = 7.5;
+const SCHEMA_VERSION = 7.6;
 
 const FRECUENCIAS = { 'Diario': 1, 'Semanal': 7, 'Quincenal': 15, 'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0 };
 const DIAS_SEMANA = [
@@ -34,14 +33,21 @@ const INITIAL_STATE = {
     schemaVersion: SCHEMA_VERSION,
     turnos: [], movimientos: [], cargasCombustible: [], deudas: [], gastosFijosMensuales: [],
     wallet: { saldo: 0, sobres: [] },
-    parametros: { ultimoKM: 0, costoPorKm: 0, metaDiaria: 0 },
+    // FLAGS DE FUENTE DE VERDAD AÑADIDOS
+    parametros: { 
+        ultimoKM: 0, 
+        costoPorKm: 0, 
+        metaDiaria: 0, 
+        kmInicialConfigurado: false, 
+        saldoInicialConfigurado: false 
+    },
     turnoActivo: null
 };
 
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V7.5] Cargando datos...");
+    console.log("♻️ [V7.6] Cargando datos...");
     let raw = localStorage.getItem(STORAGE_KEY);
     
     if (!raw || raw.length < 50) {
@@ -64,6 +70,12 @@ function loadData() {
             if(saved.parametros) store.parametros = { ...INITIAL_STATE.parametros, ...saved.parametros };
             if(saved.turnoActivo) store.turnoActivo = saved.turnoActivo;
 
+            // Migración defensiva para usuarios existentes (Si ya hay datos, asumir configurado)
+            if(store.parametros.ultimoKM > 0 && store.parametros.kmInicialConfigurado === undefined) {
+                store.parametros.kmInicialConfigurado = true;
+            }
+            // Para saldo no asumimos nada, dejamos que configuren si falta el flag
+
             sanearDatos();
         } catch (e) { console.error("❌ Error carga:", e); }
     }
@@ -79,7 +91,6 @@ function sanearDatos() {
     });
     store.wallet.saldo = saldo;
 
-    // KM Fuente de Verdad: Máximo histórico
     const kms = [
         store.parametros.ultimoKM || 0,
         ...store.turnos.map(t => t.kmFinal || 0),
@@ -188,42 +199,40 @@ function actionPagarRecurrente(id) {
     sanearDatos(); alert("✅ Pagado");
 }
 
-// === ACCIÓN KM ESTRICTA ===
+// === ACCIONES DE FUENTE DE VERDAD (ONBOARDING) ===
+
 function actionConfigurarKM(nuevoKM) {
-    // 1. REGLA DE ORO: Si ya existe historial, se rechaza.
-    if(store.parametros.ultimoKM > 0) {
-        return alert("⛔ ACCIÓN DENEGADA.\nEl kilometraje ya está configurado y es la fuente de verdad física.\nSolo se actualiza automáticamente al finalizar turnos o cargar gasolina.");
-    }
+    if(store.parametros.kmInicialConfigurado) return alert("⛔ ACCIÓN DENEGADA. El kilometraje ya fue configurado.");
     
-    // 2. Validación de Entrada
     const km = safeFloat(nuevoKM);
-    if(km <= 0) return alert("❌ El kilometraje inicial debe ser mayor a 0.");
+    if(km < 0) return alert("❌ El kilometraje no puede ser negativo.");
     
-    // 3. Persistencia
     store.parametros.ultimoKM = km;
+    store.parametros.kmInicialConfigurado = true; // FLAG BLOQUEO
     saveData();
-    
-    // 4. Feedback
-    renderAdmin(); // Esto cambiará el botón a "Auto" inmediatamente
-    alert(`✅ Kilometraje base configurado: ${km} km.\nEl sistema ahora está en modo automático.`);
+    renderAdmin();
+    alert("✅ Kilometraje base establecido. Modo automático activado.");
 }
 
 function actionSaldoInicial(monto) {
+    if(store.parametros.saldoInicialConfigurado) return alert("⛔ ACCIÓN DENEGADA. El saldo inicial ya fue configurado.");
+    
     const inicial = safeFloat(monto);
-    if(inicial <= 0) return;
+    if(inicial < 0) return alert("❌ El saldo no puede ser negativo.");
     
     store.movimientos.push({
         id: uuid(),
         fecha: new Date().toISOString(),
         tipo: 'ingreso',
-        desc: '💰 Saldo Inicial',
+        desc: 'Saldo Inicial',
         monto: inicial,
         categoria: 'Sistema'
     });
     
+    store.parametros.saldoInicialConfigurado = true; // FLAG BLOQUEO
     sanearDatos();
-    alert(`✅ Saldo inicial de ${fmtMoney(inicial)} registrado.`);
     renderAdmin();
+    alert("✅ Capital inicial registrado. Billetera activada.");
 }
 
 /* -------------------------------------------------------------
@@ -327,30 +336,56 @@ function renderHistorial() {
 
 function renderAdmin() {
     if (!$('kmActual')) return;
-    $('kmActual').innerText = `${store.parametros.ultimoKM} km`;
-    if ($('metaDiariaValor')) $('metaDiariaValor').innerText = fmtMoney(store.parametros.metaDiaria || 0);
     
-    // === LÓGICA DE BOTÓN KM BLINDADO ===
+    // --- 1. RENDER KILOMETRAJE ---
+    $('kmActual').innerText = `${store.parametros.ultimoKM} km`;
     const btnKM = $('btnConfigKM');
-    if (store.parametros.ultimoKM > 0) {
-        // CASO 1: YA EXISTE KM -> BLOQUEADO
+    
+    if (store.parametros.kmInicialConfigurado) {
+        // CASO BLOQUEADO
         btnKM.innerText = "🔒 Auto";
         btnKM.classList.remove('btn-primary');
         btnKM.classList.add('btn-outline');
         btnKM.style.opacity = "0.7";
-        // Alerta informativa solamente
         btnKM.onclick = () => alert("🔒 El kilometraje es automático. Se actualiza con Turnos y Gasolina.");
     } else {
-        // CASO 2: ES CERO (Primer uso) -> HABILITADO
+        // CASO ONBOARDING
         btnKM.innerText = "🔓 Configurar";
         btnKM.classList.remove('btn-outline');
         btnKM.classList.add('btn-primary');
         btnKM.style.opacity = "1";
-        // Abre Modal
         btnKM.onclick = () => Modal.show("Configurar KM Inicial", [{label:"Kilometraje Real Tablero",key:"km",type:"number"}], d => actionConfigurarKM(d.km));
     }
 
-    // Turno
+    // --- 2. RENDER SALDO REAL ---
+    const saldo = store.wallet.saldo;
+    const comprometido = store.wallet.sobres.reduce((a,b)=>a+b.acumulado,0);
+    const libre = saldo - comprometido;
+    
+    if($('valSaldoAdmin')) $('valSaldoAdmin').innerText = fmtMoney(saldo);
+    if($('valDesgloseAdmin')) $('valDesgloseAdmin').innerText = `(${fmtMoney(comprometido)} en sobres / ${fmtMoney(libre)} libre)`;
+
+    const btnSaldo = $('btnConfigSaldo');
+    if (store.parametros.saldoInicialConfigurado) {
+        // CASO BLOQUEADO
+        btnSaldo.innerText = "🔒 Auto";
+        btnSaldo.classList.remove('btn-primary');
+        btnSaldo.classList.add('btn-outline');
+        btnSaldo.style.opacity = "0.7";
+        btnSaldo.onclick = () => alert("🔒 El saldo es automático. Se actualiza con tus operaciones diarias.");
+    } else {
+        // CASO ONBOARDING
+        btnSaldo.innerText = "🔓 Registrar capital inicial";
+        btnSaldo.classList.remove('btn-outline');
+        btnSaldo.classList.add('btn-primary');
+        btnSaldo.style.opacity = "1";
+        btnSaldo.onclick = () => Modal.show("Capital Inicial", [{label:"¿Cuánto dinero tienes actualmente?",key:"s",type:"number"}], d => actionSaldoInicial(d.s));
+    }
+
+    // --- 3. META DIARIA ---
+    if ($('metaDiariaValor')) $('metaDiariaValor').innerText = fmtMoney(store.parametros.metaDiaria || 0);
+
+    // --- 4. TURNO ---
     const activo = !!store.turnoActivo;
     const btnIni = $('btnTurnoIniciar');
     const btnFin = $('btnTurnoFinalizar');
@@ -377,7 +412,7 @@ function renderAdmin() {
         if(window.timerInterval) { clearInterval(window.timerInterval); window.timerInterval = null; }
     }
 
-    // Recurrentes
+    // --- 5. RECURRENTES (Inyección) ---
     if(!document.getElementById('zoneRecurrentes') && $('btnGastoHogar')) {
         const div = document.createElement('div'); div.id = 'zoneRecurrentes';
         div.className = 'card'; div.style.padding = '10px'; div.style.background = '#f8fafc';
@@ -391,7 +426,7 @@ function renderAdmin() {
         store.gastosFijosMensuales.forEach(g => { const opt = document.createElement('option'); opt.value = g.id; opt.innerText = `${g.desc} (${fmtMoney(g.monto)})`; selR.add(opt); });
     }
 
-    // Deudas
+    // --- 6. DEUDAS ---
     const ul = $('listaDeudasAdmin');
     if(ul) {
         ul.innerHTML = store.deudas.map(d => `<li style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;"><span>${d.desc}</span><span style="font-weight:bold; color:${d.saldo>0?'var(--danger)':'var(--success)'}">${fmtMoney(d.saldo)}</span></li>`).join('');
@@ -407,12 +442,11 @@ function renderAdmin() {
     }
 }
 
-
 /* -------------------------------------------------------------
    SECCIÓN 5: ORQUESTADOR
    ------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V7.5 STRICT MILEAGE");
+    console.log("🚀 V7.6 FINAL LOCKED SOURCES");
     loadData();
     
     const page = document.body.dataset.page;
@@ -444,10 +478,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if(confirm("¿Confirmar abono de cuota?")) actionAbonarDeuda(v); 
         };
 
-        // NOTA: btnConfigKM YA NO SE ASIGNA AQUÍ.
-        // Se asigna dinámicamente en renderAdmin() para respetar la lógica de bloqueo.
-
-        $('btnSaldoInicial').onclick = () => Modal.show("Saldo Inicial", [{label:"Dinero actual en mano",key:"s",type:"number"}], d => actionSaldoInicial(d.s));
         $('btnExportJSON').onclick = () => navigator.clipboard.writeText(JSON.stringify(store)).then(() => alert("Copiado"));
         $('btnRestoreBackup').onclick = () => Modal.show("Restaurar", [{label:"Pegar JSON",key:"j"}], d => { try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); location.reload(); } catch(e){ alert("JSON Inválido"); } });
     }
