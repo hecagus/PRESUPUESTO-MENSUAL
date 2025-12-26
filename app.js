@@ -1,5 +1,5 @@
 /* =============================================================
-   APP.JS - V7.2 (FIX DEUDAS Y ABONOS)
+   APP.JS - V7.4 (LEY DE ORO: KM BLINDADO + SALDO INICIAL)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -7,7 +7,7 @@
    ------------------------------------------------------------- */
 const STORAGE_KEY = "moto_finanzas_vFinal";
 const LEGACY_KEYS = ["moto_finanzas_v3", "moto_finanzas", "app_moto_data"];
-const SCHEMA_VERSION = 7.2;
+const SCHEMA_VERSION = 7.4;
 
 const FRECUENCIAS = { 'Diario': 1, 'Semanal': 7, 'Quincenal': 15, 'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0 };
 const DIAS_SEMANA = [
@@ -40,7 +40,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V7.2] Cargando datos...");
+    console.log("♻️ [V7.4] Cargando datos...");
     let raw = localStorage.getItem(STORAGE_KEY);
     
     if (!raw || raw.length < 50) {
@@ -71,7 +71,6 @@ function loadData() {
 function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
 
 function sanearDatos() {
-    // 1. Saldo
     let saldo = 0;
     store.movimientos.forEach(m => {
         if (m.tipo === 'ingreso') saldo += safeFloat(m.monto);
@@ -79,7 +78,7 @@ function sanearDatos() {
     });
     store.wallet.saldo = saldo;
 
-    // 2. KM
+    // KM Fuente de Verdad: Máximo histórico
     const kms = [
         store.parametros.ultimoKM || 0,
         ...store.turnos.map(t => t.kmFinal || 0),
@@ -87,19 +86,16 @@ function sanearDatos() {
     ];
     store.parametros.ultimoKM = Math.max(...kms);
 
-    // 3. Turno
     if (store.turnoActivo && (!store.turnoActivo.inicio || !Number.isFinite(store.turnoActivo.inicio))) {
         store.turnoActivo = null;
     }
 
-    // 4. Sobres
     reconstruirSobres();
     calcularObjetivosYMeta();
     saveData();
 }
 
 function reconstruirSobres() {
-    // AHORA ACEPTA DIA DE PAGO (dp)
     const ensureSobre = (refId, tipo, desc, meta, freq, dp) => {
         let s = store.wallet.sobres.find(x => x.refId === refId);
         if (!s) {
@@ -107,9 +103,8 @@ function reconstruirSobres() {
             store.wallet.sobres.push(s);
         }
         s.meta = safeFloat(meta); s.frecuencia = freq; s.desc = desc; 
-        if(dp) s.diaPago = dp; // Guardamos el día de pago en el sobre
+        if(dp) s.diaPago = dp;
     };
-    // Pasamos d.diaPago al sobre
     store.deudas.forEach(d => { if(d.saldo > 0) ensureSobre(d.id, 'deuda', d.desc, d.montoCuota, d.frecuencia, d.diaPago); });
     store.gastosFijosMensuales.forEach(g => ensureSobre(g.id, 'gasto', g.desc, g.monto, g.frecuencia));
 }
@@ -121,7 +116,6 @@ function calcularObjetivosYMeta() {
 
     store.wallet.sobres.forEach(s => {
         let ideal = 0;
-        // Lógica simple de acumulación lineal
         if(s.frecuencia === 'Semanal') ideal = (s.meta / 7) * (hoyIdx === 0 ? 7 : hoyIdx);
         else if(s.frecuencia === 'Mensual') ideal = (s.meta / 30) * diaMes;
         else if(s.frecuencia === 'Diario') ideal = s.meta;
@@ -144,7 +138,7 @@ function calcularObjetivosYMeta() {
    ------------------------------------------------------------- */
 function actionFinalizarTurno(kmFinal, ganancia) {
     const kF = safeFloat(kmFinal);
-    if (kF < store.parametros.ultimoKM) return alert(`⛔ Error: KM actual es ${store.parametros.ultimoKM}`);
+    if (kF < store.parametros.ultimoKM) return alert(`⛔ Error: KM actual es ${store.parametros.ultimoKM}. No puedes bajarlo.`);
     
     store.turnos.push({ id: uuid(), fecha: new Date().toISOString(), ganancia: safeFloat(ganancia), kmRecorrido: kF - store.parametros.ultimoKM, kmFinal: kF });
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Turno Finalizado', monto: safeFloat(ganancia) });
@@ -154,11 +148,12 @@ function actionFinalizarTurno(kmFinal, ganancia) {
 
 function actionGasolina(l, c, k) {
     const km = safeFloat(k);
-    if(km < store.parametros.ultimoKM && km > 0) return alert("⛔ KM inválido");
+    if(km < store.parametros.ultimoKM && km > 0) return alert("⛔ KM inválido. No puedes bajar el kilometraje.");
+    
     store.cargasCombustible.push({ id: uuid(), fecha: new Date().toISOString(), litros: l, costo: c, km: km });
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'gasto', desc: '⛽ Gasolina', monto: safeFloat(c), categoria: 'Operativo' });
     if(km > store.parametros.ultimoKM) store.parametros.ultimoKM = km;
-    sanearDatos(); alert("✅ Registrado");
+    sanearDatos(); alert("✅ Gasolina registrada");
 }
 
 function actionNuevoGasto(desc, monto, cat, freq) {
@@ -168,46 +163,20 @@ function actionNuevoGasto(desc, monto, cat, freq) {
     sanearDatos();
 }
 
-// CORREGIDO: Acepta día de pago (dp)
 function actionNuevaDeuda(desc, total, cuota, freq, dp) {
-    store.deudas.push({ 
-        id: uuid(), 
-        desc, 
-        montoTotal: total, 
-        montoCuota: cuota, 
-        frecuencia: freq, 
-        diaPago: dp, // Guardamos el día
-        saldo: total 
-    });
+    store.deudas.push({ id: uuid(), desc, montoTotal: total, montoCuota: cuota, frecuencia: freq, diaPago: dp, saldo: total });
     sanearDatos();
-    alert("✅ Deuda creada correctamente");
+    alert("✅ Deuda creada");
 }
 
-// CORREGIDO: Lógica de abono y feedback
 function actionAbonarDeuda(id) {
-    const d = store.deudas.find(x => x.id === id); 
-    if(!d) return alert("❌ Error: Deuda no encontrada");
-    
-    // Descontar saldo y crear movimiento
-    d.saldo -= d.montoCuota; 
-    if(d.saldo < 0) d.saldo = 0;
-    
-    // Vaciar el sobre asociado (ya se pagó)
-    const s = store.wallet.sobres.find(x => x.refId === id); 
-    if(s) s.acumulado = 0;
-    
-    store.movimientos.push({ 
-        id: uuid(), 
-        fecha: new Date().toISOString(), 
-        tipo: 'gasto', 
-        desc: `Abono: ${d.desc}`, 
-        monto: d.montoCuota, 
-        categoria: 'Deuda' 
-    });
-    
+    const d = store.deudas.find(x => x.id === id); if(!d) return alert("Error");
+    d.saldo -= d.montoCuota; if(d.saldo < 0) d.saldo = 0;
+    const s = store.wallet.sobres.find(x => x.refId === id); if(s) s.acumulado = 0;
+    store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'gasto', desc: `Abono: ${d.desc}`, monto: d.montoCuota, categoria: 'Deuda' });
     sanearDatos();
-    alert(`✅ Abono de ${fmtMoney(d.montoCuota)} registrado para ${d.desc}`);
-    renderAdmin(); // Refrescar UI inmediatamente
+    alert("✅ Abono registrado");
+    renderAdmin();
 }
 
 function actionPagarRecurrente(id) {
@@ -216,6 +185,42 @@ function actionPagarRecurrente(id) {
     const s = store.wallet.sobres.find(x => x.refId === id);
     if(s) { s.acumulado -= gf.monto; if(s.acumulado < 0) s.acumulado = 0; }
     sanearDatos(); alert("✅ Pagado");
+}
+
+// === LEY DE ORO: KM Y SALDO INICIAL ===
+
+function actionConfigurarKM(nuevoKM) {
+    // REGLA: Si ya hay historial (>0), prohibido editar.
+    if(store.parametros.ultimoKM > 0) {
+        return alert("🔒 PROHIBIDO: El kilometraje es la fuente de verdad. Solo se actualiza mediante Turnos o Gasolina.");
+    }
+    
+    const km = safeFloat(nuevoKM);
+    if(km <= 0) return alert("⚠️ Ingresa un kilometraje válido");
+    
+    store.parametros.ultimoKM = km;
+    saveData();
+    renderAdmin();
+    alert("✅ Kilometraje base configurado.");
+}
+
+function actionSaldoInicial(monto) {
+    const inicial = safeFloat(monto);
+    if(inicial <= 0) return;
+    
+    // REGLA: Es un registro único de arranque
+    store.movimientos.push({
+        id: uuid(),
+        fecha: new Date().toISOString(),
+        tipo: 'ingreso',
+        desc: '💰 Saldo Inicial',
+        monto: inicial,
+        categoria: 'Sistema'
+    });
+    
+    sanearDatos();
+    alert(`✅ Saldo inicial de ${fmtMoney(inicial)} registrado.`);
+    renderAdmin();
 }
 
 /* -------------------------------------------------------------
@@ -283,7 +288,6 @@ function renderWallet() {
     store.wallet.sobres.forEach(s => {
         const pct = Math.min((s.acumulado/s.meta)*100, 100);
         const pctIdeal = Math.min((s.objetivoHoy/s.meta)*100, 100);
-        // Mostramos el día de pago si existe
         const diaTxt = s.diaPago ? ` (Día ${s.diaPago})` : '';
         
         container.innerHTML += `
@@ -323,6 +327,16 @@ function renderAdmin() {
     $('kmActual').innerText = `${store.parametros.ultimoKM} km`;
     if ($('metaDiariaValor')) $('metaDiariaValor').innerText = fmtMoney(store.parametros.metaDiaria || 0);
     
+    // Configuración Visual del Botón KM (Bloqueado o Abierto)
+    const btnKM = $('btnConfigKM');
+    if(store.parametros.ultimoKM > 0) {
+        btnKM.innerText = "🔒 Bloqueado";
+        btnKM.style.opacity = "0.6";
+    } else {
+        btnKM.innerText = "🔓 Configurar";
+        btnKM.style.opacity = "1";
+    }
+
     // Turno
     const activo = !!store.turnoActivo;
     const btnIni = $('btnTurnoIniciar');
@@ -350,7 +364,7 @@ function renderAdmin() {
         if(window.timerInterval) { clearInterval(window.timerInterval); window.timerInterval = null; }
     }
 
-    // Recurrentes UI
+    // Recurrentes
     if(!document.getElementById('zoneRecurrentes') && $('btnGastoHogar')) {
         const div = document.createElement('div'); div.id = 'zoneRecurrentes';
         div.className = 'card'; div.style.padding = '10px'; div.style.background = '#f8fafc';
@@ -364,13 +378,11 @@ function renderAdmin() {
         store.gastosFijosMensuales.forEach(g => { const opt = document.createElement('option'); opt.value = g.id; opt.innerText = `${g.desc} (${fmtMoney(g.monto)})`; selR.add(opt); });
     }
 
-    // Deudas UI
+    // Deudas
     const ul = $('listaDeudasAdmin');
     if(ul) {
         ul.innerHTML = store.deudas.map(d => `<li style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;"><span>${d.desc}</span><span style="font-weight:bold; color:${d.saldo>0?'var(--danger)':'var(--success)'}">${fmtMoney(d.saldo)}</span></li>`).join('');
     }
-    
-    // Select Deudas (CORREGIDO PARA QUE EL BOTÓN FUNCIONE)
     const selD = $('abonoDeudaSelect');
     if(selD) {
         selD.innerHTML = '<option value="">Seleccionar...</option>';
@@ -386,7 +398,7 @@ function renderAdmin() {
    SECCIÓN 5: ORQUESTADOR
    ------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V7.2 DEBT FIX INITIALIZED");
+    console.log("🚀 V7.4 GOLDEN RULE STARTUP");
     loadData();
     
     const page = document.body.dataset.page;
@@ -403,24 +415,25 @@ document.addEventListener('DOMContentLoaded', () => {
         $('btnGastoHogar').onclick = () => gastoWiz('Hogar');
         $('btnGastoOperativo').onclick = () => gastoWiz('Operativo');
         
-        // CORREGIDO: Botón Nueva Deuda con Día de Pago (dp)
         $('btnDeudaNueva').onclick = () => Modal.show("Nueva Deuda", [
             {label:"Nombre",key:"d"},
             {label:"Total Deuda",key:"t",type:"number"},
             {label:"Cuota Mensual",key:"c",type:"number"},
             {label:"Frecuencia",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({val:x,txt:x}))},
-            {label:"Día de Pago",key:"dp",type:"select",options:DIAS_SEMANA} // NUEVO CAMPO
+            {label:"Día de Pago",key:"dp",type:"select",options:DIAS_SEMANA}
         ], d => actionNuevaDeuda(d.d, d.t, d.c, d.f, d.dp));
         
-             // CORREGIDO: Botón Abono con Validación
         $('btnAbonoCuota').onclick = () => { 
             const v = $('abonoDeudaSelect').value; 
-            if(!v) return alert("⚠️ Selecciona una deuda primero");
+            if(!v) return alert("⚠️ Selecciona una deuda");
             if(confirm("¿Confirmar abono de cuota?")) actionAbonarDeuda(v); 
         };
 
+        // AJUSTES BLOQUEABLES (LEY DE ORO)
+        $('btnConfigKM').onclick = () => Modal.show("Configurar KM Base", [{label:"Kilometraje",key:"km",type:"number"}], d => actionConfigurarKM(d.km));
+        $('btnSaldoInicial').onclick = () => Modal.show("Saldo Inicial", [{label:"Dinero actual en mano",key:"s",type:"number"}], d => actionSaldoInicial(d.s));
+
         $('btnExportJSON').onclick = () => navigator.clipboard.writeText(JSON.stringify(store)).then(() => alert("Copiado"));
         $('btnRestoreBackup').onclick = () => Modal.show("Restaurar", [{label:"Pegar JSON",key:"j"}], d => { try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); location.reload(); } catch(e){ alert("JSON Inválido"); } });
-        $('btnConfigKM').onclick = () => alert("🔒 El kilometraje se actualiza automáticamente.");
     }
 });
