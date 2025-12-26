@@ -20,13 +20,8 @@
                 <div id="turnoEstado" style="font-weight:bold;">🔴 Detenido</div>
                 <div id="turnoTimer" style="font-family:monospace; font-size:1.1rem; color:var(--text-sec)">00:00:00</div>
             </div>
-
-            <button id="btnTurnoIniciar" class="btn btn-success">
-                ▶️ Iniciar Turno
-            </button>
-            <button id="btnTurnoFinalizar" class="btn btn-danger hidden">
-                ⏹ Finalizar Turno
-            </button>
+            <button id="btnTurnoIniciar" class="btn btn-success">▶️ Iniciar Turno</button>
+            <button id="btnTurnoFinalizar" class="btn btn-danger hidden">⏹ Finalizar Turno</button>
         </section>
 
         <section class="card">
@@ -39,16 +34,11 @@
 
         <section class="card">
             <h2>Gestión de Deudas</h2>
-            <button id="btnDeudaNueva" class="btn btn-outline" style="margin-bottom:15px; font-size:0.9rem;">
-                + Nueva Deuda
-            </button>
-            
+            <button id="btnDeudaNueva" class="btn btn-outline" style="margin-bottom:15px; font-size:0.9rem;">+ Nueva Deuda</button>
             <div style="background:#f1f5f9; padding:10px; border-radius:8px;">
                 <label style="font-size:0.8rem; color:var(--text-sec); display:block; margin-bottom:5px;">Realizar Abono:</label>
                 <div style="display:flex; gap:5px;">
-                    <select id="abonoDeudaSelect" class="input-control" style="margin:0;">
-                        <option value="">Seleccionar...</option>
-                    </select>
+                    <select id="abonoDeudaSelect" class="input-control" style="margin:0;"><option value="">Seleccionar...</option></select>
                     <button id="btnAbonoCuota" class="btn btn-success" style="width:auto;">OK</button>
                 </div>
             </div>
@@ -57,19 +47,17 @@
 
         <section class="card">
             <h2>Registrar Gasolina</h2>
-            <button id="btnGasolina" class="btn btn-warning">
-                ⛽ Registrar Gasolina
-            </button>
+            <button id="btnGasolina" class="btn btn-warning">⛽ Registrar Gasolina</button>
         </section>
 
         <section class="card">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
                     <h2>Kilometraje</h2>
-                    <strong id="kmActual" style="font-size:1.4rem; color:var(--text-main)">—</strong>
+                    <strong id="kmActual" style="font-size:1.4rem; color:var(--text-main)">0 km</strong>
                 </div>
                 <button id="btnConfigKM" class="btn btn-outline" style="width:auto; padding:8px 12px; font-size:0.8rem;">
-                    🔓 Configurar
+                    🔒 Auto
                 </button>
             </div>
         </section>
@@ -77,16 +65,12 @@
         <section class="card card-hero">
             <div class="hero-title">🎯 Meta Diaria Obligatoria</div>
             <div id="metaDiariaValor" class="hero-value">$0.00</div>
-            <div class="hero-desc">
-                Calculado: Gastos Fijos Diarios + Cuotas de Deudas
-            </div>
+            <div class="hero-desc">Calculado: Gastos Fijos Diarios + Cuotas de Deudas</div>
         </section>
 
         <section class="card" style="opacity: 0.8;">
             <h2>Sistema</h2>
-            <button id="btnSaldoInicial" class="btn btn-primary" style="margin-bottom:10px; background:#475569;">
-                💰 Registrar Saldo Inicial
-            </button>
+            <button id="btnSaldoInicial" class="btn btn-primary" style="margin-bottom:10px; background:#475569;">💰 Registrar Saldo Inicial</button>
             <div class="grid-2">
                 <button id="btnExportJSON" class="btn btn-outline">📋 Copiar Datos</button>
                 <button id="btnRestoreBackup" class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);">♻️ Restaurar</button>
