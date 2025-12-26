@@ -3,78 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administración</title>
+    <title>Admin</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body data-page="admin">
 
     <header class="header">
-        <h1>⚙️ Administración</h1>
+        <h1>⚙️ Admin</h1>
     </header>
 
     <main class="container">
 
         <section class="card">
-            <h2>Kilometraje</h2>
-            <div style="margin-bottom:10px; font-size:0.9rem; color:var(--text-sec)">
-                Actual en tablero: <strong id="kmActual" style="font-size:1.2rem; color:var(--text-main)">—</strong>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <h2>Kilometraje</h2>
+                    <strong id="kmActual" style="font-size:1.4rem; color:var(--text-main)">—</strong>
+                </div>
+                <button id="btnConfigKM" class="btn btn-outline" style="width:auto; padding:8px 12px; font-size:0.8rem;">
+                    🔒 Auto
+                </button>
             </div>
-            <button id="btnConfigKM" class="btn btn-primary">
-                ✏️ Ajustar Kilometraje
-            </button>
         </section>
 
-        <section class="card" style="border-left:5px solid var(--success)">
-            <h2>Turno</h2>
-            
-            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+        <section class="card" style="border-left: 5px solid var(--primary);">
+            <h2>Control de Turno</h2>
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px; background:#f8fafc; padding:10px; border-radius:8px;">
                 <div id="turnoEstado" style="font-weight:bold;">🔴 Detenido</div>
-                <div id="turnoTimer" style="font-family:monospace; font-size:1.1rem;">00:00:00</div>
+                <div id="turnoTimer" style="font-family:monospace; font-size:1.1rem; color:var(--text-sec)">00:00:00</div>
             </div>
 
             <button id="btnTurnoIniciar" class="btn btn-success">
                 ▶️ Iniciar Turno
             </button>
-
-            <button id="btnTurnoFinalizar" class="btn" style="background-color:var(--danger); color:white; display:none;">
+            <button id="btnTurnoFinalizar" class="btn btn-danger hidden">
                 ⏹ Finalizar Turno
             </button>
         </section>
 
         <section class="card">
-            <h2>Registrar Gasto</h2>
-            
-            <div class="grid-2">
-                <button id="btnGastoHogar" class="btn btn-outline">🏠 Hogar</button>
-                <button id="btnGastoOperativo" class="btn btn-primary">🛠️ Operativo</button>
-            </div>
-            <button id="btnGasolina" class="btn btn-warning" style="margin-top:10px; width:100%">
+            <h2>Registrar Operación</h2>
+            <button id="btnGasolina" class="btn btn-warning" style="margin-bottom:10px;">
                 ⛽ Registrar Gasolina
             </button>
-        </section>
-
-        <section class="card" style="border-left:5px solid var(--danger)">
-            <h2>Deudas</h2>
-            <button id="btnDeudaNueva" class="btn btn-outline" style="margin-bottom:10px; font-size:0.8rem;">
-                + Nueva Deuda
-            </button>
             
-            <div style="display:flex; gap:5px;">
-                <select id="abonoDeudaSelect" class="input-control" style="flex:1;">
-                    <option value="">-- Seleccionar --</option>
-                </select>
-                <button id="btnAbonoCuota" class="btn btn-success" style="padding:0 15px;">
-                    Pagar
-                </button>
+            <div class="grid-2">
+                <button id="btnGastoHogar" class="btn btn-outline">🏠 Gasto Hogar</button>
+                <button id="btnGastoOperativo" class="btn btn-primary">🛠️ Gasto Moto</button>
             </div>
-            <ul id="listaDeudasAdmin" class="list-group" style="margin-top:10px; display:none;"></ul>
         </section>
 
         <section class="card">
-            <h2>Zona de Datos</h2>
+            <h2>Gestión de Deudas</h2>
+            <button id="btnDeudaNueva" class="btn btn-outline" style="margin-bottom:15px; font-size:0.9rem;">
+                + Nueva Deuda
+            </button>
+            
+            <div style="background:#f1f5f9; padding:10px; border-radius:8px;">
+                <label style="font-size:0.8rem; color:var(--text-sec); display:block; margin-bottom:5px;">Realizar Abono:</label>
+                <div style="display:flex; gap:5px;">
+                    <select id="abonoDeudaSelect" class="input-control" style="margin:0;">
+                        <option value="">Seleccionar...</option>
+                    </select>
+                    <button id="btnAbonoCuota" class="btn btn-success" style="width:auto;">OK</button>
+                </div>
+            </div>
+            <ul id="listaDeudasAdmin" style="margin-top:10px; list-style:none;"></ul>
+        </section>
+
+        <section class="card">
+            <h2>Sistema</h2>
             <div class="grid-2">
-                <button id="btnExportJSON" class="btn btn-outline">📋 Copiar</button>
-                <button id="btnRestoreBackup" class="btn btn-outline" style="border-color:var(--danger); color:var(--danger);">♻️ Restaurar</button>
+                <button id="btnExportJSON" class="btn btn-outline">📋 Copiar Datos</button>
+                <button id="btnRestoreBackup" class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);">♻️ Restaurar</button>
+            </div>
+            <div style="text-align:center; margin-top:10px; font-size:0.8rem; color:#ccc;">
+                Meta Diaria Calc: <strong id="metaDiariaValor" style="color:var(--text-main)">$0.00</strong>
             </div>
         </section>
 
@@ -83,10 +87,10 @@
     <div id="appModal" class="modal-overlay">
         <div class="modal">
             <h3 id="modalTitle">Título</h3>
-            <div id="modalBody" class="modal-body"></div>
+            <div id="modalBody"></div>
             <div class="modal-actions">
                 <button id="modalCancel" class="btn btn-outline">Cancelar</button>
-                <button id="modalConfirm" class="btn btn-primary">Confirmar</button>
+                <button id="modalConfirm" class="btn btn-primary">Guardar</button>
             </div>
         </div>
     </div>
@@ -98,7 +102,7 @@
         <a href="historial.html" class="nav-link"><span>📜</span>Historial</a>
     </nav>
 
-    <script src="app.js"></script>
+    <script src="app.js" defer></script>
 </body>
 </html>
 
