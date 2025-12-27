@@ -1,5 +1,5 @@
 /* =============================================================
-   APP.JS - V7.8.1 (FINAL STABLE + HOTFIX DISPONIBILIDAD REAL)
+   APP.JS - V7.8.2 (FINAL STABLE - DISPONIBILIDAD REAL GLOBAL)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -46,7 +46,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V7.8.1] Cargando datos...");
+    console.log("♻️ [V7.8.2] Cargando datos...");
     let raw = localStorage.getItem(STORAGE_KEY);
     
     if (!raw || raw.length < 50) {
@@ -245,7 +245,8 @@ function renderIndex() {
     $('resGananciaBruta').innerText = fmtMoney(gan);
 
     const saldo = store.wallet.saldo;
-    const comprometido = store.wallet.sobres.reduce((a,b)=>a+b.acumulado,0);
+    // FIX GLOBAL: Comprometido es MAX(acumulado, objetivoHoy)
+    const comprometido = store.wallet.sobres.reduce((a,b)=> a + Math.max(b.acumulado, b.objetivoHoy), 0);
     const libre = saldo - comprometido;
     
     let avisos = store.wallet.sobres
@@ -348,7 +349,8 @@ function renderAdmin() {
     }
 
     const saldo = store.wallet.saldo;
-    const comprometido = store.wallet.sobres.reduce((a,b)=>a+b.acumulado,0);
+    // FIX GLOBAL: Comprometido es MAX(acumulado, objetivoHoy)
+    const comprometido = store.wallet.sobres.reduce((a,b)=> a + Math.max(b.acumulado, b.objetivoHoy), 0);
     const libre = saldo - comprometido;
     
     if($('valSaldoAdmin')) $('valSaldoAdmin').innerText = fmtMoney(saldo);
@@ -423,7 +425,7 @@ function renderAdmin() {
    SECCIÓN 5: ORQUESTADOR
    ------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V7.8.1 STABLE + HOTFIX");
+    console.log("🚀 V7.8.2 STABLE + GLOBAL FIX");
     loadData();
     
     const page = document.body.dataset.page;
