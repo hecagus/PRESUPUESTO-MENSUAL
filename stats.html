@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estadísticas</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="stats">
+
+    <header class="header">
+        <h1>📈 Estadísticas</h1>
+    </header>
+
+    <main class="container">
+
+        <section class="card">
+            <h2>Rendimiento (7 días)</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: center;">
+                <div style="background: var(--bg); padding: 10px; border-radius: 8px;">
+                    <div style="font-size: 0.8rem; color: var(--text-sec);">Ingreso / Hora</div>
+                    <div id="statIngresoHora" style="font-size: 1.2rem; font-weight: bold; color: var(--primary);">—</div>
+                </div>
+                <div style="background: var(--bg); padding: 10px; border-radius: 8px;">
+                    <div style="font-size: 0.8rem; color: var(--text-sec);">Horas Trab.</div>
+                    <div id="statHorasTotal" style="font-size: 1.2rem; font-weight: bold;">0h</div>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 10px; font-size: 0.8rem; color: var(--text-sec);">
+                Días trabajados: <span id="statDiasTrabajados">0</span>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Presión Financiera</h2>
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 8px;">
+                <span>Meta Diaria (Derivada)</span>
+                <strong id="statMetaDiaria">$0.00</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 8px;">
+                <span>Ingreso Diario Prom.</span>
+                <strong id="statIngresoDiario">$0.00</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Diferencia</span>
+                <strong id="statDiferencia" style="font-size: 1.1rem;">$0.00</strong>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Proyección de Esfuerzo</h2>
+            <div style="text-align: center; padding: 15px;">
+                <div style="font-size: 0.9rem; color: var(--text-sec);">Para cubrir meta (6 días/sem):</div>
+                <div id="statHorasNecesarias" style="font-size: 2.5rem; font-weight: 900; margin: 10px 0;">—</div>
+                <div id="statTagSem" style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;">ANALIZANDO</div>
+            </div>
+            <div style="text-align: center; font-size: 0.85rem; color: var(--text-sec);">
+                Promedio actual: <span id="statHorasPromedio">0h</span> / día
+            </div>
+        </section>
+
+        <section class="card" style="background: #f8fafc; border-left: 4px solid var(--text-sec);">
+            <h2>Diagnóstico</h2>
+            <p id="statsDiagnostico" style="font-size: 0.9rem; line-height: 1.5; color: var(--text-main);">
+                Recopilando datos...
+            </p>
+        </section>
+
+    </main>
+
+    <nav class="bottom-nav">
+        <a href="index.html" class="nav-link"><span>📊</span>Panel</a>
+        <a href="wallet.html" class="nav-link"><span>💰</span>Wallet</a>
+        <a href="admin.html" class="nav-link"><span>⚙️</span>Admin</a>
+        <a href="stats.html" class="nav-link active"><span>📈</span>Stats</a>
+    </nav>
+
+    <script src="app.js" defer></script>
+</body>
+</html>
