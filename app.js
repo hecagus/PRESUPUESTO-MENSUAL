@@ -1,5 +1,5 @@
 /* =============================================================
-   APP.JS - V7.8.2 (FINAL STABLE - DISPONIBILIDAD REAL GLOBAL)
+   APP.JS - V7.8.3 (FUSIÓN ESTABLE: WALLET FIX + STATS V1)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -46,7 +46,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V7.8.2] Cargando datos...");
+    console.log("♻️ [V7.8.3] Cargando sistema integrado...");
     let raw = localStorage.getItem(STORAGE_KEY);
     
     if (!raw || raw.length < 50) {
@@ -152,6 +152,7 @@ function actionFinalizarTurno(kmFinal, ganancia) {
     const kF = safeFloat(kmFinal);
     if (kF < store.parametros.ultimoKM) return alert(`⛔ Error: KM actual es ${store.parametros.ultimoKM}. No puedes bajarlo.`);
     
+    // NOTA: Se preserva la lógica V7.8 (no guarda inicio de turno en historial para no romper esquema)
     store.turnos.push({ id: uuid(), fecha: new Date().toISOString(), ganancia: safeFloat(ganancia), kmRecorrido: kF - store.parametros.ultimoKM, kmFinal: kF });
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Turno Finalizado', monto: safeFloat(ganancia) });
     store.parametros.ultimoKM = kF; store.turnoActivo = null; 
@@ -245,7 +246,7 @@ function renderIndex() {
     $('resGananciaBruta').innerText = fmtMoney(gan);
 
     const saldo = store.wallet.saldo;
-    // FIX GLOBAL: Comprometido es MAX(acumulado, objetivoHoy)
+    // GLOBAL FIX: Comprometido es MAX(acumulado, objetivoHoy)
     const comprometido = store.wallet.sobres.reduce((a,b)=> a + Math.max(b.acumulado, b.objetivoHoy), 0);
     const libre = saldo - comprometido;
     
@@ -268,13 +269,10 @@ function renderIndex() {
     const container = $('resumenHumanoContainer'); if(container) container.innerHTML = html;
 }
 
-// === FIX WALLET: LÓGICA DE DISPONIBILIDAD REAL ===
 function renderWallet() {
     if (!$('valWallet')) return;
     const saldo = store.wallet.saldo;
 
-    // 1. CÁLCULO DE LIQUIDEZ REAL (CONTABILIDAD PREVENTIVA)
-    // El dinero "ideal hoy" se descuenta del libre automáticamente.
     const comprometido = store.wallet.sobres.reduce((acc, s) => {
         return acc + Math.max(s.acumulado, s.objetivoHoy);
     }, 0);
@@ -288,13 +286,11 @@ function renderWallet() {
     container.innerHTML = '';
     
     store.wallet.sobres.forEach(s => {
-        // Visualización: Si no has guardado ($0), mostramos lo que TE TOCA ($320).
         const valorVisual = Math.max(s.acumulado, s.objetivoHoy);
         const pct = Math.min((valorVisual/s.meta)*100, 100);
         const pctIdeal = Math.min((s.objetivoHoy/s.meta)*100, 100);
         const diaTxt = s.diaPago ? ` (Día ${s.diaPago})` : '';
         
-        // Alerta si vamos atrasados
         const avisoIdeal = (s.objetivoHoy > s.acumulado) 
             ? `<div style="font-size:0.75rem; color:#d97706; margin-top:2px;">⚠️ Reservado: ${fmtMoney(s.objetivoHoy)}</div>` 
             : '';
@@ -349,7 +345,7 @@ function renderAdmin() {
     }
 
     const saldo = store.wallet.saldo;
-    // FIX GLOBAL: Comprometido es MAX(acumulado, objetivoHoy)
+        // GLOBAL FIX: Comprometido es MAX(acumulado, objetivoHoy)
     const comprometido = store.wallet.sobres.reduce((a,b)=> a + Math.max(b.acumulado, b.objetivoHoy), 0);
     const libre = saldo - comprometido;
     
@@ -421,74 +417,28 @@ function renderAdmin() {
     }
 }
 
-/* -------------------------------------------------------------
-   SECCIÓN 5: ORQUESTADOR
-   ------------------------------------------------------------- */
-document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V7.8.2 STABLE + GLOBAL FIX");
-    loadData();
-    
-    const page = document.body.dataset.page;
-    if (page === 'index') renderIndex();
-    if (page === 'wallet') renderWallet();
-    if (page === 'historial') renderHistorial();
-    if (page === 'admin') {
-        renderAdmin();
-        
-        $('btnTurnoIniciar').onclick = () => { store.turnoActivo = { inicio: Date.now() }; saveData(); renderAdmin(); };
-        $('btnTurnoFinalizar').onclick = () => Modal.show("Fin Turno", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
-        $('btnGasolina').onclick = () => Modal.show("Gasolina", [{label:"Litros",key:"l",type:"number"},{label:"Costo ($)",key:"c",type:"number"},{label:"KM Actual",key:"k",type:"number"}], d => actionGasolina(d.l, d.c, d.k));
-        
-        const gastoWiz = (g) => Modal.show(`Nuevo ${g}`, [{label:"Descripción",key:"d"},{label:"Monto",key:"m",type:"number"},{label:"Categoría",key:"c",type:"select",options:CATEGORIAS[g.toLowerCase()].map(x=>({val:x,txt:x}))},{label:"Frecuencia",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({val:x,txt:x}))}], d => actionNuevoGasto(d.d, d.m, d.c, d.f));
-        $('btnGastoHogar').onclick = () => gastoWiz('Hogar');
-        $('btnGastoOperativo').onclick = () => gastoWiz('Operativo');
-        
-        $('btnDeudaNueva').onclick = () => Modal.show("Nueva Deuda", [
-            {label:"Nombre",key:"d"},
-            {label:"Total Deuda",key:"t",type:"number"},
-            {label:"Cuota Mensual",key:"c",type:"number"},
-            {label:"Frecuencia",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({val:x,txt:x}))},
-            {label:"Día de Pago",key:"dp",type:"select",options:DIAS_SEMANA}
-        ], d => actionNuevaDeuda(d.d, d.t, d.c, d.f, d.dp));
-        
-        $('btnAbonoCuota').onclick = () => { 
-            const v = $('abonoDeudaSelect').value; 
-            if(!v) return alert("⚠️ Selecciona una deuda");
-            if(confirm("¿Confirmar abono de cuota?")) actionAbonarDeuda(v); 
-        };
-
-        $('btnExportJSON').onclick = () => navigator.clipboard.writeText(JSON.stringify(store)).then(() => alert("Copiado"));
-        $('btnRestoreBackup').onclick = () => Modal.show("Restaurar", [{label:"Pegar JSON",key:"j"}], d => { try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); location.reload(); } catch(e){ alert("JSON Inválido"); } });
-    }
-   /* =============================================================
+/* =============================================================
    MÓDULO DE ESTADÍSTICAS (STATS V1) - READ ONLY
    ============================================================= */
-
 function renderStats() {
     if (!document.getElementById('statIngresoHora')) return;
 
-    // 1. FILTRADO DE DATOS (ÚLTIMOS 7 DÍAS)
     const hoy = new Date();
     const limite = new Date();
     limite.setDate(hoy.getDate() - 7);
 
-    // Nota: Se asume que el objeto turno tiene 'inicio' (timestamp) para calcular horas.
-    // Si V7.8 no guarda 'inicio' en historial, la duración será 0 (fallback seguro).
     const turnosRecientes = store.turnos.filter(t => new Date(t.fecha) >= limite);
     
-    // 2. CÁLCULOS BÁSICOS
     let totalIngresos = 0;
     let totalHoras = 0;
     const diasUnicos = new Set();
 
     turnosRecientes.forEach(t => {
         totalIngresos += safeFloat(t.ganancia);
-        
-        // Cálculo de duración (Diferencia de timestamps)
-        // t.fecha es el final. t.inicio debe existir.
         const fin = new Date(t.fecha).getTime();
-        const inicio = t.inicio ? new Date(t.inicio).getTime() : fin; // Fallback a 0 si no hay inicio
-        const horas = (fin - inicio) / 3600000; // ms a horas
+        // Fallback: Si no hay inicio registrado (V7.8 Legacy), horas = 0
+        const inicio = t.inicio ? new Date(t.inicio).getTime() : fin; 
+        const horas = (fin - inicio) / 3600000;
         
         totalHoras += horas;
         diasUnicos.add(new Date(t.fecha).toDateString());
@@ -500,12 +450,10 @@ function renderStats() {
     const ingresoDiarioProm = diasTrabajados > 0 ? (totalIngresos / diasTrabajados) : 0;
     const metaDiaria = safeFloat(store.parametros.metaDiaria);
 
-    // 3. RENDERIZADO SECCIÓN 1: RESUMEN
     $('statIngresoHora').innerText = totalHoras > 0 ? fmtMoney(ingresoPromedioHora) : "—";
     $('statHorasTotal').innerText = totalHoras.toFixed(1) + "h";
     $('statDiasTrabajados').innerText = diasTrabajados;
 
-    // 4. RENDERIZADO SECCIÓN 2: PRESIÓN
     $('statMetaDiaria').innerText = fmtMoney(metaDiaria);
     $('statIngresoDiario').innerText = fmtMoney(ingresoDiarioProm);
     
@@ -514,30 +462,14 @@ function renderStats() {
     elDiff.innerText = (diff >= 0 ? "+" : "") + fmtMoney(diff);
     elDiff.style.color = diff >= 0 ? "var(--success)" : "var(--danger)";
 
-    // 5. RENDERIZADO SECCIÓN 3: HORAS NECESARIAS (PROYECCIÓN)
     let horasNecesarias = 0;
     let estado = "NEUTRO";
     const elHorasNec = $('statHorasNecesarias');
     const elTag = $('statTagSem');
     
-    // Solo calculamos si hay datos de ingreso por hora válidos
     if (ingresoPromedioHora > 0 && metaDiaria > 0) {
-        // Cálculo: Cuántas horas al día (por 6 días) para cubrir la meta
-        // Meta Mensual Aprox = Meta Diaria * 30. 
-        // Meta Semanal = Meta Diaria * 7.
-        // Aquí simplificamos a Meta Diaria / Ingreso Hora directamente? 
-        // No, el usuario pide "Horas necesarias por día (6 días)".
-        // Asumimos que la Meta Diaria ya incluye gastos de 7 días prorrateados.
-        // Entonces necesitamos generar X dinero al día.
-        // Horas = Meta Diaria / Ingreso Por Hora.
-        
         horasNecesarias = metaDiaria / ingresoPromedioHora;
         elHorasNec.innerText = horasNecesarias.toFixed(1) + "h";
-        
-        // Lógica Semáforo
-        // Verde: Necesarias <= Promedio Actual + 1 (Holgura)
-        // Amarillo: Necesarias > Promedio + 1 pero <= 9 (Factible pero duro)
-        // Rojo: > 9 (Inviable)
         
         if (horasNecesarias <= (horasPromedioDia + 1)) {
             estado = "VERDE";
@@ -570,7 +502,6 @@ function renderStats() {
     
     $('statHorasPromedio').innerText = horasPromedioDia.toFixed(1) + "h";
 
-    // 6. RENDERIZADO SECCIÓN 4: DIAGNÓSTICO (COPY EXACTO)
     const elDiag = $('statsDiagnostico');
     
     if (estado === "INVALIDO") {
@@ -590,9 +521,44 @@ function renderStats() {
     }
 }
 
-// EXTENSIÓN: Listener aislado para stats
-if (location.href.includes('stats.html') || document.body.dataset.page === 'stats') {
-    document.addEventListener('DOMContentLoaded', () => {
-        // Pequeño delay para asegurar que loadData (V7.8) haya corrido
-        setTimeout(renderStats, 100);
-    });
+/* -------------------------------------------------------------
+   SECCIÓN 5: ORQUESTADOR (INTEGRADO)
+   ------------------------------------------------------------- */
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("🚀 V7.8.3 FUSIONADO");
+    loadData();
+    
+    const page = document.body.dataset.page;
+    if (page === 'index') renderIndex();
+    if (page === 'wallet') renderWallet();
+    if (page === 'historial') renderHistorial();
+    if (page === 'stats') renderStats(); // <--- INTEGRACIÓN STATS
+    if (page === 'admin') {
+        renderAdmin();
+        
+        $('btnTurnoIniciar').onclick = () => { store.turnoActivo = { inicio: Date.now() }; saveData(); renderAdmin(); };
+        $('btnTurnoFinalizar').onclick = () => Modal.show("Fin Turno", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
+        $('btnGasolina').onclick = () => Modal.show("Gasolina", [{label:"Litros",key:"l",type:"number"},{label:"Costo ($)",key:"c",type:"number"},{label:"KM Actual",key:"k",type:"number"}], d => actionGasolina(d.l, d.c, d.k));
+        
+        const gastoWiz = (g) => Modal.show(`Nuevo ${g}`, [{label:"Descripción",key:"d"},{label:"Monto",key:"m",type:"number"},{label:"Categoría",key:"c",type:"select",options:CATEGORIAS[g.toLowerCase()].map(x=>({val:x,txt:x}))},{label:"Frecuencia",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({val:x,txt:x}))}], d => actionNuevoGasto(d.d, d.m, d.c, d.f));
+        $('btnGastoHogar').onclick = () => gastoWiz('Hogar');
+        $('btnGastoOperativo').onclick = () => gastoWiz('Operativo');
+        
+        $('btnDeudaNueva').onclick = () => Modal.show("Nueva Deuda", [
+            {label:"Nombre",key:"d"},
+            {label:"Total Deuda",key:"t",type:"number"},
+            {label:"Cuota Mensual",key:"c",type:"number"},
+            {label:"Frecuencia",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({val:x,txt:x}))},
+            {label:"Día de Pago",key:"dp",type:"select",options:DIAS_SEMANA}
+        ], d => actionNuevaDeuda(d.d, d.t, d.c, d.f, d.dp));
+        
+        $('btnAbonoCuota').onclick = () => { 
+            const v = $('abonoDeudaSelect').value; 
+            if(!v) return alert("⚠️ Selecciona una deuda");
+            if(confirm("¿Confirmar abono de cuota?")) actionAbonarDeuda(v); 
+        };
+
+        $('btnExportJSON').onclick = () => navigator.clipboard.writeText(JSON.stringify(store)).then(() => alert("Copiado"));
+        $('btnRestoreBackup').onclick = () => Modal.show("Restaurar", [{label:"Pegar JSON",key:"j"}], d => { try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); location.reload(); } catch(e){ alert("JSON Inválido"); } });
+    }
+});
