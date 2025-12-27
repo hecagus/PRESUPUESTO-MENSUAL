@@ -1,5 +1,5 @@
 /* =============================================================
-   APP.JS - V8.0 (MIGRACIÓN: GESTIÓN DE TIEMPO REAL V8)
+   APP.JS - V8.1 (WALLET FINAL + STATS V2)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -7,7 +7,7 @@
    ------------------------------------------------------------- */
 const STORAGE_KEY = "moto_finanzas_vFinal";
 const LEGACY_KEYS = ["moto_finanzas_v3", "moto_finanzas", "app_moto_data"];
-const SCHEMA_VERSION = 8.0; // ACTUALIZADO A V8.0
+const SCHEMA_VERSION = 8.1;
 
 const FRECUENCIAS = { 'Diario': 1, 'Semanal': 7, 'Quincenal': 15, 'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0 };
 const DIAS_SEMANA = [
@@ -46,7 +46,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V8.0] Cargando sistema (Time Tracking Enabled)...");
+    console.log("♻️ [V8.1] Sistema Final Cargado.");
     let raw = localStorage.getItem(STORAGE_KEY);
     
     if (!raw || raw.length < 50) {
@@ -123,23 +123,45 @@ function reconstruirSobres() {
 function calcularObjetivosYMeta() {
     const hoyIdx = new Date().getDay(); 
     const diaMes = new Date().getDate();
+    const fechaHoyStr = new Date().toDateString();
     let sumaMetasDiarias = 0;
 
+    // Cache de movimientos de hoy para optimizar búsqueda
+    const movimientosHoy = store.movimientos.filter(m => new Date(m.fecha).toDateString() === fechaHoyStr);
+
     store.wallet.sobres.forEach(s => {
-        let ideal = 0;
-        if(s.frecuencia === 'Semanal') ideal = (s.meta / 7) * (hoyIdx === 0 ? 7 : hoyIdx);
-        else if(s.frecuencia === 'Mensual') ideal = (s.meta / 30) * diaMes;
-        else if(s.frecuencia === 'Diario') ideal = s.meta;
-        else if(s.frecuencia === 'Anual') ideal = s.meta / 365;
+        // Reset flag de pago
+        s.pagadoHoy = false;
+
+        // --- FIX OBJETIVO 1: GASTOS DIARIOS YA PAGADOS ---
+        if (s.tipo === 'gasto' && s.frecuencia === 'Diario') {
+            // Buscamos si existe un gasto hoy con la misma descripción
+            const yaPagado = movimientosHoy.some(m => m.tipo === 'gasto' && m.desc === s.desc);
+            
+            if (yaPagado) {
+                s.objetivoHoy = 0; // Ya se pagó, no requiere reservar dinero
+                s.pagadoHoy = true; // Flag visual
+            } else {
+                s.objetivoHoy = s.meta; // Aún no se paga, reservar
+            }
+        } else {
+            // CÁLCULO ESTÁNDAR PARA OTROS SOBRES
+            let ideal = 0;
+            if(s.frecuencia === 'Semanal') ideal = (s.meta / 7) * (hoyIdx === 0 ? 7 : hoyIdx);
+            else if(s.frecuencia === 'Mensual') ideal = (s.meta / 30) * diaMes;
+            else if(s.frecuencia === 'Diario') ideal = s.meta; // Fallback por si acaso
+            else if(s.frecuencia === 'Anual') ideal = s.meta / 365;
+            
+            s.objetivoHoy = Math.min(ideal, s.meta);
+        }
         
-        s.objetivoHoy = Math.min(ideal, s.meta);
-        
+        // Cálculo de Meta Diaria Global (Solo suma lo pendiente por llenar)
         let aporteDiario = 0;
         if(s.frecuencia === 'Semanal') aporteDiario = s.meta / 7;
         else if(s.frecuencia === 'Mensual') aporteDiario = s.meta / 30;
         else if(s.frecuencia === 'Diario') aporteDiario = s.meta;
         
-        if(s.acumulado < s.meta) sumaMetasDiarias += aporteDiario;
+        if(s.acumulado < s.meta && !s.pagadoHoy) sumaMetasDiarias += aporteDiario;
     });
 
     store.parametros.metaDiaria = sumaMetasDiarias + (120 * safeFloat(store.parametros.costoPorKm));
@@ -154,32 +176,28 @@ function actionFinalizarTurno(kmFinal, ganancia) {
     
     // === LÓGICA V8.0: CÁLCULO DE TIEMPO REAL ===
     const fin = Date.now();
-    // Fallback: Si es un turno zombie (sin inicio), usar 'fin' para duración 0
     const inicio = (store.turnoActivo && store.turnoActivo.inicio) ? store.turnoActivo.inicio : fin;
-    // Fallback: Si no tiene kmInicial guardado (V7), usar ultimoKM actual
     const kmIni = (store.turnoActivo && store.turnoActivo.kmInicial) ? store.turnoActivo.kmInicial : store.parametros.ultimoKM;
 
     const duracionMs = fin - inicio;
     const duracionMin = duracionMs / 60000;
     const duracionHoras = duracionMin / 60;
 
-    // CREACIÓN DEL OBJETO TURNO V8 CANÓNICO
     const nuevoTurno = {
         id: uuid(),
-        inicio: inicio,           // V8
-        fin: fin,                 // V8
+        inicio: inicio,
+        fin: fin,
         fecha: new Date(fin).toISOString(),
-        duracionMin: duracionMin,     // V8
-        duracionHoras: duracionHoras, // V8
+        duracionMin: duracionMin,
+        duracionHoras: duracionHoras,
         ganancia: safeFloat(ganancia),
-        kmInicial: kmIni,         // V8
+        kmInicial: kmIni,
         kmFinal: kF,
         kmRecorrido: kF - kmIni
     };
 
     store.turnos.push(nuevoTurno);
     
-    // REGISTRO FINANCIERO (LEGACY COMPATIBLE)
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Turno Finalizado', monto: safeFloat(ganancia) });
     
     store.parametros.ultimoKM = kF; 
@@ -276,7 +294,7 @@ function renderIndex() {
     $('resGananciaBruta').innerText = fmtMoney(gan);
 
     const saldo = store.wallet.saldo;
-    // GLOBAL FIX: Comprometido es MAX(acumulado, objetivoHoy)
+    // V8.1: Comprometido considera 0 para diarios pagados
     const comprometido = store.wallet.sobres.reduce((a,b)=> a + Math.max(b.acumulado, b.objetivoHoy), 0);
     const libre = saldo - comprometido;
     
@@ -321,9 +339,14 @@ function renderWallet() {
         const pctIdeal = Math.min((s.objetivoHoy/s.meta)*100, 100);
         const diaTxt = s.diaPago ? ` (Día ${s.diaPago})` : '';
         
-        const avisoIdeal = (s.objetivoHoy > s.acumulado) 
-            ? `<div style="font-size:0.75rem; color:#d97706; margin-top:2px;">⚠️ Reservado: ${fmtMoney(s.objetivoHoy)}</div>` 
-            : '';
+        // --- FIX OBJETIVO 2: VISUALIZACIÓN CUMPLIDA ---
+        let avisoIdeal = "";
+        
+        if (s.pagadoHoy) {
+            avisoIdeal = `<div style="font-size:0.75rem; color:var(--success); margin-top:2px; font-weight:bold;">✔ Pagado hoy</div>`;
+        } else if (s.objetivoHoy > s.acumulado) {
+            avisoIdeal = `<div style="font-size:0.75rem; color:#d97706; margin-top:2px;">⚠️ Reservado: ${fmtMoney(s.objetivoHoy)}</div>`;
+        }
 
         container.innerHTML += `
         <div class="card" style="padding:15px; border-left:5px solid ${s.tipo==='deuda'?'#dc2626':'#2563eb'}">
@@ -336,7 +359,7 @@ function renderWallet() {
             </div>
             <div style="height:10px; background:#e2e8f0; border-radius:5px; position:relative; overflow:hidden;">
                 <div style="width:${pct}%; background:${s.tipo==='deuda'?'#dc2626':'#2563eb'}; height:100%;"></div>
-                <div style="position:absolute; top:0; left:${pctIdeal}%; width:2px; height:100%; background:rgba(0,0,0,0.4);" title="Objetivo Hoy"></div>
+                ${!s.pagadoHoy ? `<div style="position:absolute; top:0; left:${pctIdeal}%; width:2px; height:100%; background:rgba(0,0,0,0.4);" title="Objetivo Hoy"></div>` : ''}
             </div>
         </div>`;
     });
@@ -375,7 +398,7 @@ function renderAdmin() {
     }
 
     const saldo = store.wallet.saldo;
-    // GLOBAL FIX: Comprometido es MAX(acumulado, objetivoHoy)
+    // V8.1: Consistencia global en Admin
     const comprometido = store.wallet.sobres.reduce((a,b)=> a + Math.max(b.acumulado, b.objetivoHoy), 0);
     const libre = saldo - comprometido;
     
@@ -448,7 +471,7 @@ function renderAdmin() {
 }
 
 /* =============================================================
-   MÓDULO DE ESTADÍSTICAS (STATS V1) - READ ONLY
+   MÓDULO DE ESTADÍSTICAS (STATS V2) - TIME TRACKING
    ============================================================= */
 function renderStats() {
     if (!document.getElementById('statIngresoHora')) return;
@@ -465,10 +488,17 @@ function renderStats() {
 
     turnosRecientes.forEach(t => {
         totalIngresos += safeFloat(t.ganancia);
-        const fin = new Date(t.fecha).getTime();
-        // Fallback V8: Si el turno tiene 'inicio', usarlo. Si no (V7), usar fallback 0.
-        const inicio = t.inicio ? new Date(t.inicio).getTime() : fin; 
-        const horas = (fin - inicio) / 3600000;
+        
+        // STATS V2: Prioridad a duracionHoras (V8), fallback a cálculo (Legacy V7)
+        let horas = 0;
+        if (typeof t.duracionHoras === 'number') {
+            horas = t.duracionHoras;
+        } else {
+             // Fallback para turnos viejos
+             const fin = new Date(t.fecha).getTime();
+             const inicio = t.inicio ? new Date(t.inicio).getTime() : fin; 
+             horas = (fin - inicio) / 3600000;
+        }
         
         totalHoras += horas;
         diasUnicos.add(new Date(t.fecha).toDateString());
@@ -555,7 +585,7 @@ function renderStats() {
    SECCIÓN 5: ORQUESTADOR (INTEGRADO)
    ------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V8.0 FUSIONADO");
+    console.log("🚀 V8.1 WALLET FINAL + STATS V2");
     loadData();
     
     const page = document.body.dataset.page;
@@ -566,11 +596,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (page === 'admin') {
         renderAdmin();
         
-        // --- LOGICA V8: INICIO DE TURNO (CAPTURAR TIEMPO Y KM) ---
         $('btnTurnoIniciar').onclick = () => { 
             store.turnoActivo = { 
                 inicio: Date.now(),
-                kmInicial: store.parametros.ultimoKM // NEW V8 REQ
+                kmInicial: store.parametros.ultimoKM 
             }; 
             saveData(); 
             renderAdmin(); 
