@@ -1,5 +1,5 @@
 /* =============================================================
-   APP.JS - V7.8.3 (FUSIÓN ESTABLE: WALLET FIX + STATS V1)
+   APP.JS - V8.0 (MIGRACIÓN: GESTIÓN DE TIEMPO REAL V8)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -7,7 +7,7 @@
    ------------------------------------------------------------- */
 const STORAGE_KEY = "moto_finanzas_vFinal";
 const LEGACY_KEYS = ["moto_finanzas_v3", "moto_finanzas", "app_moto_data"];
-const SCHEMA_VERSION = 7.8;
+const SCHEMA_VERSION = 8.0; // ACTUALIZADO A V8.0
 
 const FRECUENCIAS = { 'Diario': 1, 'Semanal': 7, 'Quincenal': 15, 'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0 };
 const DIAS_SEMANA = [
@@ -46,7 +46,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V7.8.3] Cargando sistema integrado...");
+    console.log("♻️ [V8.0] Cargando sistema (Time Tracking Enabled)...");
     let raw = localStorage.getItem(STORAGE_KEY);
     
     if (!raw || raw.length < 50) {
@@ -152,11 +152,41 @@ function actionFinalizarTurno(kmFinal, ganancia) {
     const kF = safeFloat(kmFinal);
     if (kF < store.parametros.ultimoKM) return alert(`⛔ Error: KM actual es ${store.parametros.ultimoKM}. No puedes bajarlo.`);
     
-    // NOTA: Se preserva la lógica V7.8 (no guarda inicio de turno en historial para no romper esquema)
-    store.turnos.push({ id: uuid(), fecha: new Date().toISOString(), ganancia: safeFloat(ganancia), kmRecorrido: kF - store.parametros.ultimoKM, kmFinal: kF });
+    // === LÓGICA V8.0: CÁLCULO DE TIEMPO REAL ===
+    const fin = Date.now();
+    // Fallback: Si es un turno zombie (sin inicio), usar 'fin' para duración 0
+    const inicio = (store.turnoActivo && store.turnoActivo.inicio) ? store.turnoActivo.inicio : fin;
+    // Fallback: Si no tiene kmInicial guardado (V7), usar ultimoKM actual
+    const kmIni = (store.turnoActivo && store.turnoActivo.kmInicial) ? store.turnoActivo.kmInicial : store.parametros.ultimoKM;
+
+    const duracionMs = fin - inicio;
+    const duracionMin = duracionMs / 60000;
+    const duracionHoras = duracionMin / 60;
+
+    // CREACIÓN DEL OBJETO TURNO V8 CANÓNICO
+    const nuevoTurno = {
+        id: uuid(),
+        inicio: inicio,           // V8
+        fin: fin,                 // V8
+        fecha: new Date(fin).toISOString(),
+        duracionMin: duracionMin,     // V8
+        duracionHoras: duracionHoras, // V8
+        ganancia: safeFloat(ganancia),
+        kmInicial: kmIni,         // V8
+        kmFinal: kF,
+        kmRecorrido: kF - kmIni
+    };
+
+    store.turnos.push(nuevoTurno);
+    
+    // REGISTRO FINANCIERO (LEGACY COMPATIBLE)
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Turno Finalizado', monto: safeFloat(ganancia) });
-    store.parametros.ultimoKM = kF; store.turnoActivo = null; 
-    sanearDatos(); renderAdmin();
+    
+    store.parametros.ultimoKM = kF; 
+    store.turnoActivo = null; 
+    
+    sanearDatos(); 
+    renderAdmin();
 }
 
 function actionGasolina(l, c, k) {
@@ -345,7 +375,7 @@ function renderAdmin() {
     }
 
     const saldo = store.wallet.saldo;
-        // GLOBAL FIX: Comprometido es MAX(acumulado, objetivoHoy)
+    // GLOBAL FIX: Comprometido es MAX(acumulado, objetivoHoy)
     const comprometido = store.wallet.sobres.reduce((a,b)=> a + Math.max(b.acumulado, b.objetivoHoy), 0);
     const libre = saldo - comprometido;
     
@@ -436,7 +466,7 @@ function renderStats() {
     turnosRecientes.forEach(t => {
         totalIngresos += safeFloat(t.ganancia);
         const fin = new Date(t.fecha).getTime();
-        // Fallback: Si no hay inicio registrado (V7.8 Legacy), horas = 0
+        // Fallback V8: Si el turno tiene 'inicio', usarlo. Si no (V7), usar fallback 0.
         const inicio = t.inicio ? new Date(t.inicio).getTime() : fin; 
         const horas = (fin - inicio) / 3600000;
         
@@ -525,18 +555,27 @@ function renderStats() {
    SECCIÓN 5: ORQUESTADOR (INTEGRADO)
    ------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V7.8.3 FUSIONADO");
+    console.log("🚀 V8.0 FUSIONADO");
     loadData();
     
     const page = document.body.dataset.page;
     if (page === 'index') renderIndex();
     if (page === 'wallet') renderWallet();
     if (page === 'historial') renderHistorial();
-    if (page === 'stats') renderStats(); // <--- INTEGRACIÓN STATS
+    if (page === 'stats') renderStats();
     if (page === 'admin') {
         renderAdmin();
         
-        $('btnTurnoIniciar').onclick = () => { store.turnoActivo = { inicio: Date.now() }; saveData(); renderAdmin(); };
+        // --- LOGICA V8: INICIO DE TURNO (CAPTURAR TIEMPO Y KM) ---
+        $('btnTurnoIniciar').onclick = () => { 
+            store.turnoActivo = { 
+                inicio: Date.now(),
+                kmInicial: store.parametros.ultimoKM // NEW V8 REQ
+            }; 
+            saveData(); 
+            renderAdmin(); 
+        };
+        
         $('btnTurnoFinalizar').onclick = () => Modal.show("Fin Turno", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
         $('btnGasolina').onclick = () => Modal.show("Gasolina", [{label:"Litros",key:"l",type:"number"},{label:"Costo ($)",key:"c",type:"number"},{label:"KM Actual",key:"k",type:"number"}], d => actionGasolina(d.l, d.c, d.k));
         
