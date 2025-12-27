@@ -460,4 +460,139 @@ document.addEventListener('DOMContentLoaded', () => {
         $('btnExportJSON').onclick = () => navigator.clipboard.writeText(JSON.stringify(store)).then(() => alert("Copiado"));
         $('btnRestoreBackup').onclick = () => Modal.show("Restaurar", [{label:"Pegar JSON",key:"j"}], d => { try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); location.reload(); } catch(e){ alert("JSON Inválido"); } });
     }
-});
+   /* =============================================================
+   MÓDULO DE ESTADÍSTICAS (STATS V1) - READ ONLY
+   ============================================================= */
+
+function renderStats() {
+    if (!document.getElementById('statIngresoHora')) return;
+
+    // 1. FILTRADO DE DATOS (ÚLTIMOS 7 DÍAS)
+    const hoy = new Date();
+    const limite = new Date();
+    limite.setDate(hoy.getDate() - 7);
+
+    // Nota: Se asume que el objeto turno tiene 'inicio' (timestamp) para calcular horas.
+    // Si V7.8 no guarda 'inicio' en historial, la duración será 0 (fallback seguro).
+    const turnosRecientes = store.turnos.filter(t => new Date(t.fecha) >= limite);
+    
+    // 2. CÁLCULOS BÁSICOS
+    let totalIngresos = 0;
+    let totalHoras = 0;
+    const diasUnicos = new Set();
+
+    turnosRecientes.forEach(t => {
+        totalIngresos += safeFloat(t.ganancia);
+        
+        // Cálculo de duración (Diferencia de timestamps)
+        // t.fecha es el final. t.inicio debe existir.
+        const fin = new Date(t.fecha).getTime();
+        const inicio = t.inicio ? new Date(t.inicio).getTime() : fin; // Fallback a 0 si no hay inicio
+        const horas = (fin - inicio) / 3600000; // ms a horas
+        
+        totalHoras += horas;
+        diasUnicos.add(new Date(t.fecha).toDateString());
+    });
+
+    const diasTrabajados = diasUnicos.size;
+    const ingresoPromedioHora = totalHoras > 0 ? (totalIngresos / totalHoras) : 0;
+    const horasPromedioDia = diasTrabajados > 0 ? (totalHoras / diasTrabajados) : 0;
+    const ingresoDiarioProm = diasTrabajados > 0 ? (totalIngresos / diasTrabajados) : 0;
+    const metaDiaria = safeFloat(store.parametros.metaDiaria);
+
+    // 3. RENDERIZADO SECCIÓN 1: RESUMEN
+    $('statIngresoHora').innerText = totalHoras > 0 ? fmtMoney(ingresoPromedioHora) : "—";
+    $('statHorasTotal').innerText = totalHoras.toFixed(1) + "h";
+    $('statDiasTrabajados').innerText = diasTrabajados;
+
+    // 4. RENDERIZADO SECCIÓN 2: PRESIÓN
+    $('statMetaDiaria').innerText = fmtMoney(metaDiaria);
+    $('statIngresoDiario').innerText = fmtMoney(ingresoDiarioProm);
+    
+    const diff = ingresoDiarioProm - metaDiaria;
+    const elDiff = $('statDiferencia');
+    elDiff.innerText = (diff >= 0 ? "+" : "") + fmtMoney(diff);
+    elDiff.style.color = diff >= 0 ? "var(--success)" : "var(--danger)";
+
+    // 5. RENDERIZADO SECCIÓN 3: HORAS NECESARIAS (PROYECCIÓN)
+    let horasNecesarias = 0;
+    let estado = "NEUTRO";
+    const elHorasNec = $('statHorasNecesarias');
+    const elTag = $('statTagSem');
+    
+    // Solo calculamos si hay datos de ingreso por hora válidos
+    if (ingresoPromedioHora > 0 && metaDiaria > 0) {
+        // Cálculo: Cuántas horas al día (por 6 días) para cubrir la meta
+        // Meta Mensual Aprox = Meta Diaria * 30. 
+        // Meta Semanal = Meta Diaria * 7.
+        // Aquí simplificamos a Meta Diaria / Ingreso Hora directamente? 
+        // No, el usuario pide "Horas necesarias por día (6 días)".
+        // Asumimos que la Meta Diaria ya incluye gastos de 7 días prorrateados.
+        // Entonces necesitamos generar X dinero al día.
+        // Horas = Meta Diaria / Ingreso Por Hora.
+        
+        horasNecesarias = metaDiaria / ingresoPromedioHora;
+        elHorasNec.innerText = horasNecesarias.toFixed(1) + "h";
+        
+        // Lógica Semáforo
+        // Verde: Necesarias <= Promedio Actual + 1 (Holgura)
+        // Amarillo: Necesarias > Promedio + 1 pero <= 9 (Factible pero duro)
+        // Rojo: > 9 (Inviable)
+        
+        if (horasNecesarias <= (horasPromedioDia + 1)) {
+            estado = "VERDE";
+            elTag.innerText = "SOSTENIBLE";
+            elTag.style.background = "#dcfce7";
+            elTag.style.color = "#166534";
+            elHorasNec.style.color = "var(--success)";
+        } else if (horasNecesarias <= 9) {
+            estado = "AMARILLO";
+            elTag.innerText = "EXIGENTE";
+            elTag.style.background = "#fef9c3";
+            elTag.style.color = "#854d0e";
+            elHorasNec.style.color = "var(--warning)";
+        } else {
+            estado = "ROJO";
+            elTag.innerText = "CRÍTICO";
+            elTag.style.background = "#fee2e2";
+            elTag.style.color = "#991b1b";
+            elHorasNec.style.color = "var(--danger)";
+        }
+
+    } else {
+        elHorasNec.innerText = "—";
+        elTag.innerText = "SIN DATOS";
+        elTag.style.background = "#f1f5f9";
+        elTag.style.color = "#64748b";
+        elHorasNec.style.color = "var(--text-sec)";
+        estado = "INVALIDO";
+    }
+    
+    $('statHorasPromedio').innerText = horasPromedioDia.toFixed(1) + "h";
+
+    // 6. RENDERIZADO SECCIÓN 4: DIAGNÓSTICO (COPY EXACTO)
+    const elDiag = $('statsDiagnostico');
+    
+    if (estado === "INVALIDO") {
+        elDiag.innerText = "Información insuficiente para generar diagnóstico.";
+    } else {
+        let textoBase = `Con tu ingreso actual por hora, para cubrir tus obligaciones diarias necesitarías trabajar aproximadamente ${horasNecesarias.toFixed(1)} horas al día (calculado sobre base diaria). `;
+        
+        if (estado === "VERDE") {
+            textoBase += "Esto es acorde a tu ritmo actual.";
+        } else if (estado === "AMARILLO") {
+            textoBase += "Esto está por encima de tu promedio actual.";
+        } else if (estado === "ROJO") {
+            textoBase += "Esto excede una jornada operativa estándar.";
+        }
+        
+        elDiag.innerText = textoBase;
+    }
+}
+
+// EXTENSIÓN: Listener aislado para stats
+if (location.href.includes('stats.html') || document.body.dataset.page === 'stats') {
+    document.addEventListener('DOMContentLoaded', () => {
+        // Pequeño delay para asegurar que loadData (V7.8) haya corrido
+        setTimeout(renderStats, 100);
+    });
