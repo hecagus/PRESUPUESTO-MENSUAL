@@ -1,5 +1,5 @@
 /* =============================================================
-   APP.JS - V8.1 (WALLET FINAL + STATS V2)
+   APP.JS - V8.1 (WALLET FINAL + STATS V2 + UI CONTEXT)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -581,6 +581,58 @@ function renderStats() {
     }
 }
 
+// ============================================
+// UI CONTEXT: RENDERIZADO PASIVO PARA INDEX
+// ============================================
+function renderDashboardContext() {
+    if (!document.getElementById('uiTurnosHoy')) return;
+
+    const hoyStr = new Date().toDateString();
+    const turnosHoy = store.turnos.filter(t => new Date(t.fecha).toDateString() === hoyStr);
+
+    let totalGanancia = 0;
+    let totalHoras = 0;
+
+    turnosHoy.forEach(t => {
+        totalGanancia += safeFloat(t.ganancia);
+        let horas = 0;
+        if (typeof t.duracionHoras === 'number') {
+            horas = t.duracionHoras;
+        } else {
+            const fin = new Date(t.fecha).getTime();
+            const inicio = t.inicio ? new Date(t.inicio).getTime() : fin;
+            horas = (fin - inicio) / 3600000;
+        }
+        totalHoras += horas;
+    });
+
+    $('uiTurnosHoy').innerText = turnosHoy.length;
+    $('uiHorasHoy').innerText = totalHoras > 0 ? totalHoras.toFixed(1) + 'h' : '0h';
+    $('uiIngresoHoraHoy').innerText = totalHoras > 0 ? fmtMoney(totalGanancia / totalHoras) : '—';
+
+    const lista = $('uiCompromisos');
+    let htmlCompromisos = '';
+    
+    // Solo mostramos compromisos que requieren dinero HOY y NO han sido pagados
+    const compromisos = store.wallet.sobres.filter(s => {
+        const montoRequerido = Math.max(s.acumulado, s.objetivoHoy);
+        return montoRequerido > 0 && !s.pagadoHoy;
+    });
+
+    if (compromisos.length === 0) {
+        htmlCompromisos = '<span style="color:var(--text-sec)">Sin compromisos pendientes hoy.</span>';
+    } else {
+        htmlCompromisos = '<ul style="padding-left:16px; margin:0;">' +
+            compromisos.map(s => {
+                const monto = Math.max(s.acumulado, s.objetivoHoy);
+                return `<li style="margin-bottom:4px;">${s.desc}: <strong>${fmtMoney(monto)}</strong></li>`;
+            }).join('') +
+            '</ul>';
+    }
+    lista.innerHTML = htmlCompromisos;
+}
+
+
 /* -------------------------------------------------------------
    SECCIÓN 5: ORQUESTADOR (INTEGRADO)
    ------------------------------------------------------------- */
@@ -589,7 +641,10 @@ document.addEventListener('DOMContentLoaded', () => {
     loadData();
     
     const page = document.body.dataset.page;
-    if (page === 'index') renderIndex();
+    if (page === 'index') {
+        renderIndex();
+        renderDashboardContext(); // NEW UI
+    }
     if (page === 'wallet') renderWallet();
     if (page === 'historial') renderHistorial();
     if (page === 'stats') renderStats();
