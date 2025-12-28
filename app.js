@@ -1,5 +1,5 @@
 /* =============================================================
-   APP.JS - V8.2 (HOTFIX: DETECCIÓN DE ABONOS DEUDA)
+   APP.JS - V8.3 (CATEGORÍAS DINÁMICAS + FIX DEUDAS + STATS V2)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -7,7 +7,7 @@
    ------------------------------------------------------------- */
 const STORAGE_KEY = "moto_finanzas_vFinal";
 const LEGACY_KEYS = ["moto_finanzas_v3", "moto_finanzas", "app_moto_data"];
-const SCHEMA_VERSION = 8.2;
+const SCHEMA_VERSION = 8.3;
 
 const FRECUENCIAS = { 'Diario': 1, 'Semanal': 7, 'Quincenal': 15, 'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0 };
 const DIAS_SEMANA = [
@@ -15,7 +15,8 @@ const DIAS_SEMANA = [
     {val:"3", txt:"Miércoles"}, {val:"4", txt:"Jueves"}, {val:"5", txt:"Viernes"},
     {val:"6", txt:"Sábado"}, {val:"0", txt:"Domingo"}
 ];
-const CATEGORIAS = {
+// Categorías BASE (Inmutables)
+const CATEGORIAS_BASE = {
     operativo: ["Gasolina", "Mantenimiento", "Reparación", "Equipo", "Seguro"],
     hogar: ["Renta", "Comida", "Servicios", "Internet", "Salud", "Deudas", "Otro"]
 };
@@ -40,13 +41,15 @@ const INITIAL_STATE = {
         kmInicialConfigurado: false, 
         saldoInicialConfigurado: false 
     },
+    // V8.3: Almacén de categorías creadas por el usuario
+    categoriasPersonalizadas: { operativo: [], hogar: [] },
     turnoActivo: null
 };
 
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V8.2] Sistema Final Cargado.");
+    console.log("♻️ [V8.3] Sistema Dinámico Cargado.");
     let raw = localStorage.getItem(STORAGE_KEY);
     
     if (!raw || raw.length < 50) {
@@ -68,6 +71,13 @@ function loadData() {
             if(saved.wallet) store.wallet = { ...INITIAL_STATE.wallet, ...saved.wallet };
             if(saved.parametros) store.parametros = { ...INITIAL_STATE.parametros, ...saved.parametros };
             if(saved.turnoActivo) store.turnoActivo = saved.turnoActivo;
+            
+            // V8.3: Carga o inicializa categorías personalizadas
+            if(saved.categoriasPersonalizadas) {
+                store.categoriasPersonalizadas = saved.categoriasPersonalizadas;
+            } else {
+                store.categoriasPersonalizadas = { operativo: [], hogar: [] };
+            }
 
             // AUTO-MIGRACIÓN
             if (store.parametros.ultimoKM > 0) store.parametros.kmInicialConfigurado = true;
@@ -126,38 +136,30 @@ function calcularObjetivosYMeta() {
     const fechaHoyStr = new Date().toDateString();
     let sumaMetasDiarias = 0;
 
-    // Cache de movimientos de hoy para optimizar búsqueda
     const movimientosHoy = store.movimientos.filter(m => new Date(m.fecha).toDateString() === fechaHoyStr);
 
     store.wallet.sobres.forEach(s => {
-        // Reset flag de pago
         s.pagadoHoy = false;
         let yaPagado = false;
 
-        // --- FIX V8.2: DETECCIÓN UNIVERSAL DE PAGOS (Deudas y Gastos) ---
         if (s.tipo === 'deuda') {
-            // Las deudas se registran como "Abono: NombreDeuda"
             yaPagado = movimientosHoy.some(m => m.tipo === 'gasto' && m.desc === `Abono: ${s.desc}`);
         } else {
-            // Los gastos diarios se registran con su nombre exacto
             yaPagado = movimientosHoy.some(m => m.tipo === 'gasto' && m.desc === s.desc);
         }
 
         if (yaPagado) {
-            s.objetivoHoy = 0; // Ya se pagó hoy, liberamos el objetivo
-            s.pagadoHoy = true; // Flag visual para Wallet
+            s.objetivoHoy = 0; 
+            s.pagadoHoy = true; 
         } else {
-            // CÁLCULO SI NO SE HA PAGADO
             let ideal = 0;
             if(s.frecuencia === 'Semanal') ideal = (s.meta / 7) * (hoyIdx === 0 ? 7 : hoyIdx);
             else if(s.frecuencia === 'Mensual') ideal = (s.meta / 30) * diaMes;
             else if(s.frecuencia === 'Diario') ideal = s.meta; 
             else if(s.frecuencia === 'Anual') ideal = s.meta / 365;
-            
             s.objetivoHoy = Math.min(ideal, s.meta);
         }
         
-        // Cálculo de Meta Diaria Global (Solo suma lo pendiente por llenar/pagar)
         let aporteDiario = 0;
         if(s.frecuencia === 'Semanal') aporteDiario = s.meta / 7;
         else if(s.frecuencia === 'Mensual') aporteDiario = s.meta / 30;
@@ -176,7 +178,6 @@ function actionFinalizarTurno(kmFinal, ganancia) {
     const kF = safeFloat(kmFinal);
     if (kF < store.parametros.ultimoKM) return alert(`⛔ Error: KM actual es ${store.parametros.ultimoKM}. No puedes bajarlo.`);
     
-    // === LÓGICA V8.0: CÁLCULO DE TIEMPO REAL ===
     const fin = Date.now();
     const inicio = (store.turnoActivo && store.turnoActivo.inicio) ? store.turnoActivo.inicio : fin;
     const kmIni = (store.turnoActivo && store.turnoActivo.kmInicial) ? store.turnoActivo.kmInicial : store.parametros.ultimoKM;
@@ -199,16 +200,11 @@ function actionFinalizarTurno(kmFinal, ganancia) {
     };
 
     store.turnos.push(nuevoTurno);
-    
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Turno Finalizado', monto: safeFloat(ganancia) });
-    
     store.parametros.ultimoKM = kF; 
     store.turnoActivo = null; 
-    
-    sanearDatos(); 
-    renderAdmin();
+    sanearDatos(); renderAdmin();
 }
-
 function actionGasolina(l, c, k) {
     const km = safeFloat(k);
     if(km < store.parametros.ultimoKM && km > 0) return alert("⛔ KM inválido. No puedes bajar el kilometraje.");
@@ -250,7 +246,6 @@ function actionPagarRecurrente(id) {
     sanearDatos(); alert("✅ Pagado");
 }
 
-// === ACCIONES DE FUENTE DE VERDAD ===
 function actionConfigurarKM(nuevoKM) {
     if(store.parametros.kmInicialConfigurado || store.parametros.ultimoKM > 0) return alert("⛔ ACCIÓN DENEGADA. El kilometraje ya existe.");
     const km = safeFloat(nuevoKM); if(km <= 0) return alert("❌ El kilometraje debe ser mayor a 0.");
@@ -264,7 +259,8 @@ function actionSaldoInicial(monto) {
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Saldo Inicial', monto: inicial, categoria: 'Sistema' });
     store.parametros.saldoInicialConfigurado = true;
     sanearDatos(); renderAdmin(); alert("✅ Capital inicial registrado. Billetera activada.");
-        }
+}
+
 /* -------------------------------------------------------------
    SECCIÓN 4: RENDERIZADO (UI)
    ------------------------------------------------------------- */
@@ -295,7 +291,6 @@ function renderIndex() {
     $('resGananciaBruta').innerText = fmtMoney(gan);
 
     const saldo = store.wallet.saldo;
-    // V8.1: Comprometido considera 0 para diarios pagados
     const comprometido = store.wallet.sobres.reduce((a,b)=> a + Math.max(b.acumulado, b.objetivoHoy), 0);
     const libre = saldo - comprometido;
     
@@ -340,7 +335,6 @@ function renderWallet() {
         const pctIdeal = Math.min((s.objetivoHoy/s.meta)*100, 100);
         const diaTxt = s.diaPago ? ` (Día ${s.diaPago})` : '';
         
-        // --- VISUALIZACIÓN CUMPLIDA (DEUDA O GASTO) ---
         let avisoIdeal = "";
         
         if (s.pagadoHoy) {
@@ -399,7 +393,6 @@ function renderAdmin() {
     }
 
     const saldo = store.wallet.saldo;
-    // V8.1: Consistencia global en Admin
     const comprometido = store.wallet.sobres.reduce((a,b)=> a + Math.max(b.acumulado, b.objetivoHoy), 0);
     const libre = saldo - comprometido;
     
@@ -470,9 +463,8 @@ function renderAdmin() {
         });
     }
 }
-
 /* =============================================================
-   MÓDULO DE ESTADÍSTICAS (STATS V2) - TIME TRACKING
+   MÓDULO DE ESTADÍSTICAS (STATS V2)
    ============================================================= */
 function renderStats() {
     if (!document.getElementById('statIngresoHora')) return;
@@ -489,18 +481,14 @@ function renderStats() {
 
     turnosRecientes.forEach(t => {
         totalIngresos += safeFloat(t.ganancia);
-        
-        // STATS V2: Prioridad a duracionHoras (V8), fallback a cálculo (Legacy V7)
         let horas = 0;
         if (typeof t.duracionHoras === 'number') {
             horas = t.duracionHoras;
         } else {
-             // Fallback para turnos viejos
              const fin = new Date(t.fecha).getTime();
              const inicio = t.inicio ? new Date(t.inicio).getTime() : fin; 
              horas = (fin - inicio) / 3600000;
         }
-        
         totalHoras += horas;
         diasUnicos.add(new Date(t.fecha).toDateString());
     });
@@ -560,31 +548,20 @@ function renderStats() {
         elHorasNec.style.color = "var(--text-sec)";
         estado = "INVALIDO";
     }
-    
     $('statHorasPromedio').innerText = horasPromedioDia.toFixed(1) + "h";
 
     const elDiag = $('statsDiagnostico');
-    
     if (estado === "INVALIDO") {
         elDiag.innerText = "Información insuficiente para generar diagnóstico.";
     } else {
         let textoBase = `Con tu ingreso actual por hora, para cubrir tus obligaciones diarias necesitarías trabajar aproximadamente ${horasNecesarias.toFixed(1)} horas al día (calculado sobre base diaria). `;
-        
-        if (estado === "VERDE") {
-            textoBase += "Esto es acorde a tu ritmo actual.";
-        } else if (estado === "AMARILLO") {
-            textoBase += "Esto está por encima de tu promedio actual.";
-        } else if (estado === "ROJO") {
-            textoBase += "Esto excede una jornada operativa estándar.";
-        }
-        
+        if (estado === "VERDE") textoBase += "Esto es acorde a tu ritmo actual.";
+        else if (estado === "AMARILLO") textoBase += "Esto está por encima de tu promedio actual.";
+        else if (estado === "ROJO") textoBase += "Esto excede una jornada operativa estándar.";
         elDiag.innerText = textoBase;
     }
 }
 
-// ============================================
-// UI CONTEXT: RENDERIZADO PASIVO PARA INDEX
-// ============================================
 function renderDashboardContext() {
     if (!document.getElementById('uiTurnosHoy')) return;
 
@@ -614,7 +591,6 @@ function renderDashboardContext() {
     const lista = $('uiCompromisos');
     let htmlCompromisos = '';
     
-    // Solo mostramos compromisos que requieren dinero HOY y NO han sido pagados
     const compromisos = store.wallet.sobres.filter(s => {
         const montoRequerido = Math.max(s.acumulado, s.objetivoHoy);
         return montoRequerido > 0 && !s.pagadoHoy;
@@ -633,12 +609,11 @@ function renderDashboardContext() {
     lista.innerHTML = htmlCompromisos;
 }
 
-
 /* -------------------------------------------------------------
    SECCIÓN 5: ORQUESTADOR (INTEGRADO)
    ------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V8.2 WALLET FINAL + STATS V2 (FIX DEUDAS)");
+    console.log("🚀 V8.3 WALLET FINAL + CATEGORIAS DINAMICAS");
     loadData();
     
     const page = document.body.dataset.page;
@@ -664,7 +639,35 @@ document.addEventListener('DOMContentLoaded', () => {
         $('btnTurnoFinalizar').onclick = () => Modal.show("Fin Turno", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
         $('btnGasolina').onclick = () => Modal.show("Gasolina", [{label:"Litros",key:"l",type:"number"},{label:"Costo ($)",key:"c",type:"number"},{label:"KM Actual",key:"k",type:"number"}], d => actionGasolina(d.l, d.c, d.k));
         
-        const gastoWiz = (g) => Modal.show(`Nuevo ${g}`, [{label:"Descripción",key:"d"},{label:"Monto",key:"m",type:"number"},{label:"Categoría",key:"c",type:"select",options:CATEGORIAS[g.toLowerCase()].map(x=>({val:x,txt:x}))},{label:"Frecuencia",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({val:x,txt:x}))}], d => actionNuevoGasto(d.d, d.m, d.c, d.f));
+        // --- LOGICA V8.3: WIZARD DE GASTOS CON CATEGORIA DINÁMICA ---
+        const gastoWiz = (g) => {
+            const typeKey = g.toLowerCase();
+            // Fusionamos categorías base + personalizadas
+            const customCats = (store.categoriasPersonalizadas && store.categoriasPersonalizadas[typeKey]) ? store.categoriasPersonalizadas[typeKey] : [];
+            const allCats = [...CATEGORIAS_BASE[typeKey], ...customCats, "➕ Crear nueva..."];
+
+            Modal.show(`Nuevo ${g}`, [
+                {label:"Descripción",key:"d"},
+                {label:"Monto",key:"m",type:"number"},
+                {label:"Categoría",key:"c",type:"select",options:allCats.map(x=>({val:x,txt:x}))},
+                {label:"Frecuencia",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({val:x,txt:x}))}
+            ], d => {
+                let catFinal = d.c;
+                // Si seleccionó crear nueva, pedimos nombre y guardamos
+                if (catFinal === "➕ Crear nueva...") {
+                    const nueva = prompt(`Escribe el nombre de la nueva categoría para ${g}:`);
+                    if (!nueva || nueva.trim() === "") return alert("Cancelado: Nombre inválido");
+                    catFinal = nueva.trim();
+                    
+                    if (!store.categoriasPersonalizadas) store.categoriasPersonalizadas = { operativo: [], hogar: [] };
+                    if (!store.categoriasPersonalizadas[typeKey]) store.categoriasPersonalizadas[typeKey] = [];
+                    store.categoriasPersonalizadas[typeKey].push(catFinal);
+                    saveData();
+                }
+                actionNuevoGasto(d.d, d.m, catFinal, d.f);
+            });
+        };
+
         $('btnGastoHogar').onclick = () => gastoWiz('Hogar');
         $('btnGastoOperativo').onclick = () => gastoWiz('Operativo');
         
@@ -676,7 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
             {label:"Día de Pago",key:"dp",type:"select",options:DIAS_SEMANA}
         ], d => actionNuevaDeuda(d.d, d.t, d.c, d.f, d.dp));
         
-            $('btnAbonoCuota').onclick = () => { 
+        $('btnAbonoCuota').onclick = () => { 
             const v = $('abonoDeudaSelect').value; 
             if(!v) return alert("⚠️ Selecciona una deuda");
             if(confirm("¿Confirmar abono de cuota?")) actionAbonarDeuda(v); 
@@ -686,3 +689,4 @@ document.addEventListener('DOMContentLoaded', () => {
         $('btnRestoreBackup').onclick = () => Modal.show("Restaurar", [{label:"Pegar JSON",key:"j"}], d => { try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); location.reload(); } catch(e){ alert("JSON Inválido"); } });
     }
 });
+
