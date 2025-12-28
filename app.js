@@ -1,5 +1,5 @@
 /* =============================================================
-   APP.JS - V8.1 (WALLET FINAL + STATS V2 + UI CONTEXT)
+   APP.JS - V8.2 (HOTFIX: DETECCIÓN DE ABONOS DEUDA)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -7,7 +7,7 @@
    ------------------------------------------------------------- */
 const STORAGE_KEY = "moto_finanzas_vFinal";
 const LEGACY_KEYS = ["moto_finanzas_v3", "moto_finanzas", "app_moto_data"];
-const SCHEMA_VERSION = 8.1;
+const SCHEMA_VERSION = 8.2;
 
 const FRECUENCIAS = { 'Diario': 1, 'Semanal': 7, 'Quincenal': 15, 'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0 };
 const DIAS_SEMANA = [
@@ -46,7 +46,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V8.1] Sistema Final Cargado.");
+    console.log("♻️ [V8.2] Sistema Final Cargado.");
     let raw = localStorage.getItem(STORAGE_KEY);
     
     if (!raw || raw.length < 50) {
@@ -132,30 +132,32 @@ function calcularObjetivosYMeta() {
     store.wallet.sobres.forEach(s => {
         // Reset flag de pago
         s.pagadoHoy = false;
+        let yaPagado = false;
 
-        // --- FIX OBJETIVO 1: GASTOS DIARIOS YA PAGADOS ---
-        if (s.tipo === 'gasto' && s.frecuencia === 'Diario') {
-            // Buscamos si existe un gasto hoy con la misma descripción
-            const yaPagado = movimientosHoy.some(m => m.tipo === 'gasto' && m.desc === s.desc);
-            
-            if (yaPagado) {
-                s.objetivoHoy = 0; // Ya se pagó, no requiere reservar dinero
-                s.pagadoHoy = true; // Flag visual
-            } else {
-                s.objetivoHoy = s.meta; // Aún no se paga, reservar
-            }
+        // --- FIX V8.2: DETECCIÓN UNIVERSAL DE PAGOS (Deudas y Gastos) ---
+        if (s.tipo === 'deuda') {
+            // Las deudas se registran como "Abono: NombreDeuda"
+            yaPagado = movimientosHoy.some(m => m.tipo === 'gasto' && m.desc === `Abono: ${s.desc}`);
         } else {
-            // CÁLCULO ESTÁNDAR PARA OTROS SOBRES
+            // Los gastos diarios se registran con su nombre exacto
+            yaPagado = movimientosHoy.some(m => m.tipo === 'gasto' && m.desc === s.desc);
+        }
+
+        if (yaPagado) {
+            s.objetivoHoy = 0; // Ya se pagó hoy, liberamos el objetivo
+            s.pagadoHoy = true; // Flag visual para Wallet
+        } else {
+            // CÁLCULO SI NO SE HA PAGADO
             let ideal = 0;
             if(s.frecuencia === 'Semanal') ideal = (s.meta / 7) * (hoyIdx === 0 ? 7 : hoyIdx);
             else if(s.frecuencia === 'Mensual') ideal = (s.meta / 30) * diaMes;
-            else if(s.frecuencia === 'Diario') ideal = s.meta; // Fallback por si acaso
+            else if(s.frecuencia === 'Diario') ideal = s.meta; 
             else if(s.frecuencia === 'Anual') ideal = s.meta / 365;
             
             s.objetivoHoy = Math.min(ideal, s.meta);
         }
         
-        // Cálculo de Meta Diaria Global (Solo suma lo pendiente por llenar)
+        // Cálculo de Meta Diaria Global (Solo suma lo pendiente por llenar/pagar)
         let aporteDiario = 0;
         if(s.frecuencia === 'Semanal') aporteDiario = s.meta / 7;
         else if(s.frecuencia === 'Mensual') aporteDiario = s.meta / 30;
@@ -262,8 +264,7 @@ function actionSaldoInicial(monto) {
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Saldo Inicial', monto: inicial, categoria: 'Sistema' });
     store.parametros.saldoInicialConfigurado = true;
     sanearDatos(); renderAdmin(); alert("✅ Capital inicial registrado. Billetera activada.");
-}
-
+        }
 /* -------------------------------------------------------------
    SECCIÓN 4: RENDERIZADO (UI)
    ------------------------------------------------------------- */
@@ -339,7 +340,7 @@ function renderWallet() {
         const pctIdeal = Math.min((s.objetivoHoy/s.meta)*100, 100);
         const diaTxt = s.diaPago ? ` (Día ${s.diaPago})` : '';
         
-        // --- FIX OBJETIVO 2: VISUALIZACIÓN CUMPLIDA ---
+        // --- VISUALIZACIÓN CUMPLIDA (DEUDA O GASTO) ---
         let avisoIdeal = "";
         
         if (s.pagadoHoy) {
@@ -637,13 +638,13 @@ function renderDashboardContext() {
    SECCIÓN 5: ORQUESTADOR (INTEGRADO)
    ------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V8.1 WALLET FINAL + STATS V2");
+    console.log("🚀 V8.2 WALLET FINAL + STATS V2 (FIX DEUDAS)");
     loadData();
     
     const page = document.body.dataset.page;
     if (page === 'index') {
         renderIndex();
-        renderDashboardContext(); // NEW UI
+        renderDashboardContext(); 
     }
     if (page === 'wallet') renderWallet();
     if (page === 'historial') renderHistorial();
@@ -675,7 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
             {label:"Día de Pago",key:"dp",type:"select",options:DIAS_SEMANA}
         ], d => actionNuevaDeuda(d.d, d.t, d.c, d.f, d.dp));
         
-        $('btnAbonoCuota').onclick = () => { 
+            $('btnAbonoCuota').onclick = () => { 
             const v = $('abonoDeudaSelect').value; 
             if(!v) return alert("⚠️ Selecciona una deuda");
             if(confirm("¿Confirmar abono de cuota?")) actionAbonarDeuda(v); 
