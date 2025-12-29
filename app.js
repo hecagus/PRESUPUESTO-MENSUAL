@@ -1,5 +1,5 @@
 /* =============================================================
-   APP.JS - V8.4 (MODELO FINANCIERO ESTRICTO - OBLIGACIONES X TIEMPO)
+   APP.JS - V8.7 (UI/UX REFACTOR - LENGUAJE OPERATIVO)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -7,10 +7,9 @@
    ------------------------------------------------------------- */
 const STORAGE_KEY = "moto_finanzas_vFinal";
 const LEGACY_KEYS = ["moto_finanzas_v3", "moto_finanzas", "app_moto_data"];
-const SCHEMA_VERSION = 8.4;
+const SCHEMA_VERSION = 8.7;
 
 const FRECUENCIAS = { 'Diario': 1, 'Semanal': 7, 'Quincenal': 15, 'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0 };
-// Mapeo de días para cálculo de ciclos (Lunes=1 ... Domingo=7 para facilitar mates)
 const MAPA_DIAS = { 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 0:7 }; 
 const DIAS_SEMANA = [
     {val:"", txt:"Seleccionar..."}, {val:"1", txt:"Lunes"}, {val:"2", txt:"Martes"},
@@ -18,7 +17,6 @@ const DIAS_SEMANA = [
     {val:"6", txt:"Sábado"}, {val:"0", txt:"Domingo"}
 ];
 
-// Categorías BASE
 const CATEGORIAS_BASE = {
     operativo: ["Gasolina", "Mantenimiento", "Reparación", "Equipo", "Seguro"],
     hogar: ["Renta", "Comida", "Servicios", "Internet", "Salud", "Deudas", "Otro"]
@@ -41,7 +39,8 @@ const INITIAL_STATE = {
         ultimoKM: 0, 
         costoPorKm: 0, 
         metaDiaria: 0, 
-        deficitTotal: 0, // NUEVO V8.4
+        metaBase: 0, 
+        deficitTotal: 0,
         kmInicialConfigurado: false, 
         saldoInicialConfigurado: false 
     },
@@ -52,7 +51,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V8.4] Modelo Financiero Estricto Cargado.");
+    console.log("♻️ [V8.7] UI Psicológica Cargada.");
     let raw = localStorage.getItem(STORAGE_KEY);
     
     if (!raw || raw.length < 50) {
@@ -78,7 +77,6 @@ function loadData() {
             if(saved.categoriasPersonalizadas) store.categoriasPersonalizadas = saved.categoriasPersonalizadas;
             else store.categoriasPersonalizadas = { operativo: [], hogar: [] };
 
-            // AUTO-MIGRACIÓN
             if (store.parametros.ultimoKM > 0) store.parametros.kmInicialConfigurado = true;
             
             sanearDatos();
@@ -89,7 +87,6 @@ function loadData() {
 function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
 
 function sanearDatos() {
-    // 1. Recalcular Saldo
     let saldo = 0;
     store.movimientos.forEach(m => {
         if (m.tipo === 'ingreso') saldo += safeFloat(m.monto);
@@ -97,7 +94,6 @@ function sanearDatos() {
     });
     store.wallet.saldo = saldo;
 
-    // 2. Recalcular KM
     const kms = [
         store.parametros.ultimoKM || 0,
         ...store.turnos.map(t => t.kmFinal || 0),
@@ -105,13 +101,12 @@ function sanearDatos() {
     ];
     store.parametros.ultimoKM = Math.max(...kms);
 
-    // 3. Limpieza de Turno
     if (store.turnoActivo && (!store.turnoActivo.inicio || !Number.isFinite(store.turnoActivo.inicio))) {
         store.turnoActivo = null;
     }
 
     reconstruirSobres();
-    calcularObjetivosYMeta(); // <--- AQUÍ OCURRE LA MAGIA V8.4
+    calcularObjetivosYMeta();
     saveData();
 }
 
@@ -129,18 +124,15 @@ function reconstruirSobres() {
     store.gastosFijosMensuales.forEach(g => ensureSobre(g.id, 'gasto', g.desc, g.monto, g.frecuencia));
 }
 
-// === [CORE V8.4] MOTOR FINANCIERO ESTRICTO ===
+// LÓGICA FINANCIERA V8.4/8.6 (INTACTA - NO TOCAR)
 function calcularObjetivosYMeta() {
     const fechaHoy = new Date();
-    const hoyIdx = MAPA_DIAS[fechaHoy.getDay()]; // 1=Lun ... 7=Dom
+    const hoyIdx = MAPA_DIAS[fechaHoy.getDay()];
     const diaMes = fechaHoy.getDate();
     const fechaHoyStr = fechaHoy.toDateString();
     
-    // 1. CÁLCULO DE META ESTÁTICA BASE (OBLIGACIONES FIJAS)
-    // Esto es lo que "cuesta" vivir hoy, pagues o no pagues.
     let metaEstaticaBase = 0;
     
-    // Sumar cuotas diarias de deudas
     store.deudas.forEach(d => {
         if(d.saldo <= 0) return;
         let cuotaDiaria = 0;
@@ -150,7 +142,6 @@ function calcularObjetivosYMeta() {
         metaEstaticaBase += cuotaDiaria;
     });
 
-    // Sumar gastos fijos diarios
     store.gastosFijosMensuales.forEach(g => {
         let cuotaDiaria = 0;
         if(g.frecuencia === 'Diario') cuotaDiaria = safeFloat(g.monto);
@@ -159,7 +150,6 @@ function calcularObjetivosYMeta() {
         metaEstaticaBase += cuotaDiaria;
     });
     
-    // 2. ANÁLISIS DE SOBRES (DÉFICIT Y ESTADO)
     const movimientosHoy = store.movimientos.filter(m => new Date(m.fecha).toDateString() === fechaHoyStr);
     let deficitAcumulado = 0;
 
@@ -167,67 +157,40 @@ function calcularObjetivosYMeta() {
         s.pagadoHoy = false;
         let yaPagado = false;
 
-        // Detección de pago en historial
         if (s.tipo === 'deuda') {
             yaPagado = movimientosHoy.some(m => m.tipo === 'gasto' && m.desc === `Abono: ${s.desc}`);
         } else {
             yaPagado = movimientosHoy.some(m => m.tipo === 'gasto' && m.desc === s.desc);
         }
 
-        // CÁLCULO DEL "IDEAL HOY" (Lo que deberías tener acumulado según el día del ciclo)
         let idealTeorico = 0;
         
         if (s.frecuencia === 'Diario') {
             idealTeorico = s.meta;
         } else if (s.frecuencia === 'Semanal') {
-            // Lógica de ciclo semanal estricta
-            const diaPago = parseInt(s.diaPago) || 7; // Si no hay día, asume Domingo (7)
-            // Calcular días transcurridos desde el último día de pago
-            // Si hoy es Domingo (7) y pago Domingo (7), días = 7 (Ciclo lleno)
-            // Si hoy es Lunes (1) y pago Domingo (7), días = 1 (Nuevo ciclo)
+            const diaPago = parseInt(s.diaPago) || 7; 
             let diasTranscurridos = 0;
-            
-            if (hoyIdx === diaPago) {
-                diasTranscurridos = 7; // Día de pago: Debes tener todo
-            } else if (hoyIdx > diaPago) {
-                diasTranscurridos = hoyIdx - diaPago;
-            } else {
-                diasTranscurridos = (7 - diaPago) + hoyIdx;
-            }
+            if (hoyIdx === diaPago) diasTranscurridos = 7; 
+            else if (hoyIdx > diaPago) diasTranscurridos = hoyIdx - diaPago;
+            else diasTranscurridos = (7 - diaPago) + hoyIdx;
             
             const cuotaDiaria = s.meta / 7;
             idealTeorico = cuotaDiaria * diasTranscurridos;
-            
         } else if (s.frecuencia === 'Mensual') {
              idealTeorico = (s.meta / 30) * diaMes;
         }
         
-        // APLICACIÓN DE ESTADO
         if (yaPagado) {
             s.pagadoHoy = true;
-            // SI ES DIARIO (COMIDA): La obligación desaparece por hoy
             if (s.frecuencia === 'Diario') {
                 s.objetivoHoy = 0;
-            } 
-            // SI ES ACUMULATIVO (DEUDA): La obligación se reinicia al ciclo actual
-            else {
-                // Si pagué hoy, mi acumulado bajó a 0 (o remanente).
-                // Pero mi "Objetivo Hoy" debe reflejar en qué día del ciclo estoy.
-                // Si pago el Viernes (día de pago), el Sábado debo tener 1 cuota.
-                // Si pago HOY (y hoy no es el día de pago perfecto, o sí), 
-                // el sistema debe exigir lo que corresponde a la nueva acumulación.
-                
-                // CASO ESPECIAL: Si pago el día de pago, el contador reinicia mañana. 
-                // Pero si pago con retraso, el déficit sigue.
-                // Simplificación V8.4: Objetivo Hoy = Ideal Teórico.
+            } else {
                 s.objetivoHoy = idealTeorico;
             }
         } else {
             s.objetivoHoy = Math.min(idealTeorico, s.meta);
         }
         
-        // CÁLCULO DE DÉFICIT
-        // Solo para acumulativos. Si lo que tengo < lo que debo tener por tiempo.
         if (s.frecuencia !== 'Diario') {
             if (s.acumulado < s.objetivoHoy) {
                 deficitAcumulado += (s.objetivoHoy - s.acumulado);
@@ -235,18 +198,9 @@ function calcularObjetivosYMeta() {
         }
     });
 
-    // 3. META FINAL = BASE + DÉFICIT
     store.parametros.deficitTotal = deficitAcumulado;
-    
-    // Si ya se pagó el gasto diario (comida), no lo sumamos a la meta de "recaudar hoy", 
-    // porque ya salió del flujo. PERO la Meta Base Estática (punto 1) ya lo incluye 
-    // para reportes. Aquí ajustamos la "Meta Operativa del Día" para el Dashboard.
-    
-    // Ajuste fino: La Meta Diaria que se muestra en el panel debe ser:
-    // (Lo que falta por cubrir de gastos hoy) + (Cuotas de deuda de hoy) + (Déficit atrasado)
-    // Para simplificar y cumplir la regla "Nunca es $0", usaremos la Meta Estática Base + Déficit.
-    
-    store.parametros.metaDiaria = metaEstaticaBase + deficitAcumulado + (120 * safeFloat(store.parametros.costoPorKm));
+    store.parametros.metaBase = metaEstaticaBase + (120 * safeFloat(store.parametros.costoPorKm));
+    store.parametros.metaDiaria = store.parametros.metaBase + deficitAcumulado;
 }
 
 /* -------------------------------------------------------------
@@ -260,8 +214,7 @@ function actionFinalizarTurno(kmFinal, ganancia) {
     const inicio = (store.turnoActivo && store.turnoActivo.inicio) ? store.turnoActivo.inicio : fin;
     const kmIni = (store.turnoActivo && store.turnoActivo.kmInicial) ? store.turnoActivo.kmInicial : store.parametros.ultimoKM;
 
-    const duracionMs = fin - inicio;
-    const duracionMin = duracionMs / 60000;
+    const duracionMin = (fin - inicio) / 60000;
     const duracionHoras = duracionMin / 60;
 
     const nuevoTurno = {
@@ -339,9 +292,8 @@ function actionSaldoInicial(monto) {
     store.parametros.saldoInicialConfigurado = true;
     sanearDatos(); renderAdmin(); alert("✅ Capital inicial registrado. Billetera activada.");
 }
-
 /* -------------------------------------------------------------
-   SECCIÓN 4: RENDERIZADO (UI)
+   SECCIÓN 4: RENDERIZADO (UI V8.7 - COPY FINTECH)
    ------------------------------------------------------------- */
 const Modal = {
     show: (t, inputs, cb) => {
@@ -370,86 +322,158 @@ function renderIndex() {
     $('resGananciaBruta').innerText = fmtMoney(gan);
 
     const saldo = store.wallet.saldo;
-    // Comprometido es lo que ya está apartado FÍSICAMENTE
-    const comprometido = store.wallet.sobres.reduce((a,b)=> a + b.acumulado, 0);
-    const libre = saldo - comprometido;
+    const resguardado = store.wallet.sobres.reduce((a,b)=> a + b.acumulado, 0);
+    const efectivoDisponible = saldo - resguardado; // Puede ser negativo si faltó dinero físico
     const deficit = store.parametros.deficitTotal || 0;
+
+    // DETERMINAR ESTADO OPERATIVO (Sin pánico)
+    let estadoHTML = '';
     
-    // Alertas de sobres que necesitan dinero
-    let avisos = store.wallet.sobres
-        .filter(s => (s.objetivoHoy - s.acumulado) > 5 && !s.pagadoHoy) // Tolerancia $5
-        .map(s => `<li style="color:#d97706; margin-bottom:4px;">Faltan <strong>${fmtMoney(s.objetivoHoy - s.acumulado)}</strong> para ${s.desc}</li>`);
+    // CASO 1: HAY EFECTIVO POR DISTRIBUIR
+    if (efectivoDisponible > 5) {
+        estadoHTML = `
+        <div class="card" style="border-left: 4px solid var(--warning); background:#fffbeb;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <strong style="color:#b45309;">✋ Por Distribuir</strong>
+                    <div style="font-size:1.2rem; font-weight:bold; color:#1e293b;">${fmtMoney(efectivoDisponible)}</div>
+                </div>
+                <a href="wallet.html" style="font-size:0.8rem; text-decoration:none; color:#b45309; border:1px solid #b45309; padding:4px 8px; border-radius:4px;">Ir a Wallet →</a>
+            </div>
+            <small style="color:#78350f; display:block; margin-top:5px;">Tienes dinero sin asignar. Muévelo a sus sobres.</small>
+        </div>`;
+    } 
+    // CASO 2: FALTA EFECTIVO (DÉFICIT DE CAJA)
+    else if (efectivoDisponible < -5) {
+        estadoHTML = `
+        <div class="card" style="border-left: 4px solid var(--danger); background:#fef2f2;">
+            <strong style="color:#991b1b;">📉 Falta Efectivo</strong>
+            <div style="font-size:1.2rem; font-weight:bold; color:#1e293b;">${fmtMoney(Math.abs(efectivoDisponible))}</div>
+            <small style="color:#7f1d1d;">La caja física no cubre lo guardado en sobres.</small>
+        </div>`;
+    }
+    // CASO 3: CAJA CUADRADA (Todo OK)
+    else {
+        estadoHTML = `
+        <div class="card" style="border-left: 4px solid var(--success); background:#f0fdf4;">
+            <strong style="color:#166534;">✨ Operativamente Listo</strong>
+            <small style="color:#14532d; display:block;">Todo el dinero tiene destino.</small>
+        </div>`;
+    }
+
+    // LISTA DE PRIORIDADES (Solo si hay urgencias)
+    let prioridades = store.wallet.sobres
+        .filter(s => (s.objetivoHoy - s.acumulado) > 5 && !s.pagadoHoy)
+        .map(s => `<li style="margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #eee;">
+            <div style="display:flex; justify-content:space-between;">
+                <span>${s.desc}</span>
+                <strong style="color:#d97706;">Requiere: ${fmtMoney(s.objetivoHoy - s.acumulado)}</strong>
+            </div>
+        </li>`).join('');
 
     const html = `
-    <div class="card" style="border-left: 4px solid ${libre>=0?'var(--success)':'var(--danger)'}">
-        <p><strong>Caja Total:</strong> ${fmtMoney(saldo)}</p>
-        <p><strong>En Sobres:</strong> ${fmtMoney(comprometido)}</p>
+    <div class="card" style="padding:15px; text-align:center;">
+        <small style="color:var(--text-sec); text-transform:uppercase; font-size:0.75rem; letter-spacing:1px;">Dinero Real en Caja</small>
+        <div style="font-size:2.5rem; font-weight:800; color:var(--text-main); line-height:1.2;">${fmtMoney(saldo)}</div>
         
-        ${deficit > 0 ? `<div style="margin:10px 0; padding:8px; background:#fee2e2; border-radius:6px; color:#991b1b; font-size:0.9rem;"><strong>⚠️ Déficit Acumulado:</strong> ${fmtMoney(deficit)}<br><small>Dinero que debiste guardar y no está.</small></div>` : ''}
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:15px; border-top:1px solid #f1f5f9; padding-top:10px;">
+            <div>
+                <small style="color:var(--primary); font-weight:bold;">🔒 Resguardado</small>
+                <div style="font-weight:600;">${fmtMoney(resguardado)}</div>
+            </div>
+            <div>
+                <small style="color:var(--text-sec);">🪙 Disponible</small>
+                <div style="font-weight:600; color:${efectivoDisponible>=0?'var(--text-main)':'var(--danger)'}">${fmtMoney(efectivoDisponible)}</div>
+            </div>
+        </div>
+    </div>
 
-        <hr style="margin:10px 0; border:0; border-top:1px dashed #ccc;">
-        <p style="font-size:1.1rem; color:${libre>=0?'var(--success)':'var(--danger)'}; font-weight:bold;">
-            ${libre>=0?'✅ Libre: ':'⚠️ Déficit Caja: '} ${fmtMoney(libre)}
-        </p>
-        <ul style="margin-top:10px; font-size:0.85rem; padding-left:20px;">
-            ${avisos.length ? avisos.join('') : '<li style="color:var(--success)">✨ Todo al día.</li>'}
-        </ul>
-    </div>`;
+    ${estadoHTML}
+    
+    ${deficit > 0 ? `<div class="card" style="background:#fff7ed; border:1px solid #fed7aa; color:#9a3412;">
+        <strong style="display:block; margin-bottom:2px;">⏳ Pendiente Acumulado: ${fmtMoney(deficit)}</strong>
+        <small>Recuperación necesaria de días previos.</small>
+    </div>` : ''}
+
+    ${prioridades ? `<div class="card">
+        <h3 style="font-size:0.9rem; color:var(--text-sec); margin-bottom:10px;">📋 Prioridades de Asignación</h3>
+        <ul style="list-style:none; padding:0; font-size:0.85rem;">${prioridades}</ul>
+    </div>` : ''}
+    `;
+    
     const container = $('resumenHumanoContainer'); if(container) container.innerHTML = html;
 }
 
 function renderWallet() {
     if (!$('valWallet')) return;
     const saldo = store.wallet.saldo;
-    const comprometido = store.wallet.sobres.reduce((acc, s) => acc + s.acumulado, 0);
-    const libre = saldo - comprometido;
+    const resguardado = store.wallet.sobres.reduce((a,b)=> a + b.acumulado, 0);
+    const disponible = saldo - resguardado;
 
-    $('valWallet').innerHTML = `${fmtMoney(saldo)}<br><small style="font-size:0.9rem; opacity:0.9; font-weight:normal">(${fmtMoney(comprometido)} en sobres / ${fmtMoney(libre)} libre)</small>`;
+    // Header más educativo
+    $('valWallet').innerHTML = `
+        ${fmtMoney(saldo)}
+        <div style="display:flex; justify-content:center; gap:15px; margin-top:5px; font-size:0.85rem;">
+            <span style="opacity:0.9">🔒 Resguardado: <strong>${fmtMoney(resguardado)}</strong></span>
+            <span style="opacity:0.9">✋ Por Distribuir: <strong>${fmtMoney(disponible)}</strong></span>
+        </div>
+    `;
     
     const container = $('sobresContainer'); 
     if(!container) return;
     container.innerHTML = '';
     
     store.wallet.sobres.forEach(s => {
-        // Visualización: Comparamos Acumulado vs Objetivo del Día (Ideal por tiempo)
-        const valorVisual = s.acumulado;
-        const metaVisual = s.objetivoHoy > 0 ? s.objetivoHoy : s.meta; // Para la barra de progreso
+        // UI FIX: Gastos diarios cumplidos se minimizan
+        if (s.frecuencia === 'Diario' && s.pagadoHoy) {
+            container.innerHTML += `
+            <div class="card" style="padding:12px 15px; border-left:4px solid var(--success); background:#f8fafc; opacity:0.7;">
+                <div style="display:flex; justify-content:space-between; align-items: center;">
+                    <span style="color:#64748b;">${s.desc}</span>
+                    <span style="font-size:0.8rem; color:var(--success); font-weight:bold;">✔ Cubierto hoy</span>
+                </div>
+            </div>`;
+            return;
+        }
+
+        let valorFisico = s.acumulado;
+        let obligacionTiempo = s.objetivoHoy; 
         
-        const pct = Math.min((valorVisual/metaVisual)*100, 100);
-        // Marcador del ideal (dónde debería estar la barra hoy)
-        const pctIdeal = Math.min((s.objetivoHoy/metaVisual)*100, 100);
+        const metaVisual = obligacionTiempo > 0 ? obligacionTiempo : s.meta;
+        const pctFisico = Math.min((valorFisico/s.meta)*100, 100); 
+        const pctTiempo = Math.min((obligacionTiempo/s.meta)*100, 100);
         
         const diaTxt = s.diaPago ? ` (Día ${s.diaPago})` : '';
-        
-        let avisoIdeal = "";
-        
-        if (s.pagadoHoy && s.frecuencia === 'Diario') {
-            avisoIdeal = `<div style="font-size:0.75rem; color:var(--success); margin-top:2px; font-weight:bold;">✔ Pagado hoy</div>`;
-        } else if (s.objetivoHoy > s.acumulado) {
-            // Es deuda acumulativa y falta dinero para estar al día con el ciclo
-            avisoIdeal = `<div style="font-size:0.75rem; color:#dc2626; margin-top:2px; font-weight:bold;">⚠️ Debes tener: ${fmtMoney(s.objetivoHoy)}</div>`;
-            if (s.pagadoHoy) {
-                avisoIdeal += `<span style="font-size:0.7rem; color:var(--success); margin-left:5px;">(Pagaste cuota anterior)</span>`;
-            }
+        let mensajeEstado = "";
+        let colorEstado = s.tipo==='deuda'?'#dc2626':'#2563eb';
+
+        if (valorFisico < obligacionTiempo) {
+            const falta = obligacionTiempo - valorFisico;
+            mensajeEstado = `<div style="font-size:0.75rem; color:#d97706; margin-top:2px; font-weight:600;">Requiere hoy: ${fmtMoney(obligacionTiempo)}</div>`;
+        } else {
+             mensajeEstado = `<div style="font-size:0.75rem; color:var(--success); margin-top:2px;">✨ Ciclo al día</div>`;
         }
 
         container.innerHTML += `
-        <div class="card" style="padding:15px; border-left:5px solid ${s.tipo==='deuda'?'#dc2626':'#2563eb'}">
+        <div class="card" style="padding:15px; border-left:5px solid ${colorEstado}">
             <div style="display:flex; justify-content:space-between; margin-bottom:5px; align-items: flex-start;">
-                <strong>${s.desc}${diaTxt}</strong>
+                <div>
+                    <strong>${s.desc}${diaTxt}</strong>
+                    <div style="font-size:0.75rem; color:#666;">Meta Total: ${fmtMoney(s.meta)}</div>
+                </div>
                 <div style="text-align:right;">
-                    <small style="display:block; font-weight:bold;">${fmtMoney(valorVisual)} / ${fmtMoney(s.meta)}</small>
-                    ${avisoIdeal}
+                    <small style="display:block; font-weight:bold; font-size:1.1rem;">${fmtMoney(valorFisico)}</small>
+                    ${mensajeEstado}
                 </div>
             </div>
-            <div style="height:10px; background:#e2e8f0; border-radius:5px; position:relative; overflow:hidden;">
-                <div style="width:${pct}%; background:${s.tipo==='deuda'?'#dc2626':'#2563eb'}; height:100%;"></div>
-                ${s.objetivoHoy > 0 ? `<div style="position:absolute; top:0; left:${pctIdeal}%; width:3px; height:100%; background:rgba(0,0,0,0.6); z-index:2;" title="Objetivo Hoy"></div>` : ''}
+            <div style="height:12px; background:#e2e8f0; border-radius:6px; position:relative; overflow:hidden; margin-top:8px;">
+                <div style="width:${pctFisico}%; background:${colorEstado}; height:100%;"></div>
+                ${obligacionTiempo > 0 ? `<div style="position:absolute; top:0; left:${pctTiempo}%; width:4px; height:100%; background:rgba(0,0,0,0.8); z-index:2;" title="Objetivo Temporal"></div>` : ''}
             </div>
+            ${obligacionTiempo > 0 ? `<div style="font-size:0.65rem; color:#94a3b8; text-align:right; margin-top:2px;">Marca negra: Objetivo por tiempo</div>` : ''}
         </div>`;
     });
-}
-
+               }
 function renderHistorial() {
     if (!$('tablaBody')) return;
     if (!store.movimientos || store.movimientos.length === 0) {
@@ -483,12 +507,11 @@ function renderAdmin() {
     }
 
     const saldo = store.wallet.saldo;
-    // En admin mostramos la realidad física
-    const comprometido = store.wallet.sobres.reduce((a,b)=> a + b.acumulado, 0);
-    const libre = saldo - comprometido;
+    const resguardado = store.wallet.sobres.reduce((a,b)=> a + b.acumulado, 0);
+    const disponible = saldo - resguardado;
     
     if($('valSaldoAdmin')) $('valSaldoAdmin').innerText = fmtMoney(saldo);
-    if($('valDesgloseAdmin')) $('valDesgloseAdmin').innerText = `(${fmtMoney(comprometido)} en sobres / ${fmtMoney(libre)} libre)`;
+    if($('valDesgloseAdmin')) $('valDesgloseAdmin').innerText = `(${fmtMoney(resguardado)} resguardado / ${fmtMoney(disponible)} disponible)`;
 
     const btnSaldo = $('btnConfigSaldo');
     if (store.parametros.saldoInicialConfigurado) {
@@ -499,7 +522,23 @@ function renderAdmin() {
         btnSaldo.onclick = () => Modal.show("Capital Inicial", [{label:"¿Cuánto dinero tienes actualmente?",key:"s",type:"number"}], d => actionSaldoInicial(d.s));
     }
 
-    if ($('metaDiariaValor')) $('metaDiariaValor').innerText = fmtMoney(store.parametros.metaDiaria || 0);
+    // COPY FIX: Meta Diaria Educativa
+    const metaValor = $('metaDiariaValor');
+    if (metaValor) {
+        const meta = safeFloat(store.parametros.metaDiaria);
+        metaValor.innerText = fmtMoney(meta);
+        
+        // Cambiamos el título de "Meta Diaria Obligatoria" a "Objetivo Producción Hoy"
+        const cardTitle = metaValor.previousElementSibling;
+        if(cardTitle) cardTitle.innerText = "🎯 Objetivo Producción Hoy";
+
+        const descDiv = metaValor.nextElementSibling;
+        if(descDiv && descDiv.className === 'hero-desc') {
+            const base = safeFloat(store.parametros.metaBase);
+            const deficit = safeFloat(store.parametros.deficitTotal);
+            descDiv.innerHTML = `Base Operativa: ${fmtMoney(base)}<br>+ Recuperación Pendiente: <span style="color:#ef4444; font-weight:bold;">${fmtMoney(deficit)}</span>`;
+        }
+    }
 
     const activo = !!store.turnoActivo;
     const btnIni = $('btnTurnoIniciar');
@@ -555,9 +594,6 @@ function renderAdmin() {
     }
 }
 
-/* =============================================================
-   MÓDULO DE ESTADÍSTICAS (STATS V2)
-   ============================================================= */
 function renderStats() {
     if (!document.getElementById('statIngresoHora')) return;
 
@@ -606,37 +642,15 @@ function renderStats() {
     let horasNecesarias = 0;
     let estado = "NEUTRO";
     const elHorasNec = $('statHorasNecesarias');
-    const elTag = $('statTagSem');
     
     if (ingresoPromedioHora > 0 && metaDiaria > 0) {
         horasNecesarias = metaDiaria / ingresoPromedioHora;
         elHorasNec.innerText = horasNecesarias.toFixed(1) + "h";
-        
-        if (horasNecesarias <= (horasPromedioDia + 1)) {
-            estado = "VERDE";
-            elTag.innerText = "SOSTENIBLE";
-            elTag.style.background = "#dcfce7";
-            elTag.style.color = "#166534";
-            elHorasNec.style.color = "var(--success)";
-        } else if (horasNecesarias <= 9) {
-            estado = "AMARILLO";
-            elTag.innerText = "EXIGENTE";
-            elTag.style.background = "#fef9c3";
-            elTag.style.color = "#854d0e";
-            elHorasNec.style.color = "var(--warning)";
-        } else {
-            estado = "ROJO";
-            elTag.innerText = "CRÍTICO";
-            elTag.style.background = "#fee2e2";
-            elTag.style.color = "#991b1b";
-            elHorasNec.style.color = "var(--danger)";
-        }
-
+        if (horasNecesarias <= (horasPromedioDia + 1)) { estado = "VERDE"; elHorasNec.style.color = "var(--success)"; }
+        else if (horasNecesarias <= 9) { estado = "AMARILLO"; elHorasNec.style.color = "var(--warning)"; }
+        else { estado = "ROJO"; elHorasNec.style.color = "var(--danger)"; }
     } else {
         elHorasNec.innerText = "—";
-        elTag.innerText = "SIN DATOS";
-        elTag.style.background = "#f1f5f9";
-        elTag.style.color = "#64748b";
         elHorasNec.style.color = "var(--text-sec)";
         estado = "INVALIDO";
     }
@@ -646,14 +660,15 @@ function renderStats() {
     if (estado === "INVALIDO") {
         elDiag.innerText = "Información insuficiente para generar diagnóstico.";
     } else {
-        let textoBase = `Con tu ingreso actual por hora, para cubrir tus obligaciones diarias necesitarías trabajar aproximadamente ${horasNecesarias.toFixed(1)} horas al día (calculado sobre base diaria). `;
-        if (estado === "VERDE") textoBase += "Esto es acorde a tu ritmo actual.";
-        else if (estado === "AMARILLO") textoBase += "Esto está por encima de tu promedio actual.";
-        else if (estado === "ROJO") textoBase += "Esto excede una jornada operativa estándar.";
+        let textoBase = `Con tu ritmo actual, necesitas trabajar aprox. ${horasNecesarias.toFixed(1)}h diarias para cubrir tu estructura + pendientes. `;
+        if (estado === "VERDE") textoBase += "Vas a buen ritmo.";
+        else if (estado === "AMARILLO") textoBase += "Es un poco más de lo habitual.";
+        else if (estado === "ROJO") textoBase += "Es una jornada muy larga. Considera ajustar gastos.";
         elDiag.innerText = textoBase;
     }
 }
 
+// CONTEXTO DE PANEL (Versión Simplificada)
 function renderDashboardContext() {
     if (!document.getElementById('uiTurnosHoy')) return;
 
@@ -679,35 +694,16 @@ function renderDashboardContext() {
     $('uiTurnosHoy').innerText = turnosHoy.length;
     $('uiHorasHoy').innerText = totalHoras > 0 ? totalHoras.toFixed(1) + 'h' : '0h';
     $('uiIngresoHoraHoy').innerText = totalHoras > 0 ? fmtMoney(totalGanancia / totalHoras) : '—';
-
-    const lista = $('uiCompromisos');
-    let htmlCompromisos = '';
     
-    // Muestra compromisos que NO se han cubierto (por déficit o por día)
-    const compromisos = store.wallet.sobres.filter(s => {
-        // En V8.4, si es diario y pagado, no sale. Si es deuda y pagado pero hay déficit, sale.
-        if (s.frecuencia === 'Diario' && s.pagadoHoy) return false;
-        return s.acumulado < s.objetivoHoy;
-    });
-
-    if (compromisos.length === 0) {
-        htmlCompromisos = '<span style="color:var(--text-sec)">Sin compromisos pendientes hoy.</span>';
-    } else {
-        htmlCompromisos = '<ul style="padding-left:16px; margin:0;">' +
-            compromisos.map(s => {
-                const monto = s.objetivoHoy; // V8.4 muestra lo que DEBERÍAS tener
-                return `<li style="margin-bottom:4px;">${s.desc}: <strong>${fmtMoney(monto)}</strong></li>`;
-            }).join('') +
-            '</ul>';
-    }
-    lista.innerHTML = htmlCompromisos;
+    // El listado de compromisos se movió al componente principal (Card de Prioridades) para limpiar la UI
+    // Aquí solo dejamos el resumen de actividad
+    const lista = $('uiCompromisos');
+    lista.innerHTML = ''; // Limpiamos para no duplicar
+    lista.parentElement.style.display = 'none'; // Ocultamos la tarjeta vieja de compromisos
 }
 
-/* -------------------------------------------------------------
-   SECCIÓN 5: ORQUESTADOR (INTEGRADO)
-   ------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V8.4 WALLET FINAL + STRICT FINANCIAL MODEL");
+    console.log("🚀 V8.7 FINAL UI/UX UPDATE");
     loadData();
     
     const page = document.body.dataset.page;
@@ -733,7 +729,6 @@ document.addEventListener('DOMContentLoaded', () => {
         $('btnTurnoFinalizar').onclick = () => Modal.show("Fin Turno", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
         $('btnGasolina').onclick = () => Modal.show("Gasolina", [{label:"Litros",key:"l",type:"number"},{label:"Costo ($)",key:"c",type:"number"},{label:"KM Actual",key:"k",type:"number"}], d => actionGasolina(d.l, d.c, d.k));
         
-        // WIZARD DE GASTOS (CATEGORIAS DINÁMICAS V8.3)
         const gastoWiz = (g) => {
             const typeKey = g.toLowerCase();
             const customCats = (store.categoriasPersonalizadas && store.categoriasPersonalizadas[typeKey]) ? store.categoriasPersonalizadas[typeKey] : [];
@@ -780,3 +775,4 @@ document.addEventListener('DOMContentLoaded', () => {
         $('btnRestoreBackup').onclick = () => Modal.show("Restaurar", [{label:"Pegar JSON",key:"j"}], d => { try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); location.reload(); } catch(e){ alert("JSON Inválido"); } });
     }
 });
+           
