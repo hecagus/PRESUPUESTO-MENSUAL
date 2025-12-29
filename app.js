@@ -1,5 +1,5 @@
 /* =============================================================
-   APP.JS - V8.7 (FINTECH UI - ESTRUCTURA VS CAJA)
+   APP.JS - V8.7.1 (REFACTOR SEMÁNTICO - MORA VS CICLO)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -7,7 +7,7 @@
    ------------------------------------------------------------- */
 const STORAGE_KEY = "moto_finanzas_vFinal";
 const LEGACY_KEYS = ["moto_finanzas_v3", "moto_finanzas", "app_moto_data"];
-const SCHEMA_VERSION = 8.7;
+const SCHEMA_VERSION = 8.71;
 
 const FRECUENCIAS = { 'Diario': 1, 'Semanal': 7, 'Quincenal': 15, 'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0 };
 const MAPA_DIAS = { 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 0:7 }; 
@@ -51,7 +51,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V8.7] Fintech UI Loaded.");
+    console.log("♻️ [V8.7.1] Semantic UI Refactor Loaded.");
     let raw = localStorage.getItem(STORAGE_KEY);
     
     if (!raw || raw.length < 50) {
@@ -201,7 +201,7 @@ function calcularObjetivosYMeta() {
     store.parametros.deficitTotal = deficitAcumulado;
     store.parametros.metaBase = metaEstaticaBase + (120 * safeFloat(store.parametros.costoPorKm));
     store.parametros.metaDiaria = store.parametros.metaBase + deficitAcumulado;
-}
+                                                              }
 /* -------------------------------------------------------------
    SECCIÓN 3: ACCIONES
    ------------------------------------------------------------- */
@@ -292,7 +292,7 @@ function actionSaldoInicial(monto) {
     sanearDatos(); renderAdmin(); alert("✅ Capital inicial registrado. Billetera activada.");
 }
 /* -------------------------------------------------------------
-   SECCIÓN 4: RENDERIZADO (UI V8.7 - MODELO MENTAL CORRECTO)
+   SECCIÓN 4: RENDERIZADO (UI V8.7.1 - MODELO MENTAL CORRECTO)
    ------------------------------------------------------------- */
 const Modal = {
     show: (t, inputs, cb) => {
@@ -320,39 +320,70 @@ function renderIndex() {
     const gan = store.turnos.filter(t => new Date(t.fecha).toDateString() === hoy).reduce((a, b) => a + b.ganancia, 0);
     $('resGananciaBruta').innerText = fmtMoney(gan);
 
-    // CÁLCULO VISUAL PANEL: Caja vs Estructura
+    // 1. ANÁLISIS DE CAJA REAL
     const saldo = store.wallet.saldo;
     
-    // Comprometido = Lo que DEBE haber en sobres hoy (Objetivo Tiempo) + Deudas Diarias
-    let comprometidoHoy = 0;
+    // 2. ANÁLISIS ESTRUCTURAL (¿Hay mora real o solo ciclo?)
+    let moraReal = 0;
+    let obligacionesHoy = 0; // Suma de lo que el sistema pide HOY
+
+    const hoyIdx = MAPA_DIAS[new Date().getDay()];
+    const diaMes = new Date().getDate();
+
     store.wallet.sobres.forEach(s => {
+        // Resguardado por estructura: sumamos el objetivoHoy
         if (!s.pagadoHoy) {
-            comprometidoHoy += s.objetivoHoy;
+            obligacionesHoy += s.objetivoHoy;
+        }
+
+        // Detección de Mora Real (Fix V8.7.1)
+        if (s.frecuencia !== 'Diario') {
+            const diaPago = parseInt(s.diaPago || 7);
+            let cicloVencido = false;
+
+            if (s.frecuencia === 'Semanal') cicloVencido = (hoyIdx > diaPago);
+            else if (s.frecuencia === 'Mensual') cicloVencido = (diaMes > diaPago);
+
+            if (cicloVencido && s.acumulado < s.meta) {
+                moraReal += (s.meta - s.acumulado); // Falta total de ciclo vencido
+            }
         }
     });
 
-    // Disponible = Realidad - Estructura
-    const disponible = saldo - comprometidoHoy;
-    const deficit = store.parametros.deficitTotal || 0;
+    const disponible = saldo - obligacionesHoy;
 
     let estadoHTML = '';
     
-    // SOLO mostramos estado rojo si hay Déficit REAL (Mora)
-    if (deficit > 0) {
+    // LÓGICA DE ESTADOS DEL PANEL (PRIORIDAD: CAJA > MORA > ESTRUCTURA)
+    
+    // CASO 1: FALTA DINERO FÍSICO (ROJO CRÍTICO)
+    if (disponible < -5) {
         estadoHTML = `
         <div class="card" style="border-left: 4px solid var(--danger); background:#fef2f2;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <strong style="color:#991b1b;">⚠️ Mora Acumulada</strong>
-                <div style="font-weight:bold; color:#7f1d1d;">${fmtMoney(deficit)}</div>
+                <strong style="color:#991b1b;">📉 Déficit de Caja</strong>
+                <div style="font-weight:bold; color:#7f1d1d;">${fmtMoney(Math.abs(disponible))}</div>
             </div>
-            <small style="color:#7f1d1d;">Regularizar atrasos previos.</small>
+            <small style="color:#7f1d1d;">Falta efectivo para cubrir estructura.</small>
         </div>`;
-    } else {
-        // Si no hay mora, el sistema está en orden operativo
+    } 
+    // CASO 2: HAY MORA REAL VENCIDA (ROJO ESTRUCTURAL)
+    else if (moraReal > 0) {
+        estadoHTML = `
+        <div class="card" style="border-left: 4px solid var(--danger); background:#fff1f2;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong style="color:#be123c;">⚠️ Mora Vencida</strong>
+                <div style="font-weight:bold; color:#be123c;">${fmtMoney(moraReal)}</div>
+            </div>
+            <small style="color:#9f1239;">Obligaciones expiradas sin cubrir.</small>
+        </div>`;
+    } 
+    // CASO 3: CICLO EN CURSO (VERDE OPERATIVO)
+    else {
         estadoHTML = `
         <div class="card" style="border-left: 4px solid var(--success); background:#f0fdf4;">
-            <strong style="color:#166534;">✨ Estructura al Día</strong>
-            <small style="color:#14532d; display:block;">Ciclos operativos vigentes.</small>
+            <strong style="color:#166534;">✨ Operativamente Activo</strong>
+            <small style="color:#14532d; display:block;">Ciclos vigentes en orden.</small>
         </div>`;
     }
 
@@ -364,8 +395,8 @@ function renderIndex() {
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:15px; border-top:1px solid #f1f5f9; padding-top:10px;">
             <div>
                 <small style="color:var(--primary); font-weight:bold;">🔒 Resguardado</small>
-                <div style="font-weight:600; font-size:1rem;">${fmtMoney(comprometidoHoy)}</div>
-                <small style="font-size:0.7rem; color:#64748b;">(Compromisos Activos)</small>
+                <div style="font-weight:600; font-size:1rem;">${fmtMoney(obligacionesHoy)}</div>
+                <small style="font-size:0.7rem; color:#64748b;">(Estructura Hoy)</small>
             </div>
             <div>
                 <small style="color:var(--text-sec);">🪙 Disponible</small>
@@ -384,18 +415,15 @@ function renderWallet() {
     if (!$('valWallet')) return;
     const saldo = store.wallet.saldo;
     
-    // Cálculo coherente con Panel
-    let comprometidoHoy = 0;
-    store.wallet.sobres.forEach(s => {
-        if (!s.pagadoHoy) comprometidoHoy += s.objetivoHoy;
-    });
-    const disponible = saldo - comprometidoHoy;
+    // Header consistente con Panel
+    let obligacionesHoy = 0;
+    store.wallet.sobres.forEach(s => { if (!s.pagadoHoy) obligacionesHoy += s.objetivoHoy; });
+    const disponible = saldo - obligacionesHoy;
 
-    // Header simplificado
     $('valWallet').innerHTML = `
         ${fmtMoney(saldo)}
         <div style="display:flex; justify-content:center; gap:15px; margin-top:5px; font-size:0.85rem;">
-            <span style="opacity:0.9">🔒 Estructura: <strong>${fmtMoney(comprometidoHoy)}</strong></span>
+            <span style="opacity:0.9">🔒 Estructura: <strong>${fmtMoney(obligacionesHoy)}</strong></span>
             <span style="opacity:0.9">🪙 Disponible: <strong>${fmtMoney(disponible)}</strong></span>
         </div>
     `;
@@ -404,9 +432,11 @@ function renderWallet() {
     if(!container) return;
     container.innerHTML = '';
     
+    const hoyIdx = MAPA_DIAS[new Date().getDay()];
+    const diaMes = new Date().getDate();
+
     store.wallet.sobres.forEach(s => {
-        // LOGICA VISUAL DE SOBRES:
-        // Si es diario y se pagó:
+        // 1. Gastos Diarios Pagados (Minimizados)
         if (s.frecuencia === 'Diario' && s.pagadoHoy) {
             container.innerHTML += `
             <div class="card" style="padding:12px 15px; border-left:4px solid var(--success); background:#f8fafc; opacity:0.7;">
@@ -418,9 +448,14 @@ function renderWallet() {
             return;
         }
 
-        // VISUALIZACIÓN DE CICLOS (ACUMULATIVOS)
-        // El número grande siempre es el OBJETIVO POR TIEMPO (Estructura)
-        // No mostramos $0.00 si hay ciclo vigente.
+        // 2. Análisis de Ciclo vs Mora
+        let esMora = false;
+        if (s.frecuencia !== 'Diario') {
+            const diaPago = parseInt(s.diaPago || 7);
+            if (s.frecuencia === 'Semanal') esMora = (hoyIdx > diaPago && s.acumulado < s.meta);
+            else if (s.frecuencia === 'Mensual') esMora = (diaMes > diaPago && s.acumulado < s.meta);
+        }
+
         let valorMostrado = s.objetivoHoy > 0 ? s.objetivoHoy : s.meta;
         let valorFisico = s.acumulado;
         
@@ -429,18 +464,18 @@ function renderWallet() {
         let colorEstado = s.tipo==='deuda'?'#dc2626':'#2563eb';
         let mensajeEstado = "";
         
-        // Estado del ciclo
         if (s.frecuencia === 'Diario') {
-            // Gasto diario activo
             mensajeEstado = `<div style="font-size:0.75rem; color:#64748b;">Ciclo diario activo</div>`;
         } else {
-            // Acumulativo
-            if (s.acumulado < s.objetivoHoy) {
-                // Estamos construyendo el ciclo, es normal.
-                // Solo alertamos si hay DÉFICIT REAL (Mora) calculado en la lógica
-                // Si estamos dentro del ciclo, es "En progreso"
+            if (esMora) {
+                // ROJO: Mora Real
+                mensajeEstado = `<div style="font-size:0.75rem; color:var(--danger); font-weight:bold;">⚠️ Atraso Vencido</div>`;
+                colorEstado = '#dc2626'; // Forzamos rojo
+            } else if (s.acumulado < s.objetivoHoy) {
+                // GRIS/AZUL: Ciclo en progreso (Normal)
                 mensajeEstado = `<div style="font-size:0.75rem; color:#64748b;">Ciclo en progreso</div>`;
             } else {
+                // VERDE: Cubierto
                 mensajeEstado = `<div style="font-size:0.75rem; color:var(--success);">Cubierto por tiempo</div>`;
             }
         }
@@ -463,7 +498,8 @@ function renderWallet() {
             <div style="font-size:0.65rem; color:#94a3b8; text-align:right; margin-top:2px;">Acumulado físico: ${fmtMoney(valorFisico)}</div>
         </div>`;
     });
-}
+                       }
+
 function renderHistorial() {
     if (!$('tablaBody')) return;
     if (!store.movimientos || store.movimientos.length === 0) {
@@ -497,11 +533,11 @@ function renderAdmin() {
     }
 
     const saldo = store.wallet.saldo;
-    let comprometidoHoy = 0;
-    store.wallet.sobres.forEach(s => { if (!s.pagadoHoy) comprometidoHoy += s.objetivoHoy; });
+    let obligacionesHoy = 0;
+    store.wallet.sobres.forEach(s => { if (!s.pagadoHoy) obligacionesHoy += s.objetivoHoy; });
     
     if($('valSaldoAdmin')) $('valSaldoAdmin').innerText = fmtMoney(saldo);
-    if($('valDesgloseAdmin')) $('valDesgloseAdmin').innerText = `(${fmtMoney(comprometidoHoy)} comprometido estructural)`;
+    if($('valDesgloseAdmin')) $('valDesgloseAdmin').innerText = `(${fmtMoney(obligacionesHoy)} estructura hoy)`;
 
     const btnSaldo = $('btnConfigSaldo');
     if (store.parametros.saldoInicialConfigurado) {
@@ -524,12 +560,21 @@ function renderAdmin() {
         const descDiv = metaValor.nextElementSibling;
         if(descDiv && descDiv.className === 'hero-desc') {
             const base = safeFloat(store.parametros.metaBase);
-            const deficit = safeFloat(store.parametros.deficitTotal);
-            
-            // Solo mostramos "Mora" si existe, si no, es ciclo normal
+            // Cálculo local de Mora para UI Admin
+            let moraReal = 0;
+            const hoyIdx = MAPA_DIAS[new Date().getDay()];
+            const diaMes = new Date().getDate();
+            store.wallet.sobres.forEach(s => {
+                if(s.frecuencia !== 'Diario') {
+                    const diaPago = parseInt(s.diaPago || 7);
+                    let cv = (s.frecuencia === 'Semanal') ? (hoyIdx > diaPago) : (diaMes > diaPago);
+                    if(cv && s.acumulado < s.meta) moraReal += (s.meta - s.acumulado);
+                }
+            });
+
             let extraText = "";
-            if (deficit > 0) {
-                extraText = `+ Mora: <span style="color:#ef4444; font-weight:bold;">${fmtMoney(deficit)}</span>`;
+            if (moraReal > 0) {
+                extraText = `+ Mora Vencida: <span style="color:#ef4444; font-weight:bold;">${fmtMoney(moraReal)}</span>`;
             } else {
                 extraText = "+ Ciclo vigente";
             }
@@ -700,7 +745,7 @@ function renderDashboardContext() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V8.7 FINTECH SEMANTICS UI");
+    console.log("🚀 V8.7.1 FINTECH SEMANTICS UI");
     loadData();
     
     const page = document.body.dataset.page;
@@ -772,4 +817,4 @@ document.addEventListener('DOMContentLoaded', () => {
         $('btnRestoreBackup').onclick = () => Modal.show("Restaurar", [{label:"Pegar JSON",key:"j"}], d => { try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); location.reload(); } catch(e){ alert("JSON Inválido"); } });
     }
 });
-               
+   
