@@ -1,4 +1,3 @@
-
 /* =============================================================
    APP.JS - V9.0 (UI PURO - MOTOR V8.8 ORIGINAL)
    ============================================================= */
@@ -200,7 +199,7 @@ function calcularObjetivosYMeta() {
     store.parametros.metaBase = metaEstaticaBase; // Sin costo por KM (V8.8)
     store.parametros.metaDiaria = store.parametros.metaBase + moraVencidaReal;
 }
-/* -------------------------------------------------------------
+   /* -------------------------------------------------------------
    SECCIÓN 3: ACCIONES (STANDARD V8.8)
    ------------------------------------------------------------- */
 function actionFinalizarTurno(kmFinal, ganancia) {
@@ -323,7 +322,9 @@ function actionSaldoInicial(monto) {
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Saldo Inicial', monto: inicial, categoria: 'Sistema' });
     store.parametros.saldoInicialConfigurado = true;
     sanearDatos(); renderAdmin(); alert("✅ Capital inicial registrado.");
-                            }
+       }
+
+
 /* -------------------------------------------------------------
    SECCIÓN 4: RENDERIZADO (UI V9.0 - INTERPRETACIÓN VISUAL)
    ------------------------------------------------------------- */
@@ -557,7 +558,7 @@ function renderWallet() {
             </div>
         </div>`;
     });
-               }
+                                                                                             }
 function renderHistorial() {
     if (!$('tablaBody')) return;
     if (!store.movimientos || store.movimientos.length === 0) {
@@ -731,4 +732,4 @@ document.addEventListener('DOMContentLoaded', () => {
         $('btnRestoreBackup').onclick = () => Modal.show("Restaurar", [{label:"JSON",key:"j"}], d => { try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); location.reload(); } catch(e){ alert("Error"); } });
     }
 });
-   
+                                                        
