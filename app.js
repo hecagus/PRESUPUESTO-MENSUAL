@@ -1,5 +1,5 @@
 /* =============================================================
-   APP.JS - V9.1 (HOTFIX UI & CONSISTENCIA)
+   APP.JS - V9.2 (UI CONSISTENCY FIX)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -7,7 +7,7 @@
    ------------------------------------------------------------- */
 const STORAGE_KEY = "moto_finanzas_vFinal";
 const LEGACY_KEYS = ["moto_finanzas_v3", "moto_finanzas", "app_moto_data"];
-const SCHEMA_VERSION = 9.1;
+const SCHEMA_VERSION = 9.2;
 
 const FRECUENCIAS = { 'Diario': 1, 'Semanal': 7, 'Quincenal': 15, 'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0 };
 const MAPA_DIAS = { 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 0:7 }; 
@@ -52,7 +52,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V9.1] UI Patched & Consistent.");
+    console.log("♻️ [V9.2] UI Fix Loaded (Engine V8.8).");
     let raw = localStorage.getItem(STORAGE_KEY);
     
     if (!raw || raw.length < 50) {
@@ -126,7 +126,6 @@ function reconstruirSobres() {
     store.gastosFijosMensuales.forEach(g => ensureSobre(g.id, 'gasto', g.desc, g.monto, g.frecuencia, null, g.categoria));
 }
 
-// MOTOR FINANCIERO V8.8 (INTACTO)
 function calcularObjetivosYMeta() {
     const fechaHoy = new Date();
     const hoyIdx = MAPA_DIAS[fechaHoy.getDay()];
@@ -304,10 +303,9 @@ function actionSaldoInicial(monto) {
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Saldo Inicial', monto: inicial, categoria: 'Sistema' });
     store.parametros.saldoInicialConfigurado = true;
     sanearDatos(); renderAdmin(); alert("✅ Capital inicial registrado.");
-                            }
-
+       }
 /* -------------------------------------------------------------
-   SECCIÓN 4: RENDERIZADO (UI V9.1 HOTFIX)
+   SECCIÓN 4: RENDERIZADO (UI V9.2)
    ------------------------------------------------------------- */
 const Modal = {
     show: (t, inputs, cb) => {
@@ -357,18 +355,19 @@ function renderIndex() {
     
     const disponible = saldo - obligacionesHoy - ahorroTotal;
 
-    // FIX CONSISTENCIA: Usar la misma Meta Base que Admin
+    // FIX 1: Meta en Panel = Meta en Admin
     const metaExigible = safeFloat(store.parametros.metaDiaria); 
     
     const ritmoMsg = deficitRitmo > 1 ? `+${fmtMoney(deficitRitmo)} para ritmo ideal` : "Ritmo óptimo";
     
-    // FIX COPY NEGATIVO
+    // FIX 3: Copy Déficit Claro
     let libreLabel = "Libre";
     let libreColor = "var(--text-sec)";
     let libreValColor = "var(--text-main)";
     
     if (disponible < 0) {
-        libreLabel = "⚠️ Déficit de Caja";
+        // Explicación honesta: Falta efectivo vs estructura (muchas veces por ciclos)
+        libreLabel = "⚠️ Falta Efec. vs Estructura";
         libreColor = "var(--danger)";
         libreValColor = "var(--danger)";
     }
@@ -388,7 +387,7 @@ function renderIndex() {
                 <div style="font-weight:600; font-size:0.9rem;">${fmtMoney(ahorroTotal)}</div>
             </div>
             <div style="text-align:center;">
-                <small style="color:${libreColor};">${libreLabel}</small>
+                <small style="color:${libreColor}; font-size:0.7rem;">${libreLabel}</small>
                 <div style="font-weight:600; font-size:0.9rem; color:${libreValColor}">${fmtMoney(disponible)}</div>
             </div>
         </div>
@@ -398,7 +397,7 @@ function renderIndex() {
         <div class="card" style="padding:12px; background:#fff1f2; border:1px solid #fda4af;">
             <strong style="color:#be123c; font-size:0.8rem;">🎯 EXIGIBLE HOY</strong>
             <div style="font-weight:800; color:#881337; font-size:1.1rem;">${fmtMoney(metaExigible)}</div>
-            <small style="color:#9f1239; font-size:0.7rem;">Mínimo Vital + Mora</small>
+            <small style="color:#9f1239; font-size:0.7rem;">Base Operativa + Mora</small>
         </div>
         <div class="card" style="padding:12px; background:#f0fdf4; border:1px solid #86efac;">
             <strong style="color:#15803d; font-size:0.8rem;">📈 RECOMENDADO</strong>
@@ -425,7 +424,6 @@ function renderWallet() {
     
     store.wallet.sobres.forEach(s => { if (s.categoria === 'Ahorro' || s.categoria === 'Meta') ahorroTotal += s.acumulado; });
     
-    // FIX HERO COLAPSIBLE
     let heroHtml = '';
     if (ahorroTotal > 0) {
         heroHtml = `
@@ -447,7 +445,6 @@ function renderWallet() {
     const diaMes = new Date().getDate();
 
     store.wallet.sobres.forEach(s => {
-        // TIPO 1: AHORRO
         if (s.categoria === 'Ahorro' || s.categoria === 'Meta') {
             const pct = s.meta > 0 ? Math.min((s.acumulado / s.meta) * 100, 100) : 0;
             container.innerHTML += `
@@ -467,7 +464,6 @@ function renderWallet() {
             return;
         }
 
-        // TIPO 2: GASOLINA (Si existe)
         const esGas = s.categoria === 'Operativo' && (s.desc.toLowerCase().includes('gas') || s.desc.toLowerCase().includes('combustible'));
         if (esGas) {
              const pct = s.meta > 0 ? Math.min((s.acumulado / s.meta) * 100, 100) : 100;
@@ -484,7 +480,6 @@ function renderWallet() {
             return;
         }
 
-        // TIPO 3: DIARIO PAGADO
         if (s.frecuencia === 'Diario' && s.pagadoHoy) {
             container.innerHTML += `
             <div class="card" style="padding:10px 15px; border-left:4px solid #cbd5e1; background:#f8fafc; opacity:0.6;">
@@ -496,7 +491,6 @@ function renderWallet() {
             return;
         }
 
-        // TIPO 4: ESTRUCTURA
         let esMora = false;
         if (s.frecuencia !== 'Diario') {
             const diaPago = parseInt(s.diaPago || 7);
@@ -519,10 +513,10 @@ function renderWallet() {
                 mensajeEstado = `<span style="color:#dc2626; font-weight:bold;">⚠️ Vencido</span>`;
                 colorEstado = '#dc2626';
             } else if (s.acumulado < s.objetivoHoy) {
-                // FIX VISUAL: Badge de Ciclo Vigente
+                // FIX 4: Wallet Cycle Badge
                 const gap = s.objetivoHoy - s.acumulado;
                 mensajeEstado = `<span style="color:#64748b;">En progreso (+${fmtMoney(gap)})</span>`;
-                badge = `<span style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:4px; font-size:0.65rem; margin-left:5px;">Ciclo Vigente</span>`;
+                badge = `<span style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:4px; font-size:0.65rem; margin-left:5px; border:1px solid #bfdbfe;">Ciclo Vigente - No Exigible</span>`;
             } else {
                 mensajeEstado = `<span style="color:#16a34a;">Ciclo cubierto</span>`;
                 colorEstado = '#16a34a';
@@ -547,7 +541,7 @@ function renderWallet() {
         </div>`;
     });
 }
-   function renderHistorial() {
+function renderHistorial() {
     if (!$('tablaBody')) return;
     if (!store.movimientos || store.movimientos.length === 0) {
          $('tablaBody').innerHTML = '<tr><td colspan="3" class="text-center" style="padding:20px;">Sin datos recientes</td></tr>';
@@ -568,17 +562,26 @@ function renderWallet() {
 function renderAdmin() {
     if (!$('kmActual')) return;
     
-    // FIX DEUDAS EMPTY STATE
+    // FIX 5: Deudas sin alarma visual si no hay vencimiento
     const ul = $('listaDeudasAdmin');
     if(ul) {
         if(store.deudas.length === 0) {
             ul.innerHTML = '<div style="text-align:center; padding:15px; color:#64748b; font-size:0.9rem;">🎉 No tienes deudas registradas</div>';
         } else {
-            ul.innerHTML = store.deudas.map(d => `<li style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;"><span>${d.desc}</span><span style="font-weight:bold; color:${d.saldo>0?'var(--danger)':'var(--success)'}">${fmtMoney(d.saldo)}</span></li>`).join('');
+            ul.innerHTML = store.deudas.map(d => {
+                // Si la deuda tiene saldo, está "Activa" pero no necesariamente "Vencida" en este contexto simple.
+                // Usamos gris neutro para el monto si no hay mora explicita calculada aqui.
+                return `<li style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+                    <span>${d.desc}</span>
+                    <div style="text-align:right;">
+                        <span style="font-weight:bold; color:#334155;">${fmtMoney(d.saldo)}</span>
+                        <div style="font-size:0.7rem; color:#64748b;">Pendiente Total</div>
+                    </div>
+                </li>`;
+            }).join('');
         }
     }
     
-    // FIX SELECTOR DEUDA VACIO
     const selD = $('abonoDeudaSelect');
     if(selD) {
         selD.innerHTML = '<option value="">Seleccionar...</option>';
@@ -607,6 +610,22 @@ function renderAdmin() {
     const saldo = store.wallet.saldo;
     if($('valSaldoAdmin')) $('valSaldoAdmin').innerText = fmtMoney(saldo);
 
+    // FIX 1: Admin Meta = Panel Meta
+    const metaValor = $('metaDiariaValor');
+    if (metaValor) {
+        const meta = safeFloat(store.parametros.metaDiaria); 
+        metaValor.innerText = fmtMoney(meta);
+        
+        const cardTitle = metaValor.previousElementSibling;
+        if(cardTitle) cardTitle.innerText = "🎯 Meta Diaria Exigible";
+        
+        // Explicación coherente
+        const descDiv = metaValor.nextElementSibling;
+        if(descDiv) {
+             descDiv.innerHTML = `<small style="color:#64748b;">(Base Operativa + Mora Vencida)</small>`;
+        }
+    }
+
     const btnSaldo = $('btnConfigSaldo');
     if (store.parametros.saldoInicialConfigurado) {
         btnSaldo.innerText = "🔒 Auto"; btnSaldo.className = "btn btn-outline"; btnSaldo.style.opacity = "0.7";
@@ -633,7 +652,6 @@ function renderAdmin() {
         ], d => actionNuevaMetaAhorro(d.d, d.m));
     }
     
-    // FIX EVENT LISTENER TARDIO: BINDEAR EVENTOS TURNO AL RENDERIZAR
     const btnIni = $('btnTurnoIniciar');
     const btnFin = $('btnTurnoFinalizar');
     
@@ -641,14 +659,13 @@ function renderAdmin() {
         btnIni.onclick = () => { 
             store.turnoActivo = { inicio: Date.now(), kmInicial: store.parametros.ultimoKM }; 
             saveData(); 
-            renderAdmin(); // Re-render para actualizar estado
+            renderAdmin();
         };
     }
     if(btnFin) {
         btnFin.onclick = () => Modal.show("Fin Turno", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
     }
 
-    // Actualizar visualización de botones turno
     const activo = !!store.turnoActivo;
     if(activo) {
         $('turnoEstado').innerHTML = '<span class="text-green">🟢 EN CURSO</span>';
@@ -701,6 +718,7 @@ function renderStats() {
     const ingresoPromedioHora = totalHoras > 0 ? (totalIngresos / totalHoras) : 0;
     const ingresoNetoHora = totalHoras > 0 ? (ingresoNeto / totalHoras) : 0;
     
+    // FIX 2: Ingreso Promedio > 0
     $('statIngresoHora').innerText = totalHoras > 0 ? fmtMoney(ingresoPromedioHora) : "—";
     
     const statCont = $('statIngresoHora').parentElement;
@@ -709,7 +727,7 @@ function renderStats() {
         div.style.fontSize = '0.75rem'; div.style.color = '#64748b'; div.style.marginTop = '4px';
         statCont.appendChild(div);
     }
-    // FIX ANALIZANDO: Mostrar datos reales si existen
+    
     if(totalHoras > 0) {
         $('statNeto').innerText = `Neto (sin gas): ${fmtMoney(ingresoNetoHora)}/h`;
     } else {
@@ -718,12 +736,14 @@ function renderStats() {
 
     $('statHorasTotal').innerText = totalHoras.toFixed(1) + "h";
     $('statDiasTrabajados').innerText = diasTrabajados;
+    
+    // FIX STATS: Ingreso Diario Promedio
+    const ingDiario = diasTrabajados > 0 ? totalIngresos / diasTrabajados : 0;
+    $('statIngresoDiario').innerText = fmtMoney(ingDiario);
 
-    // FIX STATS PRESION: Conectar con Meta Real
     const metaDiaria = safeFloat(store.parametros.metaDiaria);
     $('statMetaDiaria').innerText = fmtMoney(metaDiaria);
     
-    // Diagnóstico
     const elDiag = $('statsDiagnostico');
     if (totalHoras > 0) {
         let costoGasPorHora = totalGasolina / totalHoras;
@@ -758,7 +778,7 @@ function renderDashboardContext() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V9.1 UI PATCHED");
+    console.log("🚀 V9.2 UI CONSISTENCY FIX");
     loadData();
     const page = document.body.dataset.page;
     if (page === 'index') { renderIndex(); renderDashboardContext(); }
@@ -767,7 +787,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (page === 'stats') renderStats();
     if (page === 'admin') {
         renderAdmin();
-        // Eventos de botones extras
+        $('btnTurnoIniciar').onclick = () => { store.turnoActivo = { inicio: Date.now(), kmInicial: store.parametros.ultimoKM }; saveData(); renderAdmin(); };
+        $('btnTurnoFinalizar').onclick = () => Modal.show("Fin Turno", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
         $('btnGasolina').onclick = () => Modal.show("Gasolina", [{label:"Litros",key:"l",type:"number"},{label:"Costo ($)",key:"c",type:"number"},{label:"KM Actual",key:"k",type:"number"}], d => actionGasolina(d.l, d.c, d.k));
         
         const gastoWiz = (g) => {
@@ -787,4 +808,4 @@ document.addEventListener('DOMContentLoaded', () => {
         $('btnRestoreBackup').onclick = () => Modal.show("Restaurar", [{label:"JSON",key:"j"}], d => { try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); location.reload(); } catch(e){ alert("Error"); } });
     }
 });
-   
+                                                                         
