@@ -1,5 +1,5 @@
-/* =============================================================
-   APP.JS - V9.2 (UI CONSISTENCY FIX)
+ /* =============================================================
+   APP.JS - V9.4 (UX & VISUAL STATE PATCH)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -7,7 +7,7 @@
    ------------------------------------------------------------- */
 const STORAGE_KEY = "moto_finanzas_vFinal";
 const LEGACY_KEYS = ["moto_finanzas_v3", "moto_finanzas", "app_moto_data"];
-const SCHEMA_VERSION = 9.2;
+const SCHEMA_VERSION = 9.4;
 
 const FRECUENCIAS = { 'Diario': 1, 'Semanal': 7, 'Quincenal': 15, 'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0 };
 const MAPA_DIAS = { 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 0:7 }; 
@@ -52,7 +52,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V9.2] UI Fix Loaded (Engine V8.8).");
+    console.log("♻️ [V9.4] UX Patch Loaded (Engine V8.8).");
     let raw = localStorage.getItem(STORAGE_KEY);
     
     if (!raw || raw.length < 50) {
@@ -195,7 +195,7 @@ function calcularObjetivosYMeta() {
     store.parametros.moraVencida = moraVencidaReal;      
     store.parametros.metaBase = metaEstaticaBase;
     store.parametros.metaDiaria = store.parametros.metaBase + moraVencidaReal;
-}
+                                                               }
 
 /* -------------------------------------------------------------
    SECCIÓN 3: ACCIONES
@@ -303,9 +303,10 @@ function actionSaldoInicial(monto) {
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Saldo Inicial', monto: inicial, categoria: 'Sistema' });
     store.parametros.saldoInicialConfigurado = true;
     sanearDatos(); renderAdmin(); alert("✅ Capital inicial registrado.");
-       }
+                                        }
+
 /* -------------------------------------------------------------
-   SECCIÓN 4: RENDERIZADO (UI V9.2)
+   SECCIÓN 4: RENDERIZADO (UI V9.4 - UX PATCHED)
    ------------------------------------------------------------- */
 const Modal = {
     show: (t, inputs, cb) => {
@@ -336,7 +337,6 @@ function renderIndex() {
     const saldo = store.wallet.saldo;
     let obligacionesHoy = 0; 
     let ahorroTotal = 0;
-    
     let tieneSobreGas = false;
 
     store.wallet.sobres.forEach(s => { 
@@ -352,22 +352,16 @@ function renderIndex() {
     
     const moraVencida = store.parametros.moraVencida || 0;
     const deficitRitmo = (store.parametros.deficitTotal || 0) - moraVencida;
-    
     const disponible = saldo - obligacionesHoy - ahorroTotal;
-
-    // FIX 1: Meta en Panel = Meta en Admin
     const metaExigible = safeFloat(store.parametros.metaDiaria); 
-    
     const ritmoMsg = deficitRitmo > 1 ? `+${fmtMoney(deficitRitmo)} para ritmo ideal` : "Ritmo óptimo";
     
-    // FIX 3: Copy Déficit Claro
     let libreLabel = "Libre";
     let libreColor = "var(--text-sec)";
     let libreValColor = "var(--text-main)";
     
     if (disponible < 0) {
-        // Explicación honesta: Falta efectivo vs estructura (muchas veces por ciclos)
-        libreLabel = "⚠️ Falta Efec. vs Estructura";
+        libreLabel = "⚠️ Déficit de Caja";
         libreColor = "var(--danger)";
         libreValColor = "var(--danger)";
     }
@@ -445,6 +439,7 @@ function renderWallet() {
     const diaMes = new Date().getDate();
 
     store.wallet.sobres.forEach(s => {
+        // CORRECCIÓN 4: BOTÓN DE ABONO CLICKEABLE (BUTTON REAL)
         if (s.categoria === 'Ahorro' || s.categoria === 'Meta') {
             const pct = s.meta > 0 ? Math.min((s.acumulado / s.meta) * 100, 100) : 0;
             container.innerHTML += `
@@ -456,9 +451,9 @@ function renderWallet() {
                 <div style="height:8px; background:#e0e7ff; border-radius:4px; overflow:hidden;">
                     <div style="width:${pct}%; background:#6366f1; height:100%;"></div>
                 </div>
-                <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#6366f1; margin-top:4px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; color:#6366f1; margin-top:4px;">
                     <span>Meta: ${fmtMoney(s.meta)}</span>
-                    <span style="cursor:pointer; font-weight:bold;" onclick="Modal.show('Abonar a ${s.desc}', [{label:'Monto',key:'m',type:'number'}], d => actionAbonarAhorro('${s.id}', d.m))">+ ABONAR</span>
+                    <button class="btn btn-sm" style="background:#6366f1; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.7rem; cursor:pointer; z-index:10; position:relative;" onclick="Modal.show('Abonar a ${s.desc}', [{label:'Monto',key:'m',type:'number'}], d => actionAbonarAhorro('${s.id}', d.m))">+ ABONAR</button>
                 </div>
             </div>`;
             return;
@@ -480,43 +475,52 @@ function renderWallet() {
             return;
         }
 
+        // CORRECCIÓN 2: COPY DE GASTO DIARIO
         if (s.frecuencia === 'Diario' && s.pagadoHoy) {
             container.innerHTML += `
             <div class="card" style="padding:10px 15px; border-left:4px solid #cbd5e1; background:#f8fafc; opacity:0.6;">
                 <div style="display:flex; justify-content:space-between; align-items: center;">
                     <span style="color:#64748b; font-size:0.9rem;">${s.desc}</span>
-                    <span style="font-size:0.75rem; color:#64748b;">✔ Listo</span>
+                    <span style="font-size:0.75rem; color:#64748b;">✔ Auto-descontado</span>
                 </div>
             </div>`;
             return;
         }
 
-        let esMora = false;
-        if (s.frecuencia !== 'Diario') {
-            const diaPago = parseInt(s.diaPago || 7);
-            if (s.frecuencia === 'Semanal') esMora = (hoyIdx > diaPago && s.acumulado < s.meta);
-            else if (s.frecuencia === 'Mensual') esMora = (diaMes > diaPago && s.acumulado < s.meta);
-        }
-
-        let valorMostrado = s.objetivoHoy > 0 ? s.objetivoHoy : s.meta;
-        let valorFisico = s.acumulado;
-        const pctFisico = Math.min((valorFisico/s.meta)*100, 100); 
-        
+        // CORRECCIÓN 1: LÓGICA VISUAL DE VENCIMIENTO (Sin tocar motor)
         let colorEstado = '#3b82f6';
         let mensajeEstado = "";
         let badge = "";
+        let esMoraVisual = false;
+        let esHoy = false;
+
+        if (s.frecuencia !== 'Diario') {
+            const diaPago = parseInt(s.diaPago || 7); // Si es 0 (Domingo) el motor lo guarda como 0 string
+            const diaPagoNormalizado = diaPago === 0 ? 7 : diaPago; // Normalizamos Domingo 0 a 7 para comparar
+            
+            if (s.frecuencia === 'Semanal') {
+                if (hoyIdx > diaPagoNormalizado && s.acumulado < s.meta) esMoraVisual = true;
+                if (hoyIdx === diaPagoNormalizado && s.acumulado < s.meta) esHoy = true;
+            } 
+            else if (s.frecuencia === 'Mensual') {
+                 if (diaMes > diaPago && s.acumulado < s.meta) esMoraVisual = true;
+                 if (diaMes === diaPago && s.acumulado < s.meta) esHoy = true;
+            }
+        }
         
         if (s.frecuencia === 'Diario') {
-            mensajeEstado = "Ciclo diario activo";
+            mensajeEstado = "Gasto operativo diario";
         } else {
-            if (esMora) {
+            if (esMoraVisual) {
                 mensajeEstado = `<span style="color:#dc2626; font-weight:bold;">⚠️ Vencido</span>`;
                 colorEstado = '#dc2626';
+            } else if (esHoy) {
+                 mensajeEstado = `<span style="color:#d97706; font-weight:bold;">⚠️ Vence HOY</span>`;
+                 colorEstado = '#d97706';
             } else if (s.acumulado < s.objetivoHoy) {
-                // FIX 4: Wallet Cycle Badge
                 const gap = s.objetivoHoy - s.acumulado;
                 mensajeEstado = `<span style="color:#64748b;">En progreso (+${fmtMoney(gap)})</span>`;
-                badge = `<span style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:4px; font-size:0.65rem; margin-left:5px; border:1px solid #bfdbfe;">Ciclo Vigente - No Exigible</span>`;
+                badge = `<span style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:4px; font-size:0.65rem; margin-left:5px; border:1px solid #bfdbfe;">Ciclo Vigente</span>`;
             } else {
                 mensajeEstado = `<span style="color:#16a34a;">Ciclo cubierto</span>`;
                 colorEstado = '#16a34a';
@@ -540,7 +544,8 @@ function renderWallet() {
             </div>
         </div>`;
     });
-}
+       }
+
 function renderHistorial() {
     if (!$('tablaBody')) return;
     if (!store.movimientos || store.movimientos.length === 0) {
@@ -562,15 +567,40 @@ function renderHistorial() {
 function renderAdmin() {
     if (!$('kmActual')) return;
     
-    // FIX 5: Deudas sin alarma visual si no hay vencimiento
+    // CORRECCIÓN 3: SELECTOR RECURRENTE INTELIGENTE
+    const divRecur = document.getElementById('zoneRecurrentes');
+    if(!divRecur && $('btnGastoHogar')) {
+        const div = document.createElement('div'); div.id = 'zoneRecurrentes';
+        div.className = 'card'; div.style.padding = '10px'; div.style.background = '#f8fafc';
+        $('btnGastoHogar').parentElement.parentElement.insertBefore(div, $('btnGastoHogar').parentElement);
+    }
+    
+    const divRecurrentes = document.getElementById('zoneRecurrentes');
+    if(divRecurrentes) {
+         const recurrentes = store.gastosFijosMensuales.filter(g => g.frecuencia !== 'Unico' && g.categoria !== 'Ahorro' && g.categoria !== 'Meta');
+         
+         if(recurrentes.length === 0) {
+             divRecurrentes.innerHTML = `
+                <h4 style="font-size:0.9rem; color:#64748b; margin-bottom:5px;">Pagar Recurrente</h4>
+                <div style="font-size:0.8rem; color:#94a3b8; font-style:italic;">No tienes gastos recurrentes registrados. Usa los botones de arriba para agregar "Renta", "Celular", etc.</div>
+             `;
+         } else {
+             divRecurrentes.innerHTML = `<h4 style="font-size:0.9rem; color:#64748b; margin-bottom:5px;">Pagar Recurrente</h4><div style="display:flex; gap:5px;"><select id="selRecurrente" class="input-control" style="margin:0"></select><button id="btnDoPay" class="btn btn-success" style="width:auto">OK</button></div>`;
+             const selR = divRecurrentes.querySelector('#selRecurrente');
+             selR.innerHTML = '<option value="">Seleccionar...</option>';
+             recurrentes.forEach(g => {
+                 const opt = document.createElement('option'); opt.value = g.id; opt.innerText = `${g.desc} (${fmtMoney(g.monto)})`; selR.add(opt);
+             });
+             divRecurrentes.querySelector('#btnDoPay').onclick = () => { const v=$('selRecurrente').value; if(v && confirm("¿Pagar?")) actionPagarRecurrente(v); };
+         }
+    }
+
     const ul = $('listaDeudasAdmin');
     if(ul) {
         if(store.deudas.length === 0) {
             ul.innerHTML = '<div style="text-align:center; padding:15px; color:#64748b; font-size:0.9rem;">🎉 No tienes deudas registradas</div>';
         } else {
             ul.innerHTML = store.deudas.map(d => {
-                // Si la deuda tiene saldo, está "Activa" pero no necesariamente "Vencida" en este contexto simple.
-                // Usamos gris neutro para el monto si no hay mora explicita calculada aqui.
                 return `<li style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
                     <span>${d.desc}</span>
                     <div style="text-align:right;">
@@ -610,7 +640,6 @@ function renderAdmin() {
     const saldo = store.wallet.saldo;
     if($('valSaldoAdmin')) $('valSaldoAdmin').innerText = fmtMoney(saldo);
 
-    // FIX 1: Admin Meta = Panel Meta
     const metaValor = $('metaDiariaValor');
     if (metaValor) {
         const meta = safeFloat(store.parametros.metaDiaria); 
@@ -618,8 +647,6 @@ function renderAdmin() {
         
         const cardTitle = metaValor.previousElementSibling;
         if(cardTitle) cardTitle.innerText = "🎯 Meta Diaria Exigible";
-        
-        // Explicación coherente
         const descDiv = metaValor.nextElementSibling;
         if(descDiv) {
              descDiv.innerHTML = `<small style="color:#64748b;">(Base Operativa + Mora Vencida)</small>`;
@@ -663,7 +690,8 @@ function renderAdmin() {
         };
     }
     if(btnFin) {
-        btnFin.onclick = () => Modal.show("Fin Turno", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
+        // CORRECCIÓN 6: MODAL CON TIP DE CIERRE
+        btnFin.onclick = () => Modal.show("Fin Turno (Ingresa montos reales)", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
     }
 
     const activo = !!store.turnoActivo;
@@ -718,7 +746,6 @@ function renderStats() {
     const ingresoPromedioHora = totalHoras > 0 ? (totalIngresos / totalHoras) : 0;
     const ingresoNetoHora = totalHoras > 0 ? (ingresoNeto / totalHoras) : 0;
     
-    // FIX 2: Ingreso Promedio > 0
     $('statIngresoHora').innerText = totalHoras > 0 ? fmtMoney(ingresoPromedioHora) : "—";
     
     const statCont = $('statIngresoHora').parentElement;
@@ -737,13 +764,13 @@ function renderStats() {
     $('statHorasTotal').innerText = totalHoras.toFixed(1) + "h";
     $('statDiasTrabajados').innerText = diasTrabajados;
     
-    // FIX STATS: Ingreso Diario Promedio
     const ingDiario = diasTrabajados > 0 ? totalIngresos / diasTrabajados : 0;
     $('statIngresoDiario').innerText = fmtMoney(ingDiario);
 
     const metaDiaria = safeFloat(store.parametros.metaDiaria);
     $('statMetaDiaria').innerText = fmtMoney(metaDiaria);
     
+    // CORRECCIÓN 5: STATS "ANALIZANDO" ELIMINADO
     const elDiag = $('statsDiagnostico');
     if (totalHoras > 0) {
         let costoGasPorHora = totalGasolina / totalHoras;
@@ -754,7 +781,7 @@ function renderStats() {
             <span style="color:#2563eb;">💡 Mantén tus ciclos vigentes para asegurar liquidez.</span>
         `;
     } else {
-        elDiag.innerText = "Registra turnos para ver tu análisis de rendimiento.";
+        elDiag.innerHTML = `<span style="color:#64748b;">Pendiente de datos: Registra turnos con duración y ganancia real para proyectar tu rendimiento.</span>`;
     }
 }
 
@@ -778,7 +805,7 @@ function renderDashboardContext() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V9.2 UI CONSISTENCY FIX");
+    console.log("🚀 V9.4 UX & VISUAL STATE PATCH");
     loadData();
     const page = document.body.dataset.page;
     if (page === 'index') { renderIndex(); renderDashboardContext(); }
@@ -788,7 +815,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (page === 'admin') {
         renderAdmin();
         $('btnTurnoIniciar').onclick = () => { store.turnoActivo = { inicio: Date.now(), kmInicial: store.parametros.ultimoKM }; saveData(); renderAdmin(); };
-        $('btnTurnoFinalizar').onclick = () => Modal.show("Fin Turno", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
+        $('btnTurnoFinalizar').onclick = () => Modal.show("Fin Turno (Ingresa montos reales)", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
         $('btnGasolina').onclick = () => Modal.show("Gasolina", [{label:"Litros",key:"l",type:"number"},{label:"Costo ($)",key:"c",type:"number"},{label:"KM Actual",key:"k",type:"number"}], d => actionGasolina(d.l, d.c, d.k));
         
         const gastoWiz = (g) => {
@@ -808,4 +835,4 @@ document.addEventListener('DOMContentLoaded', () => {
         $('btnRestoreBackup').onclick = () => Modal.show("Restaurar", [{label:"JSON",key:"j"}], d => { try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); location.reload(); } catch(e){ alert("Error"); } });
     }
 });
-                                                                         
+                   
