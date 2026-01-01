@@ -1,5 +1,5 @@
 /* =============================================================
-   APP.JS - V9.8 (FINAL STABILITY RELEASE & SILENT UX)
+   APP.JS - V9.8 (FINAL STABILITY RELEASE)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -46,7 +46,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V9.8] Silent UX Engine Loaded.");
+    console.log("♻️ [V9.8] Engine Loaded.");
     let raw = localStorage.getItem(STORAGE_KEY);
     if (!raw || raw.length < 50) {
         for (const key of LEGACY_KEYS) {
@@ -150,8 +150,7 @@ function calcularObjetivosYMeta() {
     store.parametros.moraVencida = moraVencidaReal;      
     store.parametros.metaBase = metaEstaticaBase;
     store.parametros.metaDiaria = store.parametros.metaBase + moraVencidaReal;
-               }
-
+}
 /* -------------------------------------------------------------
    SECCIÓN 3: ACCIONES (CON VALIDACIÓN UX)
    ------------------------------------------------------------- */
@@ -239,7 +238,7 @@ function actionConfigurarKM(n) { const k=safeFloat(n); if(k<=0) return alert("Er
 function actionSaldoInicial(n) { const m=safeFloat(n); if(m<0) return alert("Error"); store.movimientos.push({ id:uuid(), fecha:new Date().toISOString(), tipo:'ingreso', desc:'Saldo Inicial', monto:m, categoria:'Sistema'}); store.parametros.saldoInicialConfigurado=true; sanearDatos(); renderAdmin(); alert("✅ OK"); }
 
 /* -------------------------------------------------------------
-   SECCIÓN 4: RENDERIZADO (UI V9.8 - FINAL STABILITY)
+   SECCIÓN 4: RENDERIZADO (UI V9.8)
    ------------------------------------------------------------- */
 const Modal = {
     show: (t, inputs, cb) => {
@@ -435,7 +434,7 @@ function renderWallet() {
             return;
         }
 
-        // 4. CICLOS Y DEUDAS (Semáforo)
+        // 4. CICLOS Y DEUDAS (Semáforo V9.8)
         let valorMeta = s.meta;
         let valorAcumulado = s.acumulado;
         let pct = Math.min((valorAcumulado / valorMeta) * 100, 100);
@@ -520,28 +519,60 @@ function renderHistorial() {
 function renderAdmin() {
     if (!$('kmActual')) return;
     
-    // UX FIX: EMPTY STATE INTELIGENTE
-    const divRecur = document.getElementById('zoneRecurrentes');
+    // ============================================================
+    // 🔧 FIX FINAL: ZONA DE GASTOS RECURRENTES (DOM SEGURO)
+    // ============================================================
+    // 1. Asegurar contenedor
+    let divRecur = document.getElementById('zoneRecurrentes');
     if(!divRecur && $('btnGastoHogar')) {
-        const div = document.createElement('div'); div.id = 'zoneRecurrentes';
-        div.className = 'card'; div.style.padding = '10px'; div.style.background = '#f8fafc';
-        $('btnGastoHogar').parentElement.parentElement.insertBefore(div, $('btnGastoHogar').parentElement);
+        divRecur = document.createElement('div'); 
+        divRecur.id = 'zoneRecurrentes';
+        divRecur.className = 'card'; 
+        divRecur.style.padding = '10px'; 
+        divRecur.style.background = '#f8fafc'; 
+        divRecur.style.marginBottom = '15px'; 
+        const parent = $('btnGastoHogar').parentElement.parentElement;
+        const ref = $('btnGastoHogar').parentElement;
+        parent.insertBefore(divRecur, ref);
     }
-    const divRecurrentes = document.getElementById('zoneRecurrentes');
-    if(divRecurrentes) {
+    
+    // 2. Renderizar contenido
+    if(divRecur) {
          const recurrentes = store.gastosFijosMensuales.filter(g => g.frecuencia !== 'Unico' && g.categoria !== 'Ahorro' && g.categoria !== 'Meta');
+         
          if(recurrentes.length === 0) {
-             divRecurrentes.innerHTML = `<div style="padding:15px; text-align:center; border:1px dashed #cbd5e1; border-radius:6px; background:#fff;"><small style="color:#64748b;">Aquí aparecerán tus gastos fijos (Renta, Celular) cuando los crees.</small></div>`;
+             divRecur.innerHTML = `
+                <h4 style="font-size:0.9rem; color:#64748b; margin-bottom:5px;">Pagar Recurrente</h4>
+                <div style="padding:10px; text-align:center; border:1px dashed #cbd5e1; border-radius:6px; background:#fff;">
+                    <small style="color:#94a3b8;">No hay gastos fijos (Renta, Plan, etc).</small>
+                </div>`;
          } else {
-             divRecurrentes.innerHTML = `<h4 style="font-size:0.9rem; color:#64748b; margin-bottom:5px;">Pagar Recurrente</h4><div style="display:flex; gap:5px;"><select id="selRecurrente" class="input-control" style="margin:0"></select><button id="btnDoPay" class="btn btn-success" style="width:auto">OK</button></div>`;
-             const selR = divRecurrentes.querySelector('#selRecurrente');
-             selR.innerHTML = '<option value="">Seleccionar...</option>';
-             recurrentes.forEach(g => { const opt = document.createElement('option'); opt.value = g.id; opt.innerText = `${g.desc} (${fmtMoney(g.monto)})`; selR.add(opt); });
-             divRecurrentes.querySelector('#btnDoPay').onclick = () => { const v=$('selRecurrente').value; if(v && confirm("¿Registrar pago?")) actionPagarRecurrente(v); };
+             divRecur.innerHTML = `
+                <h4 style="font-size:0.9rem; color:#64748b; margin-bottom:5px;">Pagar Recurrente</h4>
+                <div style="display:flex; gap:8px;">
+                    <select id="selRecurrente" class="input-control" style="margin:0; flex-grow:1;"></select>
+                    <button id="btnDoPay" class="btn btn-success" style="width:auto; min-width:60px;">OK</button>
+                </div>`;
+             
+             const sel = document.getElementById('selRecurrente');
+             sel.innerHTML = '<option value="">Seleccionar...</option>';
+             recurrentes.forEach(g => {
+                 const opt = document.createElement('option'); 
+                 opt.value = g.id; 
+                 opt.innerText = `${g.desc} (${fmtMoney(g.monto)})`; 
+                 sel.add(opt);
+             });
+
+             const btn = document.getElementById('btnDoPay');
+             btn.onclick = function() {
+                 const val = sel.value;
+                 if(!val) return alert("⚠️ Selecciona un gasto.");
+                 if(confirm("¿Confirmar pago? Se descontará de la caja.")) { actionPagarRecurrente(val); }
+             };
          }
     }
+    // ============================================================
 
-    // LISTA DEUDAS
     const ul = $('listaDeudasAdmin');
     if(ul) {
         ul.innerHTML = store.deudas.length === 0 ? 
@@ -556,6 +587,7 @@ function renderAdmin() {
     }
 
     $('kmActual').innerText = `${store.parametros.ultimoKM} km`;
+    
     const btnKM = $('btnConfigKM');
     if (store.parametros.kmInicialConfigurado) {
         btnKM.innerText = "🔒 Auto"; btnKM.className = "btn btn-outline"; btnKM.onclick = () => alert("Gestionado automáticamente por los turnos.");
@@ -566,14 +598,12 @@ function renderAdmin() {
     const saldo = store.wallet.saldo;
     if($('valSaldoAdmin')) $('valSaldoAdmin').innerText = fmtMoney(saldo);
 
-    // UX: META DIARIA -> OBJETIVO DIARIO
     const metaValor = $('metaDiariaValor');
     if (metaValor) {
         metaValor.innerText = fmtMoney(safeFloat(store.parametros.metaDiaria));
         const cardTitle = metaValor.previousElementSibling; if(cardTitle) cardTitle.innerText = "Objetivo Diario Base";
     }
     
-    // GESTIÓN SALDO
     const btnSaldo = $('btnConfigSaldo');
     if (store.parametros.saldoInicialConfigurado) {
         btnSaldo.innerText = "🔒 Auto"; btnSaldo.className = "btn btn-outline"; btnSaldo.onclick = () => alert("Gestionado por flujo de caja.");
@@ -581,7 +611,6 @@ function renderAdmin() {
         btnSaldo.innerText = "🔓 Capital"; btnSaldo.className = "btn btn-primary"; btnSaldo.onclick = () => Modal.show("Capital", [{label:"Monto",key:"s",type:"number"}], d => actionSaldoInicial(d.s));
     }
     
-    // GESTIÓN AHORRO
     const adminZone = document.querySelector('.container');
     if(adminZone && !document.getElementById('zoneAhorro')) {
         const div = document.createElement('div'); div.id = 'zoneAhorro';
@@ -670,7 +699,7 @@ function renderDashboardContext() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V9.8 SILENT UX ACTIVE");
+    console.log("🚀 V9.8 FINAL STABILITY");
     loadData();
     const page = document.body.dataset.page;
     if (page === 'index') { renderIndex(); renderDashboardContext(); }
@@ -679,4 +708,4 @@ document.addEventListener('DOMContentLoaded', () => {
     if (page === 'stats') renderStats();
     if (page === 'admin') renderAdmin();
 });
-                                                 
+       
