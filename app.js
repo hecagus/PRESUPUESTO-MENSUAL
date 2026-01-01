@@ -1,5 +1,5 @@
- /* =============================================================
-   APP.JS - V9.4 (UX & VISUAL STATE PATCH)
+/* =============================================================
+   APP.JS - V9.6 (STABILITY & UX FIX)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -7,7 +7,7 @@
    ------------------------------------------------------------- */
 const STORAGE_KEY = "moto_finanzas_vFinal";
 const LEGACY_KEYS = ["moto_finanzas_v3", "moto_finanzas", "app_moto_data"];
-const SCHEMA_VERSION = 9.4;
+const SCHEMA_VERSION = 9.6;
 
 const FRECUENCIAS = { 'Diario': 1, 'Semanal': 7, 'Quincenal': 15, 'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0 };
 const MAPA_DIAS = { 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 0:7 }; 
@@ -29,7 +29,7 @@ const fmtMoney = n => new Intl.NumberFormat('es-MX', { style: 'currency', curren
 const uuid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
 /* -------------------------------------------------------------
-   SECCIÓN 2: ESTADO Y RECUPERACIÓN (MOTOR V8.8)
+   SECCIÓN 2: ESTADO Y RECUPERACIÓN (MOTOR V8.8 - INTACTO)
    ------------------------------------------------------------- */
 const INITIAL_STATE = {
     schemaVersion: SCHEMA_VERSION,
@@ -52,7 +52,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V9.4] UX Patch Loaded (Engine V8.8).");
+    console.log("♻️ [V9.6] Stability Patch Loaded.");
     let raw = localStorage.getItem(STORAGE_KEY);
     
     if (!raw || raw.length < 50) {
@@ -195,13 +195,21 @@ function calcularObjetivosYMeta() {
     store.parametros.moraVencida = moraVencidaReal;      
     store.parametros.metaBase = metaEstaticaBase;
     store.parametros.metaDiaria = store.parametros.metaBase + moraVencidaReal;
-                                                               }
-
+}
 /* -------------------------------------------------------------
-   SECCIÓN 3: ACCIONES
+   SECCIÓN 3: ACCIONES (CON UX GUARDRAILS)
    ------------------------------------------------------------- */
 function actionFinalizarTurno(kmFinal, ganancia) {
     const kF = safeFloat(kmFinal);
+    const gan = safeFloat(ganancia);
+
+    // UX FIX: Advertencia explícita en ingreso $0
+    if (gan === 0) {
+        if (!confirm("⚠️ ADVERTENCIA:\n\nEstás reportando $0.00 de ganancia.\nEsto afectará negativamente tus estadísticas.\n¿Es correcto?")) {
+            return;
+        }
+    }
+
     if (kF < store.parametros.ultimoKM) return alert(`⛔ Error: KM actual es ${store.parametros.ultimoKM}. No puedes bajarlo.`);
     
     const fin = Date.now();
@@ -215,11 +223,11 @@ function actionFinalizarTurno(kmFinal, ganancia) {
     const nuevoTurno = {
         id: uuid(), inicio: inicio, fin: fin, fecha: new Date(fin).toISOString(),
         duracionMin: duracionMin, duracionHoras: duracionHoras,
-        ganancia: safeFloat(ganancia), kmInicial: kmIni, kmFinal: kF, kmRecorrido: kmRecorridos
+        ganancia: gan, kmInicial: kmIni, kmFinal: kF, kmRecorrido: kmRecorridos
     };
 
     store.turnos.push(nuevoTurno);
-    store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Turno Finalizado', monto: safeFloat(ganancia) });
+    store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Turno Finalizado', monto: gan });
     store.parametros.ultimoKM = kF; 
     store.turnoActivo = null; 
     sanearDatos(); renderAdmin();
@@ -233,7 +241,11 @@ function actionGasolina(l, c, k) {
     store.cargasCombustible.push({ id: uuid(), fecha: new Date().toISOString(), litros: l, costo: costoGas, km: km });
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'gasto', desc: '⛽ Gasolina', monto: costoGas, categoria: 'Operativo' });
     
-    const sobreGas = store.wallet.sobres.find(s => s.categoria === 'Operativo' && (s.desc.toLowerCase().includes('gas') || s.desc.toLowerCase().includes('combustible')));
+    // FIX: Detección robusta de gasolina para descontar del sobre
+    const sobreGas = store.wallet.sobres.find(s => 
+        (s.categoria === 'Operativo' && (s.desc.toLowerCase().includes('gas') || s.desc.toLowerCase().includes('combustible')))
+    );
+    
     if (sobreGas && sobreGas.acumulado > 0) {
         sobreGas.acumulado -= costoGas;
         if(sobreGas.acumulado < 0) sobreGas.acumulado = 0;
@@ -303,10 +315,10 @@ function actionSaldoInicial(monto) {
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'ingreso', desc: 'Saldo Inicial', monto: inicial, categoria: 'Sistema' });
     store.parametros.saldoInicialConfigurado = true;
     sanearDatos(); renderAdmin(); alert("✅ Capital inicial registrado.");
-                                        }
+}
 
 /* -------------------------------------------------------------
-   SECCIÓN 4: RENDERIZADO (UI V9.4 - UX PATCHED)
+   SECCIÓN 4: RENDERIZADO (UI V9.6 STABILITY PATCH)
    ------------------------------------------------------------- */
 const Modal = {
     show: (t, inputs, cb) => {
@@ -339,6 +351,7 @@ function renderIndex() {
     let ahorroTotal = 0;
     let tieneSobreGas = false;
 
+    // Detectar gasolina correctamente
     store.wallet.sobres.forEach(s => { 
         if (s.categoria === 'Ahorro' || s.categoria === 'Meta') {
             ahorroTotal += s.acumulado;
@@ -354,14 +367,16 @@ function renderIndex() {
     const deficitRitmo = (store.parametros.deficitTotal || 0) - moraVencida;
     const disponible = saldo - obligacionesHoy - ahorroTotal;
     const metaExigible = safeFloat(store.parametros.metaDiaria); 
-    const ritmoMsg = deficitRitmo > 1 ? `+${fmtMoney(deficitRitmo)} para ritmo ideal` : "Ritmo óptimo";
+    
+    // UX: Semántica correcta
+    const ritmoMsg = deficitRitmo > 1 ? `Faltan +${fmtMoney(deficitRitmo)} en sobres para ritmo ideal` : "Ritmo de ciclos saludable";
     
     let libreLabel = "Libre";
     let libreColor = "var(--text-sec)";
     let libreValColor = "var(--text-main)";
     
     if (disponible < 0) {
-        libreLabel = "⚠️ Déficit de Caja";
+        libreLabel = "⚠️ Déficit de Efectivo";
         libreColor = "var(--danger)";
         libreValColor = "var(--danger)";
     }
@@ -373,7 +388,7 @@ function renderIndex() {
         
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px; margin-top:15px; border-top:1px solid #f1f5f9; padding-top:10px;">
             <div style="text-align:center;">
-                <small style="color:var(--primary); font-weight:bold;">🔒 Compromisos</small>
+                <small style="color:var(--primary); font-weight:bold;">🔒 Exigible Hoy</small>
                 <div style="font-weight:600; font-size:0.9rem;">${fmtMoney(obligacionesHoy)}</div>
             </div>
             <div style="text-align:center;">
@@ -389,22 +404,22 @@ function renderIndex() {
 
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
         <div class="card" style="padding:12px; background:#fff1f2; border:1px solid #fda4af;">
-            <strong style="color:#be123c; font-size:0.8rem;">🎯 EXIGIBLE HOY</strong>
+            <strong style="color:#be123c; font-size:0.8rem;">🎯 META EXIGIBLE HOY</strong>
             <div style="font-weight:800; color:#881337; font-size:1.1rem;">${fmtMoney(metaExigible)}</div>
-            <small style="color:#9f1239; font-size:0.7rem;">Base Operativa + Mora</small>
+            <small style="color:#9f1239; font-size:0.7rem;">Base + Pagos Atrasados</small>
         </div>
         <div class="card" style="padding:12px; background:#f0fdf4; border:1px solid #86efac;">
-            <strong style="color:#15803d; font-size:0.8rem;">📈 RECOMENDADO</strong>
+            <strong style="color:#15803d; font-size:0.8rem;">📈 RITMO / CICLOS</strong>
             <div style="font-weight:600; color:#14532d; font-size:0.9rem; margin-top:3px;">${ritmoMsg}</div>
-            <small style="color:#166534; font-size:0.7rem;">Ciclos Vigentes</small>
+            <small style="color:#166534; font-size:0.7rem;">(Sugerido para liquidez)</small>
         </div>
     </div>
     
-    ${(!tieneSobreGas && store.parametros.ultimoKM > 0) ? `<div style="text-align:center; margin-bottom:10px;"><small style="color:#d97706; background:#fffbeb; padding:4px 8px; border-radius:10px; border:1px solid #fcd34d;">💡 Tip: Crea un sobre "Gasolina" en Admin.</small></div>` : ''}
+    ${(!tieneSobreGas && store.parametros.ultimoKM > 0) ? `<div style="text-align:center; margin-bottom:10px;"><small style="color:#d97706; background:#fffbeb; padding:4px 8px; border-radius:10px; border:1px solid #fcd34d;">💡 Tip: Crea un sobre "Gasolina" en Admin para gestionar tu reserva.</small></div>` : ''}
 
     ${moraVencida > 0 ? `
     <div class="card" style="border-left: 4px solid var(--danger); background:#fff5f5; margin-bottom:15px;">
-        <strong style="color:#c53030;">⚠️ Atención: Mora Vencida ${fmtMoney(moraVencida)}</strong>
+        <strong style="color:#c53030;">⚠️ Tienes pagos vencidos por ${fmtMoney(moraVencida)}</strong>
     </div>` : ''}
     `;
     
@@ -426,7 +441,7 @@ function renderWallet() {
             <div style="font-size:2rem; font-weight:bold; color:#6366f1;">${fmtMoney(ahorroTotal)}</div>
         </div>`;
     } else {
-        heroHtml = `<div style="text-align:center; padding:10px; color:#94a3b8; font-size:0.85rem; margin-bottom:10px;">Aún no tienes metas de ahorro activas.</div>`;
+        heroHtml = `<div style="text-align:center; padding:10px; color:#94a3b8; font-size:0.85rem; margin-bottom:10px;">Aún no tienes fondos de ahorro creados.</div>`;
     }
 
     $('valWallet').innerHTML = heroHtml;
@@ -439,7 +454,7 @@ function renderWallet() {
     const diaMes = new Date().getDate();
 
     store.wallet.sobres.forEach(s => {
-        // CORRECCIÓN 4: BOTÓN DE ABONO CLICKEABLE (BUTTON REAL)
+        // CASO 1: AHORRO (Azul) - Botón Clickeable corregido
         if (s.categoria === 'Ahorro' || s.categoria === 'Meta') {
             const pct = s.meta > 0 ? Math.min((s.acumulado / s.meta) * 100, 100) : 0;
             container.innerHTML += `
@@ -456,38 +471,43 @@ function renderWallet() {
                     <button class="btn btn-sm" style="background:#6366f1; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.7rem; cursor:pointer; z-index:10; position:relative;" onclick="Modal.show('Abonar a ${s.desc}', [{label:'Monto',key:'m',type:'number'}], d => actionAbonarAhorro('${s.id}', d.m))">+ ABONAR</button>
                 </div>
             </div>`;
-            return;
+            return; // EXIT for this iteration
         }
 
+        // CASO 2: GASOLINA (Amarillo/Naranja) - Visual de Reserva
         const esGas = s.categoria === 'Operativo' && (s.desc.toLowerCase().includes('gas') || s.desc.toLowerCase().includes('combustible'));
         if (esGas) {
-             const pct = s.meta > 0 ? Math.min((s.acumulado / s.meta) * 100, 100) : 100;
              container.innerHTML += `
-            <div class="card" style="padding:15px; border-left:4px solid #d97706; background:#fffbf0;">
+            <div class="card" style="padding:15px; border-left:4px solid #f59e0b; background:#fffbeb;">
                 <div style="display:flex; justify-content:space-between; align-items: center;">
                     <div><strong style="color:#b45309;">⛽ ${s.desc}</strong></div>
                     <div style="text-align:right;">
                         <div style="font-weight:bold; font-size:1.1rem; color:#78350f;">${fmtMoney(s.acumulado)}</div>
-                        <small style="color:#b45309; font-weight:bold;">${s.acumulado < 50 ? 'Reserva Baja' : 'Reserva OK'}</small>
+                        <small style="color:#b45309; font-weight:bold;">${s.acumulado < 50 ? 'Reserva Baja' : 'Reserva Disponible'}</small>
                     </div>
                 </div>
             </div>`;
-            return;
+            return; // EXIT
         }
 
-        // CORRECCIÓN 2: COPY DE GASTO DIARIO
+        // CASO 3: GASTO DIARIO (Gris) - Copy ajustado
         if (s.frecuencia === 'Diario' && s.pagadoHoy) {
             container.innerHTML += `
             <div class="card" style="padding:10px 15px; border-left:4px solid #cbd5e1; background:#f8fafc; opacity:0.6;">
                 <div style="display:flex; justify-content:space-between; align-items: center;">
                     <span style="color:#64748b; font-size:0.9rem;">${s.desc}</span>
-                    <span style="font-size:0.75rem; color:#64748b;">✔ Auto-descontado</span>
+                    <span style="font-size:0.75rem; color:#64748b;">✔ Descuento operativo aplicado</span>
                 </div>
             </div>`;
-            return;
+            return; // EXIT
         }
 
-        // CORRECCIÓN 1: LÓGICA VISUAL DE VENCIMIENTO (Sin tocar motor)
+        // CASO 4: OBLIGACIONES/DEUDAS (Estándar)
+        // Definir variables SOLO aquí para evitar el bug de "undefined"
+        let valorMostrado = s.objetivoHoy > 0 ? s.objetivoHoy : s.meta;
+        let valorFisico = s.acumulado;
+        let pctFisico = Math.min((valorFisico/s.meta)*100, 100); 
+
         let colorEstado = '#3b82f6';
         let mensajeEstado = "";
         let badge = "";
@@ -495,8 +515,9 @@ function renderWallet() {
         let esHoy = false;
 
         if (s.frecuencia !== 'Diario') {
-            const diaPago = parseInt(s.diaPago || 7); // Si es 0 (Domingo) el motor lo guarda como 0 string
-            const diaPagoNormalizado = diaPago === 0 ? 7 : diaPago; // Normalizamos Domingo 0 a 7 para comparar
+            const diaPago = parseInt(s.diaPago || 7); 
+            // FIX CRÍTICO: Normalizar Domingo (0) a (7) para comparaciones visuales
+            const diaPagoNormalizado = diaPago === 0 ? 7 : diaPago; 
             
             if (s.frecuencia === 'Semanal') {
                 if (hoyIdx > diaPagoNormalizado && s.acumulado < s.meta) esMoraVisual = true;
@@ -512,7 +533,7 @@ function renderWallet() {
             mensajeEstado = "Gasto operativo diario";
         } else {
             if (esMoraVisual) {
-                mensajeEstado = `<span style="color:#dc2626; font-weight:bold;">⚠️ Vencido</span>`;
+                mensajeEstado = `<span style="color:#dc2626; font-weight:bold;">⚠️ Vencido (Pagar ya)</span>`;
                 colorEstado = '#dc2626';
             } else if (esHoy) {
                  mensajeEstado = `<span style="color:#d97706; font-weight:bold;">⚠️ Vence HOY</span>`;
@@ -522,7 +543,7 @@ function renderWallet() {
                 mensajeEstado = `<span style="color:#64748b;">En progreso (+${fmtMoney(gap)})</span>`;
                 badge = `<span style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:4px; font-size:0.65rem; margin-left:5px; border:1px solid #bfdbfe;">Ciclo Vigente</span>`;
             } else {
-                mensajeEstado = `<span style="color:#16a34a;">Ciclo cubierto</span>`;
+                mensajeEstado = `<span style="color:#16a34a;">Al corriente</span>`;
                 colorEstado = '#16a34a';
             }
         }
@@ -544,7 +565,7 @@ function renderWallet() {
             </div>
         </div>`;
     });
-       }
+}
 
 function renderHistorial() {
     if (!$('tablaBody')) return;
@@ -567,7 +588,7 @@ function renderHistorial() {
 function renderAdmin() {
     if (!$('kmActual')) return;
     
-    // CORRECCIÓN 3: SELECTOR RECURRENTE INTELIGENTE
+    // UX FIX: EMPTY STATE PARA GASTOS RECURRENTES
     const divRecur = document.getElementById('zoneRecurrentes');
     if(!divRecur && $('btnGastoHogar')) {
         const div = document.createElement('div'); div.id = 'zoneRecurrentes';
@@ -582,7 +603,10 @@ function renderAdmin() {
          if(recurrentes.length === 0) {
              divRecurrentes.innerHTML = `
                 <h4 style="font-size:0.9rem; color:#64748b; margin-bottom:5px;">Pagar Recurrente</h4>
-                <div style="font-size:0.8rem; color:#94a3b8; font-style:italic;">No tienes gastos recurrentes registrados. Usa los botones de arriba para agregar "Renta", "Celular", etc.</div>
+                <div style="padding:15px; text-align:center; border:1px dashed #cbd5e1; border-radius:6px; background:#fff;">
+                    <p style="font-size:0.8rem; color:#64748b; margin:0;">No tienes gastos fijos registrados.</p>
+                    <small style="color:#94a3b8; display:block; margin-top:5px;">Usa los botones de arriba para registrar "Renta", "Celular" o "Seguro" (con frecuencia Semanal/Mensual).</small>
+                </div>
              `;
          } else {
              divRecurrentes.innerHTML = `<h4 style="font-size:0.9rem; color:#64748b; margin-bottom:5px;">Pagar Recurrente</h4><div style="display:flex; gap:5px;"><select id="selRecurrente" class="input-control" style="margin:0"></select><button id="btnDoPay" class="btn btn-success" style="width:auto">OK</button></div>`;
@@ -591,14 +615,14 @@ function renderAdmin() {
              recurrentes.forEach(g => {
                  const opt = document.createElement('option'); opt.value = g.id; opt.innerText = `${g.desc} (${fmtMoney(g.monto)})`; selR.add(opt);
              });
-             divRecurrentes.querySelector('#btnDoPay').onclick = () => { const v=$('selRecurrente').value; if(v && confirm("¿Pagar?")) actionPagarRecurrente(v); };
+             divRecurrentes.querySelector('#btnDoPay').onclick = () => { const v=$('selRecurrente').value; if(v && confirm("¿Pagar este gasto ahora? Se descontará de tu caja.")) actionPagarRecurrente(v); };
          }
     }
 
     const ul = $('listaDeudasAdmin');
     if(ul) {
         if(store.deudas.length === 0) {
-            ul.innerHTML = '<div style="text-align:center; padding:15px; color:#64748b; font-size:0.9rem;">🎉 No tienes deudas registradas</div>';
+            ul.innerHTML = '<div style="text-align:center; padding:15px; color:#64748b; font-size:0.9rem;">🎉 Estás libre de deudas</div>';
         } else {
             ul.innerHTML = store.deudas.map(d => {
                 return `<li style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
@@ -631,7 +655,7 @@ function renderAdmin() {
     
     if (store.parametros.kmInicialConfigurado || store.parametros.ultimoKM > 0) {
         btnKM.innerText = "🔒 Auto"; btnKM.className = "btn btn-outline"; btnKM.style.opacity = "0.7";
-        btnKM.onclick = () => alert("🔒 KM Automático.");
+        btnKM.onclick = () => alert("🔒 KM Automático: El sistema actualiza esto con tus turnos.");
     } else {
         btnKM.innerText = "🔓 Configurar"; btnKM.className = "btn btn-primary"; btnKM.style.opacity = "1";
         btnKM.onclick = () => Modal.show("Configurar KM", [{label:"KM Real",key:"km",type:"number"}], d => actionConfigurarKM(d.km));
@@ -646,10 +670,10 @@ function renderAdmin() {
         metaValor.innerText = fmtMoney(meta);
         
         const cardTitle = metaValor.previousElementSibling;
-        if(cardTitle) cardTitle.innerText = "🎯 Meta Diaria Exigible";
+        if(cardTitle) cardTitle.innerText = "🎯 Meta Exigible Hoy";
         const descDiv = metaValor.nextElementSibling;
         if(descDiv) {
-             descDiv.innerHTML = `<small style="color:#64748b;">(Base Operativa + Mora Vencida)</small>`;
+             descDiv.innerHTML = `<small style="color:#64748b;">(Gasto Diario + Mora acumulada)</small>`;
         }
     }
 
@@ -659,7 +683,7 @@ function renderAdmin() {
         btnSaldo.onclick = () => alert("🔒 Saldo Automático.");
     } else {
         btnSaldo.innerText = "🔓 Registrar Capital"; btnSaldo.className = "btn btn-primary"; btnSaldo.style.opacity = "1";
-        btnSaldo.onclick = () => Modal.show("Capital Inicial", [{label:"¿Dinero actual?",key:"s",type:"number"}], d => actionSaldoInicial(d.s));
+        btnSaldo.onclick = () => Modal.show("Capital Inicial", [{label:"¿Dinero actual en mano?",key:"s",type:"number"}], d => actionSaldoInicial(d.s));
     }
     
     const adminZone = document.querySelector('.container');
@@ -668,14 +692,14 @@ function renderAdmin() {
         div.className = 'card'; div.style.padding = '15px'; div.style.marginTop = '15px'; div.style.borderLeft = '4px solid #6366f1';
         div.innerHTML = `
             <h3 style="color:#4f46e5; margin-top:0;">💎 Gestión de Ahorro</h3>
-            <p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">Metas personales</p>
+            <p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">Crea metas personales (Moto nueva, Seguro, etc.)</p>
             <button class="btn btn-outline" id="btnNewAhorro" style="border-color:#6366f1; color:#6366f1;">+ Nueva Meta</button>
         `;
         const listaDeudas = $('listaDeudasAdmin');
         if(listaDeudas) listaDeudas.parentElement.parentElement.insertBefore(div, listaDeudas.parentElement);
         
         div.querySelector('#btnNewAhorro').onclick = () => Modal.show("Nueva Meta Ahorro", [
-            {label:"Nombre",key:"d"}, {label:"Monto Objetivo",key:"m",type:"number"}
+            {label:"Nombre de la meta",key:"d"}, {label:"Monto Objetivo Final",key:"m",type:"number"}
         ], d => actionNuevaMetaAhorro(d.d, d.m));
     }
     
@@ -690,8 +714,7 @@ function renderAdmin() {
         };
     }
     if(btnFin) {
-        // CORRECCIÓN 6: MODAL CON TIP DE CIERRE
-        btnFin.onclick = () => Modal.show("Fin Turno (Ingresa montos reales)", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
+        btnFin.onclick = () => Modal.show("Fin Turno (Ingresa montos reales)", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total ($)",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
     }
 
     const activo = !!store.turnoActivo;
@@ -746,6 +769,7 @@ function renderStats() {
     const ingresoPromedioHora = totalHoras > 0 ? (totalIngresos / totalHoras) : 0;
     const ingresoNetoHora = totalHoras > 0 ? (ingresoNeto / totalHoras) : 0;
     
+    // FIX: Evitar NaN en UI
     $('statIngresoHora').innerText = totalHoras > 0 ? fmtMoney(ingresoPromedioHora) : "—";
     
     const statCont = $('statIngresoHora').parentElement;
@@ -758,7 +782,7 @@ function renderStats() {
     if(totalHoras > 0) {
         $('statNeto').innerText = `Neto (sin gas): ${fmtMoney(ingresoNetoHora)}/h`;
     } else {
-        $('statNeto').innerText = "Sin datos recientes";
+        $('statNeto').innerText = "Sin datos suficientes";
     }
 
     $('statHorasTotal').innerText = totalHoras.toFixed(1) + "h";
@@ -770,18 +794,21 @@ function renderStats() {
     const metaDiaria = safeFloat(store.parametros.metaDiaria);
     $('statMetaDiaria').innerText = fmtMoney(metaDiaria);
     
-    // CORRECCIÓN 5: STATS "ANALIZANDO" ELIMINADO
+    // FIX: Copy honesto y sin "Analizando"
     const elDiag = $('statsDiagnostico');
     if (totalHoras > 0) {
         let costoGasPorHora = totalGasolina / totalHoras;
+        // Evitar división por cero
+        let margen = totalIngresos > 0 ? (100 - ((totalGasolina/totalIngresos)*100)).toFixed(1) : 0;
+
         elDiag.innerHTML = `
-            <strong>Análisis Operativo (7 días):</strong><br>
+            <strong>Resumen Semanal:</strong><br>
             • Costo combustible: ${fmtMoney(costoGasPorHora)} / hora.<br>
-            • Margen operativo: <strong>${(100 - ((totalGasolina/totalIngresos)*100)).toFixed(1)}%</strong>.<br>
-            <span style="color:#2563eb;">💡 Mantén tus ciclos vigentes para asegurar liquidez.</span>
+            • Margen real: <strong>${margen}%</strong>.<br>
+            <span style="color:#2563eb;">💡 Mantén tus ciclos vigentes para evitar deudas.</span>
         `;
     } else {
-        elDiag.innerHTML = `<span style="color:#64748b;">Pendiente de datos: Registra turnos con duración y ganancia real para proyectar tu rendimiento.</span>`;
+        elDiag.innerHTML = `<span style="color:#64748b;">Pendiente de datos: Registra al menos un turno completo (con duración y ganancia) para calcular tu eficiencia.</span>`;
     }
 }
 
@@ -805,7 +832,7 @@ function renderDashboardContext() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V9.4 UX & VISUAL STATE PATCH");
+    console.log("🚀 V9.6 STABILITY PATCH");
     loadData();
     const page = document.body.dataset.page;
     if (page === 'index') { renderIndex(); renderDashboardContext(); }
@@ -815,7 +842,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (page === 'admin') {
         renderAdmin();
         $('btnTurnoIniciar').onclick = () => { store.turnoActivo = { inicio: Date.now(), kmInicial: store.parametros.ultimoKM }; saveData(); renderAdmin(); };
-        $('btnTurnoFinalizar').onclick = () => Modal.show("Fin Turno (Ingresa montos reales)", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
+        $('btnTurnoFinalizar').onclick = () => Modal.show("Fin Turno (Ingresa montos reales)", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia Total ($)",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
         $('btnGasolina').onclick = () => Modal.show("Gasolina", [{label:"Litros",key:"l",type:"number"},{label:"Costo ($)",key:"c",type:"number"},{label:"KM Actual",key:"k",type:"number"}], d => actionGasolina(d.l, d.c, d.k));
         
         const gastoWiz = (g) => {
@@ -835,4 +862,4 @@ document.addEventListener('DOMContentLoaded', () => {
         $('btnRestoreBackup').onclick = () => Modal.show("Restaurar", [{label:"JSON",key:"j"}], d => { try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); location.reload(); } catch(e){ alert("Error"); } });
     }
 });
-                   
+         
