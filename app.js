@@ -1,5 +1,5 @@
 /* =============================================================
-   APP.JS - V9.8 (FINAL STABILITY RELEASE)
+   APP.JS - V9.9 (SEMANTIC UX GOLD MASTER)
    ============================================================= */
 
 /* -------------------------------------------------------------
@@ -7,7 +7,7 @@
    ------------------------------------------------------------- */
 const STORAGE_KEY = "moto_finanzas_vFinal";
 const LEGACY_KEYS = ["moto_finanzas_v3", "moto_finanzas", "app_moto_data"];
-const SCHEMA_VERSION = 9.8;
+const SCHEMA_VERSION = 9.9;
 
 const FRECUENCIAS = { 'Diario': 1, 'Semanal': 7, 'Quincenal': 15, 'Mensual': 30, 'Bimestral': 60, 'Anual': 365, 'Unico': 0 };
 const MAPA_DIAS = { 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 0:7 }; // 1=Lun ... 7=Dom
@@ -22,14 +22,14 @@ const CATEGORIAS_BASE = {
     hogar: ["Renta", "Comida", "Servicios", "Internet", "Salud", "Deudas", "Otro", "Ahorro", "Meta"]
 };
 
-// Utils
+// Utils UI Helpers
 const $ = id => document.getElementById(id);
 const safeFloat = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
 const fmtMoney = n => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(safeFloat(n));
 const uuid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
 /* -------------------------------------------------------------
-   SECCIÓN 2: ESTADO Y MOTOR V8.8 (INTACTO)
+   SECCIÓN 2: ESTADO (FUENTE DE VERDAD - DOMAIN LAYER)
    ------------------------------------------------------------- */
 const INITIAL_STATE = {
     schemaVersion: SCHEMA_VERSION,
@@ -46,7 +46,7 @@ const INITIAL_STATE = {
 let store = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 function loadData() {
-    console.log("♻️ [V9.8] Engine Loaded.");
+    console.log("♻️ [V9.9] Semantic Presentation Layer Loaded.");
     let raw = localStorage.getItem(STORAGE_KEY);
     if (!raw || raw.length < 50) {
         for (const key of LEGACY_KEYS) {
@@ -150,15 +150,17 @@ function calcularObjetivosYMeta() {
     store.parametros.moraVencida = moraVencidaReal;      
     store.parametros.metaBase = metaEstaticaBase;
     store.parametros.metaDiaria = store.parametros.metaBase + moraVencidaReal;
-}
+                                                             }
 /* -------------------------------------------------------------
-   SECCIÓN 3: ACCIONES (CON VALIDACIÓN UX)
+   SECCIÓN 3: ACCIONES (CAPA DE APLICACIÓN)
    ------------------------------------------------------------- */
 function actionFinalizarTurno(kmFinal, ganancia) {
     const kF = safeFloat(kmFinal);
     const gan = safeFloat(ganancia);
+    
+    // UX CHECK: Advertencia suave, no bloqueo
     if (gan === 0) {
-        if (!confirm("⚠️ CONFIRMACIÓN DE ESTADÍSTICAS:\n\nEstás cerrando el turno con $0.00.\nEsto afectará tus promedios de rendimiento.\n¿Es correcto?")) return;
+        if (!confirm("⚠️ CONFIRMACIÓN:\n\nEstás reportando $0.00 de ganancia.\nEsto afectará tus promedios.\n¿Es correcto?")) return;
     }
     if (kF < store.parametros.ultimoKM) return alert(`⛔ Error: KM actual (${kF}) es menor al anterior (${store.parametros.ultimoKM}).`);
     
@@ -187,7 +189,7 @@ function actionGasolina(l, c, k) {
     store.cargasCombustible.push({ id: uuid(), fecha: new Date().toISOString(), litros: l, costo: costoGas, km: km });
     store.movimientos.push({ id: uuid(), fecha: new Date().toISOString(), tipo: 'gasto', desc: '⛽ Gasolina', monto: costoGas, categoria: 'Operativo' });
     
-    // Semántica: La gasolina no es deuda, es consumo. Se descuenta del sobre si existe.
+    // LOGICA DE DOMINIO: Descontar del sobre (Entidad Gasolina)
     const sobreGas = store.wallet.sobres.find(s => 
         (s.categoria === 'Operativo' && (s.desc.toLowerCase().includes('gas') || s.desc.toLowerCase().includes('combustible')))
     );
@@ -236,9 +238,8 @@ function actionPagarRecurrente(id) {
 
 function actionConfigurarKM(n) { const k=safeFloat(n); if(k<=0) return alert("Error"); store.parametros.ultimoKM=k; store.parametros.kmInicialConfigurado=true; saveData(); renderAdmin(); alert("✅ OK"); }
 function actionSaldoInicial(n) { const m=safeFloat(n); if(m<0) return alert("Error"); store.movimientos.push({ id:uuid(), fecha:new Date().toISOString(), tipo:'ingreso', desc:'Saldo Inicial', monto:m, categoria:'Sistema'}); store.parametros.saldoInicialConfigurado=true; sanearDatos(); renderAdmin(); alert("✅ OK"); }
-
-/* -------------------------------------------------------------
-   SECCIÓN 4: RENDERIZADO (UI V9.8)
+  /* -------------------------------------------------------------
+   SECCIÓN 4: RENDERIZADO (UI V9.9 - HONEST UX)
    ------------------------------------------------------------- */
 const Modal = {
     show: (t, inputs, cb) => {
@@ -266,67 +267,61 @@ function renderIndex() {
     const saldo = store.wallet.saldo;
     let ahorroTotal = 0;
     
-    // 1. CÁLCULO DE EXIGIBILIDAD REAL
-    let exigibleHoyReal = 0; 
-    let proyeccionCiclos = 0; 
+    // VARIABLES DE ESTADO UI
+    let vencidoHistorico = 0; // Mora real (Ayer y antes)
+    let compromisoHoy = 0;    // Exigible del día (Hoy)
+    let proyeccionCiclos = 0; // Futuro
 
     store.wallet.sobres.forEach(s => { 
         if (s.categoria === 'Ahorro' || s.categoria === 'Meta') {
             ahorroTotal += s.acumulado;
         } else {
+            // Lógica de fechas visual para UI
+            const hoyIdx = MAPA_DIAS[new Date().getDay()];
+            const diaPago = parseInt(s.diaPago || 7);
+            const diaPagoNorm = diaPago === 0 ? 7 : diaPago;
+            const diaMes = new Date().getDate();
+
             if (s.frecuencia === 'Diario') {
-                if (!s.pagadoHoy) exigibleHoyReal += s.meta;
+                if (!s.pagadoHoy) compromisoHoy += s.meta;
             } else {
-                const hoyIdx = MAPA_DIAS[new Date().getDay()];
-                const diaPago = parseInt(s.diaPago || 7);
-                const diaPagoNorm = diaPago === 0 ? 7 : diaPago;
-                const diaMes = new Date().getDate();
-                
-                let vencido = false;
-                if (s.frecuencia === 'Semanal' && hoyIdx > diaPagoNorm) vencido = true;
-                if (s.frecuencia === 'Mensual' && diaMes > diaPago) vencido = true;
+                let esVencido = false; 
+                let esHoy = false;     
 
-                let esHoy = false;
-                if (s.frecuencia === 'Semanal' && hoyIdx === diaPagoNorm) esHoy = true;
-                if (s.frecuencia === 'Mensual' && diaMes === diaPago) esHoy = true;
-
-                if (vencido || esHoy) {
-                    const faltante = s.meta - s.acumulado;
-                    if (faltante > 0) exigibleHoyReal += faltante;
-                } else {
-                    if (s.acumulado < s.objetivoHoy) {
-                        proyeccionCiclos += (s.objetivoHoy - s.acumulado);
-                    }
+                if (s.frecuencia === 'Semanal') {
+                    if (hoyIdx > diaPagoNorm) esVencido = true;
+                    if (hoyIdx === diaPagoNorm) esHoy = true;
+                } else if (s.frecuencia === 'Mensual') {
+                    if (diaMes > diaPago) esVencido = true;
+                    if (diaMes === diaPago) esHoy = true;
                 }
+
+                const faltante = s.meta - s.acumulado;
+                if (esVencido && faltante > 0) vencidoHistorico += faltante;
+                else if (esHoy && faltante > 0) compromisoHoy += faltante;
+                else if (s.acumulado < s.objetivoHoy) proyeccionCiclos += (s.objetivoHoy - s.acumulado);
             }
         }
     });
 
-    const disponible = saldo - exigibleHoyReal - ahorroTotal;
+    const disponible = saldo - (vencidoHistorico + compromisoHoy) - ahorroTotal;
     const metaDiariaCalculada = safeFloat(store.parametros.metaDiaria); 
-    const moraVencida = store.parametros.moraVencida || 0;
 
-    // 2. LÓGICA DE COLORES HONESTA
-    let labelExigible = "🔥 Pagar Hoy";
-    let colorExigible = "var(--danger)";
-    let msgExigible = "";
+    // SEMÁFORO UX (Honestidad Financiera)
+    let uiEstado = { color: '', titulo: '', msg: '' };
 
-    if (exigibleHoyReal <= 0.5) { 
-        labelExigible = "✅ Al corriente";
-        colorExigible = "#16a34a"; // Verde
-        msgExigible = "¡Excelente! No tienes pagos pendientes para hoy.";
+    if (vencidoHistorico > 0) {
+        uiEstado.color = 'var(--danger)'; 
+        uiEstado.titulo = '⚠️ Atención Requerida';
+        uiEstado.msg = `Tienes pagos atrasados por <b>${fmtMoney(vencidoHistorico)}</b>. Prioridad alta.`;
+    } else if (compromisoHoy > 0) {
+        uiEstado.color = '#d97706'; // Ambar
+        uiEstado.titulo = '📅 Compromisos de Hoy';
+        uiEstado.msg = `Hoy toca cubrir <b>${fmtMoney(compromisoHoy)}</b>. Mantén el ritmo.`;
     } else {
-        msgExigible = `Necesitas <b>${fmtMoney(exigibleHoyReal)}</b> para cubrir compromisos de hoy.`;
-    }
-
-    let libreLabel = "Libre";
-    let libreColor = "var(--text-sec)";
-    let libreValColor = "var(--text-main)";
-    
-    if (disponible < 0) {
-        libreLabel = "⚠️ Faltante Real";
-        libreColor = "var(--danger)";
-        libreValColor = "var(--danger)";
+        uiEstado.color = '#16a34a'; // Verde
+        uiEstado.titulo = '✅ Todo en Orden';
+        uiEstado.msg = 'Estás al corriente. Sin pagos pendientes por hoy.';
     }
 
     const html = `
@@ -336,40 +331,32 @@ function renderIndex() {
         
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px; margin-top:15px; border-top:1px solid #f1f5f9; padding-top:10px;">
             <div style="text-align:center;">
-                <small style="color:${colorExigible}; font-weight:bold;">${labelExigible}</small>
-                <div style="font-weight:600; font-size:0.9rem; color:${exigibleHoyReal > 0 ? 'var(--danger)' : '#16a34a'}">${fmtMoney(exigibleHoyReal)}</div>
+                <small style="color:${uiEstado.color}; font-weight:bold;">${compromisoHoy + vencidoHistorico > 0 ? '📉 Por Pagar' : '✅ Al día'}</small>
+                <div style="font-weight:600; font-size:0.9rem; color:${uiEstado.color}">${fmtMoney(compromisoHoy + vencidoHistorico)}</div>
             </div>
             <div style="text-align:center;">
                 <small style="color:#6366f1; font-weight:bold;">💎 Ahorro</small>
                 <div style="font-weight:600; font-size:0.9rem;">${fmtMoney(ahorroTotal)}</div>
             </div>
             <div style="text-align:center;">
-                <small style="color:${libreLabel}; font-size:0.7rem;">${libreLabel}</small>
-                <div style="font-weight:600; font-size:0.9rem; color:${libreValColor}">${fmtMoney(disponible)}</div>
+                <small style="color:${disponible < 0 ? 'var(--danger)' : 'var(--text-sec)'}; font-size:0.7rem;">Disponible</small>
+                <div style="font-weight:600; font-size:0.9rem; color:${disponible < 0 ? 'var(--danger)' : 'var(--text-main)'}">${fmtMoney(disponible)}</div>
             </div>
         </div>
     </div>
 
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
         <div class="card" style="padding:12px; background:#fff1f2; border:1px solid #fda4af;">
-            <strong style="color:#be123c; font-size:0.8rem;">🎯 OBJETIVO DIARIO</strong>
+            <strong style="color:#be123c; font-size:0.8rem;">🎯 OBJETIVO PRODUCCIÓN</strong>
             <div style="font-weight:800; color:#881337; font-size:1.1rem;">${fmtMoney(metaDiariaCalculada)}</div>
-            <small style="color:#9f1239; font-size:0.7rem;">Meta Producción (Base + Mora)</small>
+            <small style="color:#9f1239; font-size:0.7rem;">Base Operativa + Mora</small>
         </div>
         
-        <div class="card" style="padding:12px; background:#f0fdf4; border:1px solid #86efac;">
-            <strong style="color:#15803d; font-size:0.8rem;">📅 ESTATUS</strong>
-            <div style="font-size:0.75rem; color:#166534; margin-top:4px; line-height:1.3;">
-               ${msgExigible}
-            </div>
+        <div class="card" style="padding:12px; background:#f8fafc; border:1px solid ${uiEstado.color}; border-left-width: 4px;">
+            <strong style="color:${uiEstado.color}; font-size:0.8rem;">${uiEstado.titulo}</strong>
+            <div style="font-size:0.75rem; color:#334155; margin-top:4px; line-height:1.3;">${uiEstado.msg}</div>
         </div>
-    </div>
-    
-    ${moraVencida > 0 ? `
-    <div class="card" style="border-left: 4px solid var(--danger); background:#fff5f5; margin-bottom:15px;">
-        <strong style="color:#c53030;">⚠️ Tienes pagos atrasados por ${fmtMoney(moraVencida)}</strong>
-    </div>` : ''}
-    `;
+    </div>`;
     
     const container = $('resumenHumanoContainer'); if(container) container.innerHTML = html;
 }
@@ -389,7 +376,7 @@ function renderWallet() {
     const diaMes = new Date().getDate();
 
     store.wallet.sobres.forEach(s => {
-        // 1. AHORRO (Azul)
+        // TIPO AHORRO
         if (s.categoria === 'Ahorro' || s.categoria === 'Meta') {
             const pct = s.meta > 0 ? Math.min((s.acumulado / s.meta) * 100, 100) : 0;
             container.innerHTML += `
@@ -401,13 +388,13 @@ function renderWallet() {
                 <div style="height:8px; background:#e0e7ff; border-radius:4px; overflow:hidden;"><div style="width:${pct}%; background:#6366f1; height:100%;"></div></div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
                     <span style="font-size:0.7rem; color:#6366f1;">Meta: ${fmtMoney(s.meta)}</span>
-                    <button class="btn btn-sm" style="background:#6366f1; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:0.75rem; cursor:pointer;" onclick="Modal.show('Abonar', [{label:'Monto',key:'m',type:'number'}], d => actionAbonarAhorro('${s.id}', d.m))">+ ABONAR</button>
+                    <button class="btn btn-sm" style="background:#6366f1; color:white; border:none; padding:8px 12px; border-radius:4px; font-size:0.75rem; cursor:pointer; z-index:99; position:relative;" onclick="Modal.show('Abonar', [{label:'Monto',key:'m',type:'number'}], d => actionAbonarAhorro('${s.id}', d.m))">+ ABONAR</button>
                 </div>
             </div>`;
             return;
         }
         
-        // 2. GASOLINA (Naranja - Visual de Reserva)
+        // TIPO GASOLINA
         if (s.categoria === 'Operativo' && (s.desc.toLowerCase().includes('gas') || s.desc.toLowerCase().includes('combustible'))) {
             container.innerHTML += `
             <div class="card" style="padding:15px; border-left:4px solid #f59e0b; background:#fffbeb;">
@@ -422,19 +409,29 @@ function renderWallet() {
             return;
         }
 
-        // 3. GASTO DIARIO (Gris)
-        if (s.frecuencia === 'Diario' && s.pagadoHoy) {
-            container.innerHTML += `
-            <div class="card" style="padding:10px 15px; border-left:4px solid #cbd5e1; background:#f8fafc; opacity:0.6;">
-                <div style="display:flex; justify-content:space-between; align-items: center;">
-                    <span style="color:#64748b;">${s.desc}</span>
-                    <span style="font-size:0.75rem; color:#64748b;">✔ Cubierto hoy</span>
-                </div>
-            </div>`;
+        // TIPO GASTO DIARIO
+        if (s.frecuencia === 'Diario') {
+            if(s.pagadoHoy) {
+                container.innerHTML += `
+                <div class="card" style="padding:10px 15px; border-left:4px solid #cbd5e1; background:#f8fafc; opacity:0.6;">
+                    <div style="display:flex; justify-content:space-between; align-items: center;">
+                        <span style="color:#64748b;">${s.desc}</span>
+                        <span style="font-size:0.75rem; color:#64748b;">✔ Cubierto hoy</span>
+                    </div>
+                </div>`;
+            } else {
+                 container.innerHTML += `
+                <div class="card" style="padding:10px 15px; border-left:4px solid #d97706; background:#fff7ed;">
+                    <div style="display:flex; justify-content:space-between; align-items: center;">
+                        <strong style="color:#9a3412;">${s.desc}</strong>
+                        <span style="font-size:0.75rem; color:#9a3412;">Pendiente hoy (${fmtMoney(s.meta)})</span>
+                    </div>
+                </div>`;
+            }
             return;
         }
 
-        // 4. CICLOS Y DEUDAS (Semáforo V9.8)
+        // TIPO CICLOS Y DEUDAS (SEMÁFORO)
         let valorMeta = s.meta;
         let valorAcumulado = s.acumulado;
         let pct = Math.min((valorAcumulado / valorMeta) * 100, 100);
@@ -443,39 +440,35 @@ function renderWallet() {
         let colorBarra = "#3b82f6"; 
         let bordeColor = "#3b82f6"; 
 
-        if (s.frecuencia !== 'Diario') {
-            const diaPago = parseInt(s.diaPago || 7);
-            const diaPagoNorm = diaPago === 0 ? 7 : diaPago;
-            
-            let esVencido = false;
-            let esHoy = false;
-            
-            if (s.frecuencia === 'Semanal') {
-                if (hoyIdx > diaPagoNorm && s.acumulado < s.meta) esVencido = true;
-                if (hoyIdx === diaPagoNorm && s.acumulado < s.meta) esHoy = true;
-            } else if (s.frecuencia === 'Mensual') {
-                if (diaMes > diaPago && s.acumulado < s.meta) esVencido = true;
-                if (diaMes === diaPago && s.acumulado < s.meta) esHoy = true;
-            }
+        const diaPago = parseInt(s.diaPago || 7);
+        const diaPagoNorm = diaPago === 0 ? 7 : diaPago;
+        
+        let esVencido = false;
+        let esHoy = false;
+        
+        if (s.frecuencia === 'Semanal') {
+            if (hoyIdx > diaPagoNorm && s.acumulado < s.meta) esVencido = true;
+            if (hoyIdx === diaPagoNorm && s.acumulado < s.meta) esHoy = true;
+        } else if (s.frecuencia === 'Mensual') {
+            if (diaMes > diaPago && s.acumulado < s.meta) esVencido = true;
+            if (diaMes === diaPago && s.acumulado < s.meta) esHoy = true;
+        }
 
-            if (esVencido) {
-                estadoStr = "⚠️ VENCIDO";
-                colorBarra = "#dc2626"; bordeColor = "#dc2626";
-            } else if (esHoy) {
-                estadoStr = "📅 Pago programado hoy";
-                colorBarra = "#d97706"; bordeColor = "#d97706";
-            } else {
-                const falta = s.objetivoHoy - s.acumulado;
-                if (falta > 1) {
-                    estadoStr = `En progreso`;
-                    colorBarra = "#3b82f6"; 
-                } else {
-                    estadoStr = "Ciclo cubierto";
-                    colorBarra = "#16a34a"; bordeColor = "#16a34a";
-                }
-            }
+        if (esVencido) {
+            estadoStr = "⚠️ VENCIDO";
+            colorBarra = "#dc2626"; bordeColor = "#dc2626"; // ROJO
+        } else if (esHoy) {
+            estadoStr = "📅 TOCA HOY";
+            colorBarra = "#d97706"; bordeColor = "#d97706"; // NARANJA
         } else {
-            estadoStr = "Gasto Diario";
+            const falta = s.objetivoHoy - s.acumulado;
+            if (falta > 1) {
+                estadoStr = `En progreso`;
+                colorBarra = "#3b82f6"; 
+            } else {
+                estadoStr = "Ciclo cubierto";
+                colorBarra = "#16a34a"; bordeColor = "#16a34a"; // VERDE
+            }
         }
 
         container.innerHTML += `
@@ -494,9 +487,8 @@ function renderWallet() {
         </div>`;
     });
 }
-
 /* -------------------------------------------------------------
-   RENDER ADMIN & STATS (V9.8 - FINAL)
+   RENDER ADMIN & STATS (V9.9 - ROBUST DOM)
    ------------------------------------------------------------- */
 function renderHistorial() {
     if (!$('tablaBody')) return;
@@ -519,10 +511,7 @@ function renderHistorial() {
 function renderAdmin() {
     if (!$('kmActual')) return;
     
-    // ============================================================
-    // 🔧 FIX FINAL: ZONA DE GASTOS RECURRENTES (DOM SEGURO)
-    // ============================================================
-    // 1. Asegurar contenedor
+    // 🔧 FIX: DOM Injection Robusto para Gastos Recurrentes
     let divRecur = document.getElementById('zoneRecurrentes');
     if(!divRecur && $('btnGastoHogar')) {
         divRecur = document.createElement('div'); 
@@ -536,7 +525,6 @@ function renderAdmin() {
         parent.insertBefore(divRecur, ref);
     }
     
-    // 2. Renderizar contenido
     if(divRecur) {
          const recurrentes = store.gastosFijosMensuales.filter(g => g.frecuencia !== 'Unico' && g.categoria !== 'Ahorro' && g.categoria !== 'Meta');
          
@@ -544,7 +532,7 @@ function renderAdmin() {
              divRecur.innerHTML = `
                 <h4 style="font-size:0.9rem; color:#64748b; margin-bottom:5px;">Pagar Recurrente</h4>
                 <div style="padding:10px; text-align:center; border:1px dashed #cbd5e1; border-radius:6px; background:#fff;">
-                    <small style="color:#94a3b8;">No hay gastos fijos (Renta, Plan, etc).</small>
+                    <small style="color:#94a3b8;">No hay gastos fijos configurados.</small>
                 </div>`;
          } else {
              divRecur.innerHTML = `
@@ -571,7 +559,6 @@ function renderAdmin() {
              };
          }
     }
-    // ============================================================
 
     const ul = $('listaDeudasAdmin');
     if(ul) {
@@ -590,7 +577,7 @@ function renderAdmin() {
     
     const btnKM = $('btnConfigKM');
     if (store.parametros.kmInicialConfigurado) {
-        btnKM.innerText = "🔒 Auto"; btnKM.className = "btn btn-outline"; btnKM.onclick = () => alert("Gestionado automáticamente por los turnos.");
+        btnKM.innerText = "🔒 Auto"; btnKM.className = "btn btn-outline"; btnKM.onclick = () => alert("Gestionado automáticamente.");
     } else {
         btnKM.innerText = "🔓 Configurar"; btnKM.className = "btn btn-primary"; btnKM.onclick = () => Modal.show("Configurar KM", [{label:"KM",key:"km",type:"number"}], d => actionConfigurarKM(d.km));
     }
@@ -598,15 +585,16 @@ function renderAdmin() {
     const saldo = store.wallet.saldo;
     if($('valSaldoAdmin')) $('valSaldoAdmin').innerText = fmtMoney(saldo);
 
+    // UX: NOMBRE CORRECTO META
     const metaValor = $('metaDiariaValor');
     if (metaValor) {
         metaValor.innerText = fmtMoney(safeFloat(store.parametros.metaDiaria));
-        const cardTitle = metaValor.previousElementSibling; if(cardTitle) cardTitle.innerText = "Objetivo Diario Base";
+        const cardTitle = metaValor.previousElementSibling; if(cardTitle) cardTitle.innerText = "Objetivo Producción Base";
     }
     
     const btnSaldo = $('btnConfigSaldo');
     if (store.parametros.saldoInicialConfigurado) {
-        btnSaldo.innerText = "🔒 Auto"; btnSaldo.className = "btn btn-outline"; btnSaldo.onclick = () => alert("Gestionado por flujo de caja.");
+        btnSaldo.innerText = "🔒 Auto"; btnSaldo.className = "btn btn-outline"; btnSaldo.onclick = () => alert("Gestionado por flujo.");
     } else {
         btnSaldo.innerText = "🔓 Capital"; btnSaldo.className = "btn btn-primary"; btnSaldo.onclick = () => Modal.show("Capital", [{label:"Monto",key:"s",type:"number"}], d => actionSaldoInicial(d.s));
     }
@@ -671,12 +659,13 @@ function renderStats() {
     $('statIngresoDiario').innerText = diasTrabajados > 0 ? fmtMoney(totalIngresos / diasTrabajados) : "$0.00";
     $('statMetaDiaria').innerText = fmtMoney(safeFloat(store.parametros.metaDiaria));
     
+    // UX: Mensaje de diagnóstico honesto
     const elDiag = $('statsDiagnostico');
     if (totalHoras > 0) {
         let margen = totalIngresos > 0 ? (100 - ((totalGasolina/totalIngresos)*100)).toFixed(1) : 0;
         elDiag.innerHTML = `<strong>Margen Real: ${margen}%</strong><br><span style="color:#64748b; font-size:0.8rem;">(Ganancia retenida tras combustible)</span>`;
     } else {
-        elDiag.innerHTML = `<span style="color:#64748b;">Registra actividad para ver métricas.</span>`;
+        elDiag.innerHTML = `<span style="color:#64748b;">Registra actividad reciente para ver tu análisis de rendimiento.</span>`;
     }
 }
 
@@ -699,7 +688,7 @@ function renderDashboardContext() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 V9.8 FINAL STABILITY");
+    console.log("🚀 V9.9 SEMANTIC UX ACTIVE");
     loadData();
     const page = document.body.dataset.page;
     if (page === 'index') { renderIndex(); renderDashboardContext(); }
@@ -708,4 +697,4 @@ document.addEventListener('DOMContentLoaded', () => {
     if (page === 'stats') renderStats();
     if (page === 'admin') renderAdmin();
 });
-       
+                                                                              
