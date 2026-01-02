@@ -488,7 +488,7 @@ function renderWallet() {
     });
 }
 /* -------------------------------------------------------------
-   RENDER ADMIN & STATS (V9.9 - ROBUST DOM)
+   RENDER ADMIN & STATS (V9.9 - FINAL FIX)
    ------------------------------------------------------------- */
 function renderHistorial() {
     if (!$('tablaBody')) return;
@@ -511,7 +511,7 @@ function renderHistorial() {
 function renderAdmin() {
     if (!$('kmActual')) return;
     
-    // 🔧 FIX: DOM Injection Robusto para Gastos Recurrentes
+    // 1. ZONA DE GASTOS RECURRENTES (DOM Injection Robusto)
     let divRecur = document.getElementById('zoneRecurrentes');
     if(!divRecur && $('btnGastoHogar')) {
         divRecur = document.createElement('div'); 
@@ -560,17 +560,31 @@ function renderAdmin() {
          }
     }
 
+    // 2. LISTA DEUDAS
     const ul = $('listaDeudasAdmin');
     if(ul) {
         ul.innerHTML = store.deudas.length === 0 ? 
             '<div style="text-align:center; padding:15px; color:#64748b; font-size:0.9rem;">🎉 Sin deudas registradas</div>' : 
             store.deudas.map(d => `<li style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;"><span>${d.desc}</span><span style="font-weight:bold;">${fmtMoney(d.saldo)}</span></li>`).join('');
     }
+
+    // 3. SELECTOR DEUDAS Y BOTÓN OK (🔧 FIX APLICADO AQUÍ)
     const selD = $('abonoDeudaSelect');
+    const btnAbono = $('btnAbonoCuota'); // Recuperamos el botón
+    
     if(selD) {
         selD.innerHTML = '<option value="">Seleccionar...</option>';
         if(store.deudas.length === 0) selD.add(new Option("Sin deudas", ""));
         else store.deudas.forEach(d => { if(d.saldo >= 1) selD.add(new Option(`${d.desc} (${fmtMoney(d.montoCuota)})`, d.id)); });
+
+        // REACTIVACIÓN DEL BOTÓN OK
+        if(btnAbono) {
+            btnAbono.onclick = () => {
+                const v = selD.value;
+                if(!v) return alert("⚠️ Selecciona una deuda para abonar.");
+                if(confirm("¿Confirmar abono a deuda?")) actionAbonarDeuda(v);
+            };
+        }
     }
 
     $('kmActual').innerText = `${store.parametros.ultimoKM} km`;
@@ -613,6 +627,20 @@ function renderAdmin() {
     
     if(btnIni) btnIni.onclick = () => { store.turnoActivo = { inicio: Date.now(), kmInicial: store.parametros.ultimoKM }; saveData(); renderAdmin(); };
     if(btnFin) btnFin.onclick = () => Modal.show("Cerrar Turno", [{label:"KM Final",key:"k",type:"number"},{label:"Ganancia ($)",key:"g",type:"number"}], d => actionFinalizarTurno(d.k, d.g));
+
+    // Botones estáticos de Admin
+    if($('btnGasolina')) $('btnGasolina').onclick = () => Modal.show("Gasolina", [{label:"Litros",key:"l",type:"number"},{label:"Costo ($)",key:"c",type:"number"},{label:"KM Actual",key:"k",type:"number"}], d => actionGasolina(d.l, d.c, d.k));
+    if($('btnGastoHogar')) $('btnGastoHogar').onclick = () => {
+         const allCats = [...CATEGORIAS_BASE['hogar'], ...(store.categoriasPersonalizadas.hogar||[]), "➕ Crear nueva..."];
+         Modal.show("Nuevo Gasto Hogar", [{label:"Descripción",key:"d"},{label:"Monto",key:"m",type:"number"},{label:"Categoría",key:"c",type:"select",options:allCats.map(x=>({val:x,txt:x}))},{label:"Frecuencia",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({val:x,txt:x}))}], d => actionNuevoGasto(d.d, d.m, d.c, d.f));
+    };
+    if($('btnGastoOperativo')) $('btnGastoOperativo').onclick = () => {
+         const allCats = [...CATEGORIAS_BASE['operativo'], ...(store.categoriasPersonalizadas.operativo||[]), "➕ Crear nueva..."];
+         Modal.show("Nuevo Gasto Operativo", [{label:"Descripción",key:"d"},{label:"Monto",key:"m",type:"number"},{label:"Categoría",key:"c",type:"select",options:allCats.map(x=>({val:x,txt:x}))},{label:"Frecuencia",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({val:x,txt:x}))}], d => actionNuevoGasto(d.d, d.m, d.c, d.f));
+    };
+    if($('btnDeudaNueva')) $('btnDeudaNueva').onclick = () => Modal.show("Nueva Deuda", [{label:"Nombre",key:"d"},{label:"Total",key:"t",type:"number"},{label:"Cuota",key:"c",type:"number"},{label:"Frecuencia",key:"f",type:"select",options:Object.keys(FRECUENCIAS).map(x=>({val:x,txt:x}))},{label:"Día Pago",key:"dp",type:"select",options:DIAS_SEMANA}], d => actionNuevaDeuda(d.d, d.t, d.c, d.f, d.dp));
+    if($('btnExportJSON')) $('btnExportJSON').onclick = () => navigator.clipboard.writeText(JSON.stringify(store)).then(() => alert("Copiado"));
+    if($('btnRestoreBackup')) $('btnRestoreBackup').onclick = () => Modal.show("Restaurar", [{label:"JSON",key:"j"}], d => { try { store = {...INITIAL_STATE, ...JSON.parse(d.j)}; sanearDatos(); location.reload(); } catch(e){ alert("Error"); } });
 
     if(store.turnoActivo) {
         $('turnoEstado').innerHTML = '<span class="text-green">🟢 EN CURSO</span>';
@@ -659,7 +687,6 @@ function renderStats() {
     $('statIngresoDiario').innerText = diasTrabajados > 0 ? fmtMoney(totalIngresos / diasTrabajados) : "$0.00";
     $('statMetaDiaria').innerText = fmtMoney(safeFloat(store.parametros.metaDiaria));
     
-    // UX: Mensaje de diagnóstico honesto
     const elDiag = $('statsDiagnostico');
     if (totalHoras > 0) {
         let margen = totalIngresos > 0 ? (100 - ((totalGasolina/totalIngresos)*100)).toFixed(1) : 0;
@@ -697,4 +724,5 @@ document.addEventListener('DOMContentLoaded', () => {
     if (page === 'stats') renderStats();
     if (page === 'admin') renderAdmin();
 });
-                                                                              
+
+
