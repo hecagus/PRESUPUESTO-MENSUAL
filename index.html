@@ -1,9 +1,52 @@
 <!DOCTYPE html>
-<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>Panel Financiero</title><link rel="stylesheet" href="style.css"></head>
-<body data-page="index"><header class="header"><h1>📊 Mi Panel</h1></header><main class="container">
-<section class="card text-center"><h2>Ganancia Reparto (Hoy)</h2><p id="resGananciaBruta" style="font-size:2.5rem;font-weight:800;color:var(--success)">$0.00</p><small style="color:var(--text-sec)">Ingresos brutos de reparto generados hoy</small></section>
-<div id="resumenHumanoContainer"></div>
-<section class="card" style="background:#f8fafc"><h3 style="font-size:.9rem;color:var(--text-sec)">📅 Reparto hoy</h3><ul style="font-size:.85rem;line-height:1.6;padding-left:16px"><li>Turnos completados: <strong id="uiTurnosHoy">—</strong></li><li>Horas trabajadas: <strong id="uiHorasHoy">—</strong></li><li>Ingreso por hora: <strong id="uiIngresoHoraHoy">—</strong></li></ul></section>
-<section class="card" style="display:none"><div id="uiCompromisos"></div></section>
-</main><nav class="bottom-nav"><a href="index.html" class="nav-link active"><span>📊</span>Panel</a><a href="wallet.html" class="nav-link"><span>💰</span>Wallet</a><a href="admin.html" class="nav-link"><span>⚙️</span>Admin</a><a href="stats.html" class="nav-link"><span>📈</span>Stats</a><a href="historial.html" class="nav-link"><span>📜</span>Historial</a></nav>
-<script type="module" src="./js/05_init.js"></script></body></html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#f7f8fc">
+  <title>Panel Financiero</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="index">
+  <header class="header dashboard-header">
+    <div class="dashboard-brand">
+      <div class="dashboard-brand-icon">▥</div>
+      <div>
+        <h1>Mi Panel</h1>
+        <small>Resumen financiero</small>
+      </div>
+    </div>
+  </header>
+
+  <main class="container dashboard-container">
+    <section class="card text-center dashboard-income-hero">
+      <div class="dashboard-eyebrow">Reparto de hoy</div>
+      <p id="resGananciaBruta" class="dashboard-income-value">$0.00</p>
+      <small>Ingresos brutos generados hoy</small>
+    </section>
+
+    <div id="resumenHumanoContainer" class="dashboard-summary"></div>
+
+    <section class="card dashboard-today-card">
+      <div class="dashboard-section-title"><span>🛵</span> Reparto hoy</div>
+      <ul class="dashboard-today-metrics">
+        <li><span>Turnos</span><strong id="uiTurnosHoy">—</strong></li>
+        <li><span>Horas</span><strong id="uiHorasHoy">—</strong></li>
+        <li><span>Por hora</span><strong id="uiIngresoHoraHoy">—</strong></li>
+      </ul>
+    </section>
+
+    <section class="card hidden"><div id="uiCompromisos"></div></section>
+  </main>
+
+  <nav class="bottom-nav">
+    <a href="index.html" class="nav-link active"><span>▥</span>Panel</a>
+    <a href="wallet.html" class="nav-link"><span>◉</span>Wallet</a>
+    <a href="admin.html" class="nav-link"><span>⚙</span>Admin</a>
+    <a href="stats.html" class="nav-link"><span>⌁</span>Stats</a>
+    <a href="historial.html" class="nav-link"><span>≡</span>Historial</a>
+  </nav>
+
+  <script type="module" src="./js/05_init.js"></script>
+</body>
+</html>
