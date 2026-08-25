@@ -1,46 +1,44 @@
-# 📈 PRESUPUESTO-MENSUAL (Rastreador de Gastos y Operación)
+# 📈 PRESUPUESTO-MENSUAL — V10
 
-Sistema 100% offline para controlar **ingresos, gastos, deudas y kilometraje**, hecho con **HTML, CSS y JavaScript puro**, sin backend. Guarda toda la información en `localStorage` y funciona perfecto en **GitHub Pages**.
+Aplicación financiera personal offline para administrar **trabajo fijo + reparto**, gastos, deudas, ahorro, gasolina y kilometraje.
 
----
+## Modelo híbrido
 
-## 🚀 Funciones avanzadas
+- **Trabajo fijo:** se configura como fuente de ingreso independiente y cada cobro se registra en caja.
+- **Reparto:** conserva turnos, horas, ganancia, kilometraje y gasolina.
+- Ambas fuentes terminan en el mismo historial de movimientos, pero conservan su origen para no mezclar salario con rendimiento operativo de reparto.
 
-- **Gestión de Turnos y KM:** El sistema lleva el control estricto del odómetro. El KM final del turno de hoy es el KM inicial del turno de mañana.
-- **Asistente de Gasolina (3 Pasos):** Registro preciso del KM actual para calcular tu métrica de **Costo Real por KM**.
-- **💸 Gastos Inteligentes:** Clasificación de gastos en **Operativos (Moto)** o **Personales (Hogar)** con categorías predefinidas y opción "Otra".
-- **Sistema de Obligaciones (Gastos Fijos y Deudas):**
-    - **Frecuencia Flexible:** Permite definir gastos recurrentes (Netflix, Renta) con frecuencia **Diaria, Semanal, Quincenal, Mensual o Bimestral**.
-    - **Asistente de Deudas (3 Pasos):** Captura el monto total, el monto de la cuota recurrente, la frecuencia de pago y la fecha del próximo pago.
-- **🎯 Meta Diaria Calculada:** Calcula automáticamente tu monto mínimo a ganar/apartar por día sumando:
-    $$\text{Meta Diaria} = \frac{\text{Gastos Fijos}}{\text{Días}} + \frac{\text{Cuotas de Deuda}}{\text{Días de Frecuencia}}$$
-- **Control de Deudas:** Registro de abonos y saldo pendiente en tiempo real.
-- **Respaldo de Datos:** Exportar / Importar toda la información en formato **JSON**.
+## Arquitectura
 
----
-
-## 📂 Estructura
-
+```text
 PRESUPUESTO-MENSUAL/
-├── index.html (Panel de Resultados)
-├── admin.html (Administración y Registro)
-├── historial.html (Vista de movimientos históricos)
-├── tutorial.html (Guía rápida inicial)
-├── style.css
-└── app.js
+├── js/
+│   ├── 01_consts_utils.js   # constantes y helpers
+│   ├── 02_data.js           # estado, localStorage y dominio financiero
+│   ├── 03_render.js         # presentación / Semantic UX
+│   ├── 04_charts.js         # métricas y analítica
+│   └── 05_init.js           # inicialización y eventos
+├── index.html
+├── admin.html
+├── wallet.html
+├── stats.html
+├── historial.html
+└── style.css
+```
 
----
+### Reglas de arquitectura
 
-## 🔧 Tecnologías
+1. `02_data.js` es la única fuente de verdad financiera y no accede al DOM.
+2. `03_render.js` interpreta el estado, pero no modifica dinero ni persistencia.
+3. `05_init.js` conecta eventos de UI con acciones del dominio.
+4. Los ingresos fijos no alteran la fórmula de obligaciones ni las métricas de reparto.
+5. Gasolina es consumo/reserva operativa, no deuda.
+6. Rojo se reserva para mora real; los compromisos del día son ámbar y las proyecciones futuras son neutrales.
 
-- HTML5
-- CSS3
-- JavaScript (Puro)
-- `localStorage` (Almacenamiento offline)
-- Chart.js (Gráficas)
+## Persistencia
 
----
+La app continúa siendo **100% offline** y usa `localStorage` con la clave histórica `moto_finanzas_vFinal`, por lo que la migración V9.9 → V10 conserva los datos existentes. V10 añade `ingresosFijos` de forma compatible.
 
-## 📌 Notas Finales
+## Tecnología
 
-El proyecto ha evolucionado a una herramienta completa de **gestión financiera y operativa**, ideal para rastrear el rendimiento del trabajo de reparto de manera profesional, incluyendo la normalización de todos los gastos y deudas a una **Meta Diaria** simple y accionable.
+HTML5 · CSS3 · JavaScript ES Modules · localStorage · GitHub Pages
