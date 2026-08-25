@@ -16,7 +16,7 @@ export const DIAS_SEMANA = Object.freeze([
 ]);
 
 export const CATEGORIAS_BASE = Object.freeze({
-  operativo: ['Gasolina', 'Mantenimiento', 'Reparación', 'Equipo', 'Seguro'],
+  operativo: ['Gasolina', 'Renta', 'Mantenimiento', 'Reparación', 'Equipo', 'Seguro'],
   hogar: ['Renta', 'Comida', 'Servicios', 'Internet', 'Salud', 'Deudas', 'Otro', 'Ahorro', 'Meta']
 });
 
