@@ -1,57 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Panel Financiero</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body data-page="index">
-
-    <header class="header">
-        <h1>📊 Mi Panel</h1>
-    </header>
-
-    <main class="container">
-        <section class="card text-center">
-            <h2>Ganancia Turno (Hoy)</h2>
-            <p id="resGananciaBruta" style="font-size: 2.5rem; font-weight: 800; color: var(--success); letter-spacing: -1px;">$0.00</p>
-            <small style="color:var(--text-sec)">Ingresos brutos generados hoy</small>
-        </section>
-
-        <div id="resumenHumanoContainer"></div>
-
-        <section class="card" style="background:#f8fafc;">
-            <h3 style="font-size:0.9rem; color:var(--text-sec); margin-bottom:6px;">📅 Hoy</h3>
-            <ul style="font-size:0.85rem; line-height:1.6; padding-left:16px;">
-                <li>Turnos completados: <strong id="uiTurnosHoy">—</strong></li>
-                <li>Horas trabajadas: <strong id="uiHorasHoy">—</strong></li>
-                <li>Ingreso por hora: <strong id="uiIngresoHoraHoy">—</strong></li>
-            </ul>
-        </section>
-
-        <section class="card" style="background:#fff7ed; border-left:4px solid #f59e0b;">
-            <h3 style="font-size:0.9rem; color:#92400e; margin-bottom:6px;">🔒 Compromisos activos</h3>
-            <div id="uiCompromisos" style="font-size:0.85rem; line-height:1.6;">
-                —
-            </div>
-        </section>
-
-        <section class="card" style="background:#f1f5f9;">
-            <p style="font-size:0.8rem; color:var(--text-sec); text-align:center;">
-                📈 Consulta <strong>Stats</strong> para ver cuántas horas necesitas trabajar para salir del déficit.
-            </p>
-        </section>
-        </main>
-
-    <nav class="bottom-nav">
-        <a href="index.html" class="nav-link active"><span>📊</span>Panel</a>
-        <a href="wallet.html" class="nav-link"><span>💰</span>Wallet</a>
-        <a href="admin.html" class="nav-link"><span>⚙️</span>Admin</a>
-        <a href="stats.html" class="nav-link"><span>📈</span>Stats</a>
-        <a href="historial.html" class="nav-link"><span>📜</span>Historial</a>
-    </nav>
-
-    <script src="app.js" defer></script>
-</body>
-</html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>Panel Financiero</title><link rel="stylesheet" href="style.css"></head>
+<body data-page="index"><header class="header"><h1>📊 Mi Panel</h1></header><main class="container">
+<section class="card text-center"><h2>Ganancia Reparto (Hoy)</h2><p id="resGananciaBruta" style="font-size:2.5rem;font-weight:800;color:var(--success)">$0.00</p><small style="color:var(--text-sec)">Ingresos brutos de reparto generados hoy</small></section>
+<div id="resumenHumanoContainer"></div>
+<section class="card" style="background:#f8fafc"><h3 style="font-size:.9rem;color:var(--text-sec)">📅 Reparto hoy</h3><ul style="font-size:.85rem;line-height:1.6;padding-left:16px"><li>Turnos completados: <strong id="uiTurnosHoy">—</strong></li><li>Horas trabajadas: <strong id="uiHorasHoy">—</strong></li><li>Ingreso por hora: <strong id="uiIngresoHoraHoy">—</strong></li></ul></section>
+<section class="card" style="display:none"><div id="uiCompromisos"></div></section>
+</main><nav class="bottom-nav"><a href="index.html" class="nav-link active"><span>📊</span>Panel</a><a href="wallet.html" class="nav-link"><span>💰</span>Wallet</a><a href="admin.html" class="nav-link"><span>⚙️</span>Admin</a><a href="stats.html" class="nav-link"><span>📈</span>Stats</a><a href="historial.html" class="nav-link"><span>📜</span>Historial</a></nav>
+<script type="module" src="./js/05_init.js"></script></body></html>
