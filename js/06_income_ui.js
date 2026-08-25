@@ -1,0 +1,27 @@
+/* V10.1 - UI exclusiva de ingresos fijos. Sin lógica financiera general. */
+import { $, fmtMoney } from './01_consts_utils.js';
+import * as Data from './02_data.js';
+
+const WEEK=[['1','Lunes'],['2','Martes'],['3','Miércoles'],['4','Jueves'],['5','Viernes'],['6','Sábado'],['0','Domingo']];
+const monthDays=(includeEnd=false)=>[...Array.from({length:31},(_,i)=>[String(i+1),String(i+1)]),...(includeEnd?[['fin_mes','Fin de mes']]:[])];
+const options=(items,selected='')=>items.map(([v,t])=>`<option value="${v}" ${v===String(selected)?'selected':''}>${t}</option>`).join('');
+
+function pagoTexto(f,p,index){if(f.frecuencia==='Semanal')return `${fmtMoney(p.monto)} · cada ${WEEK.find(x=>x[0]===String(p.diaSemana))?.[1]||'semana'}`;if(f.frecuencia==='Quincenal')return `${index===0?'1ª quincena':'2ª quincena'} · ${fmtMoney(p.monto)} · ${p.diaMes==='fin_mes'?'fin de mes':`día ${p.diaMes}`}`;return `${fmtMoney(p.monto)} · día ${p.diaMes}`;}
+
+export function renderIncomeUI(){
+  const s=Data.getState(), zone=$('zoneIngresoFijo');
+  if(zone){const activos=s.ingresosFijos.filter(x=>x.activo);zone.innerHTML=activos.length?activos.map(f=>`<div style="padding:10px 0;border-bottom:1px solid #e2e8f0"><strong>${f.nombre}</strong><small style="display:block;color:var(--text-sec);margin:3px 0 7px">${f.frecuencia}</small>${(f.pagos||[]).map((p,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px"><span style="font-size:.82rem">${pagoTexto(f,p,i)}</span><button class="btn btn-success" style="width:auto;white-space:nowrap" data-income-id="${f.id}" data-payment-id="${p.id}">Registrar cobro</button></div>`).join('')}</div>`).join(''):'<small style="color:var(--text-sec)">Sin ingreso fijo configurado.</small>';}
+  const saldoBtn=$('btnConfigSaldo');
+  if(saldoBtn){const configurado=s.parametros.saldoInicialConfigurado;saldoBtn.textContent=configurado?'🔒 Saldo gestionado':'💵 Declarar saldo inicial';saldoBtn.className=configurado?'btn btn-outline':'btn btn-primary';}
+  if(!s.parametros.saldoInicialConfigurado&&document.body.dataset.page==='index'&&!document.getElementById('setupSaldoAviso')){const main=document.querySelector('main.container'), aviso=document.createElement('section');aviso.id='setupSaldoAviso';aviso.className='card';aviso.style.cssText='border-left:5px solid #d97706';aviso.innerHTML='<strong>💵 Falta tu saldo inicial</strong><p style="font-size:.85rem;margin:6px 0">Declara cuánto dinero tienes actualmente para que el saldo de caja empiece desde una base real.</p><a class="btn btn-primary" href="admin.html" style="display:block;text-align:center;text-decoration:none">Configurar saldo</a>';main?.prepend(aviso);}
+}
+
+function closeDialog(){document.getElementById('incomeSetupModal')?.remove();}
+function drawFields(){const f=document.getElementById('incomeFreq')?.value,box=document.getElementById('incomeFields');if(!box)return;if(f==='Semanal')box.innerHTML=`<label>Monto por pago</label><input id="incomeM1" class="input-control" type="number" inputmode="decimal"><label>Día de cobro</label><select id="incomeD1" class="input-control">${options(WEEK,'6')}</select>`;else if(f==='Quincenal')box.innerHTML=`<label>Monto 1ª quincena</label><input id="incomeM1" class="input-control" type="number" inputmode="decimal"><label>Primer día de pago</label><select id="incomeD1" class="input-control">${options(monthDays(false),'15')}</select><label>Monto 2ª quincena</label><input id="incomeM2" class="input-control" type="number" inputmode="decimal"><label>Segundo día de pago</label><select id="incomeD2" class="input-control">${options(monthDays(true),'fin_mes')}</select>`;else box.innerHTML=`<label>Monto mensual</label><input id="incomeM1" class="input-control" type="number" inputmode="decimal"><label>Día de pago</label><select id="incomeD1" class="input-control">${options(monthDays(false),'1')}</select>`;}
+function openDialog(){closeDialog();const el=document.createElement('div');el.id='incomeSetupModal';el.className='modal-overlay';el.style.display='flex';el.innerHTML=`<div class="modal"><h3>Nuevo ingreso fijo</h3><label>Nombre / empresa</label><input id="incomeName" class="input-control" autocomplete="organization"><label>Frecuencia</label><select id="incomeFreq" class="input-control"><option value="Semanal">Semanal</option><option value="Quincenal" selected>Quincenal</option><option value="Mensual">Mensual</option></select><div id="incomeFields"></div><div class="modal-actions"><button id="incomeCancel" class="btn btn-outline">Cancelar</button><button id="incomeSave" class="btn btn-primary">Guardar</button></div></div>`;document.body.append(el);drawFields();$('incomeFreq').onchange=drawFields;$('incomeCancel').onclick=closeDialog;$('incomeSave').onclick=()=>{try{Data.crearIngresoFijo({nombre:$('incomeName').value,frecuencia:$('incomeFreq').value,monto1:$('incomeM1')?.value,dia1:$('incomeD1')?.value,monto2:$('incomeM2')?.value,dia2:$('incomeD2')?.value});closeDialog();renderIncomeUI();}catch(e){alert(e.message==='MONTO_INVALIDO'?'Ingresa montos válidos.':'Revisa los datos del ingreso.');}};}
+
+export function initIncomeUI(){
+  $('btnIngresoFijoNuevo')?.addEventListener('click',openDialog);
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-income-id]');if(!b)return;if(confirm('¿Registrar este ingreso en caja?')){Data.registrarCobroFijo(b.dataset.incomeId,b.dataset.paymentId);renderIncomeUI();}});
+  renderIncomeUI();
+}
