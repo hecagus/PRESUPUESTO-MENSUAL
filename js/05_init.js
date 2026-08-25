@@ -1,8 +1,9 @@
-/* V10.1 - Orquestación y eventos. */
+/* V10.4 - Orquestación y eventos. */
 import { $, CATEGORIAS_BASE, FRECUENCIAS, DIAS_SEMANA } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { Modal, renderIndex, renderDashboardContext, renderWallet, renderHistorial, renderStats, renderAdmin } from './03_render.js';
 import { initIncomeUI, renderIncomeUI } from './06_income_ui.js';
+import { initCloudUI } from './services/cloud_ui_service.js';
 
 const refresh=()=>{const page=document.body.dataset.page;if(page==='index'){renderIndex();renderDashboardContext();}else if(page==='wallet')renderWallet();else if(page==='historial')renderHistorial();else if(page==='stats')renderStats();else if(page==='admin')renderAdmin();renderIncomeUI();};
 const safe=fn=>{try{fn();refresh();}catch(e){console.error(e);const msgs={KM_MENOR:'⛔ El kilometraje no puede ser menor al anterior.',SALDO_INVALIDO:'El saldo inicial no puede ser negativo.'};alert(msgs[e.message]||'No se pudo completar la operación.');}};
@@ -20,8 +21,7 @@ function initAdminEvents(){
   $('btnExportJSON')?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(JSON.stringify(Data.getState()));alert('Datos copiados.');}catch{alert('No se pudo copiar.');}});
   $('btnRestoreBackup')?.addEventListener('click',()=>Modal.show('Restaurar respaldo',[{label:'JSON',key:'j'}],d=>safe(()=>Data.restaurar(d.j))));
 }
-
 function initDelegation(){document.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(!b)return;if(b.dataset.action==='ahorro')Modal.show('Abonar ahorro',[{label:'Monto',key:'m',type:'number'}],d=>safe(()=>Data.abonarAhorro(b.dataset.id,d.m)));});}
 function startTimer(){if(document.body.dataset.page!=='admin')return;window.setInterval(()=>{const t=Data.getState().turnoActivo,el=$('turnoTimer');if(!el||!t)return;const diff=Date.now()-t.inicio;el.textContent=`${Math.floor(diff/3600000)}h ${Math.floor((diff%3600000)/60000)}m`;},1000);}
 
-document.addEventListener('DOMContentLoaded',()=>{Data.loadData();refresh();initDelegation();initIncomeUI();if(document.body.dataset.page==='admin')initAdminEvents();startTimer();console.log('V10.1 modular activa');});
+document.addEventListener('DOMContentLoaded',async()=>{Data.loadData();refresh();initDelegation();initIncomeUI();if(document.body.dataset.page==='admin'){initAdminEvents();await initCloudUI();}startTimer();console.log('V10.4 modular + cloud activa');});
