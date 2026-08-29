@@ -19,7 +19,7 @@ function reset(){
     workSources:[],accounts:[],assets:[],turnos:[],movimientos:[],cargasCombustible:[],fondosCombustibleEmpresa:[],
     deudas:[],gastosFijosMensuales:[],ingresosFijos:[],business:{ingredients:[],products:[],sales:[]},
     wallet:{saldo:0,sobres:[]},
-    parametros:{ultimoKM:1000,costoPorKm:0,metaDiaria:0,metaBase:0,deficitTotal:0,moraVencida:0,kmInicialConfigurado:true,saldoInicialConfigurado:false},
+    parametros:{ultimoKM:0,costoPorKm:0,metaDiaria:0,metaBase:0,deficitTotal:0,moraVencida:0,kmInicialConfigurado:false,saldoInicialConfigurado:false},
     categoriasPersonalizadas:{operativo:[],hogar:[]},activeActivity:null,turnoActivo:null
   }));
 }
@@ -32,6 +32,7 @@ function setupHybrid(){
       {name:'Plataforma extra',kind:'gig',compensation:'per_shift',trackTime:true,trackDistance:true,fuelPayer:'personal'}
     ]
   });
+  Data.configurarKM(1000);
   const s=Data.getState();return {employment:s.workSources.find(x=>x.kind==='employment'),gig:s.workSources.find(x=>x.kind==='gig')};
 }
 
