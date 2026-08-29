@@ -22,13 +22,18 @@
   <main class="container dashboard-container">
     <section class="card text-center dashboard-income-hero">
       <div id="panelGreeting" class="dashboard-eyebrow">Tu situación financiera</div>
+      <small>DINERO REALMENTE LIBRE</small>
       <p id="mainSummaryValue" class="dashboard-income-value" aria-live="polite">$0.00</p>
-      <small id="mainSummarySub">Disponible real $0.00 · ahorro $0.00</small>
+      <small id="mainSummarySub">Después de compromisos y metas</small>
+      <div id="financialPositionZone" class="grid-2" style="margin-top:14px;text-align:left"></div>
     </section>
+
+    <div id="calendarPreviewZone"></div>
 
     <section>
       <div class="dashboard-section-title"><span aria-hidden="true">💼</span> Tus fuentes</div>
       <div id="sourceSummaryZone"></div>
+      <a href="onboarding.html?edit=1" style="display:block;text-align:right;font-size:.85rem;margin:4px 4px 12px;color:var(--primary);text-decoration:none">⚙️ Cambió mi trabajo o transporte</a>
     </section>
 
     <section class="card dashboard-today-card">
@@ -40,6 +45,9 @@
       <h2>🔎 Lo que necesita atención</h2>
       <div id="panelAlerts"></div>
     </section>
+
+    <section id="syncCard" class="card hidden" style="border-left:5px solid #2563eb"><h2>☁️ Protege tus datos</h2><div id="syncPanel"></div></section>
+    <section id="appInstallCard" class="card hidden"><h2>📱 Instala la aplicación</h2><p style="font-size:.85rem;color:var(--text-sec);margin-bottom:12px">Ten La app del HecAgus como una app normal y conserva operación offline.</p><button id="btnInstallApp" class="btn btn-primary">Instalar app</button></section>
   </main>
 
   <nav class="bottom-nav" aria-label="Navegación principal">
