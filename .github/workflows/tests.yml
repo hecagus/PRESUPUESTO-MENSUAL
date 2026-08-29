@@ -19,32 +19,5 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Onboarding
-        run: node --test --test-name-pattern="onboarding" tests/domain.test.js
-      - name: Empleo
-        if: always()
-        run: node --test --test-name-pattern="empleo registra" tests/domain.test.js
-      - name: Turnos
-        if: always()
-        run: node --test --test-name-pattern="fuente por turno" tests/domain.test.js
-      - name: Fondo empresa
-        if: always()
-        run: node --test --test-name-pattern="fondo tercero" tests/domain.test.js
-      - name: Combustible personal
-        if: always()
-        run: node --test --test-name-pattern="descuenta combustible" tests/domain.test.js
-      - name: Combustible sin actividad
-        if: always()
-        run: node --test --test-name-pattern="sin actividad combustible" tests/domain.test.js
-      - name: Recetas
-        if: always()
-        run: node --test --test-name-pattern="costeo de receta" tests/domain.test.js
-      - name: Migración
-        if: always()
-        run: node --test --test-name-pattern="migración v1" tests/domain.test.js
-      - name: Finanzas personales
-        if: always()
-        run: node --test --test-name-pattern="deuda y gasto" tests/domain.test.js
-      - name: Backup
-        if: always()
-        run: node --test --test-name-pattern="restaurar rechaza" tests/domain.test.js
+      - name: Test financial engine
+        run: npm test
