@@ -5,7 +5,6 @@ import { financialPosition, livingBudgetStatus, upcomingFinancialEvents } from '
 import { contributeToSavingsGoal, savingsGoalSummary } from './11_savings_goals.js';
 import { cashFlowForecast } from './16_forecast_engine.js';
 
-const text=(v,code='NOMBRE_INVALIDO')=>{const s=String(v??'').trim();if(!s)throw new Error(code);return s;};
 const clamp=(n,min,max)=>Math.min(max,Math.max(min,n));
 
 function normalizeRule(r){return {
@@ -37,20 +36,21 @@ export function setAutomationRuleActive(id,active){const state=getState();ensure
 export function setMinFreeCashAlert(value){ensureAutomationEngine();const state=getState();state.automationPreferences.minFreeCash=Math.max(0,safeFloat(value));saveData();return state.automationPreferences;}
 
 export function runAutomationEngine(){
-  ensureAutomationEngine();const state=getState();let applied=0;
+  ensureAutomationEngine();const state=getState();let applied=0,touched=false;
   for(const rule of state.automationRules.filter(r=>r.active!==false&&r.type==='reserve_income_percent')){
     const goal=savingsGoalSummary(rule.goalId);if(!goal)continue;
     const movements=(state.movimientos||[]).filter(m=>m.tipo==='ingreso'&&m.affectsPersonal!==false&&new Date(m.fecha)>=new Date(rule.createdAt)&&(rule.sourceId?m.sourceId===rule.sourceId:true));
     for(const movement of movements){
       if(state.ruleApplications.some(a=>a.ruleId===rule.id&&a.movementId===movement.id))continue;
-      const current=savingsGoalSummary(rule.goalId);if(!current||current.complete){state.ruleApplications.push({id:uuid(),ruleId:rule.id,movementId:movement.id,amount:0,status:'goal_complete',createdAt:new Date().toISOString()});continue;}
+      const current=savingsGoalSummary(rule.goalId);
+      if(!current||current.complete){state.ruleApplications.push({id:uuid(),ruleId:rule.id,movementId:movement.id,amount:0,status:'goal_complete',createdAt:new Date().toISOString()});touched=true;continue;}
       const free=Math.max(0,financialPosition().free),desired=safeFloat(movement.monto)*(rule.percent/100),amount=Math.min(desired,current.remaining,free);
       if(amount<0.01)continue;
       contributeToSavingsGoal(rule.goalId,amount,{sourceId:movement.sourceId||null,note:`Automatización · ${rule.name}`});
-      state.ruleApplications.push({id:uuid(),ruleId:rule.id,movementId:movement.id,amount,status:'applied',createdAt:new Date().toISOString()});applied++;
+      state.ruleApplications.push({id:uuid(),ruleId:rule.id,movementId:movement.id,amount,status:'applied',createdAt:new Date().toISOString()});applied++;touched=true;
     }
   }
-  if(applied||state.ruleApplications.some(a=>!a.id))saveData();
+  if(touched)saveData();
   return applied;
 }
 
