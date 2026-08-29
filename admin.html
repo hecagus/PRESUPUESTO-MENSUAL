@@ -4,30 +4,59 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <meta name="theme-color" content="#2563eb">
-  <meta name="description" content="Administración de jornadas Jaimau y Uber, combustible, pagos, gastos, deudas, respaldos y sincronización.">
-  <title>Admin · La app del HecAgus</title>
+  <meta name="description" content="Actividad y configuración dinámica de La app del HecAgus.">
+  <title>Actividad · La app del HecAgus</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="pwa-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
 </head>
 <body data-page="admin">
-<header class="header"><h1>⚙️ Admin</h1></header>
+<header class="header"><h1>▶️ Actividad</h1></header>
 <main class="container">
-<section class="card" style="border-left:5px solid var(--primary)"><h2>🗓️ Jornada de trabajo</h2><div style="display:flex;justify-content:space-between;margin-bottom:15px;background:#f8fafc;padding:10px;border-radius:8px"><div id="turnoEstado" style="font-weight:bold">Detenido</div><div id="turnoTimer" style="font-family:monospace;font-size:1.1rem;color:var(--text-sec)">00:00:00</div></div><button id="btnTurnoIniciar" class="btn btn-success">▶️ Iniciar jornada</button><button id="btnTurnoFinalizar" class="btn btn-danger hidden">⏹ Finalizar jornada</button><small style="display:block;margin-top:8px;color:var(--text-sec)">Jaimau registra tiempo y km; Uber además registra la ganancia del turno.</small></section>
-<section class="card" style="border-left:5px solid #0f766e"><h2>💼 Jaimau · quincena</h2><p style="font-size:.85rem;color:var(--text-sec);margin-bottom:12px">El sueldo se registra cuando realmente se cobra, no como ganancia diaria.</p><button id="btnPagoJaimau" class="btn btn-primary">💵 Registrar pago quincenal</button></section>
-<section class="card" style="border-left:5px solid #f59e0b"><h2>⛽ Combustible</h2><small style="display:block;color:var(--text-sec);font-weight:700">Ticket Car Jaimau · saldo disponible</small><div id="saldoGasEmpresa" style="font-size:1.8rem;font-weight:800">$0.00</div><small id="gasEmpresaDetalle" style="color:var(--text-sec)">Depositado $0.00 · usado $0.00</small><div class="grid-2" style="margin-top:12px"><button id="btnFondoJaimau" class="btn btn-success">💳 Depósito empresa</button><button id="btnGasolina" class="btn btn-warning">⛽ Repostaje</button></div><small id="gasRouteHint" style="display:block;margin-top:8px;color:var(--text-sec)">Con jornada Jaimau descuenta Ticket Car; con Uber descuenta tu caja personal. Sin jornada, la app te pregunta.</small></section>
-<section class="card" style="border-left:5px solid #6366f1"><h2>💼 Otros ingresos fijos</h2><div id="zoneIngresoFijo"></div><button id="btnIngresoFijoNuevo" class="btn btn-outline" style="margin-top:12px">+ Configurar otro ingreso fijo</button></section>
-<section class="card"><h2>Registrar gastos</h2><div class="grid-2"><button id="btnGastoHogar" class="btn btn-outline">🏠 Gasto hogar</button><button id="btnGastoOperativo" class="btn btn-primary">🛠️ Gasto moto</button></div></section>
-<section class="card"><h2>Gestión de deudas</h2><button id="btnDeudaNueva" class="btn btn-outline" style="margin-bottom:15px">+ Nueva deuda</button><div style="background:#f1f5f9;padding:10px;border-radius:8px"><label style="font-size:.8rem;color:var(--text-sec)">Realizar abono:</label><div style="display:flex;gap:5px"><select id="abonoDeudaSelect" class="input-control" style="margin:0"><option value="">Seleccionar...</option></select><button id="btnAbonoCuota" class="btn btn-success" style="width:auto">OK</button></div></div><ul id="listaDeudasAdmin" style="margin-top:10px;list-style:none"></ul></section>
-<section class="card"><div style="display:flex;justify-content:space-between;align-items:center"><div><h2>Kilometraje</h2><strong id="kmActual" style="font-size:1.4rem">0 km</strong></div><button id="btnConfigKM" class="btn btn-outline" style="width:auto">🔒 Auto</button></div></section>
-<section class="card"><h2>Saldo real en caja</h2><div id="valSaldoAdmin" style="font-size:1.6rem;font-weight:bold">$0.00</div><button id="btnConfigSaldo" class="btn btn-outline">🔒 Auto</button></section>
-<section class="card card-hero"><div class="hero-title">🎯 Objetivo personal</div><div id="metaDiariaValor" class="hero-value">$0.00</div><div class="hero-desc">Base operativa + compromisos vencidos</div></section>
-<section id="syncCard" class="card hidden" style="border-left:5px solid #2563eb"><h2>☁️ Sincronización</h2><div id="syncPanel"></div></section>
-<section id="appInstallCard" class="card hidden"><h2>📱 Aplicación</h2><p style="font-size:.85rem;color:var(--text-sec);margin-bottom:12px">Instala La app del HecAgus. El motor y las pantallas principales funcionan sin conexión.</p><button id="btnInstallApp" class="btn btn-primary">Instalar app</button></section>
-<section class="card" style="opacity:.9"><h2>Sistema</h2><div class="grid-2"><button id="btnExportJSON" class="btn btn-outline">📋 Copiar datos</button><button id="btnRestoreBackup" class="btn btn-outline" style="color:var(--danger);border-color:var(--danger)">♻️ Restaurar</button></div></section>
+  <section class="card" style="border-left:5px solid var(--primary)">
+    <h2>🗓️ Trabajo / actividad</h2>
+    <div style="display:flex;justify-content:space-between;margin-bottom:10px;background:#f8fafc;padding:10px;border-radius:8px"><div id="activityStatus">Sin actividad en curso</div><div id="activityTimer" style="font-family:monospace;color:var(--text-sec)">00:00:00</div></div>
+    <div id="activitySourceZone"></div>
+    <small style="display:block;margin-top:8px;color:var(--text-sec)">La app muestra solo las actividades que configuraste.</small>
+  </section>
+
+  <section class="card" style="border-left:5px solid #0f766e">
+    <h2>💵 Pagos por periodo</h2>
+    <div id="sourcePaymentZone"></div>
+  </section>
+
+  <section id="fuelCard" class="card hidden" style="border-left:5px solid #f59e0b">
+    <h2>⛽ Combustible</h2>
+    <div id="fuelFundSummary" style="margin-bottom:10px"></div>
+    <div class="grid-2"><button id="btnCompanyFund" class="btn btn-success">💳 Depósito empresa</button><button id="btnFuel" class="btn btn-warning">⛽ Repostaje</button></div>
+    <small style="display:block;margin-top:8px;color:var(--text-sec)">El contexto activo decide si paga tu cuenta o un fondo de empresa.</small>
+  </section>
+
+  <section id="transportCard" class="card hidden">
+    <h2>🛣️ Transporte</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center"><div><strong id="transportLabel">Sin transporte</strong><br><small id="kmActual">0 km</small></div><button id="btnConfigKM" class="btn btn-outline" style="width:auto">KM inicial</button></div>
+  </section>
+
+  <section class="card hidden" style="border-left:5px solid #7c3aed">
+    <h2>🏪 Negocio · costos y recetas</h2>
+    <div id="businessZone"></div>
+  </section>
+
+  <section class="card"><h2>Registrar gastos</h2><div class="grid-2"><button id="btnGastoHogar" class="btn btn-outline">🏠 Personal</button><button id="btnGastoOperativo" class="btn btn-primary">🛠️ Operativo</button></div></section>
+
+  <section class="card"><h2>Gestión de deudas</h2><button id="btnDeudaNueva" class="btn btn-outline" style="margin-bottom:15px">+ Nueva deuda</button><div style="background:#f1f5f9;padding:10px;border-radius:8px"><label style="font-size:.8rem;color:var(--text-sec)">Realizar abono:</label><div style="display:flex;gap:5px"><select id="abonoDeudaSelect" class="input-control" style="margin:0"><option value="">Seleccionar...</option></select><button id="btnAbonoCuota" class="btn btn-success" style="width:auto">OK</button></div></div><ul id="listaDeudasAdmin" style="margin-top:10px;list-style:none"></ul></section>
+
+  <section class="card"><h2>Saldo personal</h2><div id="valSaldoAdmin" style="font-size:1.6rem;font-weight:bold">$0.00</div><button id="btnConfigSaldo" class="btn btn-outline">Declarar saldo inicial</button></section>
+  <section class="card card-hero"><div class="hero-title">🎯 Compromisos personales</div><div id="metaDiariaValor" class="hero-value">$0.00</div><div class="hero-desc">Base operativa + compromisos vencidos</div></section>
+
+  <section class="card" style="border-left:5px solid #64748b"><h2>⚙️ Tu configuración</h2><p style="font-size:.85rem;color:var(--text-sec);margin-bottom:12px">Cambia cómo trabajas, cómo cobras o qué transporte usas. Las pantallas se ajustan solas.</p><a href="onboarding.html?edit=1" class="btn btn-outline" style="display:block;text-align:center;text-decoration:none">Editar mi perfil</a></section>
+
+  <section id="syncCard" class="card hidden" style="border-left:5px solid #2563eb"><h2>☁️ Sincronización</h2><div id="syncPanel"></div></section>
+  <section id="appInstallCard" class="card hidden"><h2>📱 Aplicación</h2><p style="font-size:.85rem;color:var(--text-sec);margin-bottom:12px">Instala La app del HecAgus. Funciona sin conexión para tus operaciones locales.</p><button id="btnInstallApp" class="btn btn-primary">Instalar app</button></section>
+  <section class="card" style="opacity:.9"><h2>Sistema</h2><div class="grid-2"><button id="btnExportJSON" class="btn btn-outline">📋 Copiar datos</button><button id="btnRestoreBackup" class="btn btn-outline" style="color:var(--danger);border-color:var(--danger)">♻️ Restaurar</button></div></section>
 </main>
 <div id="appModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal"><h3 id="modalTitle">Título</h3><div id="modalBody"></div><div class="modal-actions"><button id="modalCancel" class="btn btn-outline">Cancelar</button><button id="modalConfirm" class="btn btn-primary">Guardar</button></div></div></div>
-<nav class="bottom-nav" aria-label="Navegación principal"><a href="index.html" class="nav-link"><span aria-hidden="true">📊</span>Panel</a><a href="wallet.html" class="nav-link"><span aria-hidden="true">💰</span>Wallet</a><a href="admin.html" class="nav-link active" aria-current="page"><span aria-hidden="true">⚙️</span>Admin</a><a href="stats.html" class="nav-link"><span aria-hidden="true">📈</span>Stats</a><a href="historial.html" class="nav-link"><span aria-hidden="true">📜</span>Historial</a></nav>
+<nav class="bottom-nav" aria-label="Navegación principal"><a href="index.html" class="nav-link"><span>▥</span>Panel</a><a href="wallet.html" class="nav-link"><span>◉</span>Wallet</a><a href="admin.html" class="nav-link active" aria-current="page"><span>▶</span>Actividad</a><a href="stats.html" class="nav-link"><span>⌁</span>Stats</a><a href="historial.html" class="nav-link"><span>≡</span>Historial</a></nav>
 <script type="module" src="./js/05_init.js"></script>
 </body>
 </html>
