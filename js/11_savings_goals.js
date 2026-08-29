@@ -94,9 +94,11 @@ function addGoalMovement(goal,{type,amount,sourceId=null,note=''}){
 
 export function contributeToSavingsGoal(goalId,amount,{sourceId=null,note=''}={}){
   const goal=getSavingsGoal(goalId);if(!goal)throw new Error('META_NO_ENCONTRADA');
-  const m=positive(amount),summary=resumenGlobal(getState());
+  const m=positive(amount),remaining=Math.max(0,goal.targetAmount-goal.reserved),summary=resumenGlobal(getState());
+  if(remaining<=0)throw new Error('META_COMPLETA');
+  if(m>remaining+0.0001)throw new Error('APORTE_SUPERA_META');
   if(m>summary.disponible+0.0001)throw new Error('SALDO_DISPONIBLE_INSUFICIENTE');
-  goal.reserved=Math.min(goal.targetAmount,goal.reserved+m);
+  goal.reserved+=m;
   addGoalMovement(goal,{type:'reserve',amount:m,sourceId,note});
   if(goal.reserved>=goal.targetAmount){goal.completedAt=goal.completedAt||new Date().toISOString();}
   saveData();return goal;
