@@ -4,14 +4,13 @@ import * as Data from './02_data.js';
 
 const META_KEY='presupuesto_sync_meta_v1';
 const DEVICE_KEY='presupuesto_device_id_v1';
-let auth=null,db=null,firebase=null,currentUser=null,conflictRemote=null,syncing=false,syncTimer=null,observerTimer=null,observedHash=null;
+let auth=null,db=null,firebase=null,currentUser=null,conflictRemote=null,syncing=false,syncTimer=null,observerTimer=null,observedHash=null,authReady=false;
 const getDeviceId=()=>{let id=localStorage.getItem(DEVICE_KEY);if(!id){id=`dev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;localStorage.setItem(DEVICE_KEY,id);}return id;};
 const loadMeta=()=>{try{return {...{baseRevision:0,dirty:false,lastSync:null},...JSON.parse(localStorage.getItem(META_KEY)||'{}')}}catch{return {baseRevision:0,dirty:false,lastSync:null}}};
 const saveMeta=m=>localStorage.setItem(META_KEY,JSON.stringify(m));
 let meta=typeof localStorage!=='undefined'?loadMeta():{baseRevision:0,dirty:false,lastSync:null};
 
 const text=v=>String(v??'');
-const escapeHtml=v=>text(v).replace(/[&<>'\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
 const clone=v=>JSON.parse(JSON.stringify(v));
 const stateHash=()=>JSON.stringify(Data.getState());
 const hasMeaningfulLocalData=()=>{const s=Data.getState();return ['turnos','movimientos','cargasCombustible','deudas','gastosFijosMensuales','ingresosFijos'].some(k=>Array.isArray(s?.[k])&&s[k].length>0)||Boolean(s?.parametros?.saldoInicialConfigurado)||Boolean(s?.parametros?.kmInicialConfigurado);};
@@ -30,29 +29,20 @@ function setStatus(message,tone='neutral'){
 }
 
 export function renderSyncUI(){
-  const zone=document.getElementById('syncPanel');if(!zone)return;
-  if(!FIREBASE_SYNC.enabled){
-    zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización no disponible</strong><p>La app funciona completa en modo local.</p></div>';
-    return;
-  }
-  if(!currentUser){
-    zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización disponible</strong><p>Inicia sesión con Google para respaldar y sincronizar tus datos entre dispositivos.</p><p id="syncStatus" style="margin:6px 0 12px;color:var(--text-sec)" aria-live="polite">Listo para iniciar sesión.</p><button id="btnSyncLogin" class="btn btn-primary">Continuar con Google</button></div>';
-    document.getElementById('btnSyncLogin')?.addEventListener('click',signIn);
-    return;
-  }
-  const dirty=meta.dirty?'Cambios locales pendientes':'Todo sincronizado';
-  const last=meta.lastSync?new Date(meta.lastSync).toLocaleString('es-MX'):'Aún no';
-  const conflict=conflictRemote?`<div class="sync-conflict" style="margin-top:12px;padding:12px;border-radius:12px;background:#fff7ed;border:1px solid #fed7aa"><strong>⚠️ Conflicto detectado</strong><p style="margin:6px 0 10px">Hay cambios distintos en este dispositivo y en la nube. Nada se sobrescribirá hasta que elijas.</p><button id="btnUseCloud" class="btn btn-outline">Usar nube</button><button id="btnUseLocal" class="btn btn-outline" style="margin-top:7px">Conservar local</button><button id="btnMergeSync" class="btn btn-primary" style="margin-top:7px">Fusionar sin duplicar</button><small style="display:block;margin-top:8px">En coincidencias con el mismo ID, la versión local conserva prioridad.</small></div>`:'';
-  zone.innerHTML=`<div class="sync-state"><strong>☁️ ${escapeHtml(currentUser.email||'Sesión Firebase')}</strong><p id="syncStatus" style="margin:6px 0 12px;color:var(--text-sec)">${dirty} · Última sync: ${escapeHtml(last)}</p><div class="grid-2"><button id="btnSyncNow" class="btn btn-primary">Sincronizar</button><button id="btnSyncLogout" class="btn btn-outline">Cerrar sesión</button></div>${conflict}</div>`;
-  document.getElementById('btnSyncNow')?.addEventListener('click',()=>syncNow().catch(showSyncError));
-  document.getElementById('btnSyncLogout')?.addEventListener('click',signOutUser);
-  document.getElementById('btnUseCloud')?.addEventListener('click',resolveUseCloud);
-  document.getElementById('btnUseLocal')?.addEventListener('click',resolveUseLocal);
-  document.getElementById('btnMergeSync')?.addEventListener('click',resolveMerge);
+  const card=document.getElementById('syncCard');
+  const zone=document.getElementById('syncPanel');
+  if(!zone)return;
+  if(!FIREBASE_SYNC.enabled||!authReady){card?.classList.add('hidden');return;}
+  if(currentUser){card?.classList.add('hidden');zone.innerHTML='';return;}
+  card?.classList.remove('hidden');
+  zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización disponible</strong><p>Inicia sesión con Google para respaldar y sincronizar tus datos entre dispositivos.</p><p id="syncStatus" style="margin:6px 0 12px;color:var(--text-sec)" aria-live="polite">Listo para iniciar sesión.</p><button id="btnSyncLogin" class="btn btn-primary">Continuar con Google</button></div>';
+  document.getElementById('btnSyncLogin')?.addEventListener('click',signIn);
 }
 
 function showSyncError(error){
   console.error('Firebase sync:',error);
+  const card=document.getElementById('syncCard');
+  card?.classList.remove('hidden');
   const code=String(error?.code||'');
   if(code.includes('unauthorized-domain')) setStatus('⚠️ Falta autorizar presupuesto-mensual-jade.vercel.app en Firebase Authentication.','error');
   else if(code.includes('popup-blocked')) setStatus('⚠️ El navegador bloqueó la ventana de Google. Permite ventanas emergentes e intenta otra vez.','error');
@@ -65,7 +55,7 @@ function showSyncError(error){
 export function notifyLocalChange(){
   if(!FIREBASE_SYNC.enabled)return;
   observedHash=stateHash();
-  meta={...meta,dirty:true};saveMeta(meta);renderSyncUI();
+  meta={...meta,dirty:true};saveMeta(meta);
   if(currentUser&&navigator.onLine){clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow().catch(showSyncError),1400);}
 }
 
@@ -93,6 +83,7 @@ async function signIn(){
     const provider=new f.GoogleAuthProvider();
     const result=await f.signInWithPopup(auth,provider);
     currentUser=result.user;
+    authReady=true;
     renderSyncUI();
     if(navigator.onLine) await syncNow();
   }catch(e){
@@ -100,20 +91,20 @@ async function signIn(){
     if(button){button.disabled=false;button.textContent='Continuar con Google';}
   }
 }
-async function signOutUser(){if(!auth)return;await firebase.signOut(auth);currentUser=null;conflictRemote=null;renderSyncUI();}
+async function signOutUser(){if(!auth)return;await firebase.signOut(auth);currentUser=null;conflictRemote=null;authReady=true;renderSyncUI();}
 const docRef=()=>firebase.doc(db,'users',currentUser.uid,'budget','state');
 
 async function applyRemote(remote){
   Data.restaurar(JSON.stringify(remote.state));
   observedHash=stateHash();
-  meta={...meta,baseRevision:Number(remote.revision)||0,dirty:false,lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;renderSyncUI();document.dispatchEvent(new CustomEvent('budget:remote-applied'));
+  meta={...meta,baseRevision:Number(remote.revision)||0,dirty:false,lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;document.dispatchEvent(new CustomEvent('budget:remote-applied'));
 }
 
 export async function syncNow({forceLocal=false}={}){
   if(!FIREBASE_SYNC.enabled||!currentUser||syncing||!navigator.onLine)return;
   const currentHash=stateHash();
   if(observedHash!==null&&currentHash!==observedHash){observedHash=currentHash;meta={...meta,dirty:true};saveMeta(meta);}
-  syncing=true;setStatus('Sincronizando…');
+  syncing=true;
   try{
     const f=await loadFirebase(),ref=docRef();
     const result=await f.runTransaction(db,async tx=>{
@@ -126,16 +117,16 @@ export async function syncNow({forceLocal=false}={}){
       tx.set(ref,{state:clone(Data.getState()),revision,updatedAt:new Date().toISOString(),deviceId:getDeviceId()});
       return {kind:'push',revision};
     });
-    if(result.kind==='conflict'){conflictRemote=result.remote;renderSyncUI();setStatus('Conflicto: elige qué versión conservar.','warning');return;}
+    if(result.kind==='conflict'){conflictRemote=result.remote;return;}
     if(result.kind==='pull'){await applyRemote(result.remote);return;}
     observedHash=stateHash();
-    meta={...meta,baseRevision:result.revision,dirty:false,lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;renderSyncUI();setStatus('Sincronizado.','ok');
+    meta={...meta,baseRevision:result.revision,dirty:false,lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;
   }finally{syncing=false;}
 }
 
 async function resolveUseCloud(){if(!conflictRemote)return;await applyRemote(conflictRemote);}
-async function resolveUseLocal(){if(!conflictRemote)return;meta={...meta,baseRevision:Number(conflictRemote.revision)||meta.baseRevision,dirty:true};saveMeta(meta);conflictRemote=null;renderSyncUI();await syncNow({forceLocal:true});}
-async function resolveMerge(){if(!conflictRemote)return;const merged=mergeStates(Data.getState(),conflictRemote.state);Data.restaurar(JSON.stringify(merged));observedHash=stateHash();meta={...meta,baseRevision:Number(conflictRemote.revision)||meta.baseRevision,dirty:true};saveMeta(meta);conflictRemote=null;renderSyncUI();await syncNow({forceLocal:true});document.dispatchEvent(new CustomEvent('budget:remote-applied'));}
+async function resolveUseLocal(){if(!conflictRemote)return;meta={...meta,baseRevision:Number(conflictRemote.revision)||meta.baseRevision,dirty:true};saveMeta(meta);conflictRemote=null;await syncNow({forceLocal:true});}
+async function resolveMerge(){if(!conflictRemote)return;const merged=mergeStates(Data.getState(),conflictRemote.state);Data.restaurar(JSON.stringify(merged));observedHash=stateHash();meta={...meta,baseRevision:Number(conflictRemote.revision)||meta.baseRevision,dirty:true};saveMeta(meta);conflictRemote=null;await syncNow({forceLocal:true});document.dispatchEvent(new CustomEvent('budget:remote-applied'));}
 
 export async function initSync(){
   renderSyncUI();
@@ -146,9 +137,8 @@ export async function initSync(){
   observerTimer=setInterval(()=>{const hash=stateHash();if(hash!==observedHash){observedHash=hash;notifyLocalChange();}},900);
   try{
     const f=await loadFirebase();
-    f.onAuthStateChanged(auth,user=>{currentUser=user;renderSyncUI();if(user&&navigator.onLine)syncNow().catch(showSyncError);});
+    f.onAuthStateChanged(auth,user=>{currentUser=user;authReady=true;renderSyncUI();if(user&&navigator.onLine)syncNow().catch(showSyncError);});
     document.addEventListener('budget:data-changed',notifyLocalChange);
-    window.addEventListener('online',()=>{renderSyncUI();if(currentUser)syncNow().catch(showSyncError);});
-    window.addEventListener('offline',()=>setStatus('Sin conexión · trabajando localmente','warning'));
-  }catch(e){showSyncError(e);}
+    window.addEventListener('online',()=>{if(currentUser)syncNow().catch(showSyncError);});
+  }catch(e){authReady=true;renderSyncUI();showSyncError(e);}
 }
