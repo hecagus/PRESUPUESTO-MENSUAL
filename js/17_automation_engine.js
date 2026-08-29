@@ -62,6 +62,7 @@ export function smartAlerts(now=new Date()){
   if(position.free<0)rows.push(alert('free-negative','critical','Dinero libre negativo',`Tienes compromisos y reservas por encima de tu efectivo en ${Math.abs(position.free).toFixed(2)}.`));
   else if(minFree>0&&position.free<minFree)rows.push(alert('free-floor','warning','Colchón por debajo de tu mínimo',`Tu dinero libre está por debajo del mínimo que configuraste.`));
   if(forecast.firstNegativeDate)rows.push(alert('forecast-negative','critical','Se aproxima un faltante',`La proyección cae por debajo de $0 el ${new Date(forecast.firstNegativeDate).toLocaleDateString('es-MX')}.`,{date:forecast.firstNegativeDate}));
+  else if(forecast.firstTightDate)rows.push(alert('forecast-tight','warning','Tus reservas quedarían en riesgo',`Si todo ocurre como está previsto, alrededor del ${new Date(forecast.firstTightDate).toLocaleDateString('es-MX')} empezarías a usar dinero reservado o presupuesto necesario.`,{date:forecast.firstTightDate}));
   for(const b of livingBudgetStatus(now)){
     const ratio=b.budget>0?b.spent/b.budget:0;
     if(ratio>=1)rows.push(alert(`budget-${b.key}`,'critical','Presupuesto agotado',`Ya consumiste el presupuesto mensual de ${b.key}.`));
