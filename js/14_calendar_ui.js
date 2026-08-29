@@ -1,0 +1,53 @@
+/* v2.2.0 - UI del calendario financiero y compromisos. */
+import { $, fmtMoney } from './01_consts_utils.js';
+import { Modal } from './03_render.js';
+import {
+  ensureFinancialLife,financialPosition,upcomingFinancialEvents,livingBudgetStatus,
+  createCommitment,payCommitment,setCommitmentActive,publicTransportMonthlyCost
+} from './13_financial_life.js';
+import { getState } from './02_data.js';
+
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const typeIcon=t=>t==='income'?'💵':t==='debt'?'💳':t==='goal'?'🎯':'📅';
+const budgetLabel=k=>({groceries:'Despensa / comida',health:'Salud',leisure:'Ocio',other:'Otros'})[k]||k;
+const dateLabel=d=>new Date(d).toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'});
+
+function run(fn,refresh){try{fn();refresh?.();document.dispatchEvent(new CustomEvent('budget:data-changed'));}catch(e){console.error(e);const map={MONTO_INVALIDO:'Ingresa un monto válido.',NOMBRE_INVALIDO:'Escribe un nombre.',COMPROMISO_NO_ENCONTRADO:'No se encontró el compromiso.',COMPROMISO_YA_PAGADO:'Ese compromiso ya fue registrado este mes.'};alert(map[e.message]||'No se pudo completar la operación.');}}
+
+export function renderCalendarPage(){
+  ensureFinancialLife();const state=getState(),pos=financialPosition();
+  if($('calendarPosition'))$('calendarPosition').innerHTML=`
+    <div class="grid-2">
+      <div><small>Dinero que tienes</small><strong style="display:block;font-size:1.25rem">${fmtMoney(pos.cash)}</strong></div>
+      <div><small>Comprometido</small><strong style="display:block;font-size:1.25rem">${fmtMoney(pos.committed)}</strong></div>
+      <div><small>Reservado para metas</small><strong style="display:block;font-size:1.25rem">${fmtMoney(pos.reserved)}</strong></div>
+      <div><small>Realmente libre</small><strong style="display:block;font-size:1.25rem;color:${pos.free<0?'var(--danger)':'#16a34a'}">${fmtMoney(pos.free)}</strong></div>
+    </div>
+    <small style="display:block;margin-top:10px;color:var(--text-sec)">Comprometido = próximos pagos + presupuesto variable restante del mes + transporte público laboral estimado.</small>`;
+
+  const events=upcomingFinancialEvents({days:45});
+  if($('calendarEvents'))$('calendarEvents').innerHTML=events.length?events.map(e=>`<section class="card" style="margin:8px 0;border-left:4px solid ${e.type==='income'?'#16a34a':e.type==='goal'?'#6366f1':'#f59e0b'}"><div style="display:flex;justify-content:space-between;gap:10px"><div><strong>${typeIcon(e.type)} ${esc(e.title)}</strong><small style="display:block;color:var(--text-sec);margin-top:3px">${dateLabel(e.date)} · ${esc(e.category||'')}</small></div><strong>${e.amount===null?'—':fmtMoney(e.amount)}</strong></div></section>`).join(''):'<section class="card">No hay eventos financieros próximos.</section>';
+
+  const commitments=state.financialPlan?.commitments||[];
+  if($('calendarCommitments'))$('calendarCommitments').innerHTML=commitments.filter(c=>c.active!==false).length?commitments.filter(c=>c.active!==false).map(c=>`<section class="card"><div style="display:flex;justify-content:space-between;gap:8px"><div><strong>${esc(c.name)}</strong><small style="display:block;color:var(--text-sec)">${fmtMoney(c.amount)} · día ${esc(c.dueDay)} · ${esc(c.category)}</small></div><div style="text-align:right"><button class="btn btn-success" style="width:auto" data-calendar-action="pay" data-id="${c.id}">Pagar</button><button class="btn btn-outline" style="width:auto;margin-top:5px" data-calendar-action="pause" data-id="${c.id}">Pausar</button></div></div></section>`).join(''):'<section class="card">Todavía no registras compromisos recurrentes.</section>';
+
+  const budgets=livingBudgetStatus();
+  if($('livingBudgetZone'))$('livingBudgetZone').innerHTML=budgets.length?budgets.map(b=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #e2e8f0"><span>${budgetLabel(b.key)}</span><span><strong>${fmtMoney(b.remaining)}</strong> restantes de ${fmtMoney(b.budget)}</span></div>`).join(''):'<small>No configuraste presupuesto variable mensual.</small>';
+
+  const publicSources=(state.workSources||[]).filter(s=>s.active!==false&&s.transport?.mode==='public');
+  if($('workTransportZone'))$('workTransportZone').innerHTML=publicSources.length?publicSources.map(s=>`<div style="display:flex;justify-content:space-between;padding:7px 0"><span>🚌 ${esc(s.name)}</span><strong>${fmtMoney(publicTransportMonthlyCost(s))}/mes</strong></div>`).join(''):'<small>No hay fuentes activas con transporte público configurado.</small>';
+}
+
+export function renderCalendarPreview(){
+  const zone=$('calendarPreviewZone');if(!zone)return;const events=upcomingFinancialEvents({days:30}).slice(0,4),pos=financialPosition();
+  zone.innerHTML=`<section class="card" style="border-left:5px solid #0f766e"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><h2 style="margin:0">📆 Calendario financiero</h2><small style="color:var(--text-sec)">Próximos pagos, ingresos y metas.</small></div><a href="calendar.html" class="btn btn-outline" style="width:auto;text-decoration:none">Abrir</a></div><div style="margin:12px 0 8px"><strong>Realmente libre: ${fmtMoney(pos.free)}</strong></div>${events.length?events.map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0"><span>${typeIcon(e.type)} ${esc(e.title)}<br><small>${dateLabel(e.date)}</small></span><strong>${e.amount===null?'—':fmtMoney(e.amount)}</strong></div>`).join(''):'<small>Sin eventos próximos.</small>'}</section>`;
+}
+
+function newCommitment(refresh){
+  Modal.show('Nuevo compromiso',[{label:'Nombre',key:'n',placeholder:'Renta, internet, escuela...'},{label:'Monto ($)',key:'m',type:'number'},{label:'Día del mes',key:'d',type:'number',value:1},{label:'Categoría',key:'c',type:'select',options:[{val:'Vivienda',txt:'Vivienda'},{val:'Servicios',txt:'Servicios'},{val:'Educación',txt:'Educación'},{val:'Salud',txt:'Salud'},{val:'Deuda',txt:'Deuda'},{val:'Vida',txt:'Otro'}]}],d=>run(()=>createCommitment({name:d.n,amount:d.m,dueDay:d.d,category:d.c}),refresh));
+}
+
+export function initCalendarEvents(refresh){
+  $('btnNewCommitment')?.addEventListener('click',()=>newCommitment(refresh));
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-calendar-action]');if(!b)return;const id=b.dataset.id,action=b.dataset.calendarAction;if(action==='pay'){if(confirm('¿Registrar este pago ahora?'))run(()=>payCommitment(id),refresh);}if(action==='pause'){if(confirm('¿Pausar este compromiso? Seguirá en el historial, pero dejará de contarse como pendiente.'))run(()=>setCommitmentActive(id,false),refresh);}});
+}
