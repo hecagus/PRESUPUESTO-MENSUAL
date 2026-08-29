@@ -1,0 +1,12 @@
+{
+  "name": "presupuesto-mensual",
+  "version": "11.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
