@@ -3,6 +3,7 @@ import { safeFloat, uuid, ACCOUNT_TYPES } from './01_consts_utils.js';
 import { getState, saveData, sanearDatos } from './02_data.js';
 
 const EPS=0.005;
+const BASE_ACCOUNT_ID='acct-personal';
 const text=(value,code='DESCRIPCION_INVALIDA')=>{const v=String(value??'').trim();if(!v)throw new Error(code);return v;};
 const positive=(value,code='MONTO_INVALIDO')=>{const n=safeFloat(value);if(!(n>0))throw new Error(code);return n;};
 const personalAccounts=()=>getState().accounts.filter(a=>a.ownership!=='third_party');
@@ -68,6 +69,7 @@ export function createPersonalAccount({name,type='bank'}={}){
 export function setAccountActive(accountId,active){
   ensureAccountsEngine();const state=getState(),account=state.accounts.find(a=>a.id===accountId&&a.ownership!=='third_party');
   if(!account)throw new Error('CUENTA_NO_ENCONTRADA');
+  if(!active&&accountId===BASE_ACCOUNT_ID)throw new Error('CUENTA_BASE');
   if(!active&&Math.abs(accountBalance(accountId))>EPS)throw new Error('CUENTA_CON_SALDO');
   account.active=Boolean(active);saveData();return account;
 }
