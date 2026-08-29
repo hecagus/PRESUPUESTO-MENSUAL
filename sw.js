@@ -1,4 +1,4 @@
-const CACHE='presupuesto-v11-shell-v1';
+const CACHE='presupuesto-v11-shell-v2';
 const APP_SHELL=[
   './','./index.html','./admin.html','./wallet.html','./stats.html','./historial.html','./offline.html',
   './style.css','./manifest.webmanifest','./pwa-icon.svg',
@@ -23,6 +23,15 @@ self.addEventListener('fetch',event=>{
     event.respondWith(fetch(req).then(res=>{
       const copy=res.clone(); caches.open(CACHE).then(c=>c.put(req,copy)); return res;
     }).catch(async()=>await caches.match(req)||await caches.match('./index.html')||await caches.match('./offline.html')));
+    return;
+  }
+
+  const isAppCode=url.pathname.endsWith('.js')||url.pathname.endsWith('.webmanifest');
+  if(isAppCode){
+    event.respondWith(fetch(req).then(res=>{
+      if(res.ok){const copy=res.clone();caches.open(CACHE).then(c=>c.put(req,copy));}
+      return res;
+    }).catch(()=>caches.match(req)));
     return;
   }
 
