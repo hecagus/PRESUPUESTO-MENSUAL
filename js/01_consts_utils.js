@@ -1,7 +1,7 @@
-/* V10 - Constantes y utilidades puras */
+/* V11 - Constantes y utilidades puras */
 export const STORAGE_KEY = 'moto_finanzas_vFinal';
 export const LEGACY_KEYS = ['moto_finanzas_v3', 'moto_finanzas', 'app_moto_data'];
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 export const FRECUENCIAS = Object.freeze({
   Diario: 1, Semanal: 7, Quincenal: 15, Mensual: 30,
