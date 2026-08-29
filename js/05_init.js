@@ -1,8 +1,10 @@
-/* V10.3 - Orquestación y eventos. */
+/* V11 - Orquestación, eventos, PWA y sincronización. */
 import { $, CATEGORIAS_BASE, FRECUENCIAS, DIAS_SEMANA } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { Modal, renderIndex, renderDashboardContext, renderWallet, renderHistorial, renderStats, renderAdmin } from './03_render.js';
 import { initIncomeUI, renderIncomeUI } from './06_income_ui.js';
+import { initSync, notifyLocalChange } from './07_sync.js';
+import { initPWA, promptInstall } from './08_pwa.js';
 
 const refresh=()=>{const page=document.body.dataset.page;if(page==='index'){renderIndex();renderDashboardContext();}else if(page==='wallet')renderWallet();else if(page==='historial')renderHistorial();else if(page==='stats')renderStats();else if(page==='admin')renderAdmin();renderIncomeUI();};
 const ERROR_MESSAGES={
@@ -21,7 +23,7 @@ const ERROR_MESSAGES={
   BACKUP_INVALIDO:'El respaldo no es un JSON válido de esta aplicación.',
   COBRO_DUPLICADO:'Ese ingreso fijo ya fue registrado para este periodo.'
 };
-const safe=fn=>{try{fn();refresh();}catch(e){console.error(e);alert(ERROR_MESSAGES[e.message]||'No se pudo completar la operación.');}};
+const safe=fn=>{try{fn();refresh();notifyLocalChange();}catch(e){console.error(e);alert(ERROR_MESSAGES[e.message]||'No se pudo completar la operación.');}};
 
 function initAdminEvents(){
   $('btnTurnoIniciar')?.addEventListener('click',()=>safe(()=>Data.iniciarTurno()));
@@ -35,9 +37,21 @@ function initAdminEvents(){
   $('btnConfigSaldo')?.addEventListener('click',()=>{if(Data.getState().parametros.saldoInicialConfigurado)return alert('El saldo inicial ya fue declarado. Los cambios posteriores se gestionan mediante movimientos.');Modal.show('¿Cuánto dinero tienes actualmente?',[{label:'Saldo real disponible ($)',key:'m',type:'number'}],d=>safe(()=>Data.saldoInicial(d.m)));});
   $('btnExportJSON')?.addEventListener('click',async()=>{const json=JSON.stringify(Data.getState(),null,2);try{await navigator.clipboard.writeText(json);alert('Respaldo copiado al portapapeles.');}catch{const blob=new Blob([json],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`presupuesto-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url);alert('Se descargó el respaldo porque el portapapeles no estuvo disponible.');}});
   $('btnRestoreBackup')?.addEventListener('click',()=>Modal.show('Restaurar respaldo',[{label:'JSON',key:'j'}],d=>{if(!confirm('Esto reemplazará los datos actuales por el respaldo. ¿Continuar?'))return;safe(()=>Data.restaurar(d.j));}));
+  $('btnInstallApp')?.addEventListener('click',async()=>{const installed=await promptInstall();if(!installed)alert('Si el navegador no muestra el instalador, abre el menú del navegador y elige “Instalar app” o “Agregar a pantalla principal”.');});
 }
 
 function initDelegation(){document.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(!b)return;if(b.dataset.action==='ahorro')Modal.show('Abonar ahorro',[{label:'Monto',key:'m',type:'number'}],d=>safe(()=>Data.abonarAhorro(b.dataset.id,d.m)));});}
 function startTimer(){if(document.body.dataset.page!=='admin')return;window.setInterval(()=>{const t=Data.getState().turnoActivo,el=$('turnoTimer');if(!el||!t)return;const diff=Date.now()-t.inicio;el.textContent=`${Math.floor(diff/3600000)}h ${Math.floor((diff%3600000)/60000)}m`;},1000);}
 
-document.addEventListener('DOMContentLoaded',()=>{Data.loadData();refresh();initDelegation();initIncomeUI();if(document.body.dataset.page==='admin')initAdminEvents();startTimer();console.log('V10.3 modular activa');});
+document.addEventListener('budget:remote-applied',refresh);
+document.addEventListener('DOMContentLoaded',()=>{
+  Data.loadData();
+  refresh();
+  initDelegation();
+  initIncomeUI();
+  if(document.body.dataset.page==='admin')initAdminEvents();
+  startTimer();
+  initPWA();
+  initSync();
+  console.log('V11 product activa');
+});
