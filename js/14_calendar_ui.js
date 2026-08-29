@@ -3,7 +3,7 @@ import { $, fmtMoney } from './01_consts_utils.js';
 import { Modal } from './03_render.js';
 import {
   ensureFinancialLife,financialPosition,upcomingFinancialEvents,livingBudgetStatus,
-  createCommitment,payCommitment,setCommitmentActive,publicTransportMonthlyCost
+  createCommitment,payCommitment,setCommitmentActive,publicTransportMonthlyCost,sourceCostProfile
 } from './13_financial_life.js';
 import { getState } from './02_data.js';
 
@@ -13,6 +13,28 @@ const budgetLabel=k=>({groceries:'Despensa / comida',health:'Salud',leisure:'Oci
 const dateLabel=d=>new Date(d).toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'});
 
 function run(fn,refresh){try{fn();refresh?.();document.dispatchEvent(new CustomEvent('budget:data-changed'));}catch(e){console.error(e);const map={MONTO_INVALIDO:'Ingresa un monto válido.',NOMBRE_INVALIDO:'Escribe un nombre.',COMPROMISO_NO_ENCONTRADO:'No se encontró el compromiso.',COMPROMISO_YA_PAGADO:'Ese compromiso ya fue registrado este mes.'};alert(map[e.message]||'No se pudo completar la operación.');}}
+
+export function renderFinancialPositionPanel(){
+  if(!$('mainSummaryValue'))return;ensureFinancialLife();const pos=financialPosition(),state=getState();
+  $('mainSummaryValue').textContent=fmtMoney(pos.free);
+  if($('mainSummarySub'))$('mainSummarySub').textContent=pos.free<0?'Tu dinero actual no cubre todo lo que ya está comprometido.':'Después de compromisos y metas.';
+  if($('financialPositionZone'))$('financialPositionZone').innerHTML=`
+    <div><small>💰 Dinero que tienes</small><strong style="display:block">${fmtMoney(pos.cash)}</strong></div>
+    <div><small>📌 Comprometido</small><strong style="display:block">${fmtMoney(pos.committed)}</strong></div>
+    <div><small>🎯 Reservado metas</small><strong style="display:block">${fmtMoney(pos.reserved)}</strong></div>
+    <div><small>✅ Realmente libre</small><strong style="display:block;color:${pos.free<0?'var(--danger)':'#16a34a'}">${fmtMoney(pos.free)}</strong></div>`;
+
+  const zone=$('sourceSummaryZone');
+  if(zone){
+    for(const source of (state.workSources||[]).filter(s=>s.active!==false&&s.status!=='ended'&&s.status!=='paused')){
+      const card=[...zone.querySelectorAll('.card')].find(el=>el.textContent.includes(source.name));if(!card)continue;
+      const cost=sourceCostProfile(source.id);if(!cost||cost.publicTransport<=0)continue;
+      if(card.querySelector('[data-work-cost]'))continue;
+      const small=document.createElement('small');small.dataset.workCost='1';small.style.cssText='display:block;color:var(--text-sec);margin-top:6px';small.textContent=`🚌 Traslado estimado ${fmtMoney(cost.publicTransport)}/mes`;
+      card.append(small);
+    }
+  }
+}
 
 export function renderCalendarPage(){
   ensureFinancialLife();const state=getState(),pos=financialPosition();
