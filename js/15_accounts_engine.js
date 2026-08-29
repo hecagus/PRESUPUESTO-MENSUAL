@@ -1,6 +1,6 @@
 /* v2.3.0 - Cuentas reales, transferencias y movimientos universales. */
 import { safeFloat, uuid, ACCOUNT_TYPES } from './01_consts_utils.js';
-import { getState, saveData } from './02_data.js';
+import { getState, saveData, sanearDatos } from './02_data.js';
 
 const EPS=0.005;
 const text=(value,code='DESCRIPCION_INVALIDA')=>{const v=String(value??'').trim();if(!v)throw new Error(code);return v;};
@@ -23,8 +23,8 @@ export function ensureAccountsEngine(){
   state.accounts=Array.isArray(state.accounts)?state.accounts.map(normalizeAccount):[];
   for(const m of state.movimientos||[]){
     if(m.tipo==='transferencia'){
-      if(!m.fromAccountId&&m.accountId)m.fromAccountId=m.accountId;
-      if(!m.transferId)m.transferId=m.id;
+      if(!m.fromAccountId&&m.accountId){m.fromAccountId=m.accountId;changed=true;}
+      if(!m.transferId){m.transferId=m.id;changed=true;}
       if(m.affectsPersonal!==false){m.affectsPersonal=false;changed=true;}
     }
   }
@@ -38,8 +38,9 @@ export const getPersonalAccounts=({activeOnly=false}={})=>ensureAccountsEngine()
 export function accountBalance(accountId){
   ensureAccountsEngine();const state=getState(),account=state.accounts.find(a=>a.id===accountId);if(!account)return 0;
   if(account.ownership==='third_party'){
-    const deposits=(state.fondosCombustibleEmpresa||[]).filter(x=>x.accountId===accountId).reduce((a,x)=>a+safeFloat(x.monto),0);
-    const used=(state.cargasCombustible||[]).filter(x=>x.accountId===accountId).reduce((a,x)=>a+safeFloat(x.costo),0);
+    const sourceIds=(state.workSources||[]).filter(s=>s.fundAccountId===accountId).map(s=>s.id);
+    const deposits=(state.fondosCombustibleEmpresa||[]).filter(x=>x.accountId===accountId||(!x.accountId&&sourceIds.includes(x.sourceId))).reduce((a,x)=>a+safeFloat(x.monto),0);
+    const used=(state.cargasCombustible||[]).filter(x=>x.accountId===accountId||(!x.accountId&&sourceIds.includes(x.sourceId)&&x.pagador==='empresa')).reduce((a,x)=>a+safeFloat(x.costo),0);
     return deposits-used;
   }
   return (state.movimientos||[]).reduce((sum,m)=>{
@@ -54,7 +55,7 @@ export function accountBalance(accountId){
   },0);
 }
 
-export function personalCashTotal(){return personalAccounts().reduce((sum,a)=>sum+accountBalance(a.id),0);}
+export function personalCashTotal(){ensureAccountsEngine();return personalAccounts().reduce((sum,a)=>sum+accountBalance(a.id),0);}
 
 export function createPersonalAccount({name,type='bank'}={}){
   ensureAccountsEngine();const state=getState();
@@ -80,7 +81,7 @@ export function recordUniversalMovement({type,description,amount,accountId,categ
     sourceId:sourceId||null,fuente:sourceId||'personal',accountId,affectsPersonal:true,movementKind:'universal',
     tags:Array.isArray(tags)?tags.map(x=>String(x).trim()).filter(Boolean):[]
   };
-  state.movimientos.push(movement);saveData();return movement;
+  state.movimientos.push(movement);sanearDatos();return movement;
 }
 
 export function transferBetweenAccounts({fromAccountId,toAccountId,amount,note=''}={}){
