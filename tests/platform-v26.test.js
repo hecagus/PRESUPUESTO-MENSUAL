@@ -54,6 +54,10 @@ test('v2.3 movimiento universal afecta la cuenta elegida y el saldo total',()=>{
   assert.equal(Data.getState().wallet.saldo,4250);
 });
 
+test('v2.3 la cuenta base no puede archivarse',()=>{
+  assert.throws(()=>Accounts.setAccountActive('acct-personal',false),/CUENTA_BASE/);
+});
+
 test('v2.4 proyección usa pagos históricos para estimar próximos ingresos fijos',()=>{
   Data.saldoInicial(2000);
   Data.crearFuenteTrabajo({name:'Empresa',kind:'employment',compensation:'monthly',trackTime:false,fuelPayer:'none'});
@@ -65,6 +69,14 @@ test('v2.4 proyección usa pagos históricos para estimar próximos ingresos fij
   assert.ok(forecast.totalExpectedIncome>=8000);
   assert.ok(forecast.totalExpectedOutflow>=4000);
   assert.ok(forecast.events.some(e=>e.type==='income'&&e.estimated));
+});
+
+test('v2.4 proyección conserva presupuesto variable como dinero no libre',()=>{
+  Data.saldoInicial(10000);
+  Life.configureLivingSetup({groceries:3000,health:0,leisure:0,other:0});
+  const forecast=Forecast.cashFlowForecast({days:10});
+  assert.equal(Math.round(forecast.endingCash),10000);
+  assert.ok(forecast.endingFree<=7000.01);
 });
 
 test('v2.5 una regla aparta porcentaje de un ingreso nuevo hacia una meta',()=>{
@@ -84,6 +96,14 @@ test('v2.5 alertas detectan cuando el dinero libre cae bajo el colchón configur
   Automation.setMinFreeCashAlert(1500);
   const alerts=Automation.smartAlerts();
   assert.ok(alerts.some(a=>a.id==='free-floor'));
+});
+
+test('v2.6 no permite congelar dinero ya comprometido para vivir',()=>{
+  Data.saldoInicial(10000);
+  Life.configureLivingSetup({groceries:9000,health:0,leisure:0,other:0});
+  const goal=Savings.createSavingsGoal({name:'Viaje',targetAmount:10000,targetDate:'2027-02-28',priority:'normal'});
+  assert.ok(Life.financialPosition().free<=1000.01);
+  assert.throws(()=>Savings.contributeToSavingsGoal(goal.id,2000),/SALDO_DISPONIBLE_INSUFICIENTE/);
 });
 
 test('v2.6 salud financiera explica cuatro componentes y meta inteligente da estado',()=>{
