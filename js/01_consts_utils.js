@@ -1,5 +1,5 @@
-/* v1.2.0 - Constantes y utilidades puras */
-export const APP_VERSION = '1.2.0';
+/* v1.3.0 - Constantes y utilidades puras */
+export const APP_VERSION = '1.3.0';
 export const STORAGE_KEY = 'moto_finanzas_vFinal';
 export const LEGACY_KEYS = ['moto_finanzas_v3', 'moto_finanzas', 'app_moto_data'];
 export const SCHEMA_VERSION = 12;
