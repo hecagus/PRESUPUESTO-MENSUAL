@@ -60,15 +60,41 @@ test('rechaza kilometraje regresivo y gasolina inválida',()=>{
   assert.throws(()=>Data.registrarGasolina(5,-1,1000),/MONTO_INVALIDO/);
 });
 
-test('fondos y gasolina de Jaimau no alteran el saldo personal',()=>{
+test('con jornada Jaimau el repostaje descuenta Ticket Car y no la caja personal',()=>{
   Data.registrarFondoJaimau(500);
-  Data.registrarGasolina(5,200,1000,'empresa');
+  Data.iniciarTurno('jaimau');
+  Data.registrarGasolina(5,200,1005,null,'Gasolinera X');
   const fuel=Data.saldoCombustibleEmpresa();
+  const carga=Data.getState().cargasCombustible.at(-1);
   assert.equal(fuel.depositado,500);
   assert.equal(fuel.utilizado,200);
   assert.equal(fuel.disponible,300);
+  assert.equal(carga.pagador,'empresa');
+  assert.equal(carga.tipoTrabajo,'jaimau');
+  assert.equal(carga.gasolinera,'Gasolinera X');
   assert.equal(Data.getState().wallet.saldo,0);
   assert.equal(Data.getState().movimientos.length,0);
+});
+
+test('con jornada Uber el repostaje sale de la caja personal',()=>{
+  Data.saldoInicial(1000);
+  Data.iniciarTurno('uber');
+  Data.registrarGasolina(4,180,1004,null,'Pemex');
+  const carga=Data.getState().cargasCombustible.at(-1);
+  const gasto=Data.getState().movimientos.at(-1);
+  assert.equal(carga.pagador,'personal');
+  assert.equal(carga.tipoTrabajo,'uber');
+  assert.equal(gasto.tipo,'gasto');
+  assert.equal(gasto.fuente,'uber');
+  assert.equal(gasto.monto,180);
+  assert.equal(Data.getState().wallet.saldo,820);
+});
+
+test('sin jornada el repostaje exige elegir Jaimau o personal',()=>{
+  assert.throws(()=>Data.registrarGasolina(4,150,1000),/ORIGEN_COMBUSTIBLE_REQUERIDO/);
+  Data.registrarFondoJaimau(200);
+  Data.registrarGasolina(4,150,1000,'empresa');
+  assert.equal(Data.saldoCombustibleEmpresa().disponible,50);
 });
 
 test('el pago de Jaimau entra al saldo solo cuando se cobra',()=>{
@@ -79,6 +105,10 @@ test('el pago de Jaimau entra al saldo solo cuando se cobra',()=>{
   assert.equal(Data.getState().wallet.saldo,6000);
   assert.equal(Data.getState().movimientos.at(-1).fuente,'jaimau');
   assert.throws(()=>Data.registrarPagoJaimau(6000),/COBRO_DUPLICADO/);
+});
+
+test('Jaimau no puede duplicarse como otro ingreso fijo',()=>{
+  assert.throws(()=>Data.crearIngresoFijo({nombre:'Jaimau',frecuencia:'Quincenal',dia1:'15',dia2:'fin_mes'}),/INGRESO_JAIMAU_DUPLICADO/);
 });
 
 test('una deuda reduce saldo pendiente con cada abono',()=>{
