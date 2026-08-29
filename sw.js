@@ -1,4 +1,4 @@
-const CACHE='presupuesto-v11-shell-v3';
+const CACHE='hecagus-finance-1.2.0-shell-v1';
 const APP_SHELL=[
   './','./index.html','./admin.html','./wallet.html','./stats.html','./historial.html','./offline.html',
   './style.css','./manifest.webmanifest','./pwa-icon.svg',
