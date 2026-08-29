@@ -17,5 +17,5 @@ test('módulos v2.6 tienen sintaxis JavaScript válida',()=>{
 test('service worker cachea los módulos financieros nuevos',()=>{
   const sw=readFileSync('sw.js','utf8');
   for(const name of ['15_accounts_engine.js','16_forecast_engine.js','17_automation_engine.js','18_health_goals.js','19_platform_ui.js'])assert.match(sw,new RegExp(name.replace('.','\\.')));
-  assert.match(sw,/2\.6\.0/);
+  assert.match(sw,/hecagus-finance-2\.6\.\d+-shell/);
 });
