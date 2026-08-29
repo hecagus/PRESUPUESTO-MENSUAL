@@ -69,6 +69,7 @@ function expenseModal(type){
 }
 
 function newIngredient(){Modal.show('Nuevo ingrediente',[{label:'Ingrediente',key:'n'},{label:'Unidad (g, ml, pieza...)',key:'u'},{label:'Costo por unidad ($)',key:'c',type:'number'}],d=>safe(()=>Data.crearIngrediente(d.n,d.u,d.c)));}
+function updateIngredient(id){const ingredient=Data.getState().business.ingredients.find(x=>x.id===id);if(!ingredient)return alert(ERROR_MESSAGES.INGREDIENTE_NO_ENCONTRADO);Modal.show(`Actualizar costo · ${ingredient.name}`,[{label:`Nuevo costo por ${ingredient.unit} ($)`,key:'c',type:'number',value:ingredient.costPerUnit}],d=>safe(()=>Data.actualizarCostoIngrediente(id,d.c)));}
 function newProduct(){Modal.show('Nuevo producto',[{label:'Producto',key:'n'},{label:'Precio de venta ($)',key:'p',type:'number'}],d=>safe(()=>Data.crearProducto(d.n,d.p)));}
 function recipeItem(productId){const ingredients=Data.getState().business.ingredients;if(!ingredients.length)return alert('Primero registra al menos un ingrediente.');Modal.show('Agregar ingrediente a receta',[{label:'Ingrediente',key:'i',type:'select',options:ingredients.map(x=>({val:x.id,txt:`${x.name} · $${x.costPerUnit}/${x.unit}`}))},{label:'Cantidad usada',key:'q',type:'number'}],d=>safe(()=>Data.agregarIngredienteProducto(productId,d.i,d.q)));}
 function saleProduct(productId){Modal.show('Registrar venta',[{label:'Cantidad',key:'q',type:'number'}],d=>safe(()=>Data.registrarVentaProducto(productId,d.q)));}
@@ -96,6 +97,7 @@ function initDelegation(){
     if(action==='finish-source')return finishActive();
     if(action==='pay-source')return Modal.show('Registrar pago',[{label:'Importe recibido ($)',key:'m',type:'number'}],d=>safe(()=>Data.registrarPagoFuente(id,d.m)));
     if(action==='new-ingredient')return newIngredient();
+    if(action==='update-ingredient')return updateIngredient(id);
     if(action==='new-product')return newProduct();
     if(action==='recipe-item')return recipeItem(id);
     if(action==='sale-product')return saleProduct(id);
