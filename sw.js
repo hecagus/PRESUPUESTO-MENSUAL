@@ -1,4 +1,4 @@
-const CACHE='presupuesto-v11-shell-v2';
+const CACHE='presupuesto-v11-shell-v3';
 const APP_SHELL=[
   './','./index.html','./admin.html','./wallet.html','./stats.html','./historial.html','./offline.html',
   './style.css','./manifest.webmanifest','./pwa-icon.svg',
