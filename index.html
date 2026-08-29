@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#2563eb">
-  <meta name="description" content="Panel financiero personal offline para controlar ingresos de trabajo fijo y reparto, gastos, deudas, ahorro, gasolina y kilometraje.">
+  <meta name="description" content="Panel financiero híbrido para trabajo principal Jaimau/Ingenico y turnos secundarios de Uber Eats.">
   <meta name="color-scheme" content="light">
   <title>La app del HecAgus</title>
   <link rel="manifest" href="manifest.webmanifest">
@@ -17,26 +17,26 @@
       <div class="dashboard-brand-icon" aria-hidden="true">▥</div>
       <div>
         <h1>La app del HecAgus</h1>
-        <small>Resumen financiero</small>
+        <small>Trabajo + finanzas</small>
       </div>
     </div>
   </header>
 
   <main class="container dashboard-container">
-    <section class="card text-center dashboard-income-hero" aria-labelledby="repartoHoyTitle">
-      <div id="repartoHoyTitle" class="dashboard-eyebrow">Reparto de hoy</div>
-      <p id="resGananciaBruta" class="dashboard-income-value" aria-live="polite">$0.00</p>
-      <small>Ingresos brutos generados hoy</small>
+    <section class="card text-center dashboard-income-hero" aria-labelledby="mainWorkEyebrow">
+      <div id="mainWorkEyebrow" class="dashboard-eyebrow">JAIMAU · QUINCENA ACTUAL</div>
+      <p id="mainWorkValue" class="dashboard-income-value" aria-live="polite">Sin jornadas</p>
+      <small id="mainWorkSub">0 h · 0 km · Pago pendiente</small>
     </section>
 
     <div id="resumenHumanoContainer" class="dashboard-summary" aria-live="polite"></div>
 
-    <section class="card dashboard-today-card" aria-labelledby="metricasRepartoTitle">
-      <div id="metricasRepartoTitle" class="dashboard-section-title"><span aria-hidden="true">🛵</span> Reparto hoy</div>
+    <section class="card dashboard-today-card" aria-labelledby="actividadHoyTitle">
+      <div id="actividadHoyTitle" class="dashboard-section-title"><span aria-hidden="true">🗓️</span> Actividad de hoy</div>
       <ul class="dashboard-today-metrics">
-        <li><span>Turnos</span><strong id="uiTurnosHoy">—</strong></li>
-        <li><span>Horas</span><strong id="uiHorasHoy">—</strong></li>
-        <li><span>Por hora</span><strong id="uiIngresoHoraHoy">—</strong></li>
+        <li><span>💼 Jaimau</span><strong id="uiJaimauHoy">—</strong></li>
+        <li><span>🛵 Uber</span><strong id="uiUberHoy">—</strong></li>
+        <li><span>Turnos</span><strong id="uiTurnosHoy">0</strong></li>
       </ul>
     </section>
 
