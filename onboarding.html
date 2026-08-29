@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="theme-color" content="#2563eb">
+  <title>Configurar · La app del HecAgus</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="pwa-icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .setup-wrap{max-width:680px;margin:0 auto;padding:18px 16px 40px}.setup-title{font-size:1.8rem;margin:8px 0}.setup-step{display:none}.setup-step.active{display:block}.choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.choice{border:1px solid #dbe2ea;border-radius:14px;padding:14px;background:white}.choice input{margin-right:7px}.setup-actions{display:flex;gap:10px;margin-top:18px}.setup-actions .btn{flex:1}.source-editor{border:1px solid #e2e8f0;border-radius:14px;padding:12px;margin:10px 0;background:#fff}.setup-progress{display:flex;gap:6px;margin:12px 0 20px}.setup-progress span{height:6px;flex:1;border-radius:999px;background:#dbe2ea}.setup-progress span.on{background:#2563eb}.muted{color:var(--text-sec);font-size:.88rem}.source-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.checkline{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:.9rem}
+  </style>
+</head>
+<body data-page="onboarding">
+  <main class="setup-wrap">
+    <div style="font-weight:800;color:#2563eb">▥ La app del HecAgus</div>
+    <h1 id="setupHeading" class="setup-title">Hazla tuya</h1>
+    <p class="muted">No vamos a llenarte de funciones que no usas. Dinos cómo vives y trabajas; la app arma sus módulos sola.</p>
+    <div class="setup-progress"><span></span><span></span><span></span><span></span></div>
+
+    <section class="setup-step active" data-step="0">
+      <div class="card">
+        <h2>1. ¿Qué quieres administrar?</h2>
+        <label>Tu nombre (opcional)</label><input id="setupName" class="input-control" placeholder="Cómo quieres que te llame la app">
+        <div class="choice-grid">
+          <label class="choice"><input type="checkbox" name="useCase" value="employment">💼 Empleo</label>
+          <label class="choice"><input type="checkbox" name="useCase" value="gig">🛵 Turnos / plataforma</label>
+          <label class="choice"><input type="checkbox" name="useCase" value="freelance">💻 Freelance</label>
+          <label class="choice"><input type="checkbox" name="useCase" value="business">🏪 Negocio</label>
+        </div>
+        <small class="muted">Si solo quieres presupuesto personal, deja todas sin marcar.</small>
+      </div>
+    </section>
+
+    <section class="setup-step" data-step="1">
+      <div class="card"><h2>2. ¿De dónde entra tu dinero?</h2><p class="muted">Cada fuente puede comportarse distinto. Una puede pagar quincenal y otra por turno.</p><div id="sourceEditors"></div><button id="btnAddSource" class="btn btn-outline" type="button">+ Agregar otra fuente</button></div>
+    </section>
+
+    <section class="setup-step" data-step="2">
+      <div class="card">
+        <h2>3. ¿Cómo te transportas para trabajar?</h2>
+        <select id="setupTransport" class="input-control">
+          <option value="none">No uso transporte para trabajar</option>
+          <option value="public">Transporte público</option>
+          <option value="motorcycle">Moto</option>
+          <option value="car">Auto</option>
+          <option value="bicycle">Bicicleta</option>
+        </select>
+        <label>Nombre del vehículo (opcional)</label><input id="setupVehicleName" class="input-control" placeholder="Mi moto / Auto familiar">
+        <div id="fuelSourceConfig"></div>
+      </div>
+    </section>
+
+    <section class="setup-step" data-step="3">
+      <div class="card">
+        <h2>4. Punto de partida</h2>
+        <label>¿Cuánto dinero personal tienes ahora?</label><input id="setupBalance" class="input-control" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+        <p class="muted">Este saldo solo se pide una vez. Fondos de empresa o clientes se guardan aparte y no aumentan tu patrimonio.</p>
+        <div id="setupReview" style="margin-top:14px"></div>
+      </div>
+    </section>
+
+    <div class="setup-actions"><button id="setupBack" class="btn btn-outline" type="button">Atrás</button><button id="setupNext" class="btn btn-primary" type="button">Siguiente</button></div>
+  </main>
+  <script type="module" src="./js/10_onboarding.js"></script>
+</body>
+</html>
