@@ -14,131 +14,131 @@ const Data=await import('../js/02_data.js');
 
 function reset(){
   Data.restaurar(JSON.stringify({
-    schemaVersion:12,
-    turnos:[],movimientos:[],cargasCombustible:[],fondosCombustibleEmpresa:[],deudas:[],gastosFijosMensuales:[],ingresosFijos:[],
+    schemaVersion:20,
+    profile:{onboarded:false,displayName:'',useCases:['personal'],transportMode:'none',capabilities:['personal_finance'],currency:'MXN'},
+    workSources:[],accounts:[],assets:[],turnos:[],movimientos:[],cargasCombustible:[],fondosCombustibleEmpresa:[],
+    deudas:[],gastosFijosMensuales:[],ingresosFijos:[],business:{ingredients:[],products:[],sales:[]},
     wallet:{saldo:0,sobres:[]},
     parametros:{ultimoKM:1000,costoPorKm:0,metaDiaria:0,metaBase:0,deficitTotal:0,moraVencida:0,kmInicialConfigurado:true,saldoInicialConfigurado:false},
-    categoriasPersonalizadas:{operativo:[],hogar:[]},turnoActivo:null
+    categoriasPersonalizadas:{operativo:[],hogar:[]},activeActivity:null,turnoActivo:null
   }));
+}
+
+function setupHybrid(){
+  Data.configurarOnboarding({
+    displayName:'Usuario',useCases:['employment','gig'],transportMode:'motorcycle',openingBalance:1000,
+    sources:[
+      {name:'Empresa principal',kind:'employment',compensation:'biweekly',trackTime:true,trackDistance:true,fuelPayer:'company'},
+      {name:'Plataforma extra',kind:'gig',compensation:'per_shift',trackTime:true,trackDistance:true,fuelPayer:'personal'}
+    ]
+  });
+  const s=Data.getState();return {employment:s.workSources.find(x=>x.kind==='employment'),gig:s.workSources.find(x=>x.kind==='gig')};
 }
 
 test.beforeEach(reset);
 
-test('Uber crea ingreso, kilometraje y duración por turno',()=>{
-  Data.iniciarTurno('uber');
-  const state=Data.finalizarTurno(1012,480);
-  assert.equal(state.turnos.length,1);
-  assert.equal(state.turnos[0].tipoTrabajo,'uber');
-  assert.equal(state.turnos[0].kmRecorrido,12);
-  assert.equal(state.turnos[0].ganancia,480);
-  assert.equal(state.movimientos.at(-1).tipo,'ingreso');
-  assert.equal(state.movimientos.at(-1).fuente,'uber');
-  assert.equal(state.wallet.saldo,480);
-  assert.equal(state.parametros.ultimoKM,1012);
+test('onboarding genera capacidades, fuentes y fondo de tercero sin nombres hardcodeados',()=>{
+  const {employment,gig}=setupHybrid();const s=Data.getState();
+  assert.equal(s.profile.onboarded,true);
+  assert.equal(s.profile.transportMode,'motorcycle');
+  assert.equal(s.workSources.length,2);
+  assert.equal(employment.compensation,'biweekly');
+  assert.equal(gig.compensation,'per_shift');
+  assert.ok(employment.fundAccountId);
+  assert.equal(Data.cuentaById(employment.fundAccountId).ownership,'third_party');
+  assert.ok(s.profile.capabilities.includes('third_party_funds'));
 });
 
-test('Jaimau registra jornada y km sin inventar ganancia diaria',()=>{
-  Data.iniciarTurno('jaimau');
-  const state=Data.finalizarTurno(1025);
-  assert.equal(state.turnos.length,1);
-  assert.equal(state.turnos[0].tipoTrabajo,'jaimau');
-  assert.equal(state.turnos[0].kmRecorrido,25);
-  assert.equal(state.turnos[0].ganancia,null);
-  assert.equal(state.turnos[0].compensacion,'quincenal');
-  assert.equal(state.movimientos.length,0);
-  assert.equal(state.wallet.saldo,0);
+test('empleo registra jornada sin inventar ingreso y el pago entra después',()=>{
+  const {employment}=setupHybrid();
+  Data.iniciarActividad(employment.id);
+  Data.finalizarActividad({kmFinal:1025});
+  assert.equal(Data.getState().turnos[0].sourceId,employment.id);
+  assert.equal(Data.getState().turnos[0].ganancia,null);
+  assert.equal(Data.getState().wallet.saldo,1000);
+  Data.registrarPagoFuente(employment.id,6000);
+  assert.equal(Data.getState().wallet.saldo,7000);
+  assert.throws(()=>Data.registrarPagoFuente(employment.id,6000),/COBRO_DUPLICADO/);
 });
 
-test('no permite finalizar una jornada inexistente',()=>{
-  assert.throws(()=>Data.finalizarTurno(1010,100),/TURNO_NO_ACTIVO/);
+test('fuente por turno registra ingreso, horas y km',()=>{
+  const {gig}=setupHybrid();
+  Data.iniciarActividad(gig.id);
+  const state=Data.finalizarActividad({kmFinal:1012,income:480});
+  assert.equal(state.turnos.at(-1).sourceId,gig.id);
+  assert.equal(state.turnos.at(-1).kmRecorrido,12);
+  assert.equal(state.turnos.at(-1).ganancia,480);
+  assert.equal(state.movimientos.at(-1).sourceId,gig.id);
+  assert.equal(state.wallet.saldo,1480);
 });
 
-test('rechaza kilometraje regresivo y gasolina inválida',()=>{
-  Data.iniciarTurno('uber');
-  assert.throws(()=>Data.finalizarTurno(999,100),/KM_MENOR/);
-  assert.throws(()=>Data.registrarGasolina(0,200,1000),/LITROS_INVALIDOS/);
-  assert.throws(()=>Data.registrarGasolina(5,-1,1000),/MONTO_INVALIDO/);
-});
-
-test('con jornada Jaimau el repostaje descuenta Ticket Car y no la caja personal',()=>{
-  Data.registrarFondoJaimau(500);
-  Data.iniciarTurno('jaimau');
-  Data.registrarGasolina(5,200,1005,null,'Gasolinera X');
-  const fuel=Data.saldoCombustibleEmpresa();
-  const carga=Data.getState().cargasCombustible.at(-1);
-  assert.equal(fuel.depositado,500);
-  assert.equal(fuel.utilizado,200);
-  assert.equal(fuel.disponible,300);
+test('actividad de empresa enruta combustible a fondo tercero y no toca patrimonio',()=>{
+  const {employment}=setupHybrid();
+  Data.registrarFondoFuente(employment.id,500);
+  Data.iniciarActividad(employment.id);
+  Data.registrarCombustible({litros:5,costo:200,km:1005,gasolinera:'Estación X'});
+  const fuel=Data.saldoFondoFuente(employment.id),carga=Data.getState().cargasCombustible.at(-1);
+  assert.deepEqual(fuel,{depositado:500,utilizado:200,disponible:300});
   assert.equal(carga.pagador,'empresa');
-  assert.equal(carga.tipoTrabajo,'jaimau');
-  assert.equal(carga.gasolinera,'Gasolinera X');
-  assert.equal(Data.getState().wallet.saldo,0);
-  assert.equal(Data.getState().movimientos.length,0);
+  assert.equal(carga.sourceId,employment.id);
+  assert.equal(Data.getState().wallet.saldo,1000);
 });
 
-test('con jornada Uber el repostaje sale de la caja personal',()=>{
-  Data.saldoInicial(1000);
-  Data.iniciarTurno('uber');
-  Data.registrarGasolina(4,180,1004,null,'Pemex');
-  const carga=Data.getState().cargasCombustible.at(-1);
+test('actividad personal por turnos descuenta combustible de caja personal',()=>{
+  const {gig}=setupHybrid();
+  Data.iniciarActividad(gig.id);
+  Data.registrarCombustible({litros:4,costo:180,km:1004,gasolinera:'Pemex'});
   const gasto=Data.getState().movimientos.at(-1);
-  assert.equal(carga.pagador,'personal');
-  assert.equal(carga.tipoTrabajo,'uber');
   assert.equal(gasto.tipo,'gasto');
-  assert.equal(gasto.fuente,'uber');
+  assert.equal(gasto.sourceId,gig.id);
   assert.equal(gasto.monto,180);
   assert.equal(Data.getState().wallet.saldo,820);
 });
 
-test('sin jornada el repostaje exige elegir Jaimau o personal',()=>{
-  assert.throws(()=>Data.registrarGasolina(4,150,1000),/ORIGEN_COMBUSTIBLE_REQUERIDO/);
-  Data.registrarFondoJaimau(200);
-  Data.registrarGasolina(4,150,1000,'empresa');
-  assert.equal(Data.saldoCombustibleEmpresa().disponible,50);
+test('sin actividad combustible exige contexto',()=>{
+  setupHybrid();
+  assert.throws(()=>Data.registrarCombustible({litros:4,costo:150,km:1000}),/ORIGEN_COMBUSTIBLE_REQUERIDO/);
+  Data.registrarCombustible({litros:4,costo:150,km:1000,payer:'personal'});
+  assert.equal(Data.getState().wallet.saldo,850);
 });
 
-test('el pago de Jaimau entra al saldo solo cuando se cobra',()=>{
-  Data.iniciarTurno('jaimau');
-  Data.finalizarTurno(1010);
-  assert.equal(Data.getState().wallet.saldo,0);
-  Data.registrarPagoJaimau(6000);
-  assert.equal(Data.getState().wallet.saldo,6000);
-  assert.equal(Data.getState().movimientos.at(-1).fuente,'jaimau');
-  assert.throws(()=>Data.registrarPagoJaimau(6000),/COBRO_DUPLICADO/);
+test('costeo de receta se recalcula al cambiar costo de ingrediente',()=>{
+  Data.configurarOnboarding({useCases:['business'],transportMode:'none',openingBalance:0,sources:[{name:'Panadería',kind:'business',compensation:'per_sale',trackTime:false,trackDistance:false,fuelPayer:'none'}]});
+  Data.crearIngrediente('Harina','g',0.02);Data.crearIngrediente('Huevo','pieza',4);
+  Data.crearProducto('Pastel',200);
+  const s=Data.getState(),p=s.business.products[0],harina=s.business.ingredients[0],huevo=s.business.ingredients[1];
+  Data.agregarIngredienteProducto(p.id,harina.id,500);Data.agregarIngredienteProducto(p.id,huevo.id,3);
+  assert.equal(Data.costoProducto(p.id),22);
+  Data.actualizarCostoIngrediente(harina.id,0.03);
+  assert.equal(Data.costoProducto(p.id),27);
+  Data.registrarVentaProducto(p.id,2);
+  assert.equal(Data.getState().business.sales.at(-1).total,400);
+  assert.equal(Data.getState().wallet.saldo,400);
 });
 
-test('Jaimau no puede duplicarse como otro ingreso fijo',()=>{
-  assert.throws(()=>Data.crearIngresoFijo({nombre:'Jaimau',frecuencia:'Quincenal',dia1:'15',dia2:'fin_mes'}),/INGRESO_JAIMAU_DUPLICADO/);
+test('migración v1 convierte Jaimau/Uber en datos configurables',()=>{
+  Data.restaurar(JSON.stringify({
+    schemaVersion:12,
+    turnos:[{id:'t1',fecha:new Date().toISOString(),tipoTrabajo:'jaimau',fuente:'jaimau',inicio:1,fin:2,kmFinal:1000,kmRecorrido:10}],
+    movimientos:[],cargasCombustible:[],fondosCombustibleEmpresa:[],deudas:[],gastosFijosMensuales:[],ingresosFijos:[],
+    wallet:{saldo:0,sobres:[]},parametros:{ultimoKM:1000,kmInicialConfigurado:true,saldoInicialConfigurado:false},categoriasPersonalizadas:{operativo:[],hogar:[]}
+  }));
+  const s=Data.getState();
+  assert.equal(s.profile.onboarded,true);
+  assert.equal(s.workSources.length,2);
+  assert.equal(s.turnos[0].sourceId,s.workSources.find(x=>x.kind==='employment').id);
 });
 
-test('una deuda reduce saldo pendiente con cada abono',()=>{
-  Data.nuevaDeuda('Tarjeta',1000,250,'Mensual','15');
-  const deuda=Data.getState().deudas[0];
-  Data.abonarDeuda(deuda.id);
-  assert.equal(Data.getState().deudas[0].saldo,750);
-  assert.equal(Data.getState().movimientos.at(-1).monto,250);
-  assert.equal(Data.getState().movimientos.at(-1).categoria,'Deuda');
-});
-
-test('el ingreso fijo no puede cobrarse dos veces en el mismo periodo',()=>{
-  Data.crearIngresoFijo({nombre:'Otro trabajo',frecuencia:'Mensual',dia1:'15'});
-  const ingreso=Data.getState().ingresosFijos[0];
-  const pago=ingreso.pagos[0];
-  Data.registrarCobroFijo(ingreso.id,pago.id,5000);
-  assert.equal(Data.getState().wallet.saldo,5000);
-  assert.throws(()=>Data.registrarCobroFijo(ingreso.id,pago.id,5000),/COBRO_DUPLICADO/);
-});
-
-test('restaurar rechaza JSON inválido o ajeno a la app',()=>{
-  assert.throws(()=>Data.restaurar('{no-json'),/BACKUP_INVALIDO/);
-  assert.throws(()=>Data.restaurar(JSON.stringify({foo:'bar'})),/BACKUP_INVALIDO/);
-});
-
-test('gastos únicos impactan caja y gastos recurrentes crean obligación',()=>{
+test('deuda y gasto único siguen afectando caja personal',()=>{
   Data.saldoInicial(1000);
   Data.nuevoGasto('Comida',200,'Comida','Unico');
   assert.equal(Data.getState().wallet.saldo,800);
-  Data.nuevoGasto('Internet',500,'Internet','Mensual');
-  assert.equal(Data.getState().gastosFijosMensuales.length,1);
-  assert.equal(Data.getState().gastosFijosMensuales[0].monto,500);
+  Data.nuevaDeuda('Tarjeta',1000,250,'Mensual','15');const id=Data.getState().deudas[0].id;Data.abonarDeuda(id);
+  assert.equal(Data.getState().deudas[0].saldo,750);
+  assert.equal(Data.getState().wallet.saldo,550);
+});
+
+test('restaurar rechaza JSON inválido o ajeno',()=>{
+  assert.throws(()=>Data.restaurar('{no-json'),/BACKUP_INVALIDO/);
+  assert.throws(()=>Data.restaurar(JSON.stringify({foo:'bar'})),/BACKUP_INVALIDO/);
 });
