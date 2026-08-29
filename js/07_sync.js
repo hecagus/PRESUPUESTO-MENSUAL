@@ -14,6 +14,7 @@ const text=v=>String(v??'');
 const escapeHtml=v=>text(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 const clone=v=>JSON.parse(JSON.stringify(v));
 const stateHash=()=>JSON.stringify(Data.getState());
+const hasMeaningfulLocalData=()=>{const s=Data.getState();return ['turnos','movimientos','cargasCombustible','deudas','gastosFijosMensuales','ingresosFijos'].some(k=>Array.isArray(s?.[k])&&s[k].length>0)||Boolean(s?.parametros?.saldoInicialConfigurado)||Boolean(s?.parametros?.kmInicialConfigurado);};
 const collectionMerge=(local=[],remote=[])=>{const map=new Map();for(const item of remote||[])if(item?.id)map.set(item.id,clone(item));for(const item of local||[])if(item?.id)map.set(item.id,clone(item));return [...map.values()];};
 function mergeStates(local,remote){
   const merged={...clone(remote||{}),...clone(local||{})};
@@ -116,6 +117,7 @@ export async function initSync(){
   renderSyncUI();
   if(!FIREBASE_SYNC.enabled)return;
   observedHash=stateHash();
+  if(meta.baseRevision===0&&!meta.lastSync&&hasMeaningfulLocalData()){meta={...meta,dirty:true};saveMeta(meta);}
   clearInterval(observerTimer);
   observerTimer=setInterval(()=>{const hash=stateHash();if(hash!==observedHash){observedHash=hash;notifyLocalChange();}},900);
   try{
