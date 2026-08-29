@@ -14,7 +14,7 @@ const compensationOptions=kind=>{
 };
 const kindOptions=()=>Object.entries(SOURCE_KINDS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('');
 const transportOptions=()=>Object.entries(TRANSPORT_MODES).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
 const statusLabel=s=>s==='ended'?'Finalizada':s==='paused'?'Pausada':'Activa';
 
 function seedFromState(){
@@ -35,7 +35,7 @@ function seedFromState(){
 function ensureDrafts(){
   const selected=selectedUseCases();
   for(const kind of selected){
-    if(!sourceDrafts.some(s=>s.kind===kind&&s.status!=='ended'))sourceDrafts.push({id:null,name:'',kind,compensation:kind==='employment'?'biweekly':kind==='gig'?'per_shift':kind==='freelance'?'per_project':'per_sale',trackTime:['employment','gig','freelance'].includes(kind),trackDistance:false,fuelPayer:'none',status:'active',active:true,transport:{mode:$('setupTransport').value||'none',public:{outboundRides:0,returnRides:0,fare:0,daysPerWeek:5}}});
+    if(!sourceDrafts.some(s=>s.kind===kind))sourceDrafts.push({id:null,name:'',kind,compensation:kind==='employment'?'biweekly':kind==='gig'?'per_shift':kind==='freelance'?'per_project':'per_sale',trackTime:['employment','gig','freelance'].includes(kind),trackDistance:false,fuelPayer:'none',status:'active',active:true,transport:{mode:$('setupTransport').value||'none',public:{outboundRides:0,returnRides:0,fare:0,daysPerWeek:5}}});
   }
 }
 
