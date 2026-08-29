@@ -10,7 +10,6 @@ const loadMeta=()=>{try{return {...{baseRevision:0,dirty:false,lastSync:null},..
 const saveMeta=m=>localStorage.setItem(META_KEY,JSON.stringify(m));
 let meta=typeof localStorage!=='undefined'?loadMeta():{baseRevision:0,dirty:false,lastSync:null};
 
-const text=v=>String(v??'');
 const clone=v=>JSON.parse(JSON.stringify(v));
 const stateHash=()=>JSON.stringify(Data.getState());
 const hasMeaningfulLocalData=()=>{const s=Data.getState();return ['turnos','movimientos','cargasCombustible','deudas','gastosFijosMensuales','ingresosFijos'].some(k=>Array.isArray(s?.[k])&&s[k].length>0)||Boolean(s?.parametros?.saldoInicialConfigurado)||Boolean(s?.parametros?.kmInicialConfigurado);};
@@ -33,8 +32,18 @@ export function renderSyncUI(){
   const zone=document.getElementById('syncPanel');
   if(!zone)return;
   if(!FIREBASE_SYNC.enabled||!authReady){card?.classList.add('hidden');return;}
-  if(currentUser){card?.classList.add('hidden');zone.innerHTML='';return;}
+
+  if(currentUser&&!conflictRemote){card?.classList.add('hidden');zone.innerHTML='';return;}
+
   card?.classList.remove('hidden');
+  if(currentUser&&conflictRemote){
+    zone.innerHTML='<div class="sync-conflict"><strong>⚠️ Conflicto de sincronización</strong><p style="margin:6px 0 10px">Hay cambios distintos en este dispositivo y en la nube. Elige cuál conservar.</p><button id="btnUseCloud" class="btn btn-outline">Usar nube</button><button id="btnUseLocal" class="btn btn-outline" style="margin-top:7px">Conservar local</button><button id="btnMergeSync" class="btn btn-primary" style="margin-top:7px">Fusionar sin duplicar</button></div>';
+    document.getElementById('btnUseCloud')?.addEventListener('click',resolveUseCloud);
+    document.getElementById('btnUseLocal')?.addEventListener('click',resolveUseLocal);
+    document.getElementById('btnMergeSync')?.addEventListener('click',resolveMerge);
+    return;
+  }
+
   zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización disponible</strong><p>Inicia sesión con Google para respaldar y sincronizar tus datos entre dispositivos.</p><p id="syncStatus" style="margin:6px 0 12px;color:var(--text-sec)" aria-live="polite">Listo para iniciar sesión.</p><button id="btnSyncLogin" class="btn btn-primary">Continuar con Google</button></div>';
   document.getElementById('btnSyncLogin')?.addEventListener('click',signIn);
 }
@@ -42,14 +51,18 @@ export function renderSyncUI(){
 function showSyncError(error){
   console.error('Firebase sync:',error);
   const card=document.getElementById('syncCard');
-  card?.classList.remove('hidden');
+  const zone=document.getElementById('syncPanel');
   const code=String(error?.code||'');
-  if(code.includes('unauthorized-domain')) setStatus('⚠️ Falta autorizar presupuesto-mensual-jade.vercel.app en Firebase Authentication.','error');
-  else if(code.includes('popup-blocked')) setStatus('⚠️ El navegador bloqueó la ventana de Google. Permite ventanas emergentes e intenta otra vez.','error');
-  else if(code.includes('popup-closed')) setStatus('Inicio de sesión cancelado.','warning');
-  else if(code.includes('operation-not-allowed')) setStatus('⚠️ El proveedor Google no está habilitado en Firebase.','error');
-  else if(code.includes('network-request-failed')) setStatus('⚠️ No se pudo contactar Firebase. Revisa tu conexión e intenta otra vez.','error');
-  else setStatus(`⚠️ No se pudo iniciar sesión (${code||'error desconocido'}).`,'error');
+  let message='⚠️ No se pudo sincronizar.';
+  if(code.includes('unauthorized-domain')) message='⚠️ El dominio de esta app no está autorizado en Firebase Authentication.';
+  else if(code.includes('popup-blocked')) message='⚠️ El navegador bloqueó la ventana de Google. Permite ventanas emergentes e intenta otra vez.';
+  else if(code.includes('popup-closed')) message='Inicio de sesión cancelado.';
+  else if(code.includes('operation-not-allowed')) message='⚠️ El proveedor Google no está habilitado en Firebase.';
+  else if(code.includes('network-request-failed')) message='⚠️ No se pudo contactar Firebase. Revisa tu conexión e intenta otra vez.';
+  else if(code) message=`⚠️ Error de sincronización (${code}).`;
+  card?.classList.remove('hidden');
+  if(zone&&!document.getElementById('syncStatus')) zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización</strong><p id="syncStatus" style="margin:6px 0 0;color:var(--text-sec)" aria-live="polite"></p></div>';
+  setStatus(message,'error');
 }
 
 export function notifyLocalChange(){
@@ -91,13 +104,12 @@ async function signIn(){
     if(button){button.disabled=false;button.textContent='Continuar con Google';}
   }
 }
-async function signOutUser(){if(!auth)return;await firebase.signOut(auth);currentUser=null;conflictRemote=null;authReady=true;renderSyncUI();}
 const docRef=()=>firebase.doc(db,'users',currentUser.uid,'budget','state');
 
 async function applyRemote(remote){
   Data.restaurar(JSON.stringify(remote.state));
   observedHash=stateHash();
-  meta={...meta,baseRevision:Number(remote.revision)||0,dirty:false,lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;document.dispatchEvent(new CustomEvent('budget:remote-applied'));
+  meta={...meta,baseRevision:Number(remote.revision)||0,dirty:false,lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;renderSyncUI();document.dispatchEvent(new CustomEvent('budget:remote-applied'));
 }
 
 export async function syncNow({forceLocal=false}={}){
@@ -117,10 +129,10 @@ export async function syncNow({forceLocal=false}={}){
       tx.set(ref,{state:clone(Data.getState()),revision,updatedAt:new Date().toISOString(),deviceId:getDeviceId()});
       return {kind:'push',revision};
     });
-    if(result.kind==='conflict'){conflictRemote=result.remote;return;}
+    if(result.kind==='conflict'){conflictRemote=result.remote;renderSyncUI();return;}
     if(result.kind==='pull'){await applyRemote(result.remote);return;}
     observedHash=stateHash();
-    meta={...meta,baseRevision:result.revision,dirty:false,lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;
+    meta={...meta,baseRevision:result.revision,dirty:false,lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;renderSyncUI();
   }finally{syncing=false;}
 }
 
