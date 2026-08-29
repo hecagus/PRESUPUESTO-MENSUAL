@@ -1,59 +1,67 @@
-# HecAgus Finance · v1.2.0
+# HecAgus Finance · v1.3.0
 
 Aplicación financiera personal **offline-first, instalable y sincronizable** para un modelo de trabajo híbrido real:
 
 - **Jaimau / Ingenico** como trabajo principal con jornadas, kilometraje y pago quincenal.
 - **Uber Eats** como ingreso secundario por turno con ganancia, horas y km.
-- **Combustible Jaimau** separado del dinero personal porque lo financia la empresa.
+- **Ticket Car Jaimau** como fondo operativo separado de la caja personal.
 - Gastos, deudas, ahorro, caja personal, PWA y sincronización Firebase por usuario.
 
 ## Modelo de trabajo
 
 ### Jaimau / Ingenico
 
-Una jornada Jaimau registra:
+Una jornada Jaimau registra hora de inicio/fin y kilometraje. **No genera una ganancia diaria ficticia.** El sueldo entra a la caja únicamente cuando se registra el pago quincenal real desde el módulo `Jaimau · quincena`.
 
-- hora de inicio y fin;
-- km inicial y final;
-- horas trabajadas;
-- km recorridos;
-- quincena a la que pertenece.
-
-**No genera un ingreso diario ficticio.** El sueldo entra a la caja únicamente cuando se registra el pago quincenal real.
+Jaimau no aparece como “otro ingreso fijo”; los registros legacy pueden seguir existiendo para conservar historial, pero la interfaz los oculta para evitar cobros duplicados.
 
 ### Uber Eats
 
-Un turno Uber registra:
+Un turno Uber registra hora, km y ganancia real. Las métricas de rentabilidad diaria/semanal aplican a Uber; Jaimau se analiza por periodo quincenal.
 
-- hora de inicio y fin;
-- km recorridos;
-- ganancia real del turno;
-- ingreso por hora e ingreso por km en analítica.
+## Combustible unificado
 
-Las métricas de rentabilidad diaria/semanal aplican a Uber. Jaimau se analiza por periodo quincenal.
+v1.3.0 elimina las dos tarjetas separadas de combustible y usa un solo botón **Repostaje**.
 
-### Combustible pagado por Jaimau
-
-Los depósitos de gasolina de la empresa y las cargas pagadas con esos fondos se llevan en una cuenta operativa aparte:
+La fuente del dinero se decide por contexto:
 
 ```text
-Fondos empresa = depósitos Jaimau - cargas Jaimau
+Jornada Jaimau activa
+→ Repostaje
+→ Ticket Car Jaimau
+→ no toca caja personal
+
+Jornada Uber activa
+→ Repostaje
+→ caja personal
+→ registra gasto operativo Uber
+
+Sin jornada activa
+→ Repostaje
+→ la app pregunta: Jaimau o Personal / Uber
 ```
 
-Ese dinero **no aumenta el saldo personal** y esas cargas **no se registran como gasto personal**.
+La tarjeta muestra el saldo operativo de Ticket Car:
+
+```text
+Saldo Ticket Car = depósitos empresa - cargas Jaimau
+```
+
+Los depósitos de empresa **no son ingresos personales** y las cargas pagadas por Jaimau **no son gastos personales**.
+
+Cada repostaje puede guardar litros, importe, kilometraje y una gasolinera/referencia opcional.
 
 ## Versionado
 
-El proyecto adopta versionado semántico:
+El proyecto usa versionado semántico:
 
 - `1.0.0`: primera versión estable.
 - `1.1.x`: PWA + Firebase + sincronización.
-- `1.2.0`: modelo híbrido Jaimau + Uber.
-- `1.2.1`: correcciones compatibles.
-- `1.3.0`: nueva funcionalidad compatible.
+- `1.2.0`: trabajo híbrido Jaimau + Uber.
+- `1.3.0`: combustible unificado por contexto y eliminación de duplicados de Jaimau.
 - `2.0.0`: cambio incompatible del modelo o persistencia.
 
-El `schemaVersion` interno es independiente de la versión comercial y en v1.2.0 pasa a `12`.
+`schemaVersion` es independiente de la versión comercial. v1.3.0 conserva `schemaVersion: 12` porque no rompe la estructura persistida.
 
 ## Arquitectura
 
@@ -63,7 +71,7 @@ js/
 ├── 02_data.js           # estado, persistencia y dominio
 ├── 03_render.js         # presentación
 ├── 04_charts.js         # métricas Jaimau/Uber
-├── 05_init.js           # orquestación de UI
+├── 05_init.js           # orquestación y flujo contextual
 ├── 06_income_ui.js      # otros ingresos fijos
 ├── 07_sync.js           # Firebase y conflictos
 ├── 08_pwa.js            # instalación PWA
@@ -74,11 +82,12 @@ Reglas principales:
 
 1. `02_data.js` es la única fuente de verdad financiera.
 2. El dinero de empresa nunca se mezcla con la caja personal.
-3. Una jornada Jaimau no crea ingresos al cerrarse.
-4. Un turno Uber sí crea el ingreso real del turno.
-5. El pago Jaimau se registra una vez por quincena cuando se recibe.
-6. Firebase replica el estado por UID; localStorage sigue siendo la base offline.
-7. Los conflictos cloud nunca se sobrescriben silenciosamente.
+3. El turno activo define automáticamente quién paga el combustible.
+4. Una jornada Jaimau no crea ingresos al cerrarse.
+5. Un turno Uber sí crea el ingreso real del turno.
+6. El pago Jaimau se registra una vez por quincena cuando se recibe.
+7. Firebase replica el estado por UID; localStorage sigue siendo la base offline.
+8. Los conflictos cloud nunca se sobrescriben silenciosamente.
 
 ## PWA y sincronización
 
@@ -102,22 +111,22 @@ La suite cubre, entre otras cosas:
 
 - turno Uber con ingreso;
 - jornada Jaimau sin ingreso diario;
-- km inválido;
-- gasolina pagada por empresa sin afectar caja personal;
+- repostaje Jaimau → Ticket Car;
+- repostaje Uber → caja personal;
+- selección obligatoria cuando no hay jornada;
+- prevención de Jaimau duplicado como ingreso fijo;
 - pago quincenal Jaimau;
-- deuda y gastos;
-- cobros duplicados;
-- respaldos inválidos.
+- deuda, gastos y respaldos inválidos.
 
 ## Persistencia
 
-La clave histórica se conserva para no perder instalaciones existentes:
+La clave histórica se conserva:
 
 ```text
 moto_finanzas_vFinal
 ```
 
-Los turnos antiguos de reparto se migran como Uber y los nuevos campos se completan al cargar el estado.
+Los turnos antiguos de reparto se migran como Uber y los registros previos permanecen compatibles.
 
 ## Tecnología
 
