@@ -1,6 +1,6 @@
 {
-  "name": "Mi Panel Financiero",
-  "short_name": "Mi Panel",
+  "name": "La app del HecAgus",
+  "short_name": "HecAgus",
   "description": "Finanzas personales offline-first para trabajo fijo y reparto.",
   "id": "./index.html",
   "start_url": "./index.html",
