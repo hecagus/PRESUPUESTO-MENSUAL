@@ -69,6 +69,6 @@ test('calendario combina compromisos, ingresos y metas',()=>{
 test('pagar compromiso registra gasto real una sola vez por mes',()=>{
   Data.saldoInicial(3000);const c=Life.createCommitment({name:'Internet',amount:500,dueDay:5,category:'Servicios'});
   Life.payCommitment(c.id,new Date('2026-08-05T10:00:00'));
-  assert.equal(Data.getState().wallet.saldo,2500);
+  assert.equal(Life.financialPosition(new Date('2026-08-05T12:00:00')).cash,2500);
   assert.throws(()=>Life.payCommitment(c.id,new Date('2026-08-20T10:00:00')),/COMPROMISO_YA_PAGADO/);
 });
