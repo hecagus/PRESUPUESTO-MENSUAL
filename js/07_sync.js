@@ -1,4 +1,4 @@
-/* v1.2.0 - Sincronización Firebase opcional, offline-first y con conflictos explícitos. */
+/* v2.0.0 - Firebase offline-first, por usuario y con conflictos explícitos. */
 import { FIREBASE_SYNC } from './firebase-config.js';
 import * as Data from './02_data.js';
 
@@ -12,9 +12,24 @@ let meta=typeof localStorage!=='undefined'?loadMeta():{baseRevision:0,dirty:fals
 
 const clone=v=>JSON.parse(JSON.stringify(v));
 const stateHash=()=>JSON.stringify(Data.getState());
-const hasMeaningfulLocalData=()=>{const s=Data.getState();return ['turnos','movimientos','cargasCombustible','fondosCombustibleEmpresa','deudas','gastosFijosMensuales','ingresosFijos'].some(k=>Array.isArray(s?.[k])&&s[k].length>0)||Boolean(s?.parametros?.saldoInicialConfigurado)||Boolean(s?.parametros?.kmInicialConfigurado);};
+const hasMeaningfulLocalData=()=>{const s=Data.getState();return ['turnos','movimientos','cargasCombustible','fondosCombustibleEmpresa','deudas','gastosFijosMensuales','ingresosFijos','workSources','accounts'].some(k=>Array.isArray(s?.[k])&&s[k].length>0)||Boolean(s?.profile?.onboarded)||Boolean(s?.parametros?.saldoInicialConfigurado)||Boolean(s?.parametros?.kmInicialConfigurado);};
 const collectionMerge=(local=[],remote=[])=>{const map=new Map();for(const item of remote||[])if(item?.id)map.set(item.id,clone(item));for(const item of local||[])if(item?.id)map.set(item.id,clone(item));return [...map.values()];};
-function mergeStates(local,remote){const merged={...clone(remote||{}),...clone(local||{})};for(const key of ['turnos','movimientos','cargasCombustible','fondosCombustibleEmpresa','deudas','gastosFijosMensuales','ingresosFijos'])merged[key]=collectionMerge(local?.[key],remote?.[key]);merged.wallet=clone(local?.wallet||remote?.wallet||{});merged.parametros=clone(local?.parametros||remote?.parametros||{});merged.categoriasPersonalizadas={...(remote?.categoriasPersonalizadas||{}),...(local?.categoriasPersonalizadas||{})};return merged;}
+function mergeStates(local,remote){
+  const merged={...clone(remote||{}),...clone(local||{})};
+  for(const key of ['turnos','movimientos','cargasCombustible','fondosCombustibleEmpresa','deudas','gastosFijosMensuales','ingresosFijos','workSources','accounts','assets'])merged[key]=collectionMerge(local?.[key],remote?.[key]);
+  merged.wallet=clone(local?.wallet||remote?.wallet||{});
+  merged.parametros=clone(local?.parametros||remote?.parametros||{});
+  merged.profile={...(remote?.profile||{}),...(local?.profile||{})};
+  merged.categoriasPersonalizadas={...(remote?.categoriasPersonalizadas||{}),...(local?.categoriasPersonalizadas||{})};
+  merged.business={
+    ingredients:collectionMerge(local?.business?.ingredients,remote?.business?.ingredients),
+    products:collectionMerge(local?.business?.products,remote?.business?.products),
+    sales:collectionMerge(local?.business?.sales,remote?.business?.sales)
+  };
+  merged.activeActivity=local?.activeActivity||remote?.activeActivity||null;
+  merged.turnoActivo=merged.activeActivity;
+  return merged;
+}
 
 function setStatus(message,tone='neutral'){const el=document.getElementById('syncStatus');if(!el)return;el.textContent=message;el.dataset.tone=tone;}
 export function renderSyncUI(){const card=document.getElementById('syncCard'),zone=document.getElementById('syncPanel');if(!zone)return;if(!FIREBASE_SYNC.enabled||!authReady){card?.classList.add('hidden');return;}if(currentUser&&!conflictRemote){card?.classList.add('hidden');zone.innerHTML='';return;}card?.classList.remove('hidden');if(currentUser&&conflictRemote){zone.innerHTML='<div class="sync-conflict"><strong>⚠️ Conflicto de sincronización</strong><p style="margin:6px 0 10px">Hay cambios distintos en este dispositivo y en la nube. Elige cuál conservar.</p><button id="btnUseCloud" class="btn btn-outline">Usar nube</button><button id="btnUseLocal" class="btn btn-outline" style="margin-top:7px">Conservar local</button><button id="btnMergeSync" class="btn btn-primary" style="margin-top:7px">Fusionar sin duplicar</button></div>';document.getElementById('btnUseCloud')?.addEventListener('click',resolveUseCloud);document.getElementById('btnUseLocal')?.addEventListener('click',resolveUseLocal);document.getElementById('btnMergeSync')?.addEventListener('click',resolveMerge);return;}zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización disponible</strong><p>Inicia sesión con Google para respaldar y sincronizar tus datos entre dispositivos.</p><p id="syncStatus" style="margin:6px 0 12px;color:var(--text-sec)" aria-live="polite">Listo para iniciar sesión.</p><button id="btnSyncLogin" class="btn btn-primary">Continuar con Google</button></div>';document.getElementById('btnSyncLogin')?.addEventListener('click',signIn);}

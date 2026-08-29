@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#2563eb">
-  <meta name="description" content="Panel financiero híbrido para trabajo principal Jaimau/Ingenico y turnos secundarios de Uber Eats.">
+  <meta name="description" content="La app del HecAgus: finanzas, trabajo y negocio configurables para cada usuario.">
   <meta name="color-scheme" content="light">
   <title>La app del HecAgus</title>
   <link rel="manifest" href="manifest.webmanifest">
@@ -15,38 +15,37 @@
   <header class="header dashboard-header">
     <div class="dashboard-brand">
       <div class="dashboard-brand-icon" aria-hidden="true">▥</div>
-      <div>
-        <h1>La app del HecAgus</h1>
-        <small>Trabajo + finanzas</small>
-      </div>
+      <div><h1>La app del HecAgus</h1><small>Tu sistema financiero</small></div>
     </div>
   </header>
 
   <main class="container dashboard-container">
-    <section class="card text-center dashboard-income-hero" aria-labelledby="mainWorkEyebrow">
-      <div id="mainWorkEyebrow" class="dashboard-eyebrow">JAIMAU · QUINCENA ACTUAL</div>
-      <p id="mainWorkValue" class="dashboard-income-value" aria-live="polite">Sin jornadas</p>
-      <small id="mainWorkSub">0 h · 0 km · Pago pendiente</small>
+    <section class="card text-center dashboard-income-hero">
+      <div id="panelGreeting" class="dashboard-eyebrow">Tu situación financiera</div>
+      <p id="mainSummaryValue" class="dashboard-income-value" aria-live="polite">$0.00</p>
+      <small id="mainSummarySub">Disponible real $0.00 · ahorro $0.00</small>
     </section>
 
-    <div id="resumenHumanoContainer" class="dashboard-summary" aria-live="polite"></div>
-
-    <section class="card dashboard-today-card" aria-labelledby="actividadHoyTitle">
-      <div id="actividadHoyTitle" class="dashboard-section-title"><span aria-hidden="true">🗓️</span> Actividad de hoy</div>
-      <ul class="dashboard-today-metrics">
-        <li><span>💼 Jaimau</span><strong id="uiJaimauHoy">—</strong></li>
-        <li><span>🛵 Uber</span><strong id="uiUberHoy">—</strong></li>
-        <li><span>Turnos</span><strong id="uiTurnosHoy">0</strong></li>
-      </ul>
+    <section>
+      <div class="dashboard-section-title"><span aria-hidden="true">💼</span> Tus fuentes</div>
+      <div id="sourceSummaryZone"></div>
     </section>
 
-    <section class="card hidden"><div id="uiCompromisos"></div></section>
+    <section class="card dashboard-today-card">
+      <div class="dashboard-section-title"><span aria-hidden="true">🗓️</span> Actividad de hoy</div>
+      <ul id="todayActivityZone" class="dashboard-today-metrics"></ul>
+    </section>
+
+    <section class="card">
+      <h2>🔎 Lo que necesita atención</h2>
+      <div id="panelAlerts"></div>
+    </section>
   </main>
 
   <nav class="bottom-nav" aria-label="Navegación principal">
     <a href="index.html" class="nav-link active" aria-current="page"><span aria-hidden="true">▥</span>Panel</a>
     <a href="wallet.html" class="nav-link"><span aria-hidden="true">◉</span>Wallet</a>
-    <a href="admin.html" class="nav-link"><span aria-hidden="true">⚙</span>Admin</a>
+    <a href="admin.html" class="nav-link"><span aria-hidden="true">▶</span>Actividad</a>
     <a href="stats.html" class="nav-link"><span aria-hidden="true">⌁</span>Stats</a>
     <a href="historial.html" class="nav-link"><span aria-hidden="true">≡</span>Historial</a>
   </nav>
