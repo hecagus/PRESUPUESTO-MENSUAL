@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <meta name="theme-color" content="#2563eb">
   <meta name="description" content="Administración del panel financiero: reparto, trabajo fijo, gastos, deudas, respaldos y sincronización.">
-  <title>Admin · Mi Panel</title>
+  <title>Admin · HecAgus Finance</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="pwa-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
@@ -21,8 +21,8 @@
 <section class="card"><div style="display:flex;justify-content:space-between;align-items:center"><div><h2>Kilometraje</h2><strong id="kmActual" style="font-size:1.4rem">0 km</strong></div><button id="btnConfigKM" class="btn btn-outline" style="width:auto">🔒 Auto</button></div></section>
 <section class="card"><h2>Saldo Real en Caja</h2><div id="valSaldoAdmin" style="font-size:1.6rem;font-weight:bold">$0.00</div><button id="btnConfigSaldo" class="btn btn-outline">🔒 Auto</button></section>
 <section class="card card-hero"><div class="hero-title">🎯 Objetivo Producción</div><div id="metaDiariaValor" class="hero-value">$0.00</div><div class="hero-desc">Base operativa prorrateada + mora real</div></section>
-<section class="card" style="border-left:5px solid #2563eb"><h2>☁️ Sincronización</h2><div id="syncPanel"><small style="color:var(--text-sec)">Preparando sincronización…</small></div></section>
-<section class="card"><h2>📱 Aplicación</h2><p style="font-size:.85rem;color:var(--text-sec);margin-bottom:12px">Instala Mi Panel como app. El motor y las pantallas principales funcionan sin conexión.</p><button id="btnInstallApp" class="btn btn-primary">Instalar app</button></section>
+<section id="syncCard" class="card hidden" style="border-left:5px solid #2563eb"><h2>☁️ Sincronización</h2><div id="syncPanel"></div></section>
+<section id="appInstallCard" class="card hidden"><h2>📱 Aplicación</h2><p style="font-size:.85rem;color:var(--text-sec);margin-bottom:12px">Instala la app para usarla como una aplicación independiente y mantener disponible el modo sin conexión.</p><button id="btnInstallApp" class="btn btn-primary">Instalar app</button></section>
 <section class="card" style="opacity:.9"><h2>Sistema</h2><div class="grid-2"><button id="btnExportJSON" class="btn btn-outline">📋 Copiar Datos</button><button id="btnRestoreBackup" class="btn btn-outline" style="color:var(--danger);border-color:var(--danger)">♻️ Restaurar</button></div></section>
 </main>
 <div id="appModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal"><h3 id="modalTitle">Título</h3><div id="modalBody"></div><div class="modal-actions"><button id="modalCancel" class="btn btn-outline">Cancelar</button><button id="modalConfirm" class="btn btn-primary">Guardar</button></div></div></div>
