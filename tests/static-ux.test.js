@@ -22,3 +22,18 @@ test('calendario financiero forma parte del shell offline',async()=>{
   assert.match(html,/Calendario financiero/);assert.match(html,/Dinero realmente libre|situación real/i);
   assert.match(sw,/calendar\.html/);assert.match(sw,/13_financial_life\.js/);assert.match(sw,/14_calendar_ui\.js/);
 });
+
+test('saldo inicial se oculta después de declararlo y deuda permite pago único',async()=>{
+  const init=await read('js/05_init.js');
+  assert.match(init,/btnConfigSaldo/);
+  assert.match(init,/saldoInicialConfigurado/);
+  assert.match(init,/classList\.toggle\('hidden'/);
+  assert.match(init,/Una sola vez/);
+});
+
+test('nuevo logo es el icono PWA y forma parte del shell offline',async()=>{
+  const html=await read('index.html'),manifest=await read('manifest.webmanifest'),sw=await read('sw.js');
+  assert.match(html,/hecagus-finance-192\.png/);
+  assert.match(manifest,/hecagus-finance-192\.png/);assert.match(manifest,/hecagus-finance-512\.png/);
+  assert.match(sw,/hecagus-finance-192\.png/);assert.match(sw,/hecagus-finance-512\.png/);
+});
