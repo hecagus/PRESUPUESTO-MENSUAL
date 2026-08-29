@@ -79,15 +79,16 @@ test('v2.4 proyección conserva presupuesto variable como dinero no libre',()=>{
   assert.ok(forecast.endingFree<=7000.01);
 });
 
-test('v2.5 una regla aparta porcentaje de un ingreso nuevo hacia una meta',()=>{
+test('v2.5 una regla ignora ingresos previos y aparta porcentaje de un ingreso nuevo',()=>{
   Data.saldoInicial(1000);
   const goal=Savings.createSavingsGoal({name:'Emergencia',targetAmount:10000,targetDate:'2027-02-28',priority:'high'});
   Automation.createReserveRule({goalId:goal.id,percent:10,name:'Diez por ciento'});
+  assert.ok(Data.getState().ruleApplications.some(a=>a.status==='before_rule'));
   Accounts.recordUniversalMovement({type:'income',description:'Cobro',amount:5000,accountId:'acct-personal',category:'Trabajo'});
   const applied=Automation.runAutomationEngine();
   assert.equal(applied,1);
   assert.equal(Math.round(Savings.savingsGoalSummary(goal.id).reserved),500);
-  assert.equal(Data.getState().ruleApplications.length,1);
+  assert.equal(Data.getState().ruleApplications.filter(a=>a.status==='applied').length,1);
   assert.equal(Automation.runAutomationEngine(),0);
 });
 
