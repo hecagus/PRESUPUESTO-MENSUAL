@@ -33,8 +33,12 @@ function alreadyPaid(event){
 }
 
 export function cashFlowForecast({days=45,now=new Date()}={}){
-  const state=getState(),start=new Date(now),end=new Date(start.getTime()+days*DAY),reserved=(state.savingsGoals||[]).filter(g=>g.active!==false).reduce((a,g)=>a+safeFloat(g.reserved),0);
-  let cash=personalCashTotal(),minCash=cash,totalIncome=0,totalOutflow=0,firstNegativeDate=null;
+  const state=getState(),start=new Date(now),end=new Date(start.getTime()+days*DAY);
+  const position=financialPosition(start);
+  const reserved=(state.savingsGoals||[]).filter(g=>g.active!==false).reduce((a,g)=>a+safeFloat(g.reserved),0);
+  /* Los pagos fijos se descuentan cuando ocurren en el calendario. Los presupuestos variables y el transporte se mantienen apartados durante la proyección. */
+  const ongoingReserve=Math.max(0,reserved+safeFloat(position.living)+safeFloat(position.transport));
+  let cash=personalCashTotal(),minCash=cash,totalIncome=0,totalOutflow=0,firstNegativeDate=null,firstTightDate=null;
   const raw=upcomingFinancialEvents({days,now:start});
   const events=[];
   for(const event of raw){
@@ -49,15 +53,17 @@ export function cashFlowForecast({days=45,now=new Date()}={}){
       delta=-amount;totalOutflow+=amount;
     }else continue;
     cash+=delta;minCash=Math.min(minCash,cash);
+    const projectedFree=cash-ongoingReserve;
     if(cash<0&&!firstNegativeDate)firstNegativeDate=event.date;
-    events.push({...event,amount,delta,estimated,projectedCash:cash,projectedFree:cash-reserved});
+    if(projectedFree<0&&!firstTightDate)firstTightDate=event.date;
+    events.push({...event,amount,delta,estimated,projectedCash:cash,projectedFree});
   }
-  const position=financialPosition(start);
+  const endingFree=cash-ongoingReserve;
   return {
-    now:start.toISOString(),days,startCash:personalCashTotal(),startFree:position.free,reserved,
-    totalExpectedIncome:totalIncome,totalExpectedOutflow:totalOutflow,endingCash:cash,endingFree:cash-reserved,
-    minCash,firstNegativeDate,events,
-    risk:firstNegativeDate?'negative':cash-reserved<0?'tight':position.free<0?'tight':'ok'
+    now:start.toISOString(),days,startCash:personalCashTotal(),startFree:position.free,reserved,ongoingReserve,
+    totalExpectedIncome:totalIncome,totalExpectedOutflow:totalOutflow,endingCash:cash,endingFree,
+    minCash,firstNegativeDate,firstTightDate,events,
+    risk:firstNegativeDate?'negative':firstTightDate||endingFree<0?'tight':position.free<0?'tight':'ok'
   };
 }
 
@@ -66,7 +72,7 @@ export function forecastDaily({days=30,now=new Date()}={}){
   for(let i=0;i<=days;i++){
     const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()+i,23,59,59);
     while(index<forecast.events.length&&new Date(forecast.events[index].date)<=d){cash=forecast.events[index].projectedCash;index++;}
-    rows.push({date:d.toISOString(),cash,free:cash-forecast.reserved});
+    rows.push({date:d.toISOString(),cash,free:cash-forecast.ongoingReserve});
   }
   return rows;
 }
@@ -74,7 +80,7 @@ export function forecastDaily({days=30,now=new Date()}={}){
 export function nextCashRisk({days=45,now=new Date()}={}){
   const f=cashFlowForecast({days,now});
   if(f.firstNegativeDate)return {level:'critical',date:f.firstNegativeDate,message:'Tu flujo proyectado cae por debajo de $0 antes de terminar el periodo.'};
-  if(f.endingFree<0)return {level:'warning',date:f.events.at(-1)?.date||null,message:'Tus pagos proyectados consumen también el dinero reservado para metas.'};
+  if(f.firstTightDate||f.endingFree<0)return {level:'warning',date:f.firstTightDate||f.events.at(-1)?.date||null,message:'Tus pagos proyectados empezarían a consumir dinero reservado o presupuesto necesario.'};
   if(f.minCash<Math.max(500,f.totalExpectedOutflow*0.05))return {level:'warning',date:null,message:'Tu colchón de efectivo proyectado queda muy justo.'};
   return {level:'ok',date:null,message:'No detecto faltantes de efectivo en la proyección actual.'};
 }
