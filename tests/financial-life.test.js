@@ -72,3 +72,18 @@ test('pagar compromiso registra gasto real una sola vez por mes',()=>{
   assert.equal(Life.financialPosition(new Date('2026-08-05T12:00:00')).cash,2500);
   assert.throws(()=>Life.payCommitment(c.id,new Date('2026-08-20T10:00:00')),/COMPROMISO_YA_PAGADO/);
 });
+
+test('deuda que cabe en un solo pago aparece una sola vez aunque datos viejos digan Mensual',()=>{
+  const state=Data.getState();
+  state.deudas.push({
+    id:'uber-once',desc:'Uber eats',montoTotal:480.37,montoCuota:480.37,saldo:480.37,
+    frecuencia:'Mensual',diaPago:1,creadaEn:'2026-08-29T12:00:00.000Z'
+  });
+  Data.saveData();
+  const events=Life.upcomingFinancialEvents({days:45,now:new Date('2026-08-29T12:00:00')})
+    .filter(e=>e.refId==='uber-once'&&e.type==='debt');
+  assert.equal(events.length,1);
+  assert.match(events[0].title,/Uber eats/);
+  assert.equal(Math.round(events[0].amount*100),48037);
+  assert.equal(new Date(events[0].date).getMonth(),8);
+});
