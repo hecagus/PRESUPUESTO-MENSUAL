@@ -1,8 +1,8 @@
-const CACHE='hecagus-finance-1.3.0-shell-v1';
+const CACHE='hecagus-finance-2.0.0-shell-v1';
 const APP_SHELL=[
-  './','./index.html','./admin.html','./wallet.html','./stats.html','./historial.html','./offline.html',
+  './','./index.html','./onboarding.html','./admin.html','./wallet.html','./stats.html','./historial.html','./offline.html',
   './style.css','./manifest.webmanifest','./pwa-icon.svg',
-  './js/01_consts_utils.js','./js/02_data.js','./js/03_render.js','./js/04_charts.js','./js/05_init.js','./js/06_income_ui.js','./js/07_sync.js','./js/08_pwa.js','./js/firebase-config.js'
+  './js/01_consts_utils.js','./js/02_data.js','./js/03_render.js','./js/04_charts.js','./js/05_init.js','./js/06_income_ui.js','./js/07_sync.js','./js/08_pwa.js','./js/10_onboarding.js','./js/firebase-config.js'
 ];
 
 self.addEventListener('install',event=>{
@@ -14,29 +14,12 @@ self.addEventListener('activate',event=>{
 });
 
 self.addEventListener('fetch',event=>{
-  const req=event.request;
-  if(req.method!=='GET') return;
-  const url=new URL(req.url);
-  if(url.origin!==self.location.origin) return;
-
+  const req=event.request;if(req.method!=='GET')return;
+  const url=new URL(req.url);if(url.origin!==self.location.origin)return;
   if(req.mode==='navigate'){
-    event.respondWith(fetch(req).then(res=>{
-      const copy=res.clone(); caches.open(CACHE).then(c=>c.put(req,copy)); return res;
-    }).catch(async()=>await caches.match(req)||await caches.match('./index.html')||await caches.match('./offline.html')));
-    return;
+    event.respondWith(fetch(req).then(res=>{const copy=res.clone();caches.open(CACHE).then(c=>c.put(req,copy));return res;}).catch(async()=>await caches.match(req)||await caches.match('./index.html')||await caches.match('./offline.html')));return;
   }
-
   const isAppCode=url.pathname.endsWith('.js')||url.pathname.endsWith('.webmanifest');
-  if(isAppCode){
-    event.respondWith(fetch(req).then(res=>{
-      if(res.ok){const copy=res.clone();caches.open(CACHE).then(c=>c.put(req,copy));}
-      return res;
-    }).catch(()=>caches.match(req)));
-    return;
-  }
-
-  event.respondWith(caches.match(req).then(hit=>hit||fetch(req).then(res=>{
-    if(res.ok){const copy=res.clone();caches.open(CACHE).then(c=>c.put(req,copy));}
-    return res;
-  })));
+  if(isAppCode){event.respondWith(fetch(req).then(res=>{if(res.ok){const copy=res.clone();caches.open(CACHE).then(c=>c.put(req,copy));}return res;}).catch(()=>caches.match(req)));return;}
+  event.respondWith(caches.match(req).then(hit=>hit||fetch(req).then(res=>{if(res.ok){const copy=res.clone();caches.open(CACHE).then(c=>c.put(req,copy));}return res;})));
 });
