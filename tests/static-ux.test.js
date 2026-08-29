@@ -17,6 +17,14 @@ test('onboarding permite cambiar situación y configurar transporte público',as
   assert.match(js,/source-status/);assert.match(js,/public-out/);assert.match(js,/public-back/);assert.match(js,/updateSourceLife/);
 });
 
+test('onboarding final no mezcla editores de fuente con tarjetas de transporte',async()=>{
+  const js=await read('js/10_onboarding.js');
+  assert.match(js,/const box=\$\('sourceEditors'\);if\(!box\)return;/);
+  assert.match(js,/box\.querySelectorAll\('\.source-editor'\)/);
+  assert.doesNotMatch(js,/document\.querySelectorAll\('\.source-editor'\)/);
+  assert.match(js,/function save\(\)\{\s*try\{/);
+});
+
 test('calendario financiero forma parte del shell offline',async()=>{
   const html=await read('calendar.html'),sw=await read('sw.js');
   assert.match(html,/Calendario financiero/);assert.match(html,/Dinero realmente libre|situación real/i);
