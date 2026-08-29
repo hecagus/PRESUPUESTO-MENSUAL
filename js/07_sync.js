@@ -1,4 +1,4 @@
-/* v2.1.0 - Firebase offline-first, por usuario y con conflictos explícitos. */
+/* v2.2.0 - Firebase offline-first, por usuario y con conflictos explícitos. */
 import { FIREBASE_SYNC } from './firebase-config.js';
 import * as Data from './02_data.js';
 
@@ -12,7 +12,7 @@ let meta=typeof localStorage!=='undefined'?loadMeta():{baseRevision:0,dirty:fals
 
 const clone=v=>JSON.parse(JSON.stringify(v));
 const stateHash=()=>JSON.stringify(Data.getState());
-const hasMeaningfulLocalData=()=>{const s=Data.getState();return ['turnos','movimientos','cargasCombustible','fondosCombustibleEmpresa','deudas','gastosFijosMensuales','ingresosFijos','workSources','accounts','savingsGoals'].some(k=>Array.isArray(s?.[k])&&s[k].length>0)||Boolean(s?.profile?.onboarded)||Boolean(s?.parametros?.saldoInicialConfigurado)||Boolean(s?.parametros?.kmInicialConfigurado);};
+const hasMeaningfulLocalData=()=>{const s=Data.getState();return ['turnos','movimientos','cargasCombustible','fondosCombustibleEmpresa','deudas','gastosFijosMensuales','ingresosFijos','workSources','accounts','savingsGoals'].some(k=>Array.isArray(s?.[k])&&s[k].length>0)||Boolean(s?.financialPlan)||Boolean(s?.profile?.onboarded)||Boolean(s?.parametros?.saldoInicialConfigurado)||Boolean(s?.parametros?.kmInicialConfigurado);};
 const collectionMerge=(local=[],remote=[])=>{const map=new Map();for(const item of remote||[])if(item?.id)map.set(item.id,clone(item));for(const item of local||[])if(item?.id)map.set(item.id,clone(item));return [...map.values()];};
 function mergeStates(local,remote){
   const merged={...clone(remote||{}),...clone(local||{})};
@@ -21,6 +21,11 @@ function mergeStates(local,remote){
   merged.parametros=clone(local?.parametros||remote?.parametros||{});
   merged.profile={...(remote?.profile||{}),...(local?.profile||{})};
   merged.categoriasPersonalizadas={...(remote?.categoriasPersonalizadas||{}),...(local?.categoriasPersonalizadas||{})};
+  merged.financialPlan={
+    ...(remote?.financialPlan||{}),...(local?.financialPlan||{}),
+    livingBudgets:{...(remote?.financialPlan?.livingBudgets||{}),...(local?.financialPlan?.livingBudgets||{})},
+    commitments:collectionMerge(local?.financialPlan?.commitments,remote?.financialPlan?.commitments)
+  };
   merged.business={
     ingredients:collectionMerge(local?.business?.ingredients,remote?.business?.ingredients),
     products:collectionMerge(local?.business?.products,remote?.business?.products),
