@@ -11,7 +11,7 @@ const saveMeta=m=>localStorage.setItem(META_KEY,JSON.stringify(m));
 let meta=typeof localStorage!=='undefined'?loadMeta():{baseRevision:0,dirty:false,lastSync:null};
 
 const text=v=>String(v??'');
-const escapeHtml=v=>text(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+const escapeHtml=v=>text(v).replace(/[&<>'\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
 const clone=v=>JSON.parse(JSON.stringify(v));
 const stateHash=()=>JSON.stringify(Data.getState());
 const hasMeaningfulLocalData=()=>{const s=Data.getState();return ['turnos','movimientos','cargasCombustible','deudas','gastosFijosMensuales','ingresosFijos'].some(k=>Array.isArray(s?.[k])&&s[k].length>0)||Boolean(s?.parametros?.saldoInicialConfigurado)||Boolean(s?.parametros?.kmInicialConfigurado);};
@@ -32,7 +32,7 @@ function setStatus(message,tone='neutral'){
 export function renderSyncUI(){
   const zone=document.getElementById('syncPanel');if(!zone)return;
   if(!FIREBASE_SYNC.enabled){
-    zone.innerHTML='<div class="sync-state"><strong>☁️ Nube no configurada</strong><p>La app funciona completa en modo local. Completa <code>js/firebase-config.js</code> para activar sincronización.</p></div>';
+    zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización no disponible</strong><p>La app funciona completa en modo local.</p></div>';
     return;
   }
   if(!currentUser){
@@ -51,7 +51,13 @@ export function renderSyncUI(){
   document.getElementById('btnMergeSync')?.addEventListener('click',resolveMerge);
 }
 
-function showSyncError(error){console.error('Firebase sync:',error);setStatus('No se pudo sincronizar. Tus datos locales siguen intactos.','error');}
+function showSyncError(error){
+  console.error('Firebase sync:',error);
+  const code=String(error?.code||'');
+  if(code.includes('unauthorized-domain')) setStatus('Este dominio aún no está autorizado en Firebase Authentication.','error');
+  else if(code.includes('popup-blocked')||code.includes('popup-closed')) setStatus('No se pudo abrir el acceso con Google. Intenta de nuevo.','error');
+  else setStatus('No se pudo sincronizar. Tus datos locales siguen intactos.','error');
+}
 
 export function notifyLocalChange(){
   if(!FIREBASE_SYNC.enabled)return;
@@ -75,7 +81,13 @@ async function loadFirebase(){
   return firebase;
 }
 
-async function signIn(){try{const f=await loadFirebase();await f.signInWithPopup(auth,new f.GoogleAuthProvider());}catch(e){showSyncError(e);}}
+async function signIn(){
+  try{
+    const f=await loadFirebase();
+    const provider=new f.GoogleAuthProvider();
+    await f.signInWithRedirect(auth,provider);
+  }catch(e){showSyncError(e);}
+}
 async function signOutUser(){if(!auth)return;await firebase.signOut(auth);currentUser=null;conflictRemote=null;renderSyncUI();}
 const docRef=()=>firebase.doc(db,'users',currentUser.uid,'budget','state');
 
@@ -122,6 +134,7 @@ export async function initSync(){
   observerTimer=setInterval(()=>{const hash=stateHash();if(hash!==observedHash){observedHash=hash;notifyLocalChange();}},900);
   try{
     const f=await loadFirebase();
+    try{await f.getRedirectResult(auth);}catch(e){showSyncError(e);}
     f.onAuthStateChanged(auth,user=>{currentUser=user;renderSyncUI();if(user&&navigator.onLine)syncNow().catch(showSyncError);});
     document.addEventListener('budget:data-changed',notifyLocalChange);
     window.addEventListener('online',()=>{renderSyncUI();if(currentUser)syncNow().catch(showSyncError);});
