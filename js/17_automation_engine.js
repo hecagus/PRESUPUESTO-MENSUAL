@@ -29,7 +29,12 @@ export function createReserveRule({goalId,percent=10,sourceId=null,name=''}={}){
   if(sourceId&&!state.workSources.some(s=>s.id===sourceId))throw new Error('FUENTE_NO_ENCONTRADA');
   const p=clamp(safeFloat(percent),1,100);if(!(p>0))throw new Error('PORCENTAJE_INVALIDO');
   const rule=normalizeRule({name:name||`Apartar ${p}% para ${goal.name}`,goalId,sourceId,percent:p,createdAt:new Date().toISOString()});
-  state.automationRules.push(rule);saveData();return rule;
+  state.automationRules.push(rule);
+  /* Una regla empieza "desde ahora": los ingresos que ya existían quedan marcados como anteriores para que jamás se aparten retroactivamente, incluso si comparten el mismo milisegundo. */
+  for(const movement of (state.movimientos||[]).filter(m=>m.tipo==='ingreso'&&m.affectsPersonal!==false&&(sourceId?m.sourceId===sourceId:true))){
+    state.ruleApplications.push({id:uuid(),ruleId:rule.id,movementId:movement.id,amount:0,status:'before_rule',createdAt:new Date().toISOString()});
+  }
+  saveData();return rule;
 }
 
 export function setAutomationRuleActive(id,active){const state=getState();ensureAutomationEngine();const r=state.automationRules.find(x=>x.id===id);if(!r)throw new Error('REGLA_NO_ENCONTRADA');r.active=Boolean(active);saveData();return r;}
@@ -39,7 +44,7 @@ export function runAutomationEngine(){
   ensureAutomationEngine();const state=getState();let applied=0,touched=false;
   for(const rule of state.automationRules.filter(r=>r.active!==false&&r.type==='reserve_income_percent')){
     const goal=savingsGoalSummary(rule.goalId);if(!goal)continue;
-    const movements=(state.movimientos||[]).filter(m=>m.tipo==='ingreso'&&m.affectsPersonal!==false&&new Date(m.fecha)>=new Date(rule.createdAt)&&(rule.sourceId?m.sourceId===rule.sourceId:true));
+    const movements=(state.movimientos||[]).filter(m=>m.tipo==='ingreso'&&m.affectsPersonal!==false&&m.categoria!=='Sistema'&&(rule.sourceId?m.sourceId===rule.sourceId:true));
     for(const movement of movements){
       if(state.ruleApplications.some(a=>a.ruleId===rule.id&&a.movementId===movement.id))continue;
       const current=savingsGoalSummary(rule.goalId);
