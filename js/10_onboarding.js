@@ -1,4 +1,4 @@
-/* v2.2.0 - Onboarding adaptativo y situación editable. */
+/* v2.6.2 - Onboarding adaptativo y situación editable. */
 import { SOURCE_KINDS, COMPENSATIONS, TRANSPORT_MODES, fmtMoney } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { ensureFinancialLife, updateSourceLife, configureLivingSetup } from './13_financial_life.js';
@@ -58,7 +58,13 @@ function renderSources(){
 }
 
 function syncDrafts(){
-  [...document.querySelectorAll('.source-editor')].forEach(el=>{const i=Number(el.dataset.sourceIndex),s=sourceDrafts[i];if(!s)return;s.kind=el.querySelector('.source-kind').value;s.compensation=el.querySelector('.source-comp').value;s.name=el.querySelector('.source-name').value.trim();s.trackTime=el.querySelector('.source-time').checked;s.status=el.querySelector('.source-status')?.value||s.status||'active';s.active=s.status==='active';});
+  const box=$('sourceEditors');if(!box)return;
+  [...box.querySelectorAll('.source-editor')].forEach(el=>{
+    const i=Number(el.dataset.sourceIndex),s=sourceDrafts[i];if(!s)return;
+    const kind=el.querySelector('.source-kind'),comp=el.querySelector('.source-comp'),name=el.querySelector('.source-name'),time=el.querySelector('.source-time');
+    if(!kind||!comp||!name||!time)return;
+    s.kind=kind.value;s.compensation=comp.value;s.name=name.value.trim();s.trackTime=time.checked;s.status=el.querySelector('.source-status')?.value||s.status||'active';s.active=s.status==='active';
+  });
 }
 
 function syncTransportDrafts(){
@@ -103,13 +109,13 @@ function validateStep(){
 }
 
 function save(){
-  syncDrafts();syncTransportDrafts();
-  const useCases=selectedUseCases();if(!useCases.length)useCases.push('personal');
-  const sources=sourceDrafts.filter(s=>s.name).map(s=>{
-    const mode=s.transport?.mode||$('setupTransport').value||'none',vehicle=['motorcycle','car'].includes(mode);
-    return {...s,active:s.status==='active',fuelPayer:vehicle?(s.fuelPayer||'personal'):'none',trackDistance:vehicle?Boolean(s.trackDistance):false};
-  });
   try{
+    syncDrafts();syncTransportDrafts();
+    const useCases=selectedUseCases();if(!useCases.length)useCases.push('personal');
+    const sources=sourceDrafts.filter(s=>s.name).map(s=>{
+      const mode=s.transport?.mode||$('setupTransport').value||'none',vehicle=['motorcycle','car'].includes(mode);
+      return {...s,active:s.status==='active',fuelPayer:vehicle?(s.fuelPayer||'personal'):'none',trackDistance:vehicle?Boolean(s.trackDistance):false};
+    });
     Data.configurarOnboarding({displayName:$('setupName').value,useCases,transportMode:$('setupTransport').value,vehicleName:$('setupVehicleName').value,openingBalance:edit?undefined:$('setupBalance').value,sources});
     for(const draft of sources){
       const real=(draft.id&&Data.fuenteById(draft.id))||[...Data.getState().workSources].reverse().find(s=>s.name.toLowerCase()===draft.name.toLowerCase()&&s.kind===draft.kind);if(!real)continue;
@@ -118,7 +124,7 @@ function save(){
     }
     configureLivingSetup({housing:$('setupHousing').value,housingDay:$('setupHousingDay').value,services:$('setupServices').value,servicesDay:$('setupServicesDay').value,groceries:$('setupGroceries').value,health:$('setupHealth').value,leisure:$('setupLeisure').value,other:$('setupOtherLiving').value});
     location.replace('index.html');
-  }catch(e){console.error(e);alert(e.message==='NOMBRE_INVALIDO'?'Revisa los nombres de tus fuentes.':'No se pudo guardar la configuración.');}
+  }catch(e){console.error(e);alert(e.message==='NOMBRE_INVALIDO'?'Revisa los nombres de tus fuentes.':`No se pudo guardar la configuración.${e?.message?` (${e.message})`:''}`);}
 }
 
 $('btnAddSource').onclick=addSource;$('setupTransport').onchange=()=>{for(const s of sourceDrafts){if(!s.transport?.mode||s.transport.mode==='none')s.transport={...(s.transport||{}),mode:$('setupTransport').value};}renderTransportConfig();};
