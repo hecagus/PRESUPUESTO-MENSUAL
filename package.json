@@ -1,6 +1,6 @@
 {
-  "name": "presupuesto-mensual",
-  "version": "11.0.0",
+  "name": "hecagus-finance",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "scripts": {
