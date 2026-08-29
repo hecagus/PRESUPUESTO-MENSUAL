@@ -1,4 +1,4 @@
-/* v2.2.0 - Situación financiera, ciclo de vida laboral, transporte y calendario. */
+/* v2.6.1 - Situación financiera, ciclo de vida laboral, transporte y calendario. */
 import { safeFloat, uuid, TRANSPORT_MODES } from './01_consts_utils.js';
 import { getState, saveData } from './02_data.js';
 
@@ -172,12 +172,34 @@ function recurrence(events,base,frequency,dueDay,now,end){
   }
 }
 
+function pushSingleDebt(events,base,debt,now,end){
+  const createdRaw=debt.creadaEn||debt.createdAt||now;
+  let created=new Date(createdRaw);if(Number.isNaN(created.getTime()))created=new Date(now);
+  let due=debt.dueDate?new Date(debt.dueDate):null;
+  if(!due||Number.isNaN(due.getTime())){
+    const target=clamp(Math.round(safeFloat(debt.diaPago||created.getDate())),1,31);
+    let y=created.getFullYear(),m=created.getMonth();
+    due=new Date(y,m,Math.min(target,lastDay(y,m)),9,0,0);
+    if(due<created){m+=1;y+=Math.floor(m/12);m=((m%12)+12)%12;due=new Date(y,m,Math.min(target,lastDay(y,m)),9,0,0);}
+  }
+  if(due>end)return;
+  const overdue=due<now,shown=overdue?new Date(now):new Date(due);shown.setHours(9,0,0,0);
+  events.push({...base,id:`${base.id}-${due.toISOString().slice(0,10)}`,date:shown.toISOString(),dueDate:due.toISOString(),overdue});
+}
+
 export function upcomingFinancialEvents({days=45,now=new Date()}={}){
   ensureFinancialLife();const state=getState(),start=new Date(now);start.setHours(0,0,0,0);const end=new Date(start.getTime()+days*DAY),events=[];
   for(const c of state.financialPlan.commitments.filter(x=>x.active!==false)){
     recurrence(events,{id:`commitment-${c.id}`,refId:c.id,title:c.name,amount:safeFloat(c.amount),type:'expense',category:c.category||'Vida'},c.frequency,c.dueDay,start,end);
   }
-  for(const d of state.deudas||[]){if(!(safeFloat(d.saldo)>0))continue;recurrence(events,{id:`debt-${d.id}`,refId:d.id,title:`Deuda · ${d.desc}`,amount:Math.min(safeFloat(d.montoCuota),safeFloat(d.saldo)),type:'debt',category:'Deuda'},d.frecuencia,d.diaPago,start,end);}
+  for(const d of state.deudas||[]){
+    const saldo=safeFloat(d.saldo);if(!(saldo>0))continue;
+    const cuota=Math.min(safeFloat(d.montoCuota),saldo),total=safeFloat(d.montoTotal),frequency=String(d.frecuencia||'').toLowerCase();
+    const base={id:`debt-${d.id}`,refId:d.id,title:`Deuda · ${d.desc}`,amount:cuota,type:'debt',category:'Deuda'};
+    const single=['unico','único','single','one_time'].includes(frequency)||cuota>=saldo-0.005||(total>0&&safeFloat(d.montoCuota)>=total-0.005);
+    if(single)pushSingleDebt(events,base,d,start,end);
+    else recurrence(events,base,d.frecuencia,d.diaPago,start,end);
+  }
   for(const g of state.gastosFijosMensuales||[]){if(['Ahorro','Meta'].includes(g.categoria))continue;recurrence(events,{id:`fixed-${g.id}`,refId:g.id,title:g.desc,amount:safeFloat(g.monto),type:'expense',category:g.categoria||'Gasto'},g.frecuencia,g.diaPago||1,start,end);}
   for(const source of state.workSources||[]){
     if(source.active===false||source.status==='ended'||source.status==='paused')continue;
