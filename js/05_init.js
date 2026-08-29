@@ -1,5 +1,5 @@
-/* v2.6.0 - Orquestación de UI, plataforma financiera, PWA, metas y sincronización. */
-import { $, CATEGORIAS_BASE, FRECUENCIAS, DIAS_SEMANA, APP_VERSION, COMPENSATIONS } from './01_consts_utils.js';
+/* v2.6.1 - Orquestación de UI, plataforma financiera, PWA, metas y sincronización. */
+import { $, CATEGORIAS_BASE, FRECUENCIAS, APP_VERSION, COMPENSATIONS } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { Modal, renderIndex, renderWallet, renderHistorial, renderStats, renderAdmin } from './03_render.js';
 import { initSync, notifyLocalChange } from './07_sync.js';
@@ -19,6 +19,7 @@ const refresh=()=>{
   else if(page==='stats')renderStats();
   else if(page==='admin')renderAdmin();
   else if(page==='calendar')renderCalendarPage();
+  if(page==='admin')$('btnConfigSaldo')?.classList.toggle('hidden',Boolean(Data.getState().parametros.saldoInicialConfigurado));
   renderSavingsGoalsUI();
   renderFinancialPlatform();
 };
@@ -88,10 +89,16 @@ function initAdminEvents(){
   $('btnCompanyFund')?.addEventListener('click',companyFundModal);
   $('btnGastoHogar')?.addEventListener('click',()=>expenseModal('hogar'));
   $('btnGastoOperativo')?.addEventListener('click',()=>expenseModal('operativo'));
-  $('btnDeudaNueva')?.addEventListener('click',()=>Modal.show('Nueva deuda',[{label:'Nombre',key:'d'},{label:'Total',key:'t',type:'number'},{label:'Cuota',key:'c',type:'number'},{label:'Frecuencia',key:'f',type:'select',options:Object.keys(FRECUENCIAS).map(x=>({val:x,txt:x}))},{label:'Día de pago',key:'dp',type:'select',options:DIAS_SEMANA}],d=>safe(()=>Data.nuevaDeuda(d.d,d.t,d.c,d.f,d.dp))));
+  $('btnDeudaNueva')?.addEventListener('click',()=>Modal.show('Nueva deuda',[
+    {label:'Nombre',key:'d'},
+    {label:'Total',key:'t',type:'number'},
+    {label:'Cuota',key:'c',type:'number'},
+    {label:'Plan de pago',key:'f',type:'select',options:['Unico','Semanal','Quincenal','Mensual'].map(x=>({val:x,txt:x==='Unico'?'Una sola vez':x}))},
+    {label:'Día de pago / vencimiento',key:'dp',type:'number',value:1}
+  ],d=>safe(()=>Data.nuevaDeuda(d.d,d.t,d.c,d.f,d.dp))));
   $('btnAbonoCuota')?.addEventListener('click',()=>{const id=$('abonoDeudaSelect')?.value;if(!id)return alert('Selecciona una deuda.');if(confirm('¿Confirmar abono?'))safe(()=>Data.abonarDeuda(id));});
   $('btnConfigKM')?.addEventListener('click',()=>{if(Data.getState().parametros.kmInicialConfigurado)return alert('El kilometraje ya se gestiona con tus actividades.');Modal.show('Configurar kilometraje',[{label:'KM actuales',key:'k',type:'number'}],d=>safe(()=>Data.configurarKM(d.k)));});
-  $('btnConfigSaldo')?.addEventListener('click',()=>{if(Data.getState().parametros.saldoInicialConfigurado)return alert('El saldo inicial ya fue declarado.');Modal.show('¿Cuánto dinero tienes ahora?',[{label:'Saldo personal ($)',key:'m',type:'number'}],d=>safe(()=>Data.saldoInicial(d.m)));});
+  $('btnConfigSaldo')?.addEventListener('click',()=>{if(Data.getState().parametros.saldoInicialConfigurado)return;Modal.show('¿Cuánto dinero tienes ahora?',[{label:'Saldo personal ($)',key:'m',type:'number'}],d=>safe(()=>Data.saldoInicial(d.m)));});
   $('btnExportJSON')?.addEventListener('click',async()=>{const json=JSON.stringify(Data.getState(),null,2);try{await navigator.clipboard.writeText(json);alert('Respaldo copiado.');}catch{const blob=new Blob([json],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`hecagus-finance-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url);alert('Respaldo descargado.');}});
   $('btnRestoreBackup')?.addEventListener('click',()=>Modal.show('Restaurar respaldo',[{label:'JSON',key:'j'}],d=>{if(!confirm('Esto reemplazará los datos actuales. ¿Continuar?'))return;safe(()=>Data.restaurar(d.j));}));
 }
