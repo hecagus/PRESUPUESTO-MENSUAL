@@ -1,8 +1,8 @@
-/* v2.1.0 - Constantes, capacidades y utilidades puras. */
-export const APP_VERSION = '2.1.0';
+/* v2.2.0 - Constantes, capacidades y utilidades puras. */
+export const APP_VERSION = '2.2.0';
 export const STORAGE_KEY = 'moto_finanzas_vFinal';
 export const LEGACY_KEYS = ['moto_finanzas_v3', 'moto_finanzas', 'app_moto_data'];
-export const SCHEMA_VERSION = 21;
+export const SCHEMA_VERSION = 22;
 
 export const SOURCE_KINDS = Object.freeze({
   employment: { label: 'Empleo', icon: '💼' },
@@ -62,9 +62,8 @@ export const FRECUENCIAS = Object.freeze({
 
 export const MAPA_DIAS = Object.freeze({ 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 0:7 });
 export const DIAS_SEMANA = Object.freeze([
-  {val:'', txt:'Seleccionar...'}, {val:'1', txt:'Lunes'}, {val:'2', txt:'Martes'},
-  {val:'3', txt:'Miércoles'}, {val:'4', txt:'Jueves'}, {val:'5', txt:'Viernes'},
-  {val:'6', txt:'Sábado'}, {val:'0', txt:'Domingo'}
+  {val:'', txt:'Seleccionar...'}, {val:'1', txt:'Lunes'}, {val:'2', txt:'Martes'}, {val:'3', txt:'Miércoles'},
+  {val:'4', txt:'Jueves'}, {val:'5', txt:'Viernes'}, {val:'6', txt:'Sábado'}, {val:'0', txt:'Domingo'}
 ]);
 
 export const CATEGORIAS_BASE = Object.freeze({
