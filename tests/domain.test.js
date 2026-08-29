@@ -14,8 +14,8 @@ const Data=await import('../js/02_data.js');
 
 function reset(){
   Data.restaurar(JSON.stringify({
-    schemaVersion:11,
-    turnos:[],movimientos:[],cargasCombustible:[],deudas:[],gastosFijosMensuales:[],ingresosFijos:[],
+    schemaVersion:12,
+    turnos:[],movimientos:[],cargasCombustible:[],fondosCombustibleEmpresa:[],deudas:[],gastosFijosMensuales:[],ingresosFijos:[],
     wallet:{saldo:0,sobres:[]},
     parametros:{ultimoKM:1000,costoPorKm:0,metaDiaria:0,metaBase:0,deficitTotal:0,moraVencida:0,kmInicialConfigurado:true,saldoInicialConfigurado:false},
     categoriasPersonalizadas:{operativo:[],hogar:[]},turnoActivo:null
@@ -24,26 +24,61 @@ function reset(){
 
 test.beforeEach(reset);
 
-test('un turno crea ingreso, kilometraje y duración',()=>{
-  Data.iniciarTurno();
+test('Uber crea ingreso, kilometraje y duración por turno',()=>{
+  Data.iniciarTurno('uber');
   const state=Data.finalizarTurno(1012,480);
   assert.equal(state.turnos.length,1);
+  assert.equal(state.turnos[0].tipoTrabajo,'uber');
   assert.equal(state.turnos[0].kmRecorrido,12);
   assert.equal(state.turnos[0].ganancia,480);
   assert.equal(state.movimientos.at(-1).tipo,'ingreso');
+  assert.equal(state.movimientos.at(-1).fuente,'uber');
   assert.equal(state.wallet.saldo,480);
   assert.equal(state.parametros.ultimoKM,1012);
 });
 
-test('no permite finalizar un turno inexistente',()=>{
+test('Jaimau registra jornada y km sin inventar ganancia diaria',()=>{
+  Data.iniciarTurno('jaimau');
+  const state=Data.finalizarTurno(1025);
+  assert.equal(state.turnos.length,1);
+  assert.equal(state.turnos[0].tipoTrabajo,'jaimau');
+  assert.equal(state.turnos[0].kmRecorrido,25);
+  assert.equal(state.turnos[0].ganancia,null);
+  assert.equal(state.turnos[0].compensacion,'quincenal');
+  assert.equal(state.movimientos.length,0);
+  assert.equal(state.wallet.saldo,0);
+});
+
+test('no permite finalizar una jornada inexistente',()=>{
   assert.throws(()=>Data.finalizarTurno(1010,100),/TURNO_NO_ACTIVO/);
 });
 
 test('rechaza kilometraje regresivo y gasolina inválida',()=>{
-  Data.iniciarTurno();
+  Data.iniciarTurno('uber');
   assert.throws(()=>Data.finalizarTurno(999,100),/KM_MENOR/);
   assert.throws(()=>Data.registrarGasolina(0,200,1000),/LITROS_INVALIDOS/);
   assert.throws(()=>Data.registrarGasolina(5,-1,1000),/MONTO_INVALIDO/);
+});
+
+test('fondos y gasolina de Jaimau no alteran el saldo personal',()=>{
+  Data.registrarFondoJaimau(500);
+  Data.registrarGasolina(5,200,1000,'empresa');
+  const fuel=Data.saldoCombustibleEmpresa();
+  assert.equal(fuel.depositado,500);
+  assert.equal(fuel.utilizado,200);
+  assert.equal(fuel.disponible,300);
+  assert.equal(Data.getState().wallet.saldo,0);
+  assert.equal(Data.getState().movimientos.length,0);
+});
+
+test('el pago de Jaimau entra al saldo solo cuando se cobra',()=>{
+  Data.iniciarTurno('jaimau');
+  Data.finalizarTurno(1010);
+  assert.equal(Data.getState().wallet.saldo,0);
+  Data.registrarPagoJaimau(6000);
+  assert.equal(Data.getState().wallet.saldo,6000);
+  assert.equal(Data.getState().movimientos.at(-1).fuente,'jaimau');
+  assert.throws(()=>Data.registrarPagoJaimau(6000),/COBRO_DUPLICADO/);
 });
 
 test('una deuda reduce saldo pendiente con cada abono',()=>{
@@ -56,7 +91,7 @@ test('una deuda reduce saldo pendiente con cada abono',()=>{
 });
 
 test('el ingreso fijo no puede cobrarse dos veces en el mismo periodo',()=>{
-  Data.crearIngresoFijo({nombre:'Trabajo fijo',frecuencia:'Mensual',dia1:'15'});
+  Data.crearIngresoFijo({nombre:'Otro trabajo',frecuencia:'Mensual',dia1:'15'});
   const ingreso=Data.getState().ingresosFijos[0];
   const pago=ingreso.pagos[0];
   Data.registrarCobroFijo(ingreso.id,pago.id,5000);

@@ -1,7 +1,13 @@
-/* V11 - Constantes y utilidades puras */
+/* v1.2.0 - Constantes y utilidades puras */
+export const APP_VERSION = '1.2.0';
 export const STORAGE_KEY = 'moto_finanzas_vFinal';
 export const LEGACY_KEYS = ['moto_finanzas_v3', 'moto_finanzas', 'app_moto_data'];
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
+
+export const WORK_TYPES = Object.freeze({
+  jaimau: { label: 'Jaimau / Ingenico', compensation: 'quincenal', fuel: 'empresa' },
+  uber: { label: 'Uber Eats', compensation: 'por_turno', fuel: 'personal' }
+});
 
 export const FRECUENCIAS = Object.freeze({
   Diario: 1, Semanal: 7, Quincenal: 15, Mensual: 30,
@@ -35,3 +41,13 @@ export const isToday = value => {
 };
 export const normalizeWeekDay = value => Number(value) === 0 ? 7 : Number(value || 7);
 export const isGasReserve = sobre => Boolean(sobre && sobre.categoria === 'Operativo' && /gas|combustible/i.test(String(sobre.desc || '')));
+export const quincenaId = value => {
+  const d = value instanceof Date ? value : new Date(value ?? Date.now());
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-Q${d.getDate()<=15?1:2}`;
+};
+export const quincenaLabel = value => {
+  const d = value instanceof Date ? value : new Date(value ?? Date.now());
+  const inicio=d.getDate()<=15?1:16;
+  const fin=d.getDate()<=15?15:new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+  return `${inicio}–${fin} ${d.toLocaleDateString('es-MX',{month:'short'})}`;
+};
