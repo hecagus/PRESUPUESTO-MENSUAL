@@ -1,11 +1,12 @@
-/* V11 - PWA bootstrap. No bloquea la app si el navegador no soporta SW. */
+/* V11 - PWA bootstrap. La UI de instalación solo aparece cuando el navegador ofrece instalación real. */
 let deferredPrompt=null;
 
 const isStandalone=()=>window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
 const updateInstallUI=()=>{
   const card=document.getElementById('appInstallCard');
   if(!card)return;
-  card.classList.toggle('hidden',isStandalone());
+  const shouldShow=!isStandalone()&&Boolean(deferredPrompt);
+  card.classList.toggle('hidden',!shouldShow);
 };
 
 export async function initPWA(){
@@ -33,6 +34,7 @@ export async function promptInstall(){
   await deferredPrompt.prompt();
   const choice=await deferredPrompt.userChoice;
   deferredPrompt=null;
+  updateInstallUI();
   return choice.outcome==='accepted';
 }
 
