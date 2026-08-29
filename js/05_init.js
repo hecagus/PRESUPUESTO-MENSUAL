@@ -1,4 +1,4 @@
-/* v2.1.0 - Orquestación de UI por capacidades, PWA, metas y sincronización. */
+/* v2.2.0 - Orquestación de UI por capacidades, calendario, PWA, metas y sincronización. */
 import { $, CATEGORIAS_BASE, FRECUENCIAS, DIAS_SEMANA, APP_VERSION, COMPENSATIONS } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { Modal, renderIndex, renderWallet, renderHistorial, renderStats, renderAdmin } from './03_render.js';
@@ -6,14 +6,17 @@ import { initSync, notifyLocalChange } from './07_sync.js';
 import { initPWA, promptInstall } from './08_pwa.js';
 import { ensureSavingsGoals } from './11_savings_goals.js';
 import { renderSavingsGoalsUI, initSavingsGoalEvents } from './12_savings_ui.js';
+import { ensureFinancialLife } from './13_financial_life.js';
+import { renderFinancialPositionPanel, renderCalendarPreview, renderCalendarPage, initCalendarEvents } from './14_calendar_ui.js';
 
 const refresh=()=>{
   const page=document.body.dataset.page;
-  if(page==='index')renderIndex();
+  if(page==='index'){renderIndex();renderFinancialPositionPanel();renderCalendarPreview();}
   else if(page==='wallet')renderWallet();
   else if(page==='historial')renderHistorial();
   else if(page==='stats')renderStats();
   else if(page==='admin')renderAdmin();
+  else if(page==='calendar')renderCalendarPage();
   renderSavingsGoalsUI();
 };
 
@@ -88,6 +91,9 @@ function initAdminEvents(){
   $('btnConfigSaldo')?.addEventListener('click',()=>{if(Data.getState().parametros.saldoInicialConfigurado)return alert('El saldo inicial ya fue declarado.');Modal.show('¿Cuánto dinero tienes ahora?',[{label:'Saldo personal ($)',key:'m',type:'number'}],d=>safe(()=>Data.saldoInicial(d.m)));});
   $('btnExportJSON')?.addEventListener('click',async()=>{const json=JSON.stringify(Data.getState(),null,2);try{await navigator.clipboard.writeText(json);alert('Respaldo copiado.');}catch{const blob=new Blob([json],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`hecagus-finance-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url);alert('Respaldo descargado.');}});
   $('btnRestoreBackup')?.addEventListener('click',()=>Modal.show('Restaurar respaldo',[{label:'JSON',key:'j'}],d=>{if(!confirm('Esto reemplazará los datos actuales. ¿Continuar?'))return;safe(()=>Data.restaurar(d.j));}));
+}
+
+function initGlobalEvents(){
   $('btnInstallApp')?.addEventListener('click',async()=>{const installed=await promptInstall();if(!installed)alert('Usa el menú del navegador para instalar la app.');});
 }
 
@@ -109,9 +115,13 @@ function initDelegation(){
 
 function startTimer(){if(document.body.dataset.page!=='admin')return;window.setInterval(()=>{const t=Data.getState().activeActivity,el=$('activityTimer');if(!el)return;if(!t){el.textContent='00:00:00';return;}const diff=Date.now()-t.inicio;el.textContent=`${Math.floor(diff/3600000)}h ${Math.floor((diff%3600000)/60000)}m`;},1000);}
 
-document.addEventListener('budget:remote-applied',()=>{ensureSavingsGoals();refresh();});
+document.addEventListener('budget:remote-applied',()=>{ensureSavingsGoals();ensureFinancialLife();refresh();});
 document.addEventListener('DOMContentLoaded',()=>{
-  Data.loadData();ensureSavingsGoals();
+  Data.loadData();ensureSavingsGoals();ensureFinancialLife();
   if(!Data.getState().profile.onboarded){window.location.replace('onboarding.html');return;}
-  refresh();initDelegation();initSavingsGoalEvents(()=>{refresh();notifyLocalChange();});if(document.body.dataset.page==='admin')initAdminEvents();startTimer();initPWA();initSync();console.log(`La app del HecAgus v${APP_VERSION}`);
+  refresh();initDelegation();initGlobalEvents();
+  initSavingsGoalEvents(()=>{refresh();notifyLocalChange();});
+  if(document.body.dataset.page==='admin')initAdminEvents();
+  if(document.body.dataset.page==='calendar')initCalendarEvents(()=>{refresh();notifyLocalChange();});
+  startTimer();initPWA();initSync();console.log(`La app del HecAgus v${APP_VERSION}`);
 });

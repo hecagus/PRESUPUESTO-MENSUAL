@@ -9,15 +9,15 @@
   <link rel="icon" href="pwa-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
   <style>
-    .setup-wrap{max-width:680px;margin:0 auto;padding:18px 16px 40px}.setup-title{font-size:1.8rem;margin:8px 0}.setup-step{display:none}.setup-step.active{display:block}.choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.choice{border:1px solid #dbe2ea;border-radius:14px;padding:14px;background:white}.choice input{margin-right:7px}.setup-actions{display:flex;gap:10px;margin-top:18px}.setup-actions .btn{flex:1}.source-editor{border:1px solid #e2e8f0;border-radius:14px;padding:12px;margin:10px 0;background:#fff}.setup-progress{display:flex;gap:6px;margin:12px 0 20px}.setup-progress span{height:6px;flex:1;border-radius:999px;background:#dbe2ea}.setup-progress span.on{background:#2563eb}.muted{color:var(--text-sec);font-size:.88rem}.source-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.checkline{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:.9rem}
+    .setup-wrap{max-width:680px;margin:0 auto;padding:18px 16px 40px}.setup-title{font-size:1.8rem;margin:8px 0}.setup-step{display:none}.setup-step.active{display:block}.choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.choice{border:1px solid #dbe2ea;border-radius:14px;padding:14px;background:white}.choice input{margin-right:7px}.setup-actions{display:flex;gap:10px;margin-top:18px}.setup-actions .btn{flex:1}.source-editor{border:1px solid #e2e8f0;border-radius:14px;padding:12px;margin:10px 0;background:#fff}.setup-progress{display:flex;gap:6px;margin:12px 0 20px}.setup-progress span{height:6px;flex:1;border-radius:999px;background:#dbe2ea}.setup-progress span.on{background:#2563eb}.muted{color:var(--text-sec);font-size:.88rem}.source-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.checkline{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:.9rem}.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.status-ended{opacity:.65;background:#f8fafc}
   </style>
 </head>
 <body data-page="onboarding">
   <main class="setup-wrap">
     <div style="font-weight:800;color:#2563eb">▥ La app del HecAgus</div>
     <h1 id="setupHeading" class="setup-title">Hazla tuya</h1>
-    <p class="muted">No vamos a llenarte de funciones que no usas. Dinos cómo vives y trabajas; la app arma sus módulos sola.</p>
-    <div class="setup-progress"><span></span><span></span><span></span><span></span></div>
+    <p class="muted">Dinos cómo trabajas, cuánto cuesta generar ese dinero y cómo vives. La app calcula lo que de verdad tienes libre.</p>
+    <div class="setup-progress"><span></span><span></span><span></span><span></span><span></span></div>
 
     <section class="setup-step active" data-step="0">
       <div class="card">
@@ -34,12 +34,13 @@
     </section>
 
     <section class="setup-step" data-step="1">
-      <div class="card"><h2>2. ¿De dónde entra tu dinero?</h2><p class="muted">Cada fuente puede comportarse distinto. Una puede pagar quincenal y otra por turno.</p><div id="sourceEditors"></div><button id="btnAddSource" class="btn btn-outline" type="button">+ Agregar otra fuente</button></div>
+      <div class="card"><h2>2. ¿De dónde entra tu dinero?</h2><p class="muted">Puedes cambiar, pausar o finalizar una fuente sin borrar su historial.</p><div id="sourceEditors"></div><button id="btnAddSource" class="btn btn-outline" type="button">+ Agregar otra fuente</button></div>
     </section>
 
     <section class="setup-step" data-step="2">
       <div class="card">
-        <h2>3. ¿Cómo te transportas para trabajar?</h2>
+        <h2>3. ¿Cómo llegas a trabajar?</h2>
+        <label>Transporte principal / predeterminado</label>
         <select id="setupTransport" class="input-control">
           <option value="none">No uso transporte para trabajar</option>
           <option value="public">Transporte público</option>
@@ -48,15 +49,30 @@
           <option value="bicycle">Bicicleta</option>
         </select>
         <label>Nombre del vehículo (opcional)</label><input id="setupVehicleName" class="input-control" placeholder="Mi moto / Auto familiar">
+        <p class="muted">Cada trabajo puede tener un transporte distinto. Si usas transporte público, cuéntanos cuántos tomas de ida y regreso.</p>
         <div id="fuelSourceConfig"></div>
       </div>
     </section>
 
     <section class="setup-step" data-step="3">
       <div class="card">
-        <h2>4. Punto de partida</h2>
+        <h2>4. ¿Cuánto cuesta vivir?</h2>
+        <p class="muted">No todo gira alrededor del trabajo. Estos montos ayudan a separar dinero comprometido de dinero realmente libre.</p>
+        <div class="mini-grid"><div><label>Vivienda mensual</label><input id="setupHousing" class="input-control" type="number" min="0" step="0.01" placeholder="0"></div><div><label>Día de pago</label><input id="setupHousingDay" class="input-control" type="number" min="1" max="31" value="1"></div></div>
+        <div class="mini-grid"><div><label>Servicios del hogar</label><input id="setupServices" class="input-control" type="number" min="0" step="0.01" placeholder="0"></div><div><label>Día aproximado</label><input id="setupServicesDay" class="input-control" type="number" min="1" max="31" value="10"></div></div>
+        <label>Despensa / comida al mes</label><input id="setupGroceries" class="input-control" type="number" min="0" step="0.01" placeholder="0">
+        <label>Salud al mes</label><input id="setupHealth" class="input-control" type="number" min="0" step="0.01" placeholder="0">
+        <label>Ocio / salidas al mes</label><input id="setupLeisure" class="input-control" type="number" min="0" step="0.01" placeholder="0">
+        <label>Otros gastos variables al mes</label><input id="setupOtherLiving" class="input-control" type="number" min="0" step="0.01" placeholder="0">
+        <small class="muted">Puedes dejar cualquier campo en cero y ajustarlo después.</small>
+      </div>
+    </section>
+
+    <section class="setup-step" data-step="4">
+      <div class="card">
+        <h2>5. Punto de partida</h2>
         <label>¿Cuánto dinero personal tienes ahora?</label><input id="setupBalance" class="input-control" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
-        <p class="muted">Este saldo solo se pide una vez. Fondos de empresa o clientes se guardan aparte y no aumentan tu patrimonio.</p>
+        <p class="muted">Fondos de empresa o clientes se guardan aparte y no aumentan tu patrimonio.</p>
         <div id="setupReview" style="margin-top:14px"></div>
       </div>
     </section>
