@@ -1,8 +1,8 @@
-/* v2.0.0 - Constantes, capacidades y utilidades puras. */
-export const APP_VERSION = '2.0.0';
+/* v2.1.0 - Constantes, capacidades y utilidades puras. */
+export const APP_VERSION = '2.1.0';
 export const STORAGE_KEY = 'moto_finanzas_vFinal';
 export const LEGACY_KEYS = ['moto_finanzas_v3', 'moto_finanzas', 'app_moto_data'];
-export const SCHEMA_VERSION = 20;
+export const SCHEMA_VERSION = 21;
 
 export const SOURCE_KINDS = Object.freeze({
   employment: { label: 'Empleo', icon: '💼' },
@@ -69,7 +69,7 @@ export const DIAS_SEMANA = Object.freeze([
 
 export const CATEGORIAS_BASE = Object.freeze({
   operativo: ['Gasolina', 'Renta', 'Mantenimiento', 'Reparación', 'Equipo', 'Seguro'],
-  hogar: ['Renta', 'Comida', 'Servicios', 'Internet', 'Salud', 'Deudas', 'Otro', 'Ahorro', 'Meta']
+  hogar: ['Renta', 'Comida', 'Servicios', 'Internet', 'Salud', 'Deudas', 'Otro']
 });
 
 export const $ = id => document.getElementById(id);
