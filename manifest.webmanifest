@@ -1,0 +1,27 @@
+{
+  "name": "Mi Panel Financiero",
+  "short_name": "Mi Panel",
+  "description": "Finanzas personales offline-first para trabajo fijo y reparto.",
+  "id": "./index.html",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f6f8fc",
+  "theme_color": "#2563eb",
+  "lang": "es-MX",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    {
+      "src": "./pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {"name":"Administrar","short_name":"Admin","url":"./admin.html"},
+    {"name":"Billetera","short_name":"Wallet","url":"./wallet.html"},
+    {"name":"Estadísticas","short_name":"Stats","url":"./stats.html"}
+  ]
+}
