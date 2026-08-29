@@ -11,7 +11,9 @@ const ERRORS={
   NOMBRE_INVALIDO:'Escribe un nombre para la meta.',MONTO_META_INVALIDO:'Ingresa un monto mayor a 0.',
   FECHA_META_INVALIDA:'La fecha objetivo debe ser válida y no puede estar en el pasado.',META_NO_ENCONTRADA:'No se encontró esa meta.',
   SALDO_DISPONIBLE_INSUFICIENTE:'No tienes suficiente dinero disponible para reservar ese monto.',
-  RETIRO_SUPERA_RESERVA:'No puedes retirar más de lo que tienes reservado.'
+  RETIRO_SUPERA_RESERVA:'No puedes retirar más de lo que tienes reservado.',
+  APORTE_SUPERA_META:'Ese aporte supera lo que falta para completar la meta.',
+  META_COMPLETA:'Esta meta ya está completa.'
 };
 const escapeHtml=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 const priorityLabel=p=>p==='high'?'Alta':p==='low'?'Baja':'Normal';
@@ -48,7 +50,7 @@ export function renderSavingsGoalsUI(){
         <div style="display:flex;justify-content:space-between;gap:10px"><span>Reservado <strong>${fmtMoney(r.reserved)}</strong></span><span>Meta <strong>${fmtMoney(r.target)}</strong></span></div>
         <small style="display:block;margin-top:6px;color:var(--text-sec)">${done?'✅ Meta completada':r.overdue?`⚠️ Fecha vencida · faltan ${fmtMoney(r.remaining)}`:`Faltan ${fmtMoney(r.remaining)} · ritmo ${fmtMoney(r.requiredMonthly)}/mes`}</small>
         ${done?'':sourceAdvice(c)}
-        <div class="grid-2" style="margin-top:12px"><button class="btn btn-primary" data-goal-action="contribute" data-id="${g.id}">💎 Apartar</button><button class="btn btn-outline" data-goal-action="withdraw" data-id="${g.id}" ${r.reserved<=0?'disabled':''}>Usar dinero</button></div>
+        <div class="grid-2" style="margin-top:12px"><button class="btn btn-primary" data-goal-action="contribute" data-id="${g.id}" ${done?'disabled':''}>💎 Apartar</button><button class="btn btn-outline" data-goal-action="withdraw" data-id="${g.id}" ${r.reserved<=0?'disabled':''}>Usar dinero</button></div>
       </section>`;
     }).join(''):'<section class="card"><strong>🎯 Todavía no tienes metas</strong><p style="font-size:.85rem;color:var(--text-sec);margin-top:5px">Crea una meta y la app calculará cuánto necesitas reservar y de qué ingresos puede salir.</p></section>';
   }
