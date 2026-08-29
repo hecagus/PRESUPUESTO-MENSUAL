@@ -1,196 +1,191 @@
-# La app del HecAgus · v2.1.0
+# La app del HecAgus · v2.6.0
 
-**La app del HecAgus** deja de ser una aplicación diseñada alrededor de una persona concreta y pasa a ser un motor financiero configurable que adapta sus pantallas a la forma en que cada usuario vive, trabaja y cobra.
+**La app del HecAgus** es un motor financiero configurable que adapta su experiencia a cómo cada usuario vive, trabaja, cobra, se transporta, gasta y ahorra.
 
-La aplicación sigue siendo **offline-first, instalable como PWA y sincronizable con Firebase por usuario**.
+La aplicación es **offline-first**, instalable como **PWA**, utiliza `localStorage` como primera capa de persistencia y puede sincronizar el estado por usuario con **Firebase Auth + Firestore**.
 
-## Idea de v2
+## Principio del producto
 
-En v1.x existían conceptos específicos como Jaimau, Uber y Ticket Car dentro de la experiencia. En v2 esos nombres son datos configurados por el usuario.
+La app no debe depender de nombres concretos de empresas, plataformas o personas. El motor trabaja con conceptos universales:
 
-El motor ahora entiende conceptos universales:
+- fuentes de ingreso y su ciclo de vida;
+- modelos de pago y jornadas;
+- cuentas y fondos de terceros;
+- movimientos y transferencias;
+- transporte y costo de trabajar;
+- gastos de vida y compromisos;
+- calendario financiero;
+- deudas y metas;
+- negocio, productos, ingredientes y recetas;
+- proyección, automatizaciones y salud financiera.
 
-- perfil;
-- fuentes de ingreso;
-- modelos de pago;
-- actividades/jornadas;
-- cuentas personales;
-- fondos de empresa o terceros;
-- transporte y vehículos;
-- combustible;
-- gastos, deudas y ahorro;
-- negocio, productos, ingredientes y recetas.
-
-Una empresa, plataforma, cliente o vehículo nuevo no debería requerir código nuevo para existir.
-
-## Onboarding adaptativo
-
-En la primera apertura la app pregunta qué necesita administrar:
-
-- empleo;
-- trabajo por turnos/plataformas;
-- freelance;
-- negocio;
-- o únicamente finanzas personales.
-
-Después cada fuente puede configurarse con:
-
-- nombre libre;
-- tipo de actividad;
-- forma de cobro: diario, semanal, quincenal, mensual, por turno, proyecto, venta o variable;
-- seguimiento de jornadas;
-- seguimiento de kilometraje;
-- responsable del combustible: usuario, empresa/cliente o no aplica.
-
-También se configura el medio de transporte y el saldo personal inicial.
-
-A partir de esas respuestas se derivan las capacidades que la interfaz debe mostrar. Si un usuario no tiene vehículo, no necesita ver kilometraje o combustible. Si no tiene negocio, no necesita ver recetas. Si trabaja por turnos, la app sí puede capturar el ingreso al finalizar la actividad.
-
-## Panel
-
-El Panel responde a tres preguntas:
-
-1. ¿Cuánto dinero personal tengo?
-2. ¿Cómo van mis fuentes de ingreso?
-3. ¿Qué requiere mi atención?
-
-Las tarjetas se generan desde `workSources`, no desde nombres hardcodeados.
-
-Ejemplos:
-
-- un empleo quincenal muestra jornadas, horas y estado del pago del periodo;
-- una plataforma por turno muestra ingreso y rendimiento reciente;
-- un negocio muestra ventas y margen estimado.
-
-## Actividad
-
-`admin.html` pasa a presentarse como **Actividad**.
-
-La pantalla genera acciones según la configuración:
-
-- iniciar/finalizar una fuente con seguimiento de tiempo;
-- registrar pagos por periodo;
-- registrar combustible;
-- registrar depósitos de fondos empresariales;
-- gastos y deudas;
-- operaciones de negocio cuando esa capacidad está activa.
-
-El contexto activo decide qué información pedir. Por ejemplo, una fuente por turno solicita el ingreso al finalizar; un empleo con sueldo quincenal no inventa una ganancia diaria.
-
-## Wallet y propiedad del dinero
-
-v2 introduce cuentas con una distinción fundamental:
+El flujo conceptual es:
 
 ```text
-ownership = personal | third_party
+Quién eres
+→ cómo generas dinero
+→ cuánto cuesta generarlo
+→ cómo vives
+→ qué compromisos tienes
+→ qué quieres lograr
+→ cuánto dinero está realmente libre
 ```
 
-Un fondo de empresa o cliente puede estar disponible para operar sin formar parte del patrimonio personal.
+## v2.2 · Situación financiera y calendario
 
-Ejemplo genérico:
+El onboarding es editable y cada fuente de ingreso puede estar **activa, pausada o finalizada** sin borrar su historial. El transporte se configura por fuente; para transporte público se registran trayectos de ida/regreso, tarifa y días de uso.
+
+El Panel separa:
 
 ```text
-Fuente: Empresa A
-Combustible: pagado por empresa
-Cuenta operativa: Fondo Empresa A
-
-Depósito +$500
-Repostaje -$200
-Disponible $300
-Patrimonio personal: sin cambio
+Dinero que tienes
+- dinero comprometido
+- dinero reservado para metas
+= dinero realmente libre
 ```
 
-## Metas de ahorro · v2.1
+El **Calendario financiero** reúne compromisos recurrentes, deudas, ingresos esperados y fechas objetivo de metas.
 
-Las metas de ahorro dejan de tratarse como un gasto. El dinero sigue formando parte del patrimonio personal, pero se marca como **reservado** y deja de aparecer como disponible para gastar.
+## v2.3 · Cuentas y movimientos universales
 
-Cada meta puede definir:
+Wallet ya no trata todo el patrimonio como una sola caja. El usuario puede crear cuentas personales como:
 
-- nombre;
-- monto objetivo;
-- fecha objetivo;
-- prioridad;
-- monto reservado;
-- historial de aportes y retiros.
+- efectivo/caja;
+- cuenta bancaria;
+- wallet digital.
 
-Ejemplo:
+Los fondos de empresa o cliente siguen siendo cuentas de tercero y no forman parte del patrimonio personal.
+
+Una transferencia entre cuentas personales cambia **dónde está el dinero**, no cuánto dinero existe:
 
 ```text
-Saldo personal       $12,000
-Reservado en metas    $5,000
-Disponible real       $7,000
+Caja       -$2,000
+BBVA       +$2,000
+Patrimonio      $0 de cambio
 ```
 
-La app calcula el ritmo necesario por mes y por semana, revisa ingresos reales registrados por fuente y puede sugerir de dónde apartar dinero sin inventar ingresos. Si una fuente no ha generado nada en el periodo, su recomendación permanece en cero.
+El motor universal permite registrar ingresos y gastos indicando cuenta, categoría y, opcionalmente, fuente de ingreso. El Historial distingue transferencias internas de ingresos/gastos reales.
 
-Al intentar usar dinero reservado, la app muestra una advertencia con:
+## v2.4 · Proyección de flujo
 
-- cuánto quedará reservado;
-- cuánto aumentará el ahorro mensual necesario;
-- una estimación de retraso si se mantiene el ritmo actual;
-- si el flujo registrado del mes parece suficiente para recuperar el retiro.
+El calendario pasa de mostrar solamente fechas a estimar **cómo estará el dinero**.
 
-Aportar o liberar dinero de una meta no crea ingresos ni gastos ficticios: son transferencias internas que cambian `disponible` y `reservado`, pero no el patrimonio total.
+La proyección a 45 días combina:
 
-## Combustible por contexto
+- efectivo actual;
+- compromisos/deudas próximos;
+- ingresos fijos esperados;
+- historial de pagos reales para estimar importes;
+- dinero reservado en metas;
+- presupuesto variable pendiente;
+- costo de transporte laboral pendiente.
 
-El repostaje usa la fuente activa cuando existe:
+La app calcula efectivo y **dinero libre proyectado** después de cada evento y detecta tanto un saldo negativo como el momento en que sería necesario tocar dinero reservado.
+
+## v2.5 · Automatizaciones y alertas
+
+Se pueden crear reglas como:
 
 ```text
-Actividad con combustible empresarial
-→ carga contra su fondo de tercero
-→ no afecta caja personal
-
-Actividad con combustible personal
-→ carga contra caja personal
-→ registra gasto personal asociado a esa fuente
-
-Sin actividad
-→ el usuario elige el contexto
+Cuando entre un ingreso
+→ apartar 10%
+→ Meta Fondo de emergencia
 ```
+
+La regla puede aplicarse a cualquier ingreso o solamente a una fuente concreta. Cada movimiento se procesa una sola vez.
+
+Las automatizaciones nunca deben reservar más dinero que el **realmente libre**.
+
+Las alertas detectan, entre otros casos:
+
+- dinero libre negativo;
+- colchón por debajo del mínimo elegido;
+- faltante futuro según la proyección;
+- riesgo de tocar reservas;
+- presupuesto mensual al 80% o agotado;
+- pagos de los próximos días mayores al dinero libre.
+
+## v2.6 · Metas inteligentes y salud financiera
+
+Las metas siguen siendo reservas internas: apartar dinero no crea un gasto ficticio y liberarlo no crea un ingreso ficticio.
+
+La app calcula para cada meta:
+
+- monto y fecha objetivo;
+- ritmo mensual necesario;
+- capacidad observada según ingresos/gastos reales;
+- cuánto podría apartarse ahora sin comprometer la vida cotidiana;
+- fuentes que realmente generaron dinero;
+- fecha estimada de cumplimiento al ritmo observado;
+- estado: completada, en ruta, ajustada o sin capacidad detectada.
+
+Una meta no puede congelar dinero que ya está comprometido en vivienda, despensa, salud, transporte u otros compromisos.
+
+### Salud financiera explicable
+
+Stats incluye una puntuación de 0 a 100, pero no es una caja negra. Se compone de cuatro bloques de hasta 25 puntos:
+
+1. **Liquidez** — cuánto efectivo queda realmente libre.
+2. **Carga fija** — relación entre compromisos esenciales e ingreso observado.
+3. **Ahorro** — ritmo de reservas frente al ingreso.
+4. **Deuda** — peso aproximado de las cuotas sobre el ingreso.
+
+Cada componente muestra el dato que provocó su puntuación.
 
 ## Negocio y costeo
 
-Cuando el perfil contiene una fuente de tipo `business`, se habilita la base de costeo:
+Cuando el usuario activa una fuente `business`, la app habilita:
 
 - ingredientes;
 - costo por unidad;
 - productos;
 - recetas;
-- costo calculado del producto;
+- costo calculado;
 - precio de venta;
-- margen estimado;
-- registro de ventas.
+- registro de ventas;
+- margen estimado.
 
-El costo de un producto se calcula desde los ingredientes de su receta, por lo que al actualizar el costo de un ingrediente el costo calculado de los productos que lo utilizan cambia automáticamente.
+Cambiar el costo de un ingrediente recalcula automáticamente el costo de las recetas que lo utilizan.
 
-**Inventario físico/stock todavía no forma parte del alcance completo de v2.1.0.** La estructura está preparada para extender el módulo de negocio posteriormente sin mezclarlo con el núcleo financiero.
+> El inventario físico/stock completo sigue siendo una expansión posterior; la capacidad existe, pero v2.6 se concentra en el núcleo financiero y el costeo.
 
-## Stats
+## Pantallas
 
-Las estadísticas también son dinámicas.
+```text
+onboarding.html  → configuración inicial y “mi situación cambió”
+index.html       → dinero realmente libre, fuentes, alertas y proyección
+wallet.html      → cuentas, transferencias, movimientos y metas
+admin.html       → actividad, jornadas, pagos, combustible y operación
+calendar.html    → calendario, flujo proyectado, compromisos y automatizaciones
+stats.html       → estadísticas por fuente + salud financiera
+historial.html   → trazabilidad universal
+```
 
-- Empleo: jornadas, horas y pagos por periodo.
-- Turnos/plataformas: ingreso, horas, km e ingreso por hora/km cuando aplica.
-- Negocio: ventas, costos registrados y margen estimado.
-- Personal: ingresos, gastos, saldo disponible y dinero reservado.
+## Arquitectura JS
 
-No existe una única métrica obligatoria para todos los usuarios.
+```text
+01_consts_utils.js       constantes y utilidades
+02_data.js               núcleo de datos y compatibilidad histórica
+03_render.js             render base
+04_charts.js             métricas por fuente
+05_init.js               orquestación general
+07_sync.js               Firebase/offline-first/conflictos
+08_pwa.js                instalación PWA
+10_onboarding.js         configuración adaptativa
+11_savings_goals.js      metas y dinero reservado
+12_savings_ui.js         UI de metas
+13_financial_life.js     costo de vida, transporte y calendario
+14_calendar_ui.js        UI del calendario
+15_accounts_engine.js    cuentas, transferencias y movimientos
+16_forecast_engine.js    proyección de flujo
+17_automation_engine.js  reglas y alertas
+18_health_goals.js       salud financiera y plan de metas
+19_platform_ui.js        integración visual v2.3–v2.6
+```
 
-## Historial universal
+La separación busca evitar que arreglar un módulo rompa otro: cada motor se ocupa de un dominio y `05_init.js` los coordina.
 
-Historial funciona como línea de tiempo de la aplicación:
-
-- movimientos de dinero;
-- actividades/jornadas;
-- depósitos de fondos de tercero;
-- combustible;
-- eventos de trabajo;
-- reservas y liberaciones de metas.
-
-Los fondos de tercero se identifican explícitamente como dinero que no afecta el patrimonio personal. Las reservas de metas también se registran como transferencias internas que no alteran el patrimonio.
-
-## Persistencia y migración desde v1.x
+## Persistencia y migración
 
 Se conserva la clave histórica:
 
@@ -198,94 +193,51 @@ Se conserva la clave histórica:
 moto_finanzas_vFinal
 ```
 
-para no abandonar instalaciones existentes.
-
-v2.1 utiliza:
+v2.6 usa:
 
 ```text
-schemaVersion: 21
+schemaVersion: 26
 ```
 
-Durante la carga se migran datos v1.x a conceptos configurables. Los registros históricos de Jaimau/Uber pueden convertirse en fuentes equivalentes de tipo empleo/plataforma sin perder movimientos ni jornadas. Los antiguos sobres categorizados como `Ahorro` o `Meta` se pueden convertir al nuevo gestor de metas.
-
-## Arquitectura
-
-```text
-onboarding.html             # configuración inicial/adaptativa
-index.html                  # Panel
-admin.html                  # Actividad
-wallet.html                 # cuentas, patrimonio, compromisos y metas
-stats.html                  # analítica dinámica
-historial.html              # línea de tiempo universal
-
-js/
-├── 01_consts_utils.js      # versión, capacidades y modelos base
-├── 02_data.js              # dominio configurable y migraciones
-├── 03_render.js            # presentación según capacidades
-├── 04_charts.js            # analítica por fuente y saldo disponible
-├── 05_init.js              # orquestación y acciones contextuales
-├── 07_sync.js              # Firebase y conflictos
-├── 08_pwa.js               # instalación PWA
-├── 10_onboarding.js        # asistente de configuración
-├── 11_savings_goals.js     # dominio de metas, reservas y proyección
-├── 12_savings_ui.js        # UI y advertencias de metas
-└── firebase-config.js      # configuración cliente Firebase
-```
-
-Principios:
-
-1. `02_data.js` es la fuente de verdad del dominio financiero general.
-2. Nombres de empresas/plataformas/clientes son datos, no funciones del motor.
-3. El dinero de terceros nunca debe inflar el patrimonio personal.
-4. La interfaz muestra capacidades, no una lista fija de módulos.
-5. Un cambio de contexto debe reutilizar la misma operación, no duplicar botones.
-6. Firebase sincroniza el estado completo por UID.
-7. Los conflictos cloud no se sobrescriben silenciosamente.
-8. Reservar dinero para una meta no debe convertirlo en un gasto ficticio.
+Los datos v1.x/v2.x se cargan conservando movimientos y jornadas históricas. Las estructuras nuevas se inicializan de forma compatible cuando no existen.
 
 ## Firebase
 
-Cada usuario autenticado conserva su propio estado en:
+La sincronización remota vive en:
 
 ```text
 /users/{uid}/budget/state
 ```
 
-Las reglas de Firestore limitan lectura/escritura al UID autenticado. Las metas de ahorro forman parte del estado sincronizado y también participan en la fusión de conflictos.
+El estado sincronizado incluye perfil, fuentes, cuentas, activos, movimientos, metas, plan financiero, reglas de automatización y aplicaciones de reglas. La app mantiene resolución explícita de conflictos entre estado local y nube.
 
-## PWA
+Las reglas de Firestore deben permitir únicamente al usuario autenticado acceder a su propio árbol `/users/{uid}`.
 
-El service worker almacena el shell de v2.1, incluido el onboarding y el gestor de metas, y mantiene funcionamiento local cuando no hay conexión. El código intenta actualizarse desde red cuando vuelve la conectividad.
+## PWA y pruebas
 
-## Pruebas
+El service worker usa un shell versionado y cachea también los módulos financieros v2.3–v2.6 para conservar operación offline.
+
+Las pruebas de dominio se ejecutan con:
 
 ```bash
 npm test
 ```
 
-La suite cubre:
+La suite cubre, entre otros escenarios:
 
-- creación de un perfil configurable;
-- empleo con pago por periodo sin ingreso ficticio diario;
-- trabajo por turno con ingreso al cierre;
-- combustible empresarial y personal;
-- fondos de tercero;
-- metas que reservan dinero sin reducir patrimonio;
-- retiros de metas y recálculo de ritmo;
-- recomendaciones basadas en ingresos reales por fuente;
-- receta y recalculo de costo;
-- venta de producto;
-- migración v1 → v2;
-- deudas/gastos;
-- validación de respaldos.
+- migración y fuentes configurables;
+- jornadas y combustible;
+- metas y retiros;
+- calendario/costo de vida/transporte;
+- transferencias sin alterar patrimonio;
+- movimientos por cuenta;
+- proyección de flujo;
+- automatizaciones sin duplicados;
+- alertas;
+- protección del dinero comprometido;
+- salud financiera y metas inteligentes;
+- sintaxis de los módulos de navegador.
 
-## Versionado
+## Próximas expansiones posibles
 
-- `1.2.0`: trabajo híbrido específico.
-- `1.3.0`: combustible contextual y eliminación de duplicados.
-- `2.0.0`: motor configurable por usuario y capacidades.
-- **`2.1.0`: metas de ahorro con dinero reservado, proyección y advertencias de retiro.**
-
-## Tecnología
-
-HTML5 · CSS3 · JavaScript ES Modules · localStorage · Service Worker · Web App Manifest · Firebase Authentication · Cloud Firestore · Node Test Runner · GitHub Actions · Vercel
+v2.6 deja una base para crecer hacia importación bancaria/CSV, inventario físico, comprobantes, categorías automáticas, espacios de hogar/negocio compartidos y, más adelante, una arquitectura multiusuario tipo SaaS.
