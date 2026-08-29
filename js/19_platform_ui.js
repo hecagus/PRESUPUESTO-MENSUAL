@@ -22,6 +22,7 @@ let changeHandler=()=>{};
 const ERRORS={
   NOMBRE_INVALIDO:'Escribe un nombre válido.',DESCRIPCION_INVALIDA:'Escribe una descripción.',MONTO_INVALIDO:'Ingresa un monto mayor a 0.',
   CUENTA_DUPLICADA:'Ya existe una cuenta personal con ese nombre.',CUENTA_NO_ENCONTRADA:'No se encontró esa cuenta.',CUENTA_CON_SALDO:'Primero mueve el saldo de esa cuenta antes de archivarla.',
+  CUENTA_BASE:'La cuenta base no se puede archivar porque todavía recibe operaciones del sistema.',
   TRANSFERENCIA_MISMA_CUENTA:'Selecciona dos cuentas diferentes.',SALDO_CUENTA_INSUFICIENTE:'Esa cuenta no tiene saldo suficiente.',TIPO_MOVIMIENTO_INVALIDO:'Selecciona ingreso o gasto.',
   META_NO_ENCONTRADA:'Selecciona una meta válida.',FUENTE_NO_ENCONTRADA:'No se encontró esa fuente.',REGLA_NO_ENCONTRADA:'No se encontró esa regla.',PORCENTAJE_INVALIDO:'Ingresa un porcentaje válido.'
 };
@@ -39,7 +40,7 @@ function renderAccountsHub(){
   const state=Data.getState();
   container.innerHTML=(state.accounts||[]).filter(a=>a.active!==false).map(a=>{
     const third=a.ownership==='third_party',balance=third?Data.saldoCuenta(a.id):accountBalance(a.id);
-    return `<section class="card" style="border-left:4px solid ${third?'#f59e0b':'#2563eb'}"><div style="display:flex;justify-content:space-between;gap:10px"><div><strong>${third?'🏢':'💳'} ${esc(a.name)}</strong><small style="display:block;color:var(--text-sec);margin-top:3px">${third?'Fondos de tercero · no son patrimonio':esc(accountTypeLabel(a.type))}</small></div><div style="text-align:right"><strong>${fmtMoney(balance)}</strong>${!third?`<br><button class="btn btn-outline" style="width:auto;padding:5px 8px;margin-top:5px" data-platform-action="archive-account" data-id="${a.id}">Archivar</button>`:''}</div></div></section>`;
+    return `<section class="card" style="border-left:4px solid ${third?'#f59e0b':'#2563eb'}"><div style="display:flex;justify-content:space-between;gap:10px"><div><strong>${third?'🏢':'💳'} ${esc(a.name)}</strong><small style="display:block;color:var(--text-sec);margin-top:3px">${third?'Fondos de tercero · no son patrimonio':esc(accountTypeLabel(a.type))}</small></div><div style="text-align:right"><strong>${fmtMoney(balance)}</strong>${!third&&a.id!=='acct-personal'?`<br><button class="btn btn-outline" style="width:auto;padding:5px 8px;margin-top:5px" data-platform-action="archive-account" data-id="${a.id}">Archivar</button>`:''}</div></div></section>`;
   }).join('')||'<section class="card">No hay cuentas activas.</section>';
 
   const history=ensureAfter(container,'platformRecentMovements','<section><h2 style="margin:14px 4px 8px">Últimos movimientos</h2><div id="platformRecentMovementRows"></div></section>');
@@ -55,12 +56,15 @@ function renderForecast(){
   const page=document.body.dataset.page,f=cashFlowForecast({days:45});
   if(page==='index'){
     const anchor=$('calendarPreviewZone');if(!anchor)return;const zone=ensureAfter(anchor,'platformForecastZone','<section class="card" style="border-left:5px solid #7c3aed"><h2>🔮 Proyección de flujo</h2><div id="platformForecastSummary"></div></section>');
-    const box=$('platformForecastSummary');if(box)box.innerHTML=`<div class="grid-2"><div><small>En 45 días</small><strong style="display:block">${fmtMoney(f.endingCash)}</strong></div><div><small>Salida prevista</small><strong style="display:block">${fmtMoney(f.totalExpectedOutflow)}</strong></div></div><small style="display:block;margin-top:8px;color:var(--text-sec)">${f.firstNegativeDate?`⚠️ Con los datos actuales faltarían fondos alrededor del ${dateLabel(f.firstNegativeDate)}.`:`✅ No detecto un saldo negativo en los próximos 45 días. Ingresos esperados: ${fmtMoney(f.totalExpectedIncome)}.`}</small>`;
+    const box=$('platformForecastSummary');if(box){
+      const msg=f.firstNegativeDate?`🔴 Con los datos actuales tu efectivo caería debajo de $0 alrededor del ${dateLabel(f.firstNegativeDate)}.`:f.firstTightDate?`🟠 Alrededor del ${dateLabel(f.firstTightDate)} empezarías a tocar dinero reservado o presupuesto necesario.`:`✅ No detecto faltantes en los próximos 45 días. Ingresos esperados: ${fmtMoney(f.totalExpectedIncome)}.`;
+      box.innerHTML=`<div class="grid-2"><div><small>Efectivo en 45 días</small><strong style="display:block">${fmtMoney(f.endingCash)}</strong></div><div><small>Libre proyectado</small><strong style="display:block">${fmtMoney(f.endingFree)}</strong></div></div><small style="display:block;margin-top:8px;color:var(--text-sec)">${msg}</small>`;
+    }
     void zone;
   }
   if(page==='calendar'){
     const anchor=$('calendarEvents');if(!anchor)return;ensureAfter(anchor,'platformForecastDetail','<section class="card" style="border-left:5px solid #7c3aed"><h2>🔮 Flujo proyectado</h2><div id="platformForecastTimeline"></div></section>');
-    const box=$('platformForecastTimeline');if(box)box.innerHTML=`<div class="grid-2" style="margin-bottom:8px"><div><small>Efectivo actual</small><strong style="display:block">${fmtMoney(f.startCash)}</strong></div><div><small>Efectivo al final</small><strong style="display:block">${fmtMoney(f.endingCash)}</strong></div></div>${f.events.slice(0,10).map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid #e2e8f0"><span>${dateLabel(e.date)} · ${esc(e.title)}${e.estimated?' <small>(estimado)</small>':''}</span><strong>${e.delta>=0?'+':'-'}${fmtMoney(Math.abs(e.delta))}<br><small>saldo ${fmtMoney(e.projectedCash)}</small></strong></div>`).join('')||'<small>No hay movimientos futuros suficientes para proyectar.</small>'}`;
+    const box=$('platformForecastTimeline');if(box)box.innerHTML=`<div class="grid-2" style="margin-bottom:8px"><div><small>Efectivo actual</small><strong style="display:block">${fmtMoney(f.startCash)}</strong></div><div><small>Libre al final</small><strong style="display:block">${fmtMoney(f.endingFree)}</strong></div></div>${f.events.slice(0,10).map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid #e2e8f0"><span>${dateLabel(e.date)} · ${esc(e.title)}${e.estimated?' <small>(estimado)</small>':''}</span><strong>${e.delta>=0?'+':'-'}${fmtMoney(Math.abs(e.delta))}<br><small>saldo ${fmtMoney(e.projectedCash)} · libre ${fmtMoney(e.projectedFree)}</small></strong></div>`).join('')||'<small>No hay movimientos futuros suficientes para proyectar.</small>'}`;
   }
 }
 
@@ -71,10 +75,17 @@ function renderAutomation(){
 }
 
 function renderAlerts(){
-  const alerts=smartAlerts();if(!alerts.length)return;
-  const panel=$('panelAlerts');if(panel){for(const a of alerts){const id=`platform-alert-${a.id}`;if($(id))continue;const div=document.createElement('div');div.id=id;div.style.cssText='padding:7px 0;border-top:1px solid #e2e8f0';div.innerHTML=`${a.level==='critical'?'🔴':'🟠'} <strong>${esc(a.title)}</strong><br><small>${esc(a.message)}</small>`;panel.append(div);}}
-  if(document.body.dataset.page==='calendar'){
-    const anchor=$('calendarPosition');if(anchor&&!$('platformCalendarAlerts')){const zone=document.createElement('div');zone.id='platformCalendarAlerts';zone.innerHTML=`<section class="card" style="border-left:5px solid #f59e0b"><h2>⚠️ Atención</h2>${alerts.map(a=>`<div style="padding:5px 0"><strong>${esc(a.title)}</strong><br><small>${esc(a.message)}</small></div>`).join('')}</section>`;anchor.parentElement.insertAdjacentElement('afterend',zone);}}
+  const alerts=smartAlerts(),panel=$('panelAlerts');
+  if(panel){
+    panel.querySelectorAll('[data-platform-alert]').forEach(node=>node.remove());
+    for(const a of alerts){const div=document.createElement('div');div.dataset.platformAlert='1';div.style.cssText='padding:7px 0;border-top:1px solid #e2e8f0';div.innerHTML=`${a.level==='critical'?'🔴':'🟠'} <strong>${esc(a.title)}</strong><br><small>${esc(a.message)}</small>`;panel.append(div);}
+  }
+  if(document.body.dataset.page!=='calendar')return;
+  let zone=$('platformCalendarAlerts');
+  if(!alerts.length){zone?.remove();return;}
+  const anchor=$('calendarPosition');if(!anchor)return;
+  if(!zone){zone=document.createElement('div');zone.id='platformCalendarAlerts';anchor.parentElement.insertAdjacentElement('afterend',zone);}
+  zone.innerHTML=`<section class="card" style="border-left:5px solid #f59e0b"><h2>⚠️ Atención</h2>${alerts.map(a=>`<div style="padding:5px 0"><strong>${esc(a.title)}</strong><br><small>${esc(a.message)}</small></div>`).join('')}</section>`;
 }
 
 function renderHealth(){
