@@ -6,7 +6,11 @@
 <main class="container">
   <section class="card text-center" style="background:linear-gradient(135deg,#2563eb 0%,#1e40af 100%);color:white;border:none"><div id="valWallet">$0.00</div></section>
   <section><h2 style="margin:14px 4px 8px">Cuentas</h2><div id="accountsContainer"></div></section>
-  <section><h2 style="margin:14px 4px 8px">Compromisos y ahorro</h2><div id="sobresContainer"></div></section>
+  <section>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 4px 8px"><h2 style="margin:0">🎯 Metas de ahorro</h2><button id="btnNewSavingsGoal" class="btn btn-primary" style="width:auto;padding:9px 12px">+ Nueva meta</button></div>
+    <div id="savingsGoalsContainer"></div>
+  </section>
+  <section><h2 style="margin:14px 4px 8px">Compromisos</h2><div id="sobresContainer"></div></section>
 </main>
 <nav class="bottom-nav"><a href="index.html" class="nav-link"><span>▥</span>Panel</a><a href="wallet.html" class="nav-link active"><span>◉</span>Wallet</a><a href="admin.html" class="nav-link"><span>▶</span>Actividad</a><a href="stats.html" class="nav-link"><span>⌁</span>Stats</a><a href="historial.html" class="nav-link"><span>≡</span>Historial</a></nav>
 <div id="appModal" class="modal-overlay"><div class="modal"><h3 id="modalTitle"></h3><div id="modalBody"></div><div class="modal-actions"><button id="modalCancel" class="btn btn-outline">Cancelar</button><button id="modalConfirm" class="btn btn-primary">Guardar</button></div></div></div>
