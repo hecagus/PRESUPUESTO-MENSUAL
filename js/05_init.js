@@ -1,4 +1,4 @@
-/* v2.2.0 - Orquestación de UI por capacidades, calendario, PWA, metas y sincronización. */
+/* v2.6.0 - Orquestación de UI, plataforma financiera, PWA, metas y sincronización. */
 import { $, CATEGORIAS_BASE, FRECUENCIAS, DIAS_SEMANA, APP_VERSION, COMPENSATIONS } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { Modal, renderIndex, renderWallet, renderHistorial, renderStats, renderAdmin } from './03_render.js';
@@ -8,6 +8,8 @@ import { ensureSavingsGoals } from './11_savings_goals.js';
 import { renderSavingsGoalsUI, initSavingsGoalEvents } from './12_savings_ui.js';
 import { ensureFinancialLife } from './13_financial_life.js';
 import { renderFinancialPositionPanel, renderCalendarPreview, renderCalendarPage, initCalendarEvents } from './14_calendar_ui.js';
+import { runAutomationEngine } from './17_automation_engine.js';
+import { ensureFinancialPlatform, renderFinancialPlatform, initFinancialPlatformEvents } from './19_platform_ui.js';
 
 const refresh=()=>{
   const page=document.body.dataset.page;
@@ -18,6 +20,7 @@ const refresh=()=>{
   else if(page==='admin')renderAdmin();
   else if(page==='calendar')renderCalendarPage();
   renderSavingsGoalsUI();
+  renderFinancialPlatform();
 };
 
 const ERROR_MESSAGES={
@@ -32,7 +35,7 @@ const ERROR_MESSAGES={
   INGREDIENTE_NO_ENCONTRADO:'No se encontró el ingrediente.',PRODUCTO_NO_ENCONTRADO:'No se encontró el producto.',CANTIDAD_INVALIDA:'Ingresa una cantidad mayor a 0.'
 };
 
-const safe=fn=>{try{fn();refresh();notifyLocalChange();}catch(e){console.error(e);alert(ERROR_MESSAGES[e.message]||'No se pudo completar la operación.');}};
+const safe=fn=>{try{fn();runAutomationEngine();refresh();notifyLocalChange();}catch(e){console.error(e);alert(ERROR_MESSAGES[e.message]||'No se pudo completar la operación.');}};
 const optionsSources=(filter=()=>true)=>Data.getState().workSources.filter(s=>s.active!==false&&filter(s)).map(s=>({val:s.id,txt:s.name}));
 
 function finishActive(){
@@ -115,12 +118,13 @@ function initDelegation(){
 
 function startTimer(){if(document.body.dataset.page!=='admin')return;window.setInterval(()=>{const t=Data.getState().activeActivity,el=$('activityTimer');if(!el)return;if(!t){el.textContent='00:00:00';return;}const diff=Date.now()-t.inicio;el.textContent=`${Math.floor(diff/3600000)}h ${Math.floor((diff%3600000)/60000)}m`;},1000);}
 
-document.addEventListener('budget:remote-applied',()=>{ensureSavingsGoals();ensureFinancialLife();refresh();});
+document.addEventListener('budget:remote-applied',()=>{ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();const applied=runAutomationEngine();refresh();if(applied)notifyLocalChange();});
 document.addEventListener('DOMContentLoaded',()=>{
-  Data.loadData();ensureSavingsGoals();ensureFinancialLife();
+  Data.loadData();ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();
   if(!Data.getState().profile.onboarded){window.location.replace('onboarding.html');return;}
-  refresh();initDelegation();initGlobalEvents();
+  runAutomationEngine();refresh();initDelegation();initGlobalEvents();
   initSavingsGoalEvents(()=>{refresh();notifyLocalChange();});
+  initFinancialPlatformEvents(()=>{refresh();notifyLocalChange();});
   if(document.body.dataset.page==='admin')initAdminEvents();
   if(document.body.dataset.page==='calendar')initCalendarEvents(()=>{refresh();notifyLocalChange();});
   startTimer();initPWA();initSync();console.log(`La app del HecAgus v${APP_VERSION}`);
