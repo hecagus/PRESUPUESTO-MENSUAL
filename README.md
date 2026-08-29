@@ -1,4 +1,4 @@
-# La app del HecAgus · v2.0.0
+# La app del HecAgus · v2.1.0
 
 **La app del HecAgus** deja de ser una aplicación diseñada alrededor de una persona concreta y pasa a ser un motor financiero configurable que adapta sus pantallas a la forma en que cada usuario vive, trabaja y cobra.
 
@@ -100,6 +100,38 @@ Disponible $300
 Patrimonio personal: sin cambio
 ```
 
+## Metas de ahorro · v2.1
+
+Las metas de ahorro dejan de tratarse como un gasto. El dinero sigue formando parte del patrimonio personal, pero se marca como **reservado** y deja de aparecer como disponible para gastar.
+
+Cada meta puede definir:
+
+- nombre;
+- monto objetivo;
+- fecha objetivo;
+- prioridad;
+- monto reservado;
+- historial de aportes y retiros.
+
+Ejemplo:
+
+```text
+Saldo personal       $12,000
+Reservado en metas    $5,000
+Disponible real       $7,000
+```
+
+La app calcula el ritmo necesario por mes y por semana, revisa ingresos reales registrados por fuente y puede sugerir de dónde apartar dinero sin inventar ingresos. Si una fuente no ha generado nada en el periodo, su recomendación permanece en cero.
+
+Al intentar usar dinero reservado, la app muestra una advertencia con:
+
+- cuánto quedará reservado;
+- cuánto aumentará el ahorro mensual necesario;
+- una estimación de retraso si se mantiene el ritmo actual;
+- si el flujo registrado del mes parece suficiente para recuperar el retiro.
+
+Aportar o liberar dinero de una meta no crea ingresos ni gastos ficticios: son transferencias internas que cambian `disponible` y `reservado`, pero no el patrimonio total.
+
 ## Combustible por contexto
 
 El repostaje usa la fuente activa cuando existe:
@@ -132,7 +164,7 @@ Cuando el perfil contiene una fuente de tipo `business`, se habilita la base de 
 
 El costo de un producto se calcula desde los ingredientes de su receta, por lo que al actualizar el costo de un ingrediente el costo calculado de los productos que lo utilizan cambia automáticamente.
 
-**Inventario físico/stock todavía no forma parte del alcance completo de v2.0.0.** La estructura está preparada para extender el módulo de negocio posteriormente sin mezclarlo con el núcleo financiero.
+**Inventario físico/stock todavía no forma parte del alcance completo de v2.1.0.** La estructura está preparada para extender el módulo de negocio posteriormente sin mezclarlo con el núcleo financiero.
 
 ## Stats
 
@@ -141,7 +173,7 @@ Las estadísticas también son dinámicas.
 - Empleo: jornadas, horas y pagos por periodo.
 - Turnos/plataformas: ingreso, horas, km e ingreso por hora/km cuando aplica.
 - Negocio: ventas, costos registrados y margen estimado.
-- Personal: ingresos, gastos y saldo.
+- Personal: ingresos, gastos, saldo disponible y dinero reservado.
 
 No existe una única métrica obligatoria para todos los usuarios.
 
@@ -153,9 +185,10 @@ Historial funciona como línea de tiempo de la aplicación:
 - actividades/jornadas;
 - depósitos de fondos de tercero;
 - combustible;
-- eventos de trabajo.
+- eventos de trabajo;
+- reservas y liberaciones de metas.
 
-Los fondos de tercero se identifican explícitamente como dinero que no afecta el patrimonio personal.
+Los fondos de tercero se identifican explícitamente como dinero que no afecta el patrimonio personal. Las reservas de metas también se registran como transferencias internas que no alteran el patrimonio.
 
 ## Persistencia y migración desde v1.x
 
@@ -167,13 +200,13 @@ moto_finanzas_vFinal
 
 para no abandonar instalaciones existentes.
 
-v2 utiliza:
+v2.1 utiliza:
 
 ```text
-schemaVersion: 20
+schemaVersion: 21
 ```
 
-Durante la carga se migran datos v1.x a conceptos configurables. Los registros históricos de Jaimau/Uber pueden convertirse en fuentes equivalentes de tipo empleo/plataforma sin perder movimientos ni jornadas.
+Durante la carga se migran datos v1.x a conceptos configurables. Los registros históricos de Jaimau/Uber pueden convertirse en fuentes equivalentes de tipo empleo/plataforma sin perder movimientos ni jornadas. Los antiguos sobres categorizados como `Ahorro` o `Meta` se pueden convertir al nuevo gestor de metas.
 
 ## Arquitectura
 
@@ -181,7 +214,7 @@ Durante la carga se migran datos v1.x a conceptos configurables. Los registros h
 onboarding.html             # configuración inicial/adaptativa
 index.html                  # Panel
 admin.html                  # Actividad
-wallet.html                 # cuentas, patrimonio, compromisos
+wallet.html                 # cuentas, patrimonio, compromisos y metas
 stats.html                  # analítica dinámica
 historial.html              # línea de tiempo universal
 
@@ -189,23 +222,26 @@ js/
 ├── 01_consts_utils.js      # versión, capacidades y modelos base
 ├── 02_data.js              # dominio configurable y migraciones
 ├── 03_render.js            # presentación según capacidades
-├── 04_charts.js            # analítica por fuente
+├── 04_charts.js            # analítica por fuente y saldo disponible
 ├── 05_init.js              # orquestación y acciones contextuales
 ├── 07_sync.js              # Firebase y conflictos
 ├── 08_pwa.js               # instalación PWA
 ├── 10_onboarding.js        # asistente de configuración
+├── 11_savings_goals.js     # dominio de metas, reservas y proyección
+├── 12_savings_ui.js        # UI y advertencias de metas
 └── firebase-config.js      # configuración cliente Firebase
 ```
 
 Principios:
 
-1. `02_data.js` es la fuente de verdad del dominio financiero.
+1. `02_data.js` es la fuente de verdad del dominio financiero general.
 2. Nombres de empresas/plataformas/clientes son datos, no funciones del motor.
 3. El dinero de terceros nunca debe inflar el patrimonio personal.
 4. La interfaz muestra capacidades, no una lista fija de módulos.
 5. Un cambio de contexto debe reutilizar la misma operación, no duplicar botones.
 6. Firebase sincroniza el estado completo por UID.
 7. Los conflictos cloud no se sobrescriben silenciosamente.
+8. Reservar dinero para una meta no debe convertirlo en un gasto ficticio.
 
 ## Firebase
 
@@ -215,11 +251,11 @@ Cada usuario autenticado conserva su propio estado en:
 /users/{uid}/budget/state
 ```
 
-Las reglas de Firestore limitan lectura/escritura al UID autenticado.
+Las reglas de Firestore limitan lectura/escritura al UID autenticado. Las metas de ahorro forman parte del estado sincronizado y también participan en la fusión de conflictos.
 
 ## PWA
 
-El service worker almacena el shell de v2, incluido el onboarding, y mantiene funcionamiento local cuando no hay conexión. El código intenta actualizarse desde red cuando vuelve la conectividad.
+El service worker almacena el shell de v2.1, incluido el onboarding y el gestor de metas, y mantiene funcionamiento local cuando no hay conexión. El código intenta actualizarse desde red cuando vuelve la conectividad.
 
 ## Pruebas
 
@@ -234,6 +270,9 @@ La suite cubre:
 - trabajo por turno con ingreso al cierre;
 - combustible empresarial y personal;
 - fondos de tercero;
+- metas que reservan dinero sin reducir patrimonio;
+- retiros de metas y recálculo de ritmo;
+- recomendaciones basadas en ingresos reales por fuente;
 - receta y recalculo de costo;
 - venta de producto;
 - migración v1 → v2;
@@ -244,7 +283,8 @@ La suite cubre:
 
 - `1.2.0`: trabajo híbrido específico.
 - `1.3.0`: combustible contextual y eliminación de duplicados.
-- **`2.0.0`: motor configurable por usuario y capacidades.**
+- `2.0.0`: motor configurable por usuario y capacidades.
+- **`2.1.0`: metas de ahorro con dinero reservado, proyección y advertencias de retiro.**
 
 ## Tecnología
 

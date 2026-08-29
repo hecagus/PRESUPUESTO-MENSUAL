@@ -1,4 +1,4 @@
-/* v2.0.0 - Analítica genérica por fuente y capacidades. Sin mutar estado. */
+/* v2.1.0 - Analítica genérica por fuente y capacidades. Sin mutar estado. */
 import { safeFloat, periodIdFor } from './01_consts_utils.js';
 
 const horasTurno=t=>Number.isFinite(t.duracionHoras)?t.duracionHoras:Math.max(0,(safeFloat(t.fin)-safeFloat(t.inicio))/3600000);
@@ -32,7 +32,10 @@ export function resumenGlobal(store){
   const personal=(store.movimientos||[]).filter(m=>m.affectsPersonal!==false);
   const ingresos=personal.filter(m=>m.tipo==='ingreso').reduce((a,m)=>a+safeFloat(m.monto),0);
   const gastos=personal.filter(m=>m.tipo==='gasto').reduce((a,m)=>a+safeFloat(m.monto),0);
-  const ahorro=(store.wallet?.sobres||[]).filter(s=>s.categoria==='Ahorro'||s.categoria==='Meta').reduce((a,s)=>a+safeFloat(s.acumulado),0);
+  const hasGoals=Array.isArray(store.savingsGoals);
+  const ahorro=hasGoals
+    ?store.savingsGoals.filter(g=>g.active!==false).reduce((a,g)=>a+safeFloat(g.reserved),0)
+    :(store.wallet?.sobres||[]).filter(s=>s.categoria==='Ahorro'||s.categoria==='Meta').reduce((a,s)=>a+safeFloat(s.acumulado),0);
   return {ingresos,gastos,saldo:ingresos-gastos,ahorro,disponible:ingresos-gastos-ahorro};
 }
 

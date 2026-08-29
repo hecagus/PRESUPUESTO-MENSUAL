@@ -1,9 +1,11 @@
-/* v2.0.0 - Orquestación de UI por capacidades, PWA y sincronización. */
+/* v2.1.0 - Orquestación de UI por capacidades, PWA, metas y sincronización. */
 import { $, CATEGORIAS_BASE, FRECUENCIAS, DIAS_SEMANA, APP_VERSION, COMPENSATIONS } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { Modal, renderIndex, renderWallet, renderHistorial, renderStats, renderAdmin } from './03_render.js';
 import { initSync, notifyLocalChange } from './07_sync.js';
 import { initPWA, promptInstall } from './08_pwa.js';
+import { ensureSavingsGoals } from './11_savings_goals.js';
+import { renderSavingsGoalsUI, initSavingsGoalEvents } from './12_savings_ui.js';
 
 const refresh=()=>{
   const page=document.body.dataset.page;
@@ -12,6 +14,7 @@ const refresh=()=>{
   else if(page==='historial')renderHistorial();
   else if(page==='stats')renderStats();
   else if(page==='admin')renderAdmin();
+  renderSavingsGoalsUI();
 };
 
 const ERROR_MESSAGES={
@@ -106,9 +109,9 @@ function initDelegation(){
 
 function startTimer(){if(document.body.dataset.page!=='admin')return;window.setInterval(()=>{const t=Data.getState().activeActivity,el=$('activityTimer');if(!el)return;if(!t){el.textContent='00:00:00';return;}const diff=Date.now()-t.inicio;el.textContent=`${Math.floor(diff/3600000)}h ${Math.floor((diff%3600000)/60000)}m`;},1000);}
 
-document.addEventListener('budget:remote-applied',refresh);
+document.addEventListener('budget:remote-applied',()=>{ensureSavingsGoals();refresh();});
 document.addEventListener('DOMContentLoaded',()=>{
-  Data.loadData();
+  Data.loadData();ensureSavingsGoals();
   if(!Data.getState().profile.onboarded){window.location.replace('onboarding.html');return;}
-  refresh();initDelegation();if(document.body.dataset.page==='admin')initAdminEvents();startTimer();initPWA();initSync();console.log(`La app del HecAgus v${APP_VERSION}`);
+  refresh();initDelegation();initSavingsGoalEvents(()=>{refresh();notifyLocalChange();});if(document.body.dataset.page==='admin')initAdminEvents();startTimer();initPWA();initSync();console.log(`La app del HecAgus v${APP_VERSION}`);
 });

@@ -1,8 +1,8 @@
-const CACHE='hecagus-finance-2.0.0-shell-v1';
+const CACHE='hecagus-finance-2.1.0-shell-v1';
 const APP_SHELL=[
   './','./index.html','./onboarding.html','./admin.html','./wallet.html','./stats.html','./historial.html','./offline.html',
   './style.css','./manifest.webmanifest','./pwa-icon.svg',
-  './js/01_consts_utils.js','./js/02_data.js','./js/03_render.js','./js/04_charts.js','./js/05_init.js','./js/06_income_ui.js','./js/07_sync.js','./js/08_pwa.js','./js/10_onboarding.js','./js/firebase-config.js'
+  './js/01_consts_utils.js','./js/02_data.js','./js/03_render.js','./js/04_charts.js','./js/05_init.js','./js/06_income_ui.js','./js/07_sync.js','./js/08_pwa.js','./js/10_onboarding.js','./js/11_savings_goals.js','./js/12_savings_ui.js','./js/firebase-config.js'
 ];
 
 self.addEventListener('install',event=>{
