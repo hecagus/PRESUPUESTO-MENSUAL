@@ -36,7 +36,7 @@ export function renderSyncUI(){
     return;
   }
   if(!currentUser){
-    zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización disponible</strong><p>Inicia sesión con Google para respaldar y sincronizar tus datos entre dispositivos.</p><button id="btnSyncLogin" class="btn btn-primary">Continuar con Google</button></div>';
+    zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización disponible</strong><p>Inicia sesión con Google para respaldar y sincronizar tus datos entre dispositivos.</p><p id="syncStatus" style="margin:6px 0 12px;color:var(--text-sec)" aria-live="polite">Listo para iniciar sesión.</p><button id="btnSyncLogin" class="btn btn-primary">Continuar con Google</button></div>';
     document.getElementById('btnSyncLogin')?.addEventListener('click',signIn);
     return;
   }
@@ -54,9 +54,12 @@ export function renderSyncUI(){
 function showSyncError(error){
   console.error('Firebase sync:',error);
   const code=String(error?.code||'');
-  if(code.includes('unauthorized-domain')) setStatus('Este dominio aún no está autorizado en Firebase Authentication.','error');
-  else if(code.includes('popup-blocked')||code.includes('popup-closed')) setStatus('No se pudo abrir el acceso con Google. Intenta de nuevo.','error');
-  else setStatus('No se pudo sincronizar. Tus datos locales siguen intactos.','error');
+  if(code.includes('unauthorized-domain')) setStatus('⚠️ Falta autorizar presupuesto-mensual-jade.vercel.app en Firebase Authentication.','error');
+  else if(code.includes('popup-blocked')) setStatus('⚠️ El navegador bloqueó la ventana de Google. Permite ventanas emergentes e intenta otra vez.','error');
+  else if(code.includes('popup-closed')) setStatus('Inicio de sesión cancelado.','warning');
+  else if(code.includes('operation-not-allowed')) setStatus('⚠️ El proveedor Google no está habilitado en Firebase.','error');
+  else if(code.includes('network-request-failed')) setStatus('⚠️ No se pudo contactar Firebase. Revisa tu conexión e intenta otra vez.','error');
+  else setStatus(`⚠️ No se pudo iniciar sesión (${code||'error desconocido'}).`,'error');
 }
 
 export function notifyLocalChange(){
@@ -82,11 +85,20 @@ async function loadFirebase(){
 }
 
 async function signIn(){
+  const button=document.getElementById('btnSyncLogin');
   try{
+    if(button){button.disabled=true;button.textContent='Abriendo Google…';}
+    setStatus('Abriendo acceso con Google…');
     const f=await loadFirebase();
     const provider=new f.GoogleAuthProvider();
-    await f.signInWithRedirect(auth,provider);
-  }catch(e){showSyncError(e);}
+    const result=await f.signInWithPopup(auth,provider);
+    currentUser=result.user;
+    renderSyncUI();
+    if(navigator.onLine) await syncNow();
+  }catch(e){
+    showSyncError(e);
+    if(button){button.disabled=false;button.textContent='Continuar con Google';}
+  }
 }
 async function signOutUser(){if(!auth)return;await firebase.signOut(auth);currentUser=null;conflictRemote=null;renderSyncUI();}
 const docRef=()=>firebase.doc(db,'users',currentUser.uid,'budget','state');
@@ -134,7 +146,6 @@ export async function initSync(){
   observerTimer=setInterval(()=>{const hash=stateHash();if(hash!==observedHash){observedHash=hash;notifyLocalChange();}},900);
   try{
     const f=await loadFirebase();
-    try{await f.getRedirectResult(auth);}catch(e){showSyncError(e);}
     f.onAuthStateChanged(auth,user=>{currentUser=user;renderSyncUI();if(user&&navigator.onLine)syncNow().catch(showSyncError);});
     document.addEventListener('budget:data-changed',notifyLocalChange);
     window.addEventListener('online',()=>{renderSyncUI();if(currentUser)syncNow().catch(showSyncError);});
