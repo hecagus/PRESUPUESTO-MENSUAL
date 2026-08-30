@@ -1,4 +1,4 @@
-/* v2.1.0 - Analítica genérica por fuente y capacidades. Sin mutar estado. */
+/* v2.7.1 - Analítica genérica por fuente y capacidades. Sin mutar estado. */
 import { safeFloat, periodIdFor } from './01_consts_utils.js';
 
 const horasTurno=t=>Number.isFinite(t.duracionHoras)?t.duracionHoras:Math.max(0,(safeFloat(t.fin)-safeFloat(t.inicio))/3600000);
@@ -8,7 +8,7 @@ export function metricasFuente(store,sourceId,{days=7,now=new Date()}={}){
   const source=store.workSources?.find(s=>s.id===sourceId);if(!source)return{source:null,turnos:0,ingresos:0,horas:0,km:0,combustible:0,neto:0,dias:0,ingresoHora:0,ingresoKm:0};
   const limit=new Date(now);limit.setDate(limit.getDate()-days);limit.setHours(0,0,0,0);
   const turnos=(store.turnos||[]).filter(t=>t.sourceId===sourceId&&new Date(t.fecha)>=limit);
-  const movimientos=(store.movimientos||[]).filter(m=>m.sourceId===sourceId&&m.tipo==='ingreso'&&new Date(m.fecha)>=limit&&m.affectsPersonal!==false);
+  const movimientos=(store.movimientos||[]).filter(m=>m.sourceId===sourceId&&m.tipo==='ingreso'&&m.categoria!=='Sistema'&&new Date(m.fecha)>=limit&&m.affectsPersonal!==false);
   const ingresos=movimientos.reduce((a,m)=>a+safeFloat(m.monto),0);
   const horas=turnos.reduce((a,t)=>a+horasTurno(t),0);
   const km=turnos.reduce((a,t)=>a+safeFloat(t.kmRecorrido),0);
@@ -23,20 +23,22 @@ export function resumenPeriodoFuente(store,sourceId,fecha=new Date()){
   const periodo=periodIdFor(source.compensation,fecha);
   const turnos=(store.turnos||[]).filter(t=>t.sourceId===sourceId&&(t.periodo||periodIdFor(source.compensation,t.fecha))===periodo);
   const pago=(store.movimientos||[]).find(m=>m.sourceId===sourceId&&m.tipo==='ingreso'&&m.periodo===periodo&&m.paymentKind==='source_period');
-  const ingresos=(store.movimientos||[]).filter(m=>m.sourceId===sourceId&&m.tipo==='ingreso'&&m.periodo===periodo&&m.affectsPersonal!==false).reduce((a,m)=>a+safeFloat(m.monto),0);
+  const ingresos=(store.movimientos||[]).filter(m=>m.sourceId===sourceId&&m.tipo==='ingreso'&&m.categoria!=='Sistema'&&m.periodo===periodo&&m.affectsPersonal!==false).reduce((a,m)=>a+safeFloat(m.monto),0);
   const horas=turnos.reduce((a,t)=>a+horasTurno(t),0),km=turnos.reduce((a,t)=>a+safeFloat(t.kmRecorrido),0);
   return {source,periodo,turnos:turnos.length,jornadas:new Set(turnos.map(t=>new Date(t.fecha).toDateString())).size,horas,km,pago:safeFloat(pago?.monto),pagado:Boolean(pago),ingresos};
 }
 
 export function resumenGlobal(store){
   const personal=(store.movimientos||[]).filter(m=>m.affectsPersonal!==false);
-  const ingresos=personal.filter(m=>m.tipo==='ingreso').reduce((a,m)=>a+safeFloat(m.monto),0);
+  const cashInflows=personal.filter(m=>m.tipo==='ingreso').reduce((a,m)=>a+safeFloat(m.monto),0);
+  const ingresos=personal.filter(m=>m.tipo==='ingreso'&&m.categoria!=='Sistema').reduce((a,m)=>a+safeFloat(m.monto),0);
   const gastos=personal.filter(m=>m.tipo==='gasto').reduce((a,m)=>a+safeFloat(m.monto),0);
   const hasGoals=Array.isArray(store.savingsGoals);
   const ahorro=hasGoals
     ?store.savingsGoals.filter(g=>g.active!==false).reduce((a,g)=>a+safeFloat(g.reserved),0)
     :(store.wallet?.sobres||[]).filter(s=>s.categoria==='Ahorro'||s.categoria==='Meta').reduce((a,s)=>a+safeFloat(s.acumulado),0);
-  return {ingresos,gastos,saldo:ingresos-gastos,ahorro,disponible:ingresos-gastos-ahorro};
+  const saldo=cashInflows-gastos;
+  return {ingresos,gastos,saldo,ahorro,disponible:saldo-ahorro};
 }
 
 export function resumenNegocio(store){
@@ -54,4 +56,4 @@ export function resumenJaimau(store,fecha=new Date()){
   return {...base,gasDepositado:depositado,gasUtilizado:gas,gasDisponible:depositado-gas};
 }
 export function resumenUber(store){const s=store.workSources?.find(x=>x.legacyKey==='uber'||x.kind==='gig');if(!s)return{turnos:0,ingresos:0,horas:0,km:0,gasolina:0,utilidad:0,ingresoHora:0,ingresoKm:0};const m=metricasFuente(store,s.id,{days:7});return{...m,gasolina:m.combustible,utilidad:m.neto};}
-export function resumenIngresosHibridos(store){const fijo=(store.movimientos||[]).filter(m=>m.tipo==='ingreso'&&sourceOf(store,m)?.kind==='employment').reduce((a,m)=>a+safeFloat(m.monto),0);const reparto=(store.movimientos||[]).filter(m=>m.tipo==='ingreso'&&sourceOf(store,m)?.kind==='gig').reduce((a,m)=>a+safeFloat(m.monto),0);return{fijo,reparto,total:fijo+reparto};}
+export function resumenIngresosHibridos(store){const fijo=(store.movimientos||[]).filter(m=>m.tipo==='ingreso'&&m.categoria!=='Sistema'&&sourceOf(store,m)?.kind==='employment').reduce((a,m)=>a+safeFloat(m.monto),0);const reparto=(store.movimientos||[]).filter(m=>m.tipo==='ingreso'&&m.categoria!=='Sistema'&&sourceOf(store,m)?.kind==='gig').reduce((a,m)=>a+safeFloat(m.monto),0);return{fijo,reparto,total:fijo+reparto};}
