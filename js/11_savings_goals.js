@@ -1,8 +1,8 @@
-/* v2.6.0 - Metas de ahorro con dinero reservado, proyección y retiros conscientes. */
+/* v2.7.0 - Metas de ahorro con dinero reservado, proyección y retiros conscientes. */
 import { safeFloat, uuid } from './01_consts_utils.js';
 import { getState, saveData } from './02_data.js';
 import { resumenGlobal } from './04_charts.js';
-import { financialPosition } from './13_financial_life.js';
+import { financialPosition } from './21_financial_life_v27.js';
 
 const PERSONAL_ACCOUNT_ID='acct-personal';
 const DAY=86400000;
