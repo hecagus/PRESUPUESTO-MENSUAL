@@ -41,6 +41,15 @@ test('calendario financiero forma parte del shell offline',async()=>{
   assert.match(sw,/calendar\.html/);assert.match(sw,/13_financial_life\.js/);assert.match(sw,/14_calendar_ui\.js/);
 });
 
+test('Hogar es pestaña principal y alimenta el motor financiero',async()=>{
+  const html=await read('home.html'),init=await read('js/05_init.js'),engine=await read('js/20_home_engine.js'),bridge=await read('js/21_financial_life_v27.js'),sw=await read('sw.js');
+  assert.match(html,/data-page="home"/);assert.match(html,/Cuánto cuesta vivir/);assert.match(html,/id="btnNewHomeExpense"/);
+  assert.match(init,/home\.html/);assert.match(init,/renderHome/);assert.match(init,/initHomeEvents/);
+  assert.match(engine,/Bimestral/);assert.match(engine,/Higiene y belleza/);assert.match(engine,/householdBudgetStatus/);assert.match(engine,/recordHouseholdExpense/);
+  assert.match(bridge,/householdUpcomingEvents/);assert.match(bridge,/householdCommittedRemaining/);
+  assert.match(sw,/home\.html/);assert.match(sw,/20_home_engine\.js/);assert.match(sw,/22_home_ui\.js/);
+});
+
 test('saldo inicial se oculta después de declararlo y deuda permite pago único',async()=>{
   const init=await read('js/05_init.js');
   assert.match(init,/btnConfigSaldo/);

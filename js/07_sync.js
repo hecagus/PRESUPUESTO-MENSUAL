@@ -1,4 +1,4 @@
-/* v2.6.2 - Firebase offline-first, por usuario y con conflictos explícitos. */
+/* v2.7.0 - Firebase offline-first, por usuario y con conflictos explícitos. */
 import { FIREBASE_SYNC } from './firebase-config.js';
 import * as Data from './02_data.js';
 
@@ -17,7 +17,7 @@ const hasMeaningfulLocalData=()=>{
   const s=Data.getState(),plan=s?.financialPlan||{},business=s?.business||{};
   const activity=['turnos','movimientos','cargasCombustible','fondosCombustibleEmpresa','deudas','gastosFijosMensuales','ingresosFijos','workSources','savingsGoals','automationRules','ruleApplications'].some(k=>Array.isArray(s?.[k])&&s[k].length>0);
   const customAccounts=(s?.accounts||[]).some(a=>a?.id!=='acct-personal');
-  const planned=(plan.commitments||[]).length>0||Object.values(plan.livingBudgets||{}).some(v=>Number(v)>0)||Number(plan.minCashBuffer||0)>0;
+  const planned=(plan.commitments||[]).length>0||(plan.householdExpenses||[]).length>0||Object.values(plan.livingBudgets||{}).some(v=>Number(v)>0)||Number(plan.minCashBuffer||0)>0;
   const businessData=['ingredients','products','sales'].some(k=>Array.isArray(business?.[k])&&business[k].length>0);
   return activity||customAccounts||planned||businessData||Boolean(s?.profile?.onboarded)||Boolean(s?.parametros?.saldoInicialConfigurado)||Boolean(s?.parametros?.kmInicialConfigurado);
 };
@@ -33,7 +33,8 @@ function mergeStates(local,remote){
   merged.financialPlan={
     ...(remote?.financialPlan||{}),...(local?.financialPlan||{}),
     livingBudgets:{...(remote?.financialPlan?.livingBudgets||{}),...(local?.financialPlan?.livingBudgets||{})},
-    commitments:collectionMerge(local?.financialPlan?.commitments,remote?.financialPlan?.commitments)
+    commitments:collectionMerge(local?.financialPlan?.commitments,remote?.financialPlan?.commitments),
+    householdExpenses:collectionMerge(local?.financialPlan?.householdExpenses,remote?.financialPlan?.householdExpenses)
   };
   merged.business={
     ingredients:collectionMerge(local?.business?.ingredients,remote?.business?.ingredients),
