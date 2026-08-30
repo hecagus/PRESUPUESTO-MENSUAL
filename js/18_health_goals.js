@@ -1,7 +1,8 @@
-/* v2.6.0 - Salud financiera explicable y planeación inteligente de metas. */
+/* v2.7.0 - Salud financiera explicable y planeación inteligente de metas. */
 import { safeFloat } from './01_consts_utils.js';
 import { getState } from './02_data.js';
-import { financialPosition, publicTransportMonthlyCost } from './13_financial_life.js';
+import { financialPosition, publicTransportMonthlyCost } from './21_financial_life_v27.js';
+import { householdSummary } from './20_home_engine.js';
 import { savingsGoalSummary } from './11_savings_goals.js';
 import { cashFlowForecast } from './16_forecast_engine.js';
 
@@ -27,9 +28,9 @@ function monthlyDebtLoad(state){
   },0);
 }
 
-function essentialMonthly(state){
+function essentialMonthly(state,now=new Date()){
   const commitments=(state.financialPlan?.commitments||[]).filter(c=>c.active!==false).reduce((a,c)=>a+safeFloat(c.amount),0);
-  const living=Object.values(state.financialPlan?.livingBudgets||{}).reduce((a,v)=>a+safeFloat(v),0);
+  const home=householdSummary(now),living=home.mandatory+home.budgeted;
   const transport=(state.workSources||[]).filter(s=>s.active!==false&&s.status!=='ended'&&s.status!=='paused').reduce((a,s)=>a+publicTransportMonthlyCost(s),0);
   return commitments+living+transport;
 }
@@ -41,7 +42,7 @@ function recentSavings(now=new Date()){
 }
 
 export function financialHealth(now=new Date()){
-  const state=getState(),position=financialPosition(now),recent=recentTotals(now),debtLoad=monthlyDebtLoad(state),essential=essentialMonthly(state),savedMonthly=recentSavings(now);
+  const state=getState(),position=financialPosition(now),recent=recentTotals(now),debtLoad=monthlyDebtLoad(state),essential=essentialMonthly(state,now),savedMonthly=recentSavings(now);
   const income=Math.max(0,recent.monthlyIncome),cash=Math.max(0,position.cash),free=Math.max(0,position.free);
   const liquidityRatio=cash>0?free/cash:0,commitmentRatio=income>0?essential/income:(essential>0?2:0),savingsRate=income>0?savedMonthly/income:0,debtRatio=income>0?debtLoad/income:(debtLoad>0?1:0);
   const liquidityScore=clamp((liquidityRatio/0.30)*25,0,25);
@@ -51,7 +52,7 @@ export function financialHealth(now=new Date()){
   const score=Math.round(liquidityScore+commitmentsScore+savingsScore+debtScore);
   const breakdown=[
     {key:'liquidity',label:'Liquidez',score:Math.round(liquidityScore),max:25,value:liquidityRatio,detail:`${Math.round(liquidityRatio*100)}% de tu efectivo queda realmente libre.`},
-    {key:'commitments',label:'Carga fija',score:Math.round(commitmentsScore),max:25,value:commitmentRatio,detail:income>0?`Tus compromisos estimados equivalen a ${Math.round(commitmentRatio*100)}% del ingreso mensual observado.`:'Aún no hay suficiente historial de ingresos para medir esta relación.'},
+    {key:'commitments',label:'Carga fija',score:Math.round(commitmentsScore),max:25,value:commitmentRatio,detail:income>0?`Hogar, compromisos y costos esenciales equivalen a ${Math.round(commitmentRatio*100)}% del ingreso mensual observado.`:'Aún no hay suficiente historial de ingresos para medir esta relación.'},
     {key:'savings',label:'Ahorro',score:Math.round(savingsScore),max:25,value:savingsRate,detail:income>0?`Has reservado un equivalente aproximado a ${Math.round(savingsRate*100)}% de tu ingreso mensual.`:'Aún no hay suficiente historial para calcular tasa de ahorro.'},
     {key:'debt',label:'Deuda',score:Math.round(debtScore),max:25,value:debtRatio,detail:income>0?`Las cuotas de deuda representan cerca de ${Math.round(debtRatio*100)}% del ingreso mensual.`:'No hay ingreso histórico suficiente para comparar la deuda.'}
   ];
