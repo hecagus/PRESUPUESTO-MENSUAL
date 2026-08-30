@@ -1,8 +1,8 @@
-const CACHE='hecagus-finance-2.6.2-shell-v1';
+const CACHE='hecagus-finance-2.7.0-shell-v1';
 const APP_SHELL=[
-  './','./index.html','./onboarding.html','./admin.html','./wallet.html','./stats.html','./historial.html','./calendar.html','./offline.html',
+  './','./index.html','./onboarding.html','./admin.html','./home.html','./wallet.html','./stats.html','./historial.html','./calendar.html','./offline.html',
   './style.css','./manifest.webmanifest','./hecagus-finance-192.png','./hecagus-finance-512.png',
-  './js/01_consts_utils.js','./js/02_data.js','./js/03_render.js','./js/04_charts.js','./js/05_init.js','./js/06_income_ui.js','./js/07_sync.js','./js/08_pwa.js','./js/10_onboarding.js','./js/11_savings_goals.js','./js/12_savings_ui.js','./js/13_financial_life.js','./js/14_calendar_ui.js','./js/15_accounts_engine.js','./js/16_forecast_engine.js','./js/17_automation_engine.js','./js/18_health_goals.js','./js/19_platform_ui.js','./js/firebase-config.js'
+  './js/01_consts_utils.js','./js/02_data.js','./js/03_render.js','./js/04_charts.js','./js/05_init.js','./js/06_income_ui.js','./js/07_sync.js','./js/08_pwa.js','./js/10_onboarding.js','./js/11_savings_goals.js','./js/12_savings_ui.js','./js/13_financial_life.js','./js/14_calendar_ui.js','./js/15_accounts_engine.js','./js/16_forecast_engine.js','./js/17_automation_engine.js','./js/18_health_goals.js','./js/19_platform_ui.js','./js/20_home_engine.js','./js/21_financial_life_v27.js','./js/22_home_ui.js','./js/firebase-config.js'
 ];
 
 self.addEventListener('install',event=>{
