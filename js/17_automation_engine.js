@@ -1,7 +1,8 @@
-/* v2.5.0 - Reglas automáticas y alertas explicables. */
+/* v2.7.0 - Reglas automáticas y alertas explicables. */
 import { safeFloat, uuid } from './01_consts_utils.js';
 import { getState, saveData } from './02_data.js';
-import { financialPosition, livingBudgetStatus, upcomingFinancialEvents } from './13_financial_life.js';
+import { financialPosition, upcomingFinancialEvents } from './21_financial_life_v27.js';
+import { householdBudgetStatus } from './20_home_engine.js';
 import { contributeToSavingsGoal, savingsGoalSummary } from './11_savings_goals.js';
 import { cashFlowForecast } from './16_forecast_engine.js';
 
@@ -30,7 +31,6 @@ export function createReserveRule({goalId,percent=10,sourceId=null,name=''}={}){
   const p=clamp(safeFloat(percent),1,100);if(!(p>0))throw new Error('PORCENTAJE_INVALIDO');
   const rule=normalizeRule({name:name||`Apartar ${p}% para ${goal.name}`,goalId,sourceId,percent:p,createdAt:new Date().toISOString()});
   state.automationRules.push(rule);
-  /* Una regla empieza "desde ahora": los ingresos que ya existían quedan marcados como anteriores para que jamás se aparten retroactivamente, incluso si comparten el mismo milisegundo. */
   for(const movement of (state.movimientos||[]).filter(m=>m.tipo==='ingreso'&&m.affectsPersonal!==false&&(sourceId?m.sourceId===sourceId:true))){
     state.ruleApplications.push({id:uuid(),ruleId:rule.id,movementId:movement.id,amount:0,status:'before_rule',createdAt:new Date().toISOString()});
   }
@@ -68,10 +68,10 @@ export function smartAlerts(now=new Date()){
   else if(minFree>0&&position.free<minFree)rows.push(alert('free-floor','warning','Colchón por debajo de tu mínimo',`Tu dinero libre está por debajo del mínimo que configuraste.`));
   if(forecast.firstNegativeDate)rows.push(alert('forecast-negative','critical','Se aproxima un faltante',`La proyección cae por debajo de $0 el ${new Date(forecast.firstNegativeDate).toLocaleDateString('es-MX')}.`,{date:forecast.firstNegativeDate}));
   else if(forecast.firstTightDate)rows.push(alert('forecast-tight','warning','Tus reservas quedarían en riesgo',`Si todo ocurre como está previsto, alrededor del ${new Date(forecast.firstTightDate).toLocaleDateString('es-MX')} empezarías a usar dinero reservado o presupuesto necesario.`,{date:forecast.firstTightDate}));
-  for(const b of livingBudgetStatus(now)){
+  for(const b of householdBudgetStatus(now)){
     const ratio=b.budget>0?b.spent/b.budget:0;
-    if(ratio>=1)rows.push(alert(`budget-${b.key}`,'critical','Presupuesto agotado',`Ya consumiste el presupuesto mensual de ${b.key}.`));
-    else if(ratio>=0.8)rows.push(alert(`budget-${b.key}`,'warning','Presupuesto cerca del límite',`Ya utilizaste ${Math.round(ratio*100)}% del presupuesto de ${b.key}.`));
+    if(ratio>=1)rows.push(alert(`home-budget-${b.item.id}`,'critical','Presupuesto del hogar agotado',`Ya consumiste el presupuesto de ${b.item.name}.`));
+    else if(ratio>=0.8)rows.push(alert(`home-budget-${b.item.id}`,'warning','Presupuesto del hogar cerca del límite',`Ya utilizaste ${Math.round(ratio*100)}% de ${b.item.name}.`));
   }
   const soon=upcomingFinancialEvents({days:3,now}).filter(e=>['expense','debt'].includes(e.type)&&safeFloat(e.amount)>0);
   const soonTotal=soon.reduce((a,e)=>a+safeFloat(e.amount),0);
