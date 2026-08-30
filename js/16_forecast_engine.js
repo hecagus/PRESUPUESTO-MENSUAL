@@ -1,7 +1,7 @@
-/* v2.4.0 - Proyección de flujo de efectivo a partir de calendario + historial real. */
+/* v2.7.0 - Proyección de flujo de efectivo a partir de calendario + hogar + historial real. */
 import { safeFloat } from './01_consts_utils.js';
 import { getState } from './02_data.js';
-import { upcomingFinancialEvents, financialPosition } from './13_financial_life.js';
+import { upcomingFinancialEvents, financialPosition } from './21_financial_life_v27.js';
 import { personalCashTotal } from './15_accounts_engine.js';
 
 const DAY=86400000;
@@ -25,6 +25,7 @@ export function expectedIncomeForSource(sourceId,now=new Date()){
 
 function alreadyPaid(event){
   const state=getState(),d=new Date(event.date),period=monthId(d);
+  if(event.household&&event.householdPeriod)return (state.movimientos||[]).some(m=>m.householdExpenseId===event.refId&&m.householdPeriod===event.householdPeriod);
   if(event.type==='expense'&&event.refId){
     const c=state.financialPlan?.commitments?.find(x=>x.id===event.refId);
     if(c?.lastPaidPeriod===period)return true;
@@ -36,8 +37,8 @@ export function cashFlowForecast({days=45,now=new Date()}={}){
   const state=getState(),start=new Date(now),end=new Date(start.getTime()+days*DAY);
   const position=financialPosition(start);
   const reserved=(state.savingsGoals||[]).filter(g=>g.active!==false).reduce((a,g)=>a+safeFloat(g.reserved),0);
-  /* Los pagos fijos se descuentan cuando ocurren en el calendario. Los presupuestos variables y el transporte se mantienen apartados durante la proyección. */
-  const ongoingReserve=Math.max(0,reserved+safeFloat(position.living)+safeFloat(position.transport));
+  /* Pagos con fecha se descuentan cuando ocurren. Presupuesto variable del hogar, metas y transporte laboral se mantienen apartados durante la proyección. */
+  const ongoingReserve=Math.max(0,reserved+safeFloat(position.living)+safeFloat(position.workTransport));
   let cash=personalCashTotal(),minCash=cash,totalIncome=0,totalOutflow=0,firstNegativeDate=null,firstTightDate=null;
   const raw=upcomingFinancialEvents({days,now:start});
   const events=[];
