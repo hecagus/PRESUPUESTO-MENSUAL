@@ -1,4 +1,4 @@
-/* v2.6.1 - Orquestación de UI, plataforma financiera, PWA, metas y sincronización. */
+/* v2.7.0 - Orquestación de UI, plataforma financiera, Hogar, PWA, metas y sincronización. */
 import { $, CATEGORIAS_BASE, FRECUENCIAS, APP_VERSION, COMPENSATIONS } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { Modal, renderIndex, renderWallet, renderHistorial, renderStats, renderAdmin } from './03_render.js';
@@ -6,14 +6,22 @@ import { initSync, notifyLocalChange } from './07_sync.js';
 import { initPWA, promptInstall } from './08_pwa.js';
 import { ensureSavingsGoals } from './11_savings_goals.js';
 import { renderSavingsGoalsUI, initSavingsGoalEvents } from './12_savings_ui.js';
-import { ensureFinancialLife } from './13_financial_life.js';
+import { ensureFinancialLife } from './21_financial_life_v27.js';
 import { renderFinancialPositionPanel, renderCalendarPreview, renderCalendarPage, initCalendarEvents } from './14_calendar_ui.js';
 import { runAutomationEngine } from './17_automation_engine.js';
 import { ensureFinancialPlatform, renderFinancialPlatform, initFinancialPlatformEvents } from './19_platform_ui.js';
+import { renderHome, initHomeEvents } from './22_home_ui.js';
+
+function renderBottomNav(){
+  const nav=document.querySelector('.bottom-nav');if(!nav)return;const page=document.body.dataset.page;
+  const items=[['index','index.html','▥','Panel'],['home','home.html','⌂','Hogar'],['wallet','wallet.html','◉','Wallet'],['admin','admin.html','▶','Actividad'],['historial','historial.html','≡','Historial']];
+  nav.innerHTML=items.map(([key,href,icon,label])=>`<a href="${href}" class="nav-link ${page===key?'active':''}"${page===key?' aria-current="page"':''}><span aria-hidden="true">${icon}</span>${label}</a>`).join('');
+}
 
 const refresh=()=>{
   const page=document.body.dataset.page;
   if(page==='index'){renderIndex();renderFinancialPositionPanel();renderCalendarPreview();}
+  else if(page==='home')renderHome();
   else if(page==='wallet')renderWallet();
   else if(page==='historial')renderHistorial();
   else if(page==='stats')renderStats();
@@ -129,9 +137,10 @@ document.addEventListener('budget:remote-applied',()=>{ensureSavingsGoals();ensu
 document.addEventListener('DOMContentLoaded',()=>{
   Data.loadData();ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();
   if(!Data.getState().profile.onboarded){window.location.replace('onboarding.html');return;}
-  runAutomationEngine();refresh();initDelegation();initGlobalEvents();
+  renderBottomNav();runAutomationEngine();refresh();initDelegation();initGlobalEvents();
   initSavingsGoalEvents(()=>{refresh();notifyLocalChange();});
   initFinancialPlatformEvents(()=>{refresh();notifyLocalChange();});
+  if(document.body.dataset.page==='home')initHomeEvents(()=>{refresh();notifyLocalChange();});
   if(document.body.dataset.page==='admin')initAdminEvents();
   if(document.body.dataset.page==='calendar')initCalendarEvents(()=>{refresh();notifyLocalChange();});
   startTimer();initPWA();initSync();console.log(`La app del HecAgus v${APP_VERSION}`);
