@@ -63,12 +63,23 @@ test('gasto discrecional no se compromete hasta que realmente ocurre',()=>{
   assert.equal(Home.householdById(clothes.id).active,false);
 });
 
-test('gasto bimestral aparece sólo en los meses alineados a su próximo pago',()=>{
-  Home.createHouseholdExpense({name:'Luz',category:'Servicios',amount:900,frequency:'bimonthly',priority:'obligatory',dueDay:18,nextDueDate:'2026-09-18'});
-  const sep=Home.householdUpcomingEvents({days:30,now:new Date(2026,8,1,12)});
-  assert.equal(sep.filter(e=>e.title==='Luz').length,1);
-  const oct=Home.householdUpcomingEvents({days:30,now:new Date(2026,9,1,12)});
-  assert.equal(oct.filter(e=>e.title==='Luz').length,0);
+test('gasto bimestral conserva vencido hasta pagarlo y no inventa octubre',()=>{
+  const light=Home.createHouseholdExpense({name:'Luz',category:'Servicios',amount:900,frequency:'bimonthly',priority:'obligatory',dueDay:18,nextDueDate:'2026-09-18'});
+  const sep=Home.householdUpcomingEvents({days:30,now:new Date(2026,8,1,12)}).filter(e=>e.title==='Luz');
+  assert.equal(sep.length,1);
+  assert.equal(sep[0].overdue,false);
+
+  const oct=Home.householdUpcomingEvents({days:30,now:new Date(2026,9,1,12)}).filter(e=>e.title==='Luz');
+  assert.equal(oct.length,1);
+  assert.equal(oct[0].overdue,true);
+  assert.match(oct[0].dueDate,/2026-09-18/);
+
+  Home.recordHouseholdExpense(light.id,900,new Date(2026,9,1,12).getTime());
+  const movement=Data.getState().movimientos.find(m=>m.householdExpenseId===light.id);
+  assert.equal(movement.householdPeriod,'B:2026-09');
+
+  const after=Home.householdUpcomingEvents({days:30,now:new Date(2026,9,2,12)}).filter(e=>e.title==='Luz');
+  assert.equal(after.length,0);
 });
 
 test('migra vivienda, servicios y presupuestos anteriores sin duplicarlos',()=>{

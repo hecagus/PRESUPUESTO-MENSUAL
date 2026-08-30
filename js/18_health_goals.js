@@ -1,4 +1,4 @@
-/* v2.7.0 - Salud financiera explicable y planeación inteligente de metas. */
+/* v2.7.1 - Salud financiera explicable y planeación inteligente de metas. */
 import { safeFloat } from './01_consts_utils.js';
 import { getState } from './02_data.js';
 import { financialPosition, publicTransportMonthlyCost } from './21_financial_life_v27.js';
@@ -13,7 +13,7 @@ const monthlyFactor=30/90;
 function recentTotals(now=new Date()){
   const state=getState(),cutoff=new Date(now.getTime()-90*DAY);
   const movements=(state.movimientos||[]).filter(m=>m.affectsPersonal!==false&&new Date(m.fecha)>=cutoff);
-  const income90=movements.filter(m=>m.tipo==='ingreso').reduce((a,m)=>a+safeFloat(m.monto),0);
+  const income90=movements.filter(m=>m.tipo==='ingreso'&&m.categoria!=='Sistema').reduce((a,m)=>a+safeFloat(m.monto),0);
   const expense90=movements.filter(m=>m.tipo==='gasto').reduce((a,m)=>a+safeFloat(m.monto),0);
   return {monthlyIncome:income90*monthlyFactor,monthlyExpense:expense90*monthlyFactor};
 }
@@ -45,11 +45,7 @@ export function financialHealth(now=new Date()){
   const state=getState(),position=financialPosition(now),recent=recentTotals(now),debtLoad=monthlyDebtLoad(state),essential=essentialMonthly(state,now),savedMonthly=recentSavings(now);
   const income=Math.max(0,recent.monthlyIncome),cash=Math.max(0,position.cash),free=Math.max(0,position.free);
   const liquidityRatio=cash>0?free/cash:0,commitmentRatio=income>0?essential/income:(essential>0?2:0),savingsRate=income>0?savedMonthly/income:0,debtRatio=income>0?debtLoad/income:(debtLoad>0?1:0);
-  const liquidityScore=clamp((liquidityRatio/0.30)*25,0,25);
-  const commitmentsScore=clamp(((1.20-commitmentRatio)/0.70)*25,0,25);
-  const savingsScore=clamp((savingsRate/0.20)*25,0,25);
-  const debtScore=clamp(((0.50-debtRatio)/0.40)*25,0,25);
-  const score=Math.round(liquidityScore+commitmentsScore+savingsScore+debtScore);
+  const liquidityScore=clamp((liquidityRatio/0.30)*25,0,25),commitmentsScore=clamp(((1.20-commitmentRatio)/0.70)*25,0,25),savingsScore=clamp((savingsRate/0.20)*25,0,25),debtScore=clamp(((0.50-debtRatio)/0.40)*25,0,25),score=Math.round(liquidityScore+commitmentsScore+savingsScore+debtScore);
   const breakdown=[
     {key:'liquidity',label:'Liquidez',score:Math.round(liquidityScore),max:25,value:liquidityRatio,detail:`${Math.round(liquidityRatio*100)}% de tu efectivo queda realmente libre.`},
     {key:'commitments',label:'Carga fija',score:Math.round(commitmentsScore),max:25,value:commitmentRatio,detail:income>0?`Hogar, compromisos y costos esenciales equivalen a ${Math.round(commitmentRatio*100)}% del ingreso mensual observado.`:'Aún no hay suficiente historial de ingresos para medir esta relación.'},
@@ -63,8 +59,8 @@ export function financialHealth(now=new Date()){
 
 function sourceIncome30(now=new Date()){
   const state=getState(),cutoff=new Date(now.getTime()-30*DAY);
-  return (state.workSources||[]).filter(s=>s.active!==false).map(source=>({
-    id:source.id,name:source.name,income:(state.movimientos||[]).filter(m=>m.tipo==='ingreso'&&m.affectsPersonal!==false&&m.sourceId===source.id&&new Date(m.fecha)>=cutoff).reduce((a,m)=>a+safeFloat(m.monto),0)
+  return (state.workSources||[]).filter(s=>s.active!==false&&s.status!=='ended'&&s.status!=='paused').map(source=>({
+    id:source.id,name:source.name,income:(state.movimientos||[]).filter(m=>m.tipo==='ingreso'&&m.categoria!=='Sistema'&&m.affectsPersonal!==false&&m.sourceId===source.id&&new Date(m.fecha)>=cutoff).reduce((a,m)=>a+safeFloat(m.monto),0)
   })).sort((a,b)=>b.income-a.income);
 }
 
@@ -72,14 +68,10 @@ export function smartGoalPlan(goalId,now=new Date()){
   const state=getState(),summary=savingsGoalSummary(goalId,now);if(!summary)return null;
   const health=financialHealth(now),position=health.position,remaining=summary.remaining;
   if(summary.complete)return {goal:summary.goal,status:'complete',summary,requiredMonthly:0,availableMonthly:Math.max(0,health.monthlyIncome-health.monthlyExpense),suggestedNow:0,estimatedCompletionDate:summary.goal.completedAt||now.toISOString(),sourcePlan:[]};
-  const observedNet=Math.max(0,health.monthlyIncome-Math.max(health.monthlyExpense,health.essentialMonthly));
-  const availableMonthly=observedNet,suggestedNow=Math.min(remaining,Math.max(0,position.free),summary.requiredMonthly||remaining);
+  const observedNet=Math.max(0,health.monthlyIncome-Math.max(health.monthlyExpense,health.essentialMonthly)),availableMonthly=observedNet,suggestedNow=Math.min(remaining,Math.max(0,position.free),summary.requiredMonthly||remaining);
   let status='blocked';if(availableMonthly>=summary.requiredMonthly&&summary.requiredMonthly>0)status='on_track';else if(availableMonthly>0||suggestedNow>0)status='at_risk';
-  const pace=availableMonthly>0?availableMonthly:(suggestedNow>0?suggestedNow:0);
-  const monthsNeeded=pace>0?remaining/pace:null;
-  const estimatedCompletionDate=monthsNeeded!==null?new Date(now.getTime()+monthsNeeded*30.4375*DAY).toISOString():null;
-  let pending=suggestedNow;
-  const sourcePlan=sourceIncome30(now).map(s=>{const take=Math.min(s.income,pending);pending=Math.max(0,pending-take);return {...s,suggested:take};});
+  const pace=availableMonthly>0?availableMonthly:(suggestedNow>0?suggestedNow:0),monthsNeeded=pace>0?remaining/pace:null,estimatedCompletionDate=monthsNeeded!==null?new Date(now.getTime()+monthsNeeded*30.4375*DAY).toISOString():null;
+  let pending=suggestedNow;const sourcePlan=sourceIncome30(now).map(s=>{const take=Math.min(s.income,pending);pending=Math.max(0,pending-take);return {...s,suggested:take};});
   return {goal:summary.goal,status,summary,requiredMonthly:summary.requiredMonthly,availableMonthly,suggestedNow,estimatedCompletionDate,sourcePlan,forecast:cashFlowForecast({days:45,now})};
 }
 

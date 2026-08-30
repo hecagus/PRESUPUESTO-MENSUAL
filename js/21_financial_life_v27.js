@@ -1,7 +1,7 @@
-/* v2.7.0 - Adaptador financiero que integra hogar con el motor v2.x. */
+/* v2.7.1 - Adaptador financiero que integra Hogar con el motor v2.x. */
 import * as Base from './13_financial_life.js';
 import {
-  ensureHousehold,householdUpcomingEvents,householdCommittedRemaining,seedHouseholdFromLivingSetup
+  ensureHousehold,householdUpcomingEvents,householdCommittedRemaining,householdReserveNeed,seedHouseholdFromLivingSetup
 } from './20_home_engine.js';
 
 export const setSourceStatus=Base.setSourceStatus;
@@ -31,8 +31,8 @@ export function upcomingFinancialEvents({days=45,now=new Date()}={}){
 
 export function financialPosition(now=new Date()){
   ensureHousehold();
-  const base=Base.financialPosition(now),homeBudget=householdCommittedRemaining(now);
+  const base=Base.financialPosition(now),homeBudget=householdCommittedRemaining(now),homeReserve=householdReserveNeed(now).total;
   const homeDue=householdUpcomingEvents({days:30,now}).reduce((a,e)=>a+Number(e.amount||0),0);
-  const committed=base.committed+homeBudget+homeDue;
-  return {...base,homeBudget,homeDue,committed,free:base.cash-base.reserved-committed,living:base.living+homeBudget};
+  const committed=base.committed+homeBudget+homeReserve+homeDue;
+  return {...base,homeBudget,homeReserve,homeDue,committed,free:base.cash-base.reserved-committed,living:base.living+homeBudget+homeReserve};
 }

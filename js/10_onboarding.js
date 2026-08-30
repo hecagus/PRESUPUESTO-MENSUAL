@@ -1,12 +1,14 @@
-/* v2.6.2 - Acceso primero, onboarding adaptativo y situación editable. */
+/* v2.7.1 - Acceso primero, PWA, onboarding adaptativo y edición conectada a Hogar. */
 import { SOURCE_KINDS, COMPENSATIONS, TRANSPORT_MODES, fmtMoney } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { initSync, notifyLocalChange } from './07_sync.js';
-import { ensureFinancialLife, updateSourceLife, configureLivingSetup } from './13_financial_life.js';
+import { initPWA, promptInstall, installationHelp } from './08_pwa.js';
+import { ensureFinancialLife, updateSourceLife, configureLivingSetup } from './21_financial_life_v27.js';
+import { householdById } from './20_home_engine.js';
 
-Data.loadData();ensureFinancialLife();
+Data.loadData();ensureFinancialLife();initPWA();
 const edit=new URLSearchParams(location.search).get('edit')==='1';
-let step=0,sourceDrafts=[];
+let step=0,sourceDrafts=[],setupShown=false;
 const $=id=>document.getElementById(id);
 const selectedUseCases=()=>[...document.querySelectorAll('input[name="useCase"]:checked')].map(x=>x.value);
 const compensationOptions=kind=>{
@@ -15,29 +17,35 @@ const compensationOptions=kind=>{
 };
 const kindOptions=()=>Object.entries(SOURCE_KINDS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('');
 const transportOptions=()=>Object.entries(TRANSPORT_MODES).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const statusLabel=s=>s==='ended'?'Finalizada':s==='paused'?'Pausada':'Activa';
 
 function seedFromState(){
   const state=Data.getState();
   $('setupName').value=state.profile.displayName||'';$('setupTransport').value=state.profile.transportMode||'none';
+  const vehicle=(state.assets||[]).find(a=>a.kind==='vehicle'&&a.active!==false);if($('setupVehicleName'))$('setupVehicleName').value=vehicle?.name||'';
   document.querySelectorAll('input[name="useCase"]').forEach(x=>{x.checked=false;});
   for(const use of state.profile.useCases||[])document.querySelector(`input[name="useCase"][value="${use}"]`)?.click();
   sourceDrafts=(state.workSources||[]).map(s=>({
     ...s,status:s.status||((s.active===false)?(s.endedAt?'ended':'paused'):'active'),
     transport:s.transport||{mode:s.transportMode||state.profile.transportMode||'none',public:{outboundRides:0,returnRides:0,fare:0,daysPerWeek:5}}
   }));
-  const plan=state.financialPlan||{},commitments=plan.commitments||[];
-  const housing=commitments.find(c=>c.id==='life-housing'),services=commitments.find(c=>c.id==='life-services'),living=plan.livingBudgets||{};
+
+  /* Desde v2.7 la fuente de verdad del costo de vida es Hogar, no livingBudgets/commitments. */
+  const housing=householdById('home-housing'),services=householdById('home-services'),groceries=householdById('home-groceries'),health=householdById('home-health'),leisure=householdById('home-leisure'),other=householdById('home-other');
   $('setupHousing').value=housing?.active===false?'':housing?.amount||'';$('setupHousingDay').value=housing?.dueDay||1;
   $('setupServices').value=services?.active===false?'':services?.amount||'';$('setupServicesDay').value=services?.dueDay||10;
-  $('setupGroceries').value=living.groceries||'';$('setupHealth').value=living.health||'';$('setupLeisure').value=living.leisure||'';$('setupOtherLiving').value=living.other||'';
+  $('setupGroceries').value=groceries?.active===false?'':groceries?.amount||'';
+  $('setupHealth').value=health?.active===false?'':health?.amount||'';
+  $('setupLeisure').value=leisure?.active===false?'':leisure?.amount||'';
+  $('setupOtherLiving').value=other?.active===false?'':other?.amount||'';
   if(edit){$('setupHeading').textContent='Mi situación cambió';$('setupBalance').disabled=true;$('setupBalance').placeholder='El saldo inicial ya está definido';}
 }
 
 function showSetup(){
   $('authGate')?.classList.add('hidden');$('setupFlow')?.classList.remove('hidden');
-  seedFromState();showStep();
+  if(!setupShown){setupShown=true;seedFromState();}
+  showStep();
 }
 function finishRestore(){
   if(Data.getState().profile?.onboarded){location.replace('index.html');return;}
@@ -82,7 +90,7 @@ function syncDrafts(){
 function syncTransportDrafts(){
   [...document.querySelectorAll('.transport-editor')].forEach(el=>{const i=Number(el.dataset.sourceIndex),s=sourceDrafts[i];if(!s)return;const mode=el.querySelector('.source-transport')?.value||$('setupTransport').value||'none';s.transport=s.transport||{public:{}};s.transport.mode=mode;s.transport.public=s.transport.public||{};
     if(mode==='public'){
-      s.transport.public.outboundRides=Number(el.querySelector('.public-out')?.value||0);s.transport.public.returnRides=Number(el.querySelector('.public-back')?.value||0);s.transport.public.fare=Number(el.querySelector('.public-fare')?.value||0);s.transport.public.daysPerWeek=Number(el.querySelector('.public-days')?.value||5);s.trackDistance=false;s.fuelPayer='none';
+      s.transport.public.outboundRides=Number(el.querySelector('.public-out')?.value||0);s.transport.public.returnRides=Number(el.querySelector('.public-back')?.value||0);s.transport.public.fare=Number(el.querySelector('.public-fare')?.value||0);s.transport.public.daysPerWeek=Number(el.querySelector('.public-days')?.value??5);s.trackDistance=false;s.fuelPayer='none';
     }else if(['motorcycle','car'].includes(mode)){
       s.trackDistance=Boolean(el.querySelector('.source-distance')?.checked);s.fuelPayer=el.querySelector('.source-fuel')?.value||'personal';
     }else{s.trackDistance=false;s.fuelPayer='none';}
@@ -92,7 +100,7 @@ function syncTransportDrafts(){
 function transportCard(s,i){
   const mode=s.transport?.mode||$('setupTransport').value||'none',pub=s.transport?.public||{};
   let detail='';
-  if(mode==='public')detail=`<div class="mini-grid"><div><label>Transportes de ida</label><input class="input-control public-out" type="number" min="0" value="${pub.outboundRides||0}"></div><div><label>Transportes de regreso</label><input class="input-control public-back" type="number" min="0" value="${pub.returnRides||0}"></div></div><div class="mini-grid"><div><label>Precio promedio por transporte</label><input class="input-control public-fare" type="number" min="0" step="0.01" value="${pub.fare||0}"></div><div><label>Días por semana</label><input class="input-control public-days" type="number" min="0" max="7" value="${pub.daysPerWeek||5}"></div></div>`;
+  if(mode==='public')detail=`<div class="mini-grid"><div><label>Transportes de ida</label><input class="input-control public-out" type="number" min="0" value="${pub.outboundRides||0}"></div><div><label>Transportes de regreso</label><input class="input-control public-back" type="number" min="0" value="${pub.returnRides||0}"></div></div><div class="mini-grid"><div><label>Precio promedio por transporte</label><input class="input-control public-fare" type="number" min="0" step="0.01" value="${pub.fare||0}"></div><div><label>Días por semana</label><input class="input-control public-days" type="number" min="0" max="7" value="${pub.daysPerWeek??5}"></div></div>`;
   else if(['motorcycle','car'].includes(mode))detail=`<label class="checkline"><input type="checkbox" class="source-distance" ${s.trackDistance?'checked':''}> Registrar kilometraje</label><label>¿Quién paga el combustible?</label><select class="input-control source-fuel"><option value="personal">Yo</option><option value="company">Empresa / cliente</option><option value="none">No aplica</option></select>`;
   return `<div class="source-editor transport-editor" data-source-index="${i}"><strong>${esc(s.name||SOURCE_KINDS[s.kind]?.label)}</strong><label>Transporte para esta fuente</label><select class="input-control source-transport">${transportOptions()}</select>${detail}</div>`;
 }
@@ -106,9 +114,9 @@ function renderTransportConfig(){
 
 function addSource(){syncDrafts();sourceDrafts.push({id:null,name:'',kind:'other',compensation:'variable',trackTime:false,trackDistance:false,fuelPayer:'none',status:'active',active:true,transport:{mode:$('setupTransport').value||'none',public:{outboundRides:0,returnRides:0,fare:0,daysPerWeek:5}}});renderSources();}
 
-const draftPublicMonthly=s=>{const p=s.transport?.public||{};return s.transport?.mode==='public'?(Number(p.outboundRides||0)+Number(p.returnRides||0))*Number(p.fare||0)*Number(p.daysPerWeek||0)*(52/12):0;};
+const draftPublicMonthly=s=>{const p=s.transport?.public||{};return s.transport?.mode==='public'?(Number(p.outboundRides||0)+Number(p.returnRides||0))*Number(p.fare||0)*Number(p.daysPerWeek??0)*(52/12):0;};
 
-function review(){syncDrafts();syncTransportDrafts();const transport=TRANSPORT_MODES[$('setupTransport').value]?.label||'Ninguno';$('setupReview').innerHTML=`<strong>Tu app quedará así:</strong><ul style="margin:8px 0 0 18px">${sourceDrafts.filter(s=>s.name).map(s=>`<li>${SOURCE_KINDS[s.kind]?.icon||'💰'} ${esc(s.name)} · ${COMPENSATIONS[s.compensation]?.label||s.compensation} · ${statusLabel(s.status)}${draftPublicMonthly(s)>0?` · traslado ${fmtMoney(draftPublicMonthly(s))}/mes`:''}</li>`).join('')||'<li>Finanzas personales</li>'}<li>🚦 Transporte predeterminado: ${transport}</li><li>🛒 Presupuesto de vida y calendario financiero activados</li></ul>`;}
+function review(){syncDrafts();syncTransportDrafts();const transport=TRANSPORT_MODES[$('setupTransport').value]?.label||'Ninguno';$('setupReview').innerHTML=`<strong>Tu app quedará así:</strong><ul style="margin:8px 0 0 18px">${sourceDrafts.filter(s=>s.name).map(s=>`<li>${SOURCE_KINDS[s.kind]?.icon||'💰'} ${esc(s.name)} · ${COMPENSATIONS[s.compensation]?.label||s.compensation} · ${statusLabel(s.status)}${draftPublicMonthly(s)>0?` · traslado ${fmtMoney(draftPublicMonthly(s))}/mes`:''}</li>`).join('')||'<li>Finanzas personales</li>'}<li>🚦 Transporte predeterminado: ${transport}</li><li>🏠 Costo de vida conectado a Hogar y calendario</li></ul>`;}
 
 function showStep(){
   document.querySelectorAll('.setup-step').forEach((el,i)=>el.classList.toggle('active',i===step));document.querySelectorAll('.setup-progress span').forEach((el,i)=>el.classList.toggle('on',i<=step));$('setupBack').style.visibility=step===0?'hidden':'visible';$('setupNext').textContent=step===4?(edit?'Guardar cambios':'Crear mi app'):'Siguiente';
@@ -131,7 +139,7 @@ function save(){
     Data.configurarOnboarding({displayName:$('setupName').value,useCases,transportMode:$('setupTransport').value,vehicleName:$('setupVehicleName').value,openingBalance:edit?undefined:$('setupBalance').value,sources});
     for(const draft of sources){
       const real=(draft.id&&Data.fuenteById(draft.id))||[...Data.getState().workSources].reverse().find(s=>s.name.toLowerCase()===draft.name.toLowerCase()&&s.kind===draft.kind);if(!real)continue;
-      updateSourceLife(real.id,{status:draft.status||'active',transportMode:draft.transport?.mode||$('setupTransport').value,outboundRides:draft.transport?.public?.outboundRides||0,returnRides:draft.transport?.public?.returnRides||0,fare:draft.transport?.public?.fare||0,daysPerWeek:draft.transport?.public?.daysPerWeek||5});
+      updateSourceLife(real.id,{status:draft.status||'active',transportMode:draft.transport?.mode||$('setupTransport').value,outboundRides:draft.transport?.public?.outboundRides||0,returnRides:draft.transport?.public?.returnRides||0,fare:draft.transport?.public?.fare||0,daysPerWeek:draft.transport?.public?.daysPerWeek??5});
       real.trackDistance=draft.trackDistance;real.fuelPayer=draft.fuelPayer;Data.saveData();
     }
     configureLivingSetup({housing:$('setupHousing').value,housingDay:$('setupHousingDay').value,services:$('setupServices').value,servicesDay:$('setupServicesDay').value,groceries:$('setupGroceries').value,health:$('setupHealth').value,leisure:$('setupLeisure').value,other:$('setupOtherLiving').value});
@@ -144,7 +152,10 @@ $('btnAddSource').onclick=addSource;$('setupTransport').onchange=()=>{for(const 
 $('setupBack').onclick=()=>{if(step>0){step--;showStep();}};
 $('setupNext').onclick=()=>{if(!validateStep())return;if(step<4){if(step===0)ensureDrafts();step++;showStep();}else save();};
 $('btnStartFresh')?.addEventListener('click',showSetup);
+$('btnInstallApp')?.addEventListener('click',async()=>{const installed=await promptInstall();if(!installed)alert(installationHelp());});
 document.addEventListener('budget:remote-applied',finishRestore);
 document.addEventListener('budget:sync-complete',finishRestore);
 
-if(edit)showSetup();else{$('authGate')?.classList.remove('hidden');$('setupFlow')?.classList.add('hidden');initSync();}
+if(edit)showSetup();
+else if(Data.getState().profile?.onboarded)location.replace('index.html');
+else{$('authGate')?.classList.remove('hidden');$('setupFlow')?.classList.add('hidden');initSync();}

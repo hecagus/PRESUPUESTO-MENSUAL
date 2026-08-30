@@ -20,6 +20,12 @@
       <h1 class="auth-title">Primero, recupera lo tuyo</h1>
       <p class="muted">Si ya usabas la app en otro teléfono o navegador, inicia sesión antes de configurar nada. Recuperaremos tu progreso guardado en la nube y evitarás empezar desde cero.</p>
       <section id="syncCard" class="card" style="border-left:5px solid #2563eb"><h2>☁️ Iniciar sesión / recuperar progreso</h2><div id="syncPanel"><p class="muted">Comprobando sesión…</p></div></section>
+      <section id="appInstallCard" class="card hidden" style="border-left:5px solid #7c3aed">
+        <h2>📱 Instalar aplicación</h2>
+        <p class="muted" style="margin-bottom:8px">Puedes instalar La app del HecAgus antes o después de configurarla. Tu progreso seguirá siendo el mismo.</p>
+        <p id="installStatus" class="muted" style="margin-bottom:12px">Comprobando instalación…</p>
+        <button id="btnInstallApp" class="btn btn-primary" type="button">Instalar app</button>
+      </section>
       <div class="auth-separator">o</div>
       <button id="btnStartFresh" class="btn btn-outline" type="button">Soy nuevo · configurar desde cero</button>
       <p class="muted" style="text-align:center;margin-top:10px">Si no tienes respaldo previo, después de iniciar sesión continuaremos con la configuración nueva.</p>
@@ -76,7 +82,7 @@
           <label>Salud al mes</label><input id="setupHealth" class="input-control" type="number" min="0" step="0.01" placeholder="0">
           <label>Ocio / salidas al mes</label><input id="setupLeisure" class="input-control" type="number" min="0" step="0.01" placeholder="0">
           <label>Otros gastos variables al mes</label><input id="setupOtherLiving" class="input-control" type="number" min="0" step="0.01" placeholder="0">
-          <small class="muted">Puedes dejar cualquier campo en cero y ajustarlo después.</small>
+          <small class="muted">Puedes dejar cualquier campo en cero y ajustarlo después desde 🏠 Hogar.</small>
         </div>
       </section>
 
