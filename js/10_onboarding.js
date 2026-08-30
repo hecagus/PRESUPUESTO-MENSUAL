@@ -1,10 +1,11 @@
-/* v2.6.2 - Onboarding adaptativo y situación editable. */
+/* v2.6.2 - Acceso primero, onboarding adaptativo y situación editable. */
 import { SOURCE_KINDS, COMPENSATIONS, TRANSPORT_MODES, fmtMoney } from './01_consts_utils.js';
 import * as Data from './02_data.js';
+import { initSync, notifyLocalChange } from './07_sync.js';
 import { ensureFinancialLife, updateSourceLife, configureLivingSetup } from './13_financial_life.js';
 
 Data.loadData();ensureFinancialLife();
-const state=Data.getState(),edit=new URLSearchParams(location.search).get('edit')==='1';
+const edit=new URLSearchParams(location.search).get('edit')==='1';
 let step=0,sourceDrafts=[];
 const $=id=>document.getElementById(id);
 const selectedUseCases=()=>[...document.querySelectorAll('input[name="useCase"]:checked')].map(x=>x.value);
@@ -18,7 +19,9 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const statusLabel=s=>s==='ended'?'Finalizada':s==='paused'?'Pausada':'Activa';
 
 function seedFromState(){
+  const state=Data.getState();
   $('setupName').value=state.profile.displayName||'';$('setupTransport').value=state.profile.transportMode||'none';
+  document.querySelectorAll('input[name="useCase"]').forEach(x=>{x.checked=false;});
   for(const use of state.profile.useCases||[])document.querySelector(`input[name="useCase"][value="${use}"]`)?.click();
   sourceDrafts=(state.workSources||[]).map(s=>({
     ...s,status:s.status||((s.active===false)?(s.endedAt?'ended':'paused'):'active'),
@@ -30,6 +33,15 @@ function seedFromState(){
   $('setupServices').value=services?.active===false?'':services?.amount||'';$('setupServicesDay').value=services?.dueDay||10;
   $('setupGroceries').value=living.groceries||'';$('setupHealth').value=living.health||'';$('setupLeisure').value=living.leisure||'';$('setupOtherLiving').value=living.other||'';
   if(edit){$('setupHeading').textContent='Mi situación cambió';$('setupBalance').disabled=true;$('setupBalance').placeholder='El saldo inicial ya está definido';}
+}
+
+function showSetup(){
+  $('authGate')?.classList.add('hidden');$('setupFlow')?.classList.remove('hidden');
+  seedFromState();showStep();
+}
+function finishRestore(){
+  if(Data.getState().profile?.onboarded){location.replace('index.html');return;}
+  showSetup();
 }
 
 function ensureDrafts(){
@@ -123,6 +135,7 @@ function save(){
       real.trackDistance=draft.trackDistance;real.fuelPayer=draft.fuelPayer;Data.saveData();
     }
     configureLivingSetup({housing:$('setupHousing').value,housingDay:$('setupHousingDay').value,services:$('setupServices').value,servicesDay:$('setupServicesDay').value,groceries:$('setupGroceries').value,health:$('setupHealth').value,leisure:$('setupLeisure').value,other:$('setupOtherLiving').value});
+    notifyLocalChange();
     location.replace('index.html');
   }catch(e){console.error(e);alert(e.message==='NOMBRE_INVALIDO'?'Revisa los nombres de tus fuentes.':`No se pudo guardar la configuración.${e?.message?` (${e.message})`:''}`);}
 }
@@ -130,4 +143,8 @@ function save(){
 $('btnAddSource').onclick=addSource;$('setupTransport').onchange=()=>{for(const s of sourceDrafts){if(!s.transport?.mode||s.transport.mode==='none')s.transport={...(s.transport||{}),mode:$('setupTransport').value};}renderTransportConfig();};
 $('setupBack').onclick=()=>{if(step>0){step--;showStep();}};
 $('setupNext').onclick=()=>{if(!validateStep())return;if(step<4){if(step===0)ensureDrafts();step++;showStep();}else save();};
-seedFromState();showStep();
+$('btnStartFresh')?.addEventListener('click',showSetup);
+document.addEventListener('budget:remote-applied',finishRestore);
+document.addEventListener('budget:sync-complete',finishRestore);
+
+if(edit)showSetup();else{$('authGate')?.classList.remove('hidden');$('setupFlow')?.classList.add('hidden');initSync();}
