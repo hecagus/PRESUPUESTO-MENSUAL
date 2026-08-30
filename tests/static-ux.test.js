@@ -11,6 +11,16 @@ test('panel ofrece login e instalación a usuarios nuevos hasta completar setup'
   assert.match(init,/initGlobalEvents/);assert.match(init,/promptInstall/);
 });
 
+test('usuarios sin datos locales ven acceso y recuperación antes del onboarding',async()=>{
+  const html=await read('onboarding.html'),js=await read('js/10_onboarding.js'),sync=await read('js/07_sync.js');
+  assert.match(html,/id="authGate"/);assert.match(html,/recupera lo tuyo/i);
+  assert.match(html,/id="syncCard"/);assert.match(html,/id="btnStartFresh"/);
+  assert.match(html,/id="setupFlow" class="hidden"/);
+  assert.match(js,/initSync\(\)/);assert.match(js,/budget:remote-applied/);assert.match(js,/budget:sync-complete/);
+  assert.match(js,/profile\?\.onboarded/);assert.match(js,/notifyLocalChange\(\)/);
+  assert.match(sync,/budget:sync-complete/);assert.match(sync,/emitSyncComplete\('pull'\)/);assert.match(sync,/emitSyncComplete\('push'\)/);
+});
+
 test('onboarding permite cambiar situación y configurar transporte público',async()=>{
   const html=await read('onboarding.html'),js=await read('js/10_onboarding.js');
   assert.match(html,/¿Cómo llegas a trabajar\?/);assert.match(html,/¿Cuánto cuesta vivir\?/);
