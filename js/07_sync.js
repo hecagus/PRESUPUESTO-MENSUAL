@@ -13,7 +13,14 @@ let meta=typeof localStorage!=='undefined'?loadMeta():{baseRevision:0,dirty:fals
 const clone=v=>JSON.parse(JSON.stringify(v));
 const stateHash=()=>JSON.stringify(Data.getState());
 const emitSyncComplete=kind=>document.dispatchEvent(new CustomEvent('budget:sync-complete',{detail:{kind,userId:currentUser?.uid||null}}));
-const hasMeaningfulLocalData=()=>{const s=Data.getState();return ['turnos','movimientos','cargasCombustible','fondosCombustibleEmpresa','deudas','gastosFijosMensuales','ingresosFijos','workSources','accounts','savingsGoals','automationRules','ruleApplications'].some(k=>Array.isArray(s?.[k])&&s[k].length>0)||Boolean(s?.financialPlan)||Boolean(s?.profile?.onboarded)||Boolean(s?.parametros?.saldoInicialConfigurado)||Boolean(s?.parametros?.kmInicialConfigurado);};
+const hasMeaningfulLocalData=()=>{
+  const s=Data.getState(),plan=s?.financialPlan||{},business=s?.business||{};
+  const activity=['turnos','movimientos','cargasCombustible','fondosCombustibleEmpresa','deudas','gastosFijosMensuales','ingresosFijos','workSources','savingsGoals','automationRules','ruleApplications'].some(k=>Array.isArray(s?.[k])&&s[k].length>0);
+  const customAccounts=(s?.accounts||[]).some(a=>a?.id!=='acct-personal');
+  const planned=(plan.commitments||[]).length>0||Object.values(plan.livingBudgets||{}).some(v=>Number(v)>0)||Number(plan.minCashBuffer||0)>0;
+  const businessData=['ingredients','products','sales'].some(k=>Array.isArray(business?.[k])&&business[k].length>0);
+  return activity||customAccounts||planned||businessData||Boolean(s?.profile?.onboarded)||Boolean(s?.parametros?.saldoInicialConfigurado)||Boolean(s?.parametros?.kmInicialConfigurado);
+};
 const collectionMerge=(local=[],remote=[])=>{const map=new Map();for(const item of remote||[])if(item?.id)map.set(item.id,clone(item));for(const item of local||[])if(item?.id)map.set(item.id,clone(item));return [...map.values()];};
 function mergeStates(local,remote){
   const merged={...clone(remote||{}),...clone(local||{})};
