@@ -53,8 +53,8 @@ export function ensureHousehold(){
   if(Number(plan.householdModelVersion||0)<1){
     const commitments=Array.isArray(plan.commitments)?plan.commitments:[];
     const housing=commitments.find(c=>c.id==='life-housing'),services=commitments.find(c=>c.id==='life-services');
-    if(housing?.active!==false&&safeFloat(housing.amount)>0)addMigrated(plan,{id:'home-housing',name:housing.name||'Renta / vivienda',category:'Vivienda',amount:housing.amount,frequency:'monthly',priority:'obligatory',dueDay:housing.dueDay||1});
-    if(services?.active!==false&&safeFloat(services.amount)>0)addMigrated(plan,{id:'home-services',name:services.name||'Servicios del hogar',category:'Servicios',amount:services.amount,frequency:'monthly',priority:'obligatory',dueDay:services.dueDay||10});
+    if(housing&&housing.active!==false&&safeFloat(housing.amount)>0)addMigrated(plan,{id:'home-housing',name:housing.name||'Renta / vivienda',category:'Vivienda',amount:housing.amount,frequency:'monthly',priority:'obligatory',dueDay:housing.dueDay||1});
+    if(services&&services.active!==false&&safeFloat(services.amount)>0)addMigrated(plan,{id:'home-services',name:services.name||'Servicios del hogar',category:'Servicios',amount:services.amount,frequency:'monthly',priority:'obligatory',dueDay:services.dueDay||10});
     if(housing)housing.active=false;if(services)services.active=false;
     const living=plan.livingBudgets||{};
     const seeds=[['groceries','home-groceries','Despensa / comida','Alimentación'],['health','home-health','Salud','Salud'],['leisure','home-leisure','Ocio / salidas','Ocio'],['other','home-other','Otros gastos personales','Otros']];
@@ -113,7 +113,7 @@ const paidOccurrence=(state,item,key)=>(state.movimientos||[]).some(m=>m.househo
 
 function monthlyOccurrences(item,start,end,step=1){
   const out=[];for(let cursor=new Date(start.getFullYear(),start.getMonth(),1,9);cursor<=end;cursor.setMonth(cursor.getMonth()+1)){
-    const monthDiff=(cursor.getFullYear()*12+cursor.getMonth())-(new Date(item.nextDueDate||item.createdAt).getFullYear()*12+new Date(item.nextDueDate||item.createdAt).getMonth());
+    const anchor=new Date(item.nextDueDate||item.createdAt),monthDiff=(cursor.getFullYear()*12+cursor.getMonth())-(anchor.getFullYear()*12+anchor.getMonth());
     if(step>1&&((monthDiff%step)+step)%step!==0)continue;
     const day=Math.min(item.dueDay,lastDay(cursor.getFullYear(),cursor.getMonth())),d=new Date(cursor.getFullYear(),cursor.getMonth(),day,9);if(d>=start&&d<=end)out.push(d);
   }return out;
