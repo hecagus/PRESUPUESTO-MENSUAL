@@ -64,3 +64,13 @@ test('nuevo logo es el icono PWA y forma parte del shell offline',async()=>{
   assert.match(manifest,/hecagus-finance-192\.png/);assert.match(manifest,/hecagus-finance-512\.png/);
   assert.match(sw,/hecagus-finance-192\.png/);assert.match(sw,/hecagus-finance-512\.png/);
 });
+
+test('Hogar no manda gastos únicos completados a Pausados y usa calendario único',async()=>{
+  const ui=await read('js/22_home_ui.js');
+  assert.match(ui,/isCompletedOneTime/);
+  assert.match(ui,/active===false&&!isCompletedOneTime/);
+  assert.match(ui,/key:'nextDueDate',type:'date'/);
+  assert.match(ui,/schedulePayload/);
+  assert.match(ui,/d\.dueDay=parsed\.getDate\(\)/);
+  assert.doesNotMatch(ui,/Día de pago \(1-31\)/);
+});
