@@ -50,11 +50,12 @@ test('Hogar es pestaña principal y alimenta el motor financiero',async()=>{
   assert.match(sw,/23_home_semantics\.js/);assert.match(sw,/24_home_ui_v28\.js/);
 });
 
-test('saldo inicial se oculta después de declararlo y deuda permite pago único',async()=>{
-  const init=await read('js/05_init.js');
-  assert.match(init,/btnConfigSaldo/);
-  assert.match(init,/saldoInicialConfigurado/);
-  assert.match(init,/classList\.toggle\('hidden'/);
+test('saldo inicial no se repite en Actividad y deuda permite pago único',async()=>{
+  const admin=await read('admin.html'),onboarding=await read('js/10_onboarding.js'),init=await read('js/05_init.js');
+  assert.doesNotMatch(admin,/Declarar saldo inicial/);
+  assert.doesNotMatch(admin,/id="valSaldoAdmin"/);
+  assert.match(onboarding,/setupBalance/);
+  assert.match(onboarding,/edit\?undefined:\$\('setupBalance'\)\.value/);
   assert.match(init,/Una sola vez/);
 });
 
