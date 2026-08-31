@@ -1,5 +1,5 @@
-/* v2.7.3 - Constantes, capacidades y utilidades puras. */
-export const APP_VERSION = '2.7.3';
+/* v2.8.0 - Constantes, capacidades y utilidades puras. */
+export const APP_VERSION = '2.8.0';
 export const STORAGE_KEY = 'moto_finanzas_vFinal';
 export const LEGACY_KEYS = ['moto_finanzas_v3', 'moto_finanzas', 'app_moto_data'];
 export const SCHEMA_VERSION = 26;
