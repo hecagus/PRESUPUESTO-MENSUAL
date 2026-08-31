@@ -1,243 +1,126 @@
-# La app del HecAgus · v2.6.0
+# La app del HecAgus · v3.0.0
 
-**La app del HecAgus** es un motor financiero configurable que adapta su experiencia a cómo cada usuario vive, trabaja, cobra, se transporta, gasta y ahorra.
-
-La aplicación es **offline-first**, instalable como **PWA**, utiliza `localStorage` como primera capa de persistencia y puede sincronizar el estado por usuario con **Firebase Auth + Firestore**.
+**La app del HecAgus** es un sistema financiero personal configurable, offline-first y sincronizable. Modela dinero, hogar, trabajo, cuentas, fondos de terceros, deudas, metas y negocio sin depender de nombres concretos de empresas o plataformas.
 
 ## Principio del producto
-
-La app no debe depender de nombres concretos de empresas, plataformas o personas. El motor trabaja con conceptos universales:
-
-- fuentes de ingreso y su ciclo de vida;
-- modelos de pago y jornadas;
-- cuentas y fondos de terceros;
-- movimientos y transferencias;
-- transporte y costo de trabajar;
-- gastos de vida y compromisos;
-- calendario financiero;
-- deudas y metas;
-- negocio, productos, ingredientes y recetas;
-- proyección, automatizaciones y salud financiera.
-
-El flujo conceptual es:
 
 ```text
 Quién eres
 → cómo generas dinero
 → cuánto cuesta generarlo
-→ cómo vives
-→ qué compromisos tienes
-→ qué quieres lograr
+→ cuánto cuesta vivir
+→ qué ya está comprometido o reservado
 → cuánto dinero está realmente libre
 ```
 
-## v2.2 · Situación financiera y calendario
+## v3.0 · Auditoría y núcleo canónico
 
-El onboarding es editable y cada fuente de ingreso puede estar **activa, pausada o finalizada** sin borrar su historial. El transporte se configura por fuente; para transporte público se registran trayectos de ida/regreso, tarifa y días de uso.
+v3 elimina varias capas duplicadas acumuladas durante v2.x sin borrar la información histórica.
 
-El Panel separa:
+### Una fuente de verdad por dominio
+
+- **Panel**: situación general, dinero realmente libre, calendario resumido y alertas.
+- **Hogar**: obligaciones, presupuestos necesarios, reservas concretas, opcionales y gastos realizados.
+- **Wallet**: cuentas, transferencias y metas de ahorro.
+- **Actividad**: jornadas, pagos laborales, costos operativos, combustible y rendimiento.
+- **Historial**: única línea de tiempo de dinero, actividades, fondos de tercero y combustible.
+- **Calendario**: vista/proyección de eventos; ya no crea una segunda copia de los gastos de Hogar.
+
+### Dinero realmente libre
+
+El cálculo canónico es:
 
 ```text
-Dinero que tienes
-- dinero comprometido
-- dinero reservado para metas
+efectivo personal
+- metas reservadas
+- pagos/deudas próximos
+- presupuesto necesario aún no gastado
+- reservas concretas pendientes
+- transporte laboral comprometido
 = dinero realmente libre
 ```
 
-El **Calendario financiero** reúne compromisos recurrentes, deudas, ingresos esperados y fechas objetivo de metas.
+Los antiguos `livingBudgets`, compromisos de vivienda/servicios y gastos fijos legacy se conservan sólo para migración/compatibilidad; no pueden volver a contarse como un segundo motor financiero.
 
-## v2.3 · Cuentas y movimientos universales
+### Hogar
 
-Wallet ya no trata todo el patrimonio como una sola caja. El usuario puede crear cuentas personales como:
+Hogar diferencia semánticamente:
 
-- efectivo/caja;
-- cuenta bancaria;
-- wallet digital.
+- 🔴 **Obligación**: renta, luz, agua o cualquier pago que debe ocurrir.
+- 🟡 **Presupuesto necesario**: dinero que sabes que necesitarás, aunque las compras exactas varíen.
+- 🟠 **Reserva / necesidad**: compra concreta pendiente.
+- 🔵 **Opcional**: suscripción o gusto que no compromete dinero hasta pagarse.
+- 💸 **Gasto realizado**: salida real que queda en Historial sin crear un presupuesto futuro.
 
-Los fondos de empresa o cliente siguen siendo cuentas de tercero y no forman parte del patrimonio personal.
+La migración v3 mueve compromisos manuales antiguos hacia Hogar y desactiva la copia anterior. También incluye una reparación conservadora de dobles capturas directas idénticas: mismo concepto, monto y fecha, registradas dentro de una ventana de cinco minutos.
 
-Una transferencia entre cuentas personales cambia **dónde está el dinero**, no cuánto dinero existe:
+### PWA
 
-```text
-Caja       -$2,000
-BBVA       +$2,000
-Patrimonio      $0 de cambio
-```
+La instalación fue reconstruida para no depender de que el motor completo termine de arrancar:
 
-El motor universal permite registrar ingresos y gastos indicando cuenta, categoría y, opcionalmente, fuente de ingreso. El Historial distingue transferencias internas de ingresos/gastos reales.
+- `pwa-bootstrap.js` se ejecuta desde `<head>`;
+- registra el service worker con scope raíz;
+- captura `beforeinstallprompt` lo antes posible;
+- el botón **Instalar app** sólo aparece cuando el navegador entrega un prompt real;
+- el service worker precarga el shell con `Promise.allSettled`, de modo que un recurso fallido no aborta toda la instalación;
+- Vercel entrega `sw.js` y `manifest.webmanifest` con headers explícitos para evitar caches obsoletos.
 
-## v2.4 · Proyección de flujo
+El navegador conserva la decisión final sobre cuándo permite mostrar su diálogo nativo.
 
-El calendario pasa de mostrar solamente fechas a estimar **cómo estará el dinero**.
-
-La proyección a 45 días combina:
-
-- efectivo actual;
-- compromisos/deudas próximos;
-- ingresos fijos esperados;
-- historial de pagos reales para estimar importes;
-- dinero reservado en metas;
-- presupuesto variable pendiente;
-- costo de transporte laboral pendiente.
-
-La app calcula efectivo y **dinero libre proyectado** después de cada evento y detecta tanto un saldo negativo como el momento en que sería necesario tocar dinero reservado.
-
-## v2.5 · Automatizaciones y alertas
-
-Se pueden crear reglas como:
+## Arquitectura
 
 ```text
-Cuando entre un ingreso
-→ apartar 10%
-→ Meta Fondo de emergencia
-```
-
-La regla puede aplicarse a cualquier ingreso o solamente a una fuente concreta. Cada movimiento se procesa una sola vez.
-
-Las automatizaciones nunca deben reservar más dinero que el **realmente libre**.
-
-Las alertas detectan, entre otros casos:
-
-- dinero libre negativo;
-- colchón por debajo del mínimo elegido;
-- faltante futuro según la proyección;
-- riesgo de tocar reservas;
-- presupuesto mensual al 80% o agotado;
-- pagos de los próximos días mayores al dinero libre.
-
-## v2.6 · Metas inteligentes y salud financiera
-
-Las metas siguen siendo reservas internas: apartar dinero no crea un gasto ficticio y liberarlo no crea un ingreso ficticio.
-
-La app calcula para cada meta:
-
-- monto y fecha objetivo;
-- ritmo mensual necesario;
-- capacidad observada según ingresos/gastos reales;
-- cuánto podría apartarse ahora sin comprometer la vida cotidiana;
-- fuentes que realmente generaron dinero;
-- fecha estimada de cumplimiento al ritmo observado;
-- estado: completada, en ruta, ajustada o sin capacidad detectada.
-
-Una meta no puede congelar dinero que ya está comprometido en vivienda, despensa, salud, transporte u otros compromisos.
-
-### Salud financiera explicable
-
-Stats incluye una puntuación de 0 a 100, pero no es una caja negra. Se compone de cuatro bloques de hasta 25 puntos:
-
-1. **Liquidez** — cuánto efectivo queda realmente libre.
-2. **Carga fija** — relación entre compromisos esenciales e ingreso observado.
-3. **Ahorro** — ritmo de reservas frente al ingreso.
-4. **Deuda** — peso aproximado de las cuotas sobre el ingreso.
-
-Cada componente muestra el dato que provocó su puntuación.
-
-## Negocio y costeo
-
-Cuando el usuario activa una fuente `business`, la app habilita:
-
-- ingredientes;
-- costo por unidad;
-- productos;
-- recetas;
-- costo calculado;
-- precio de venta;
-- registro de ventas;
-- margen estimado.
-
-Cambiar el costo de un ingrediente recalcula automáticamente el costo de las recetas que lo utilizan.
-
-> El inventario físico/stock completo sigue siendo una expansión posterior; la capacidad existe, pero v2.6 se concentra en el núcleo financiero y el costeo.
-
-## Pantallas
-
-```text
-onboarding.html  → configuración inicial y “mi situación cambió”
-index.html       → dinero realmente libre, fuentes, alertas y proyección
-wallet.html      → cuentas, transferencias, movimientos y metas
-admin.html       → actividad, jornadas, pagos, combustible y operación
-calendar.html    → calendario, flujo proyectado, compromisos y automatizaciones
-stats.html       → estadísticas por fuente + salud financiera
-historial.html   → trazabilidad universal
-```
-
-## Arquitectura JS
-
-```text
-01_consts_utils.js       constantes y utilidades
-02_data.js               núcleo de datos y compatibilidad histórica
+01_consts_utils.js       versión, constantes y utilidades
+02_data.js               persistencia, migración base y operaciones de dominio
 03_render.js             render base
-04_charts.js             métricas por fuente
-05_init.js               orquestación general
-07_sync.js               Firebase/offline-first/conflictos
-08_pwa.js                instalación PWA
-10_onboarding.js         configuración adaptativa
-11_savings_goals.js      metas y dinero reservado
-12_savings_ui.js         UI de metas
-13_financial_life.js     costo de vida, transporte y calendario
-14_calendar_ui.js        UI del calendario
-15_accounts_engine.js    cuentas, transferencias y movimientos
+04_charts.js             métricas de fuentes, combustible y operación
+05_init.js               orquestador general
+07_sync.js               Firebase y resolución de conflictos
+08_pwa.js                estado/instalación PWA
+10_onboarding.js         configuración y recuperación inicial
+11–12                    metas de ahorro
+13_financial_life.js     compatibilidad financiera histórica
+14_calendar_ui.js        presentación del calendario
+15_accounts_engine.js    cuentas y transferencias
 16_forecast_engine.js    proyección de flujo
 17_automation_engine.js  reglas y alertas
-18_health_goals.js       salud financiera y plan de metas
-19_platform_ui.js        integración visual v2.3–v2.6
+18_health_goals.js       salud financiera y metas inteligentes
+19_platform_ui.js        integración visual avanzada
+20_home_engine.js        motor base de Hogar
+21_financial_life_v27.js núcleo financiero canónico v3
+22_home_ui.js            entrada estable de UI Hogar
+23_home_semantics.js     semántica, migración y reparación de Hogar
+24_home_ui_v28.js        UI actual de Hogar
+25_activity_insights.js  rendimiento de actividad/combustible
+pwa-bootstrap.js         arranque PWA temprano
 ```
 
-La separación busca evitar que arreglar un módulo rompa otro: cada motor se ocupa de un dominio y `05_init.js` los coordina.
+## Persistencia y sincronización
 
-## Persistencia y migración
-
-Se conserva la clave histórica:
+Se mantiene la clave local histórica para no perder instalaciones existentes:
 
 ```text
 moto_finanzas_vFinal
 ```
 
-v2.6 usa:
+v3 utiliza `schemaVersion: 30` y migra datos v1/v2 en lugar de reiniciarlos.
 
-```text
-schemaVersion: 26
-```
-
-Los datos v1.x/v2.x se cargan conservando movimientos y jornadas históricas. Las estructuras nuevas se inicializan de forma compatible cuando no existen.
-
-## Firebase
-
-La sincronización remota vive en:
+Firebase sincroniza el estado por usuario en:
 
 ```text
 /users/{uid}/budget/state
 ```
 
-El estado sincronizado incluye perfil, fuentes, cuentas, activos, movimientos, metas, plan financiero, reglas de automatización y aplicaciones de reglas. La app mantiene resolución explícita de conflictos entre estado local y nube.
+Los conflictos pueden usar nube, conservar local o fusionar. La fusión v3 preserva también la semántica de Hogar (`householdKinds`) además de sus registros.
 
-Las reglas de Firestore deben permitir únicamente al usuario autenticado acceder a su propio árbol `/users/{uid}`.
-
-## PWA y pruebas
-
-El service worker usa un shell versionado y cachea también los módulos financieros v2.3–v2.6 para conservar operación offline.
-
-Las pruebas de dominio se ejecutan con:
+## Desarrollo y pruebas
 
 ```bash
 npm test
 ```
 
-La suite cubre, entre otros escenarios:
+La suite cubre dominio financiero, onboarding, cuentas, metas, calendario, Hogar, deuda única, PWA, costos operativos, rendimiento de combustible y regresiones de v3 como doble conteo, migración de compromisos y reparación de duplicados.
 
-- migración y fuentes configurables;
-- jornadas y combustible;
-- metas y retiros;
-- calendario/costo de vida/transporte;
-- transferencias sin alterar patrimonio;
-- movimientos por cuenta;
-- proyección de flujo;
-- automatizaciones sin duplicados;
-- alertas;
-- protección del dinero comprometido;
-- salud financiera y metas inteligentes;
-- sintaxis de los módulos de navegador.
+## Regla de arquitectura
 
-## Próximas expansiones posibles
-
-v2.6 deja una base para crecer hacia importación bancaria/CSV, inventario físico, comprobantes, categorías automáticas, espacios de hogar/negocio compartidos y, más adelante, una arquitectura multiusuario tipo SaaS.
+> Un dato se captura una sola vez. Las demás pantallas lo interpretan; no crean una segunda copia del mismo concepto.
