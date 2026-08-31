@@ -1,8 +1,8 @@
-/* v2.7.1 - Salud financiera explicable y planeación inteligente de metas. */
+/* v3.0.0 - Salud financiera explicable y planeación inteligente sobre el núcleo canónico. */
 import { safeFloat } from './01_consts_utils.js';
 import { getState } from './02_data.js';
 import { financialPosition, publicTransportMonthlyCost } from './21_financial_life_v27.js';
-import { householdSummary } from './20_home_engine.js';
+import { householdSummary } from './23_home_semantics.js';
 import { savingsGoalSummary } from './11_savings_goals.js';
 import { cashFlowForecast } from './16_forecast_engine.js';
 
@@ -17,24 +17,13 @@ function recentTotals(now=new Date()){
   const expense90=movements.filter(m=>m.tipo==='gasto').reduce((a,m)=>a+safeFloat(m.monto),0);
   return {monthlyIncome:income90*monthlyFactor,monthlyExpense:expense90*monthlyFactor};
 }
-
-function monthlyDebtLoad(state){
-  return (state.deudas||[]).filter(d=>safeFloat(d.saldo)>0).reduce((sum,d)=>{
-    const quota=safeFloat(d.montoCuota),f=String(d.frecuencia||'Mensual').toLowerCase();
-    if(f.includes('seman'))return sum+quota*52/12;
-    if(f.includes('quinc'))return sum+quota*2;
-    if(f.includes('diar'))return sum+quota*30;
-    return sum+quota;
-  },0);
-}
-
+function monthlyDebtLoad(state){return (state.deudas||[]).filter(d=>safeFloat(d.saldo)>0).reduce((sum,d)=>{const quota=safeFloat(d.montoCuota),f=String(d.frecuencia||'Mensual').toLowerCase();if(f.includes('seman'))return sum+quota*52/12;if(f.includes('quinc'))return sum+quota*2;if(f.includes('diar'))return sum+quota*30;return sum+quota;},0);}
 function essentialMonthly(state,now=new Date()){
   const commitments=(state.financialPlan?.commitments||[]).filter(c=>c.active!==false).reduce((a,c)=>a+safeFloat(c.amount),0);
   const home=householdSummary(now),living=home.mandatory+home.budgeted;
   const transport=(state.workSources||[]).filter(s=>s.active!==false&&s.status!=='ended'&&s.status!=='paused').reduce((a,s)=>a+publicTransportMonthlyCost(s),0);
   return commitments+living+transport;
 }
-
 function recentSavings(now=new Date()){
   const state=getState(),cutoff=new Date(now.getTime()-90*DAY);
   const total=(state.savingsGoals||[]).flatMap(g=>g.history||[]).filter(h=>h.type==='reserve'&&new Date(h.fecha)>=cutoff).reduce((a,h)=>a+safeFloat(h.amount),0);
@@ -59,14 +48,10 @@ export function financialHealth(now=new Date()){
 
 function sourceIncome30(now=new Date()){
   const state=getState(),cutoff=new Date(now.getTime()-30*DAY);
-  return (state.workSources||[]).filter(s=>s.active!==false&&s.status!=='ended'&&s.status!=='paused').map(source=>({
-    id:source.id,name:source.name,income:(state.movimientos||[]).filter(m=>m.tipo==='ingreso'&&m.categoria!=='Sistema'&&m.affectsPersonal!==false&&m.sourceId===source.id&&new Date(m.fecha)>=cutoff).reduce((a,m)=>a+safeFloat(m.monto),0)
-  })).sort((a,b)=>b.income-a.income);
+  return (state.workSources||[]).filter(s=>s.active!==false&&s.status!=='ended'&&s.status!=='paused').map(source=>({id:source.id,name:source.name,income:(state.movimientos||[]).filter(m=>m.tipo==='ingreso'&&m.categoria!=='Sistema'&&m.affectsPersonal!==false&&m.sourceId===source.id&&new Date(m.fecha)>=cutoff).reduce((a,m)=>a+safeFloat(m.monto),0)})).sort((a,b)=>b.income-a.income);
 }
-
 export function smartGoalPlan(goalId,now=new Date()){
-  const state=getState(),summary=savingsGoalSummary(goalId,now);if(!summary)return null;
-  const health=financialHealth(now),position=health.position,remaining=summary.remaining;
+  const state=getState(),summary=savingsGoalSummary(goalId,now);if(!summary)return null;const health=financialHealth(now),position=health.position,remaining=summary.remaining;
   if(summary.complete)return {goal:summary.goal,status:'complete',summary,requiredMonthly:0,availableMonthly:Math.max(0,health.monthlyIncome-health.monthlyExpense),suggestedNow:0,estimatedCompletionDate:summary.goal.completedAt||now.toISOString(),sourcePlan:[]};
   const observedNet=Math.max(0,health.monthlyIncome-Math.max(health.monthlyExpense,health.essentialMonthly)),availableMonthly=observedNet,suggestedNow=Math.min(remaining,Math.max(0,position.free),summary.requiredMonthly||remaining);
   let status='blocked';if(availableMonthly>=summary.requiredMonthly&&summary.requiredMonthly>0)status='on_track';else if(availableMonthly>0||suggestedNow>0)status='at_risk';
@@ -74,7 +59,6 @@ export function smartGoalPlan(goalId,now=new Date()){
   let pending=suggestedNow;const sourcePlan=sourceIncome30(now).map(s=>{const take=Math.min(s.income,pending);pending=Math.max(0,pending-take);return {...s,suggested:take};});
   return {goal:summary.goal,status,summary,requiredMonthly:summary.requiredMonthly,availableMonthly,suggestedNow,estimatedCompletionDate,sourcePlan,forecast:cashFlowForecast({days:45,now})};
 }
-
 export function goalPortfolioPlan(now=new Date()){
   const state=getState(),rank={high:0,normal:1,low:2};
   return (state.savingsGoals||[]).filter(g=>g.active!==false).map(g=>smartGoalPlan(g.id,now)).filter(Boolean).sort((a,b)=>(rank[a.goal.priority]??1)-(rank[b.goal.priority]??1));
