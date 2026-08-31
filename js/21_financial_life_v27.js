@@ -1,8 +1,8 @@
-/* v2.7.1 - Adaptador financiero que integra Hogar con el motor v2.x. */
+/* v2.8.0 - Adaptador financiero que integra Hogar con el motor v2.x. */
 import * as Base from './13_financial_life.js';
 import {
   ensureHousehold,householdUpcomingEvents,householdCommittedRemaining,householdReserveNeed,seedHouseholdFromLivingSetup
-} from './20_home_engine.js';
+} from './23_home_semantics.js';
 
 export const setSourceStatus=Base.setSourceStatus;
 export const updateSourceLife=Base.updateSourceLife;
