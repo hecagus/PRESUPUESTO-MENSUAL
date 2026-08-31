@@ -73,10 +73,30 @@ test('obligación sí entra al calendario y al dinero comprometido',()=>{
   assert.equal(Math.round(pos.free),6000);
 });
 
-test('gasto realizado queda en historial sin crear plan activo',()=>{
+test('gasto realizado queda en historial, aparece como reciente y no crea plan activo',()=>{
   const item=Home.recordDirectHouseholdExpense({name:'Despensa',category:'Alimentación',amount:653,date:'2026-08-31'});
   assert.equal(Home.householdById(item.id).kind,'spent');
   assert.equal(Home.householdById(item.id).active,false);
   assert.equal(Home.householdItems({activeOnly:true}).some(x=>x.id===item.id),false);
   assert.equal(Data.getState().movimientos.filter(m=>m.householdExpenseId===item.id).length,1);
+  const recent=Home.recentDirectHouseholdExpenses();
+  assert.equal(recent.length,1);assert.equal(recent[0].item.id,item.id);assert.equal(recent[0].amount,653);
+});
+
+test('doble captura accidental del mismo gasto en pocos minutos se bloquea',()=>{
+  Home.recordDirectHouseholdExpense({name:'Despensa',category:'Alimentación',amount:653,date:'2026-08-31'});
+  assert.throws(()=>Home.recordDirectHouseholdExpense({name:'Despensa',category:'Alimentación',amount:653,date:'2026-08-31'}),/GASTO_HOGAR_DUPLICADO_RECIENTE/);
+  const moves=Data.getState().movimientos.filter(m=>m.desc==='Despensa'&&m.tipo==='gasto');
+  assert.equal(moves.length,1);
+  assert.equal(Math.round(Finance.financialPosition(new Date(2026,7,31,12)).cash),9347);
+});
+
+test('deshacer gasto directo lo quita del historial y devuelve el dinero al saldo',()=>{
+  const item=Home.recordDirectHouseholdExpense({name:'Despensa',category:'Alimentación',amount:653,date:'2026-08-31'});
+  assert.equal(Math.round(Finance.financialPosition(new Date(2026,7,31,12)).cash),9347);
+  assert.equal(Home.undoDirectHouseholdExpense(item.id),true);
+  assert.equal(Data.getState().movimientos.some(m=>m.householdExpenseId===item.id),false);
+  assert.equal(Home.householdById(item.id),null);
+  assert.equal(Home.recentDirectHouseholdExpenses().length,0);
+  assert.equal(Math.round(Finance.financialPosition(new Date(2026,7,31,12)).cash),10000);
 });
