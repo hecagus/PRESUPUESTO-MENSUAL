@@ -1,9 +1,9 @@
-/* v2.9.0 - Orquestación de UI, plataforma financiera, Hogar, PWA, metas y sincronización. */
+/* v3.0.0 - Orquestador único de UI, dominio, PWA y sincronización. */
 import { $, CATEGORIAS_BASE, APP_VERSION, COMPENSATIONS } from './01_consts_utils.js';
 import * as Data from './02_data.js';
-import { Modal, renderIndex, renderWallet, renderHistorial, renderStats, renderAdmin } from './03_render.js';
+import { Modal, renderIndex, renderWallet, renderStats, renderAdmin } from './03_render.js';
 import { initSync, notifyLocalChange } from './07_sync.js';
-import { initPWA, promptInstall, installationHelp } from './08_pwa.js';
+import { initPWA, promptInstall, canPromptInstall } from './08_pwa.js';
 import { ensureSavingsGoals } from './11_savings_goals.js';
 import { renderSavingsGoalsUI, initSavingsGoalEvents } from './12_savings_ui.js';
 import { ensureFinancialLife } from './21_financial_life_v27.js';
@@ -14,7 +14,7 @@ import { ensureFinancialPlatform, renderFinancialPlatform, initFinancialPlatform
 import { renderHome, initHomeEvents } from './22_home_ui.js';
 import { renderActivityInsights } from './25_activity_insights.js';
 
-/* Debe ejecutarse antes de cualquier redirección: beforeinstallprompt es un evento de una sola oportunidad. */
+/* El bootstrap del <head> captura lo más temprano posible; esto enlaza el resto del ciclo PWA. */
 initPWA();
 
 function renderBottomNav(){
@@ -28,10 +28,10 @@ const refresh=()=>{
   if(page==='index'){renderIndex();renderFinancialPositionPanel();renderCalendarPreview();}
   else if(page==='home')renderHome();
   else if(page==='wallet')renderWallet();
-  else if(page==='historial')renderHistorial();
   else if(page==='stats')renderStats();
   else if(page==='admin'){renderAdmin();renderActivityInsights();}
   else if(page==='calendar')renderCalendarPage();
+  /* Historial y extensiones financieras tienen un solo renderer canónico en platform_ui. */
   renderSavingsGoalsUI();renderFinancialPlatform();
 };
 
@@ -89,7 +89,9 @@ function initAdminEvents(){
   $('btnRestoreBackup')?.addEventListener('click',()=>Modal.show('Restaurar respaldo',[{label:'JSON',key:'j'}],d=>{if(!confirm('Esto reemplazará los datos actuales. ¿Continuar?'))return;safe(()=>Data.restaurar(d.j));}));
 }
 
-function initGlobalEvents(){$('btnInstallApp')?.addEventListener('click',async()=>{const installed=await promptInstall();if(!installed){const status=$('installStatus');if(status)status.textContent=installationHelp();}});}
+function initGlobalEvents(){
+  $('btnInstallApp')?.addEventListener('click',async()=>{if(canPromptInstall())await promptInstall();});
+}
 
 function initDelegation(){document.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(!b||b.disabled)return;const action=b.dataset.action,id=b.dataset.id;
   if(action==='ahorro')return Modal.show('Abonar ahorro',[{label:'Monto',key:'m',type:'number'}],d=>safe(()=>Data.abonarAhorro(id,d.m)));
@@ -104,7 +106,6 @@ document.addEventListener('DOMContentLoaded',()=>{
   Data.loadData();ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();
   if(!Data.getState().profile.onboarded){window.location.replace('onboarding.html');return;}
   renderBottomNav();runAutomationEngine();refresh();initDelegation();initGlobalEvents();
-  /* Cada módulo ya emite budget:data-changed; el callback sólo repinta para evitar dobles ciclos de sync. */
   initSavingsGoalEvents(refresh);initFinancialPlatformEvents(refresh);
   if(document.body.dataset.page==='home')initHomeEvents(refresh);
   if(document.body.dataset.page==='admin')initAdminEvents();
