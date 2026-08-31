@@ -1,4 +1,4 @@
-/* v2.8.0 - Semántica de Hogar: obligación, presupuesto, reserva, opcional y gasto real. */
+/* v2.8.1 - Semántica de Hogar: obligación, presupuesto, reserva, opcional y gasto real. */
 import { safeFloat } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import * as Base from './20_home_engine.js';
@@ -14,6 +14,7 @@ export const HOME_FREQUENCIES=Base.HOME_FREQUENCIES;
 export const HOME_CATEGORIES=Base.HOME_CATEGORIES;
 export const HOME_PRIORITIES=Base.HOME_PRIORITIES;
 
+const DUPLICATE_WINDOW_MS=5*60*1000;
 const kindFromPriority=p=>p==='obligatory'?'obligation':p==='budgeted'?'budget':'optional';
 const priorityFromKind=k=>k==='obligation'?'obligatory':k==='budget'?'budgeted':'discretionary';
 const validKind=k=>HOME_KINDS[k]?k:null;
@@ -27,6 +28,8 @@ const itemKind=item=>validKind(semantics()[item.id])||kindFromPriority(item.prio
 const decorate=item=>item?{...item,kind:itemKind(item)}:null;
 const remember=(id,kind)=>{semantics()[id]=validKind(kind)||'budget';Data.saveData();};
 const dayFromDate=value=>{if(!value)return null;const d=new Date(`${String(value).slice(0,10)}T12:00:00`);return Number.isNaN(d.getTime())?null:d.getDate();};
+const sameMoney=(a,b)=>Math.abs(safeFloat(a)-safeFloat(b))<0.005;
+const sameText=(a,b)=>String(a||'').trim().toLocaleLowerCase('es-MX')===String(b||'').trim().toLocaleLowerCase('es-MX');
 
 export function ensureHousehold(){
   const items=Base.ensureHousehold(),map=semantics();let changed=false;
@@ -41,7 +44,7 @@ function configForKind(config={}){
   const kind=validKind(config.kind)||kindFromPriority(config.priority),next={...config,priority:priorityFromKind(kind)};
   if(kind==='reserve'||kind==='spent')next.frequency='one_time';
   if(next.nextDueDate&&next.dueDay===undefined){const day=dayFromDate(next.nextDueDate);if(day)next.dueDay=day;}
-  delete next.kind;return {kind,next};
+  delete next.kind;delete next.allowDuplicate;return {kind,next};
 }
 export function createHouseholdExpense(config={}){
   const {kind,next}=configForKind(config);if(kind==='spent')throw new Error('USA_GASTO_REALIZADO');
@@ -82,11 +85,38 @@ export function householdSummary(now=new Date()){
 }
 
 export function recordHouseholdExpense(id,amount=null,fecha=Date.now()){
-  const kind=householdById(id)?.kind||'optional',item=Base.recordHouseholdExpense(id,amount,fecha);remember(id,kind);return decorate(item);
+  const kind=householdById(id)?.kind||'optional',item=Base.recordHouseholdExpense(id,amount,fecha);remember(id,kind);Data.sanearDatos();return decorate(item);
 }
+
+function recentDirectDuplicate({name,amount,date,now=Date.now()}={}){
+  const map=semantics();return Base.householdItems().some(item=>{
+    if(map[item.id]!=='spent'||!sameText(item.name,name)||!sameMoney(item.amount,amount)||String(item.nextDueDate||'').slice(0,10)!==date)return false;
+    const created=new Date(item.createdAt||0).getTime();return Number.isFinite(created)&&now-created>=0&&now-created<=DUPLICATE_WINDOW_MS;
+  });
+}
+
 export function recordDirectHouseholdExpense(config={}){
-  const date=String(config.date||config.nextDueDate||new Date().toISOString().slice(0,10)).slice(0,10),localDate=`${date}T12:00:00`,item=Base.createHouseholdExpense({...config,frequency:'one_time',priority:'discretionary',nextDueDate:date});
-  remember(item.id,'spent');Base.recordHouseholdExpense(item.id,config.amount,localDate);return householdById(item.id);
+  const date=String(config.date||config.nextDueDate||new Date().toISOString().slice(0,10)).slice(0,10),name=String(config.name||'').trim(),amount=safeFloat(config.amount);
+  if(config.allowDuplicate!==true&&recentDirectDuplicate({name,amount,date}))throw new Error('GASTO_HOGAR_DUPLICADO_RECIENTE');
+  const localDate=`${date}T12:00:00`,item=Base.createHouseholdExpense({...config,frequency:'one_time',priority:'discretionary',nextDueDate:date});
+  remember(item.id,'spent');Base.recordHouseholdExpense(item.id,config.amount,localDate);
+  const movement=[...(Data.getState().movimientos||[])].reverse().find(m=>m.householdExpenseId===item.id);
+  if(movement){movement.movementKind='household_direct';movement.recordedAt=new Date().toISOString();}
+  Data.sanearDatos();return householdById(item.id);
+}
+
+export function recentDirectHouseholdExpenses(limit=8){
+  const state=Data.getState(),map=semantics(),items=new Map(Base.householdItems().map(x=>[x.id,x]));
+  return (state.movimientos||[]).filter(m=>m.tipo==='gasto'&&map[m.householdExpenseId]==='spent').map(m=>({
+    item:decorate(items.get(m.householdExpenseId)),movement:m,amount:safeFloat(m.monto),date:m.fecha,recordedAt:m.recordedAt||items.get(m.householdExpenseId)?.createdAt||m.fecha
+  })).filter(x=>x.item).sort((a,b)=>new Date(b.recordedAt)-new Date(a.recordedAt)).slice(0,Math.max(0,limit));
+}
+
+export function undoDirectHouseholdExpense(id){
+  const state=Data.getState(),map=semantics(),item=Base.householdItems().find(x=>x.id===id);if(!item||map[id]!=='spent')throw new Error('GASTO_HOGAR_NO_ENCONTRADO');
+  const before=(state.movimientos||[]).length;state.movimientos=(state.movimientos||[]).filter(m=>m.householdExpenseId!==id);
+  state.financialPlan.householdExpenses=(state.financialPlan.householdExpenses||[]).filter(x=>x.id!==id);delete map[id];
+  if(before===state.movimientos.length)throw new Error('GASTO_HOGAR_NO_ENCONTRADO');Data.sanearDatos();return true;
 }
 
 export function seedHouseholdFromLivingSetup(values={}){
