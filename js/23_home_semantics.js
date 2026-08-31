@@ -44,7 +44,7 @@ function canonicalFrequency(value){
 function migrateLegacyCommitments(plan,map){
   if(Number(plan.householdCanonicalMigrationVersion||0)>=3)return false;
   plan.householdExpenses=Array.isArray(plan.householdExpenses)?plan.householdExpenses:[];
-  const commitments=Array.isArray(plan.commitments)?plan.commitments:[];let changed=false;
+  const commitments=Array.isArray(plan.commitments)?plan.commitments:[];let changed=true; // el marcador de migración también es un cambio
   for(const c of commitments){
     if(c.active===false||CORE_LEGACY_IDS.has(c.id)||!(safeFloat(c.amount)>0))continue;
     const duplicate=plan.householdExpenses.some(x=>sameText(x.name,c.name)&&sameMoney(x.amount,c.amount));
@@ -56,15 +56,17 @@ function migrateLegacyCommitments(plan,map){
         frequency:canonicalFrequency(c.frequency),priority:'obligatory',dueDay:Number(c.dueDay)||1,
         nextDueDate:null,active:true,createdAt:c.createdAt||new Date().toISOString(),notes:'Migrado del calendario anterior'
       });
-      map[id]='obligation';changed=true;
+      map[id]='obligation';
     }
-    c.active=false;changed=true;
+    c.active=false;
   }
-  plan.householdCanonicalMigrationVersion=3;return true||changed;
+  plan.householdCanonicalMigrationVersion=3;
+  return changed;
 }
 
 function repairExactDirectDuplicates(state,map){
-  const plan=state.financialPlan;if(Number(plan.householdDirectRepairVersion||0)>=1)return 0;
+  const plan=state.financialPlan;
+  if(Number(plan.householdDirectRepairVersion||0)>=1)return {removed:0,changed:false};
   const items=new Map((plan.householdExpenses||[]).map(x=>[x.id,x])),seen=new Map(),removeMovements=new Set(),removeItems=new Set();
   const rows=(state.movimientos||[]).filter(m=>m.tipo==='gasto'&&m.householdExpenseId&&map[m.householdExpenseId]==='spent').sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
   for(const movement of rows){
@@ -83,7 +85,7 @@ function repairExactDirectDuplicates(state,map){
     for(const id of removeItems)delete map[id];
   }
   plan.householdDirectRepairVersion=1;
-  return removeMovements.size;
+  return {removed:removeMovements.size,changed:true};
 }
 
 export function ensureHousehold(){
@@ -91,9 +93,9 @@ export function ensureHousehold(){
   for(const item of plan.householdExpenses||[])if(!validKind(map[item.id])){map[item.id]=kindFromPriority(item.priority);changed=true;}
   if(Number(plan.householdSemanticsVersion||0)<1){plan.householdSemanticsVersion=1;changed=true;}
   if(migrateLegacyCommitments(plan,map))changed=true;
-  const repaired=repairExactDirectDuplicates(state,map);
-  if(repaired>0){Data.sanearDatos();}
-  else if(changed||Number(plan.householdDirectRepairVersion||0)===1)Data.saveData();
+  const repair=repairExactDirectDuplicates(state,map);
+  if(repair.removed>0)Data.sanearDatos();
+  else if(changed||repair.changed)Data.saveData();
   return (plan.householdExpenses||[]).map(decorate);
 }
 export function householdItems({activeOnly=false}={}){const items=ensureHousehold();return activeOnly?items.filter(x=>x.active!==false):items;}
