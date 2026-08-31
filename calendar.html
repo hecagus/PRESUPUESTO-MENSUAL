@@ -1,39 +1,22 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <meta name="theme-color" content="#2563eb">
-  <meta name="description" content="Calendario financiero y dinero realmente libre.">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="theme-color" content="#2563eb"><meta name="description" content="Calendario y proyección de la situación financiera.">
   <title>Calendario financiero · La app del HecAgus</title>
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="pwa-icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css">
+  <script src="./js/pwa-bootstrap.js"></script>
+  <link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/hecagus-finance-192.png" type="image/png"><link rel="stylesheet" href="style.css">
 </head>
 <body data-page="calendar">
 <header class="header"><h1>📆 Calendario financiero</h1></header>
 <main class="container">
-  <section class="card card-hero">
-    <div class="hero-title">Tu situación real</div>
-    <div id="calendarPosition"></div>
-  </section>
-
-  <section>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 4px 8px"><h2 style="margin:0">Próximos 45 días</h2><small style="color:var(--text-sec)">Ingresos · pagos · metas</small></div>
-    <div id="calendarEvents"></div>
-  </section>
-
-  <section>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 4px 8px"><h2 style="margin:0">Compromisos recurrentes</h2><button id="btnNewCommitment" class="btn btn-primary" style="width:auto">+ Agregar</button></div>
-    <div id="calendarCommitments"></div>
-  </section>
-
-  <section class="card"><h2>🛒 Presupuesto variable del mes</h2><div id="livingBudgetZone"></div></section>
-  <section class="card"><h2>🚌 Costo de ir a trabajar</h2><div id="workTransportZone"></div></section>
-  <section class="card" style="border-left:5px solid #64748b"><strong>¿Cambió tu situación?</strong><p style="font-size:.85rem;color:var(--text-sec);margin:6px 0 10px">Cambia empleo, plataforma, forma de cobro o transporte sin borrar tu historial anterior.</p><a href="onboarding.html?edit=1" class="btn btn-outline" style="display:block;text-align:center;text-decoration:none">Administrar mi situación</a></section>
+  <section class="card card-hero"><div class="hero-title">Tu situación real</div><div id="calendarPosition"></div></section>
+  <section><div style="display:flex;justify-content:space-between;align-items:center;margin:14px 4px 8px"><h2 style="margin:0">Próximos 45 días</h2><small style="color:var(--text-sec)">Ingresos · pagos · metas</small></div><div id="calendarEvents"></div></section>
+  <section class="card" style="border-left:5px solid #0f766e"><strong>¿Necesitas cambiar algo?</strong><p style="font-size:.85rem;color:var(--text-sec);margin:6px 0 10px">Los gastos de vida se administran en Hogar. Trabajo, combustible y costos operativos se administran en Actividad.</p><div class="grid-2"><a href="home.html" class="btn btn-outline" style="text-align:center;text-decoration:none">🏠 Hogar</a><a href="admin.html" class="btn btn-outline" style="text-align:center;text-decoration:none">▶ Actividad</a></div></section>
+  <!-- Anclas de compatibilidad invisibles; las capas antiguas ya no son fuente de verdad. -->
+  <section class="hidden" aria-hidden="true"><div id="calendarCommitments"></div><div id="livingBudgetZone"></div><div id="workTransportZone"></div></section>
 </main>
 <div id="appModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal"><h3 id="modalTitle">Título</h3><div id="modalBody"></div><div class="modal-actions"><button id="modalCancel" class="btn btn-outline">Cancelar</button><button id="modalConfirm" class="btn btn-primary">Guardar</button></div></div></div>
-<nav class="bottom-nav" aria-label="Navegación principal"><a href="index.html" class="nav-link"><span>▥</span>Panel</a><a href="wallet.html" class="nav-link"><span>◉</span>Wallet</a><a href="admin.html" class="nav-link"><span>▶</span>Actividad</a><a href="stats.html" class="nav-link"><span>⌁</span>Stats</a><a href="historial.html" class="nav-link"><span>≡</span>Historial</a></nav>
+<nav class="bottom-nav" aria-label="Navegación principal"></nav>
 <script type="module" src="./js/05_init.js"></script>
 </body>
 </html>
