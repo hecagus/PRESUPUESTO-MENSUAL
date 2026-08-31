@@ -1,4 +1,4 @@
-const CACHE='hecagus-finance-2.7.2-shell-v1';
+const CACHE='hecagus-finance-2.7.3-shell-v1';
 const APP_SHELL=[
   './','./index.html','./onboarding.html','./admin.html','./home.html','./wallet.html','./stats.html','./historial.html','./calendar.html','./offline.html',
   './style.css','./manifest.webmanifest','./hecagus-finance-192.png','./hecagus-finance-512.png',
