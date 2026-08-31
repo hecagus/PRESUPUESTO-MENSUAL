@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <meta name="theme-color" content="#2563eb">
-  <meta name="description" content="Gastos del hogar, servicios, alimentación, suscripciones y compras personales.">
+  <meta name="description" content="Obligaciones, presupuestos, reservas, opcionales y gastos reales del hogar.">
   <title>Hogar · La app del HecAgus</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="hecagus-finance-192.png" type="image/png">
@@ -15,18 +15,18 @@
 <main class="container">
   <section class="card card-hero">
     <div class="hero-title">Cuánto cuesta vivir</div>
-    <p style="font-size:.86rem;color:var(--text-sec);margin:5px 0 14px">Obligaciones, presupuestos y gastos ocasionales. Sólo lo necesario o presupuestado reduce tu dinero realmente libre.</p>
+    <p style="font-size:.86rem;color:var(--text-sec);margin:5px 0 14px">No todo gasto significa lo mismo: separa lo que debes pagar, lo que necesitas presupuestar, lo que quieres reservar y lo que sólo pagas si decides hacerlo.</p>
     <div id="homeSummary"></div>
   </section>
 
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:16px 4px 8px"><div><h2 style="margin:0">Mis gastos</h2><small style="color:var(--text-sec)">Se capturan una vez y alimentan Panel, Calendario, Proyección e Historial.</small></div><button id="btnNewHomeExpense" class="btn btn-primary" style="width:auto;white-space:nowrap">+ Agregar</button></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:16px 4px 8px"><div><h2 style="margin:0">Mi hogar</h2><small style="color:var(--text-sec)">Cada registro afecta tu dinero sólo según lo que realmente representa.</small></div><button id="btnNewHomeExpense" class="btn btn-primary" style="width:auto;white-space:nowrap">+ Agregar</button></div>
   <div id="homeExpenses"></div>
 
   <section id="homePaused" class="card hidden"><h2>⏸️ Pausados</h2><div id="homePausedList"></div></section>
 
   <section class="card" style="border-left:5px solid #0f766e">
-    <strong>Ejemplos útiles</strong>
-    <p style="font-size:.84rem;color:var(--text-sec);margin:7px 0 0">Luz bimestral · agua mensual · renta mensual · despensa quincenal · comida diaria · internet mensual · streaming mensual · ropa o compras como ocasionales.</p>
+    <strong>Cómo pensar cada registro</strong>
+    <p style="font-size:.84rem;color:var(--text-sec);margin:7px 0 0">Renta y luz → obligación · comida mensual → presupuesto necesario · papel higiénico por comprar → reserva · Netflix → opcional · compra de despensa que ya hiciste → gasto realizado.</p>
   </section>
 </main>
 <div id="appModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal"><h3 id="modalTitle">Título</h3><div id="modalBody"></div><div class="modal-actions"><button id="modalCancel" class="btn btn-outline">Cancelar</button><button id="modalConfirm" class="btn btn-primary">Guardar</button></div></div></div>
