@@ -19,5 +19,5 @@ test('service worker cachea plataforma y Hogar',()=>{
   const sw=readFileSync('sw.js','utf8');
   for(const name of ['15_accounts_engine.js','16_forecast_engine.js','17_automation_engine.js','18_health_goals.js','19_platform_ui.js','20_home_engine.js','21_financial_life_v27.js','22_home_ui.js'])assert.match(sw,new RegExp(name.replace('.','\\.')));
   assert.match(sw,/home\.html/);
-  assert.match(sw,/hecagus-finance-2\.7\.0-shell/);
+  assert.match(sw,/hecagus-finance-2\.7\.2-shell/);
 });
