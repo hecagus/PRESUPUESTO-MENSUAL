@@ -42,12 +42,12 @@ test('calendario financiero forma parte del shell offline',async()=>{
 });
 
 test('Hogar es pestaña principal y alimenta el motor financiero',async()=>{
-  const html=await read('home.html'),init=await read('js/05_init.js'),engine=await read('js/20_home_engine.js'),bridge=await read('js/21_financial_life_v27.js'),sw=await read('sw.js');
+  const html=await read('home.html'),init=await read('js/05_init.js'),semantics=await read('js/23_home_semantics.js'),bridge=await read('js/21_financial_life_v27.js'),sw=await read('sw.js');
   assert.match(html,/data-page="home"/);assert.match(html,/Cuánto cuesta vivir/);assert.match(html,/id="btnNewHomeExpense"/);
   assert.match(init,/home\.html/);assert.match(init,/renderHome/);assert.match(init,/initHomeEvents/);
-  assert.match(engine,/Bimestral/);assert.match(engine,/Higiene y belleza/);assert.match(engine,/householdBudgetStatus/);assert.match(engine,/recordHouseholdExpense/);
-  assert.match(bridge,/householdUpcomingEvents/);assert.match(bridge,/householdCommittedRemaining/);
-  assert.match(sw,/home\.html/);assert.match(sw,/20_home_engine\.js/);assert.match(sw,/22_home_ui\.js/);
+  assert.match(semantics,/HOME_KINDS/);assert.match(semantics,/householdExplicitReserveStatus/);assert.match(semantics,/recordDirectHouseholdExpense/);
+  assert.match(bridge,/23_home_semantics\.js/);assert.match(bridge,/householdCommittedRemaining/);
+  assert.match(sw,/23_home_semantics\.js/);assert.match(sw,/24_home_ui_v28\.js/);
 });
 
 test('saldo inicial se oculta después de declararlo y deuda permite pago único',async()=>{
@@ -65,13 +65,14 @@ test('nuevo logo es el icono PWA y forma parte del shell offline',async()=>{
   assert.match(sw,/hecagus-finance-192\.png/);assert.match(sw,/hecagus-finance-512\.png/);
 });
 
-test('Hogar no manda gastos únicos completados a Pausados y usa calendario único',async()=>{
-  const ui=await read('js/22_home_ui.js');
-  assert.match(ui,/isCompletedOneTime/);
+test('Hogar distingue obligación, presupuesto, reserva, opcional y gasto realizado',async()=>{
+  const html=await read('home.html'),ui=await read('js/24_home_ui_v28.js');
+  assert.match(html,/Renta y luz → obligación/);assert.match(html,/papel higiénico por comprar → reserva/);assert.match(html,/Netflix → opcional/);
+  for(const kind of ['obligation','budget','reserve','optional','spent'])assert.match(ui,new RegExp(kind));
+  assert.match(ui,/¿Qué representa este dinero\?/);
+  assert.match(ui,/recordDirectHouseholdExpense/);
   assert.match(ui,/active===false&&!isCompletedOneTime/);
   assert.match(ui,/key:'nextDueDate',type:'date'/);
-  assert.match(ui,/schedulePayload/);
-  assert.match(ui,/d\.dueDay=parsed\.getDate\(\)/);
   assert.doesNotMatch(ui,/Día de pago \(1-31\)/);
 });
 
