@@ -76,6 +76,19 @@ test('Hogar distingue obligación, presupuesto, reserva, opcional y gasto realiz
   assert.doesNotMatch(ui,/Día de pago \(1-31\)/);
 });
 
+test('gasto realizado deja confirmación visible y puede deshacerse sin crear plan',async()=>{
+  const ui=await read('js/24_home_ui_v28.js'),semantics=await read('js/23_home_semantics.js');
+  assert.match(ui,/Gastos realizados recientes/);
+  assert.match(ui,/registrado en Historial/i);
+  assert.match(ui,/undo-direct/);
+  assert.match(ui,/Deshacer este gasto/);
+  assert.match(ui,/GASTO_HOGAR_DUPLICADO_RECIENTE/);
+  assert.match(semantics,/recentDirectHouseholdExpenses/);
+  assert.match(semantics,/undoDirectHouseholdExpense/);
+  assert.match(semantics,/DUPLICATE_WINDOW_MS/);
+  assert.match(semantics,/Data\.sanearDatos\(\)/);
+});
+
 test('Wallet no duplica Últimos movimientos; la línea de tiempo queda en Historial',async()=>{
   const wallet=await read('wallet.html'),history=await read('historial.html');
   assert.match(wallet,/id="platformRecentMovements" class="hidden"/);
