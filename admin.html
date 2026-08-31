@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <meta name="theme-color" content="#2563eb">
-  <meta name="description" content="Actividad y configuración dinámica de La app del HecAgus.">
+  <meta name="description" content="Actividad, combustible y costos operativos de La app del HecAgus.">
   <title>Actividad · La app del HecAgus</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="hecagus-finance-192.png" type="image/png">
@@ -17,30 +17,29 @@
     <h2>🗓️ Trabajo / actividad</h2>
     <div style="display:flex;justify-content:space-between;margin-bottom:10px;background:#f8fafc;padding:10px;border-radius:8px"><div id="activityStatus">Sin actividad en curso</div><div id="activityTimer" style="font-family:monospace;color:var(--text-sec)">00:00:00</div></div>
     <div id="activitySourceZone"></div>
-    <small style="display:block;margin-top:8px;color:var(--text-sec)">La app muestra solo las actividades que configuraste.</small>
+    <small style="display:block;margin-top:8px;color:var(--text-sec)">Aquí sólo vive lo relacionado con tu trabajo. Tu dinero personal se consulta en Panel y Wallet.</small>
   </section>
 
   <section class="card" style="border-left:5px solid #0f766e"><h2>💵 Pagos por periodo</h2><div id="sourcePaymentZone"></div></section>
 
+  <section class="card" style="border-left:5px solid #2563eb"><h2>📈 Rendimiento de actividad</h2><div id="activityPerformanceZone"></div></section>
+
   <section id="fuelCard" class="card hidden" style="border-left:5px solid #f59e0b">
     <h2>⛽ Combustible</h2><div id="fuelFundSummary" style="margin-bottom:10px"></div>
+    <div id="fuelEfficiencySummary" style="margin:10px 0 14px"></div>
     <div class="grid-2"><button id="btnCompanyFund" class="btn btn-success">💳 Depósito empresa</button><button id="btnFuel" class="btn btn-warning">⛽ Repostaje</button></div>
-    <small style="display:block;margin-top:8px;color:var(--text-sec)">El contexto activo decide si paga tu cuenta o un fondo de empresa.</small>
+    <small style="display:block;margin-top:8px;color:var(--text-sec)">El rendimiento usa litros y odómetro de cargas consecutivas. El pagador sólo define de qué fondo sale el dinero.</small>
   </section>
 
   <section id="transportCard" class="card hidden"><h2>🛣️ Transporte</h2><div style="display:flex;justify-content:space-between;align-items:center"><div><strong id="transportLabel">Sin transporte</strong><br><small id="kmActual">0 km</small></div><button id="btnConfigKM" class="btn btn-outline" style="width:auto">KM inicial</button></div></section>
 
   <section class="card hidden" style="border-left:5px solid #7c3aed"><h2>🏪 Negocio · costos y recetas</h2><div id="businessZone"></div></section>
 
-  <section class="card"><h2>Registrar gastos / costos</h2><div class="grid-2"><button id="btnGastoHogar" class="btn btn-outline">🏠 Ir a Hogar</button><button id="btnGastoOperativo" class="btn btn-primary">🛠️ Operativo</button></div><small style="display:block;margin-top:8px;color:var(--text-sec)">Los gastos personales viven en Hogar; aquí sólo se registran costos ligados a tu actividad.</small></section>
+  <section class="card"><h2>🛠️ Costos de actividad</h2><div class="grid-2"><button id="btnGastoOperativo" class="btn btn-primary">+ Registrar costo</button><button id="btnGastoHogar" class="btn btn-outline">🏠 Gastos personales</button></div><small style="display:block;margin-top:8px;color:var(--text-sec)">Aquí se registran gastos que ya ocurrieron por trabajar: mantenimiento, equipo, seguro, renta operativa, etc. Los gastos de vida van en Hogar.</small><div id="operationalExpenseRows" style="margin-top:10px"></div></section>
 
   <section class="card"><h2>Gestión de deudas</h2><button id="btnDeudaNueva" class="btn btn-outline" style="margin-bottom:15px">+ Nueva deuda</button><div style="background:#f1f5f9;padding:10px;border-radius:8px"><label style="font-size:.8rem;color:var(--text-sec)">Realizar abono:</label><div style="display:flex;gap:5px"><select id="abonoDeudaSelect" class="input-control" style="margin:0"><option value="">Seleccionar...</option></select><button id="btnAbonoCuota" class="btn btn-success" style="width:auto">OK</button></div></div><ul id="listaDeudasAdmin" style="margin-top:10px;list-style:none"></ul></section>
 
-  <section class="card"><h2>Saldo personal</h2><div id="valSaldoAdmin" style="font-size:1.6rem;font-weight:bold">$0.00</div><button id="btnConfigSaldo" class="btn btn-outline">Declarar saldo inicial</button></section>
-  <section class="card card-hero"><div class="hero-title">🎯 Compromisos personales</div><div id="metaDiariaValor" class="hero-value">$0.00</div><div class="hero-desc">Base operativa + compromisos vencidos</div></section>
-
   <section id="syncCard" class="card hidden" style="border-left:5px solid #2563eb"><h2>☁️ Sincronización</h2><div id="syncPanel"></div></section>
-  <section id="appInstallCard" class="card hidden"><h2>📱 Aplicación</h2><p style="font-size:.85rem;color:var(--text-sec);margin-bottom:7px">Instala La app del HecAgus. Funciona sin conexión para tus operaciones locales.</p><p id="installStatus" style="font-size:.82rem;color:var(--text-sec);margin-bottom:12px"></p><button id="btnInstallApp" class="btn btn-primary">Instalar app</button></section>
   <section class="card" style="opacity:.9"><h2>Sistema</h2><div class="grid-2"><button id="btnExportJSON" class="btn btn-outline">📋 Copiar datos</button><button id="btnRestoreBackup" class="btn btn-outline" style="color:var(--danger);border-color:var(--danger)">♻️ Restaurar</button></div></section>
 </main>
 <div id="appModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal"><h3 id="modalTitle">Título</h3><div id="modalBody"></div><div class="modal-actions"><button id="modalCancel" class="btn btn-outline">Cancelar</button><button id="modalConfirm" class="btn btn-primary">Guardar</button></div></div></div>
