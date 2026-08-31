@@ -74,3 +74,11 @@ test('Hogar no manda gastos únicos completados a Pausados y usa calendario úni
   assert.match(ui,/d\.dueDay=parsed\.getDate\(\)/);
   assert.doesNotMatch(ui,/Día de pago \(1-31\)/);
 });
+
+test('Wallet no duplica Últimos movimientos; la línea de tiempo queda en Historial',async()=>{
+  const wallet=await read('wallet.html'),history=await read('historial.html');
+  assert.match(wallet,/id="platformRecentMovements" class="hidden"/);
+  assert.doesNotMatch(wallet,/>Últimos movimientos</);
+  assert.match(history,/Historial/);
+  assert.match(history,/TODO LO QUE PASÓ|Todo lo que pasó/i);
+});
