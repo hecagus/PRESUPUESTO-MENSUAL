@@ -1,4 +1,4 @@
-/* v2.7.0 - Firebase offline-first, por usuario y con conflictos explícitos. */
+/* v3.0.0 - Firebase offline-first, merge canónico y conflictos explícitos. */
 import { FIREBASE_SYNC } from './firebase-config.js';
 import * as Data from './02_data.js';
 
@@ -33,6 +33,7 @@ function mergeStates(local,remote){
   merged.financialPlan={
     ...(remote?.financialPlan||{}),...(local?.financialPlan||{}),
     livingBudgets:{...(remote?.financialPlan?.livingBudgets||{}),...(local?.financialPlan?.livingBudgets||{})},
+    householdKinds:{...(remote?.financialPlan?.householdKinds||{}),...(local?.financialPlan?.householdKinds||{})},
     commitments:collectionMerge(local?.financialPlan?.commitments,remote?.financialPlan?.commitments),
     householdExpenses:collectionMerge(local?.financialPlan?.householdExpenses,remote?.financialPlan?.householdExpenses)
   };
@@ -41,9 +42,7 @@ function mergeStates(local,remote){
     products:collectionMerge(local?.business?.products,remote?.business?.products),
     sales:collectionMerge(local?.business?.sales,remote?.business?.sales)
   };
-  merged.activeActivity=local?.activeActivity||remote?.activeActivity||null;
-  merged.turnoActivo=merged.activeActivity;
-  return merged;
+  merged.activeActivity=local?.activeActivity||remote?.activeActivity||null;merged.turnoActivo=merged.activeActivity;return merged;
 }
 
 function setStatus(message,tone='neutral'){const el=document.getElementById('syncStatus');if(!el)return;el.textContent=message;el.dataset.tone=tone;}
@@ -57,4 +56,4 @@ const docRef=()=>firebase.doc(db,'users',currentUser.uid,'budget','state');
 async function applyRemote(remote){Data.restaurar(JSON.stringify(remote.state));observedHash=stateHash();meta={...meta,baseRevision:Number(remote.revision)||0,dirty:false,lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;renderSyncUI();document.dispatchEvent(new CustomEvent('budget:remote-applied'));}
 export async function syncNow({forceLocal=false}={}){if(!FIREBASE_SYNC.enabled||!currentUser||syncing||!navigator.onLine)return;const currentHash=stateHash();if(observedHash!==null&&currentHash!==observedHash){observedHash=currentHash;meta={...meta,dirty:true};saveMeta(meta);}syncing=true;try{const f=await loadFirebase(),ref=docRef();const result=await f.runTransaction(db,async tx=>{const snap=await tx.get(ref),remote=snap.exists()?snap.data():null,remoteRevision=Number(remote?.revision)||0;if(remote&&remoteRevision>meta.baseRevision&&!forceLocal){if(meta.dirty)return{kind:'conflict',remote};return{kind:'pull',remote};}const revision=Math.max(remoteRevision,Number(meta.baseRevision)||0)+1;tx.set(ref,{state:clone(Data.getState()),revision,updatedAt:new Date().toISOString(),deviceId:getDeviceId()});return{kind:'push',revision};});if(result.kind==='conflict'){conflictRemote=result.remote;renderSyncUI();return;}if(result.kind==='pull'){await applyRemote(result.remote);emitSyncComplete('pull');return;}observedHash=stateHash();meta={...meta,baseRevision:result.revision,dirty:false,lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;renderSyncUI();emitSyncComplete('push');}finally{syncing=false;}}
 async function resolveUseCloud(){if(!conflictRemote)return;await applyRemote(conflictRemote);emitSyncComplete('pull');}async function resolveUseLocal(){if(!conflictRemote)return;meta={...meta,baseRevision:Number(conflictRemote.revision)||meta.baseRevision,dirty:true};saveMeta(meta);conflictRemote=null;await syncNow({forceLocal:true});}async function resolveMerge(){if(!conflictRemote)return;const merged=mergeStates(Data.getState(),conflictRemote.state);Data.restaurar(JSON.stringify(merged));observedHash=stateHash();meta={...meta,baseRevision:Number(conflictRemote.revision)||meta.baseRevision,dirty:true};saveMeta(meta);conflictRemote=null;await syncNow({forceLocal:true});document.dispatchEvent(new CustomEvent('budget:remote-applied'));}
-export async function initSync(){renderSyncUI();if(!FIREBASE_SYNC.enabled)return;observedHash=stateHash();if(meta.baseRevision===0&&!meta.lastSync&&hasMeaningfulLocalData()){meta={...meta,dirty:true};saveMeta(meta);}clearInterval(observerTimer);observerTimer=setInterval(()=>{const hash=stateHash();if(hash!==observedHash){observedHash=hash;notifyLocalChange();}},900);try{const f=await loadFirebase();f.onAuthStateChanged(auth,user=>{currentUser=user;authReady=true;renderSyncUI();if(user&&navigator.onLine)syncNow().catch(showSyncError);});document.addEventListener('budget:data-changed',notifyLocalChange);window.addEventListener('online',()=>{if(currentUser)syncNow().catch(showSyncError);});}catch(e){authReady=true;renderSyncUI();showSyncError(e);}}
+export async function initSync(){renderSyncUI();if(!FIREBASE_SYNC.enabled)return;observedHash=stateHash();if(meta.baseRevision===0&&!meta.lastSync&&hasMeaningfulLocalData()){meta={...meta,dirty:true};saveMeta(meta);}clearInterval(observerTimer);observerTimer=setInterval(()=>{const hash=stateHash();if(hash!==observedHash){observedHash=hash;notifyLocalChange();}},1800);try{const f=await loadFirebase();f.onAuthStateChanged(auth,user=>{currentUser=user;authReady=true;renderSyncUI();if(user&&navigator.onLine)syncNow().catch(showSyncError);});document.addEventListener('budget:data-changed',notifyLocalChange);window.addEventListener('online',()=>{if(currentUser)syncNow().catch(showSyncError);});}catch(e){authReady=true;renderSyncUI();showSyncError(e);}}
