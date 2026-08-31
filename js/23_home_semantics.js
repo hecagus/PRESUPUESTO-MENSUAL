@@ -26,6 +26,7 @@ const semantics=()=>{
 const itemKind=item=>validKind(semantics()[item.id])||kindFromPriority(item.priority);
 const decorate=item=>item?{...item,kind:itemKind(item)}:null;
 const remember=(id,kind)=>{semantics()[id]=validKind(kind)||'budget';Data.saveData();};
+const dayFromDate=value=>{if(!value)return null;const d=new Date(`${String(value).slice(0,10)}T12:00:00`);return Number.isNaN(d.getTime())?null:d.getDate();};
 
 export function ensureHousehold(){
   const items=Base.ensureHousehold(),map=semantics();let changed=false;
@@ -39,6 +40,7 @@ export function householdById(id){return decorate(Base.householdById(id));}
 function configForKind(config={}){
   const kind=validKind(config.kind)||kindFromPriority(config.priority),next={...config,priority:priorityFromKind(kind)};
   if(kind==='reserve'||kind==='spent')next.frequency='one_time';
+  if(next.nextDueDate&&next.dueDay===undefined){const day=dayFromDate(next.nextDueDate);if(day)next.dueDay=day;}
   delete next.kind;return {kind,next};
 }
 export function createHouseholdExpense(config={}){
@@ -83,8 +85,8 @@ export function recordHouseholdExpense(id,amount=null,fecha=Date.now()){
   const kind=householdById(id)?.kind||'optional',item=Base.recordHouseholdExpense(id,amount,fecha);remember(id,kind);return decorate(item);
 }
 export function recordDirectHouseholdExpense(config={}){
-  const date=config.date||config.nextDueDate||new Date().toISOString().slice(0,10),item=Base.createHouseholdExpense({...config,frequency:'one_time',priority:'discretionary',nextDueDate:date});
-  remember(item.id,'spent');Base.recordHouseholdExpense(item.id,config.amount,date);return householdById(item.id);
+  const date=String(config.date||config.nextDueDate||new Date().toISOString().slice(0,10)).slice(0,10),localDate=`${date}T12:00:00`,item=Base.createHouseholdExpense({...config,frequency:'one_time',priority:'discretionary',nextDueDate:date});
+  remember(item.id,'spent');Base.recordHouseholdExpense(item.id,config.amount,localDate);return householdById(item.id);
 }
 
 export function seedHouseholdFromLivingSetup(values={}){
