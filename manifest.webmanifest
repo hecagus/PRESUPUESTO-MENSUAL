@@ -1,10 +1,10 @@
 {
   "name": "La app del HecAgus",
   "short_name": "HecAgus",
-  "description": "Finanzas, trabajo y negocio configurables para cada usuario, offline-first y sincronizables.",
-  "id": "./index.html",
-  "start_url": "./index.html",
-  "scope": "./",
+  "description": "Finanzas, hogar, trabajo y negocio configurables, offline-first y sincronizables.",
+  "id": "/index.html",
+  "start_url": "/index.html",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#f6f8fc",
@@ -12,22 +12,14 @@
   "lang": "es-MX",
   "categories": ["finance", "productivity", "business"],
   "icons": [
-    {
-      "src": "./hecagus-finance-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "./hecagus-finance-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    {"src":"/hecagus-finance-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+    {"src":"/hecagus-finance-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
+    {"src":"/hecagus-finance-192.png","sizes":"192x192","type":"image/png","purpose":"maskable"},
+    {"src":"/hecagus-finance-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}
   ],
   "shortcuts": [
-    {"name":"Actividad","short_name":"Actividad","url":"./admin.html"},
-    {"name":"Billetera","short_name":"Wallet","url":"./wallet.html"},
-    {"name":"Estadísticas","short_name":"Stats","url":"./stats.html"}
+    {"name":"Actividad","short_name":"Actividad","url":"/admin.html"},
+    {"name":"Hogar","short_name":"Hogar","url":"/home.html"},
+    {"name":"Wallet","short_name":"Wallet","url":"/wallet.html"}
   ]
 }

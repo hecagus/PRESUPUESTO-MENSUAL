@@ -1,5 +1,5 @@
-/* v2.7.1 - Orquestación de UI, plataforma financiera, Hogar, PWA, metas y sincronización. */
-import { $, CATEGORIAS_BASE, FRECUENCIAS, APP_VERSION, COMPENSATIONS } from './01_consts_utils.js';
+/* v2.9.0 - Orquestación de UI, plataforma financiera, Hogar, PWA, metas y sincronización. */
+import { $, CATEGORIAS_BASE, APP_VERSION, COMPENSATIONS } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { Modal, renderIndex, renderWallet, renderHistorial, renderStats, renderAdmin } from './03_render.js';
 import { initSync, notifyLocalChange } from './07_sync.js';
@@ -8,9 +8,11 @@ import { ensureSavingsGoals } from './11_savings_goals.js';
 import { renderSavingsGoalsUI, initSavingsGoalEvents } from './12_savings_ui.js';
 import { ensureFinancialLife } from './21_financial_life_v27.js';
 import { renderFinancialPositionPanel, renderCalendarPreview, renderCalendarPage, initCalendarEvents } from './14_calendar_ui.js';
+import { recordUniversalMovement } from './15_accounts_engine.js';
 import { runAutomationEngine } from './17_automation_engine.js';
 import { ensureFinancialPlatform, renderFinancialPlatform, initFinancialPlatformEvents } from './19_platform_ui.js';
 import { renderHome, initHomeEvents } from './22_home_ui.js';
+import { renderActivityInsights } from './25_activity_insights.js';
 
 /* Debe ejecutarse antes de cualquier redirección: beforeinstallprompt es un evento de una sola oportunidad. */
 initPWA();
@@ -28,9 +30,8 @@ const refresh=()=>{
   else if(page==='wallet')renderWallet();
   else if(page==='historial')renderHistorial();
   else if(page==='stats')renderStats();
-  else if(page==='admin')renderAdmin();
+  else if(page==='admin'){renderAdmin();renderActivityInsights();}
   else if(page==='calendar')renderCalendarPage();
-  if(page==='admin')$('btnConfigSaldo')?.classList.toggle('hidden',Boolean(Data.getState().parametros.saldoInicialConfigurado));
   renderSavingsGoalsUI();renderFinancialPlatform();
 };
 
@@ -65,8 +66,10 @@ function companyFundModal(){
 }
 
 function operationalExpenseModal(){
-  const cats=[...CATEGORIAS_BASE.operativo];
-  Modal.show('Nuevo gasto operativo',[{label:'Descripción',key:'d'},{label:'Monto',key:'m',type:'number'},{label:'Categoría',key:'c',type:'select',options:cats.map(x=>({val:x,txt:x}))},{label:'Frecuencia',key:'f',type:'select',options:Object.keys(FRECUENCIAS).map(x=>({val:x,txt:x}))}],d=>safe(()=>Data.nuevoGasto(d.d,d.m,d.c,d.f)));
+  const cats=[...CATEGORIAS_BASE.operativo],sources=optionsSources();
+  const fields=[{label:'Descripción',key:'d'},{label:'Monto pagado ($)',key:'m',type:'number'},{label:'Categoría',key:'c',type:'select',options:cats.map(x=>({val:x,txt:x}))}];
+  if(sources.length>1)fields.push({label:'Actividad / fuente',key:'source',type:'select',options:sources});
+  Modal.show('Registrar costo operativo',fields,d=>safe(()=>recordUniversalMovement({type:'expense',description:d.d,amount:d.m,accountId:'acct-personal',category:d.c,sourceId:d.source||sources[0]?.val||null,tags:['operational']})));
 }
 
 function newIngredient(){Modal.show('Nuevo ingrediente',[{label:'Ingrediente',key:'n'},{label:'Unidad (g, ml, pieza...)',key:'u'},{label:'Costo por unidad ($)',key:'c',type:'number'}],d=>safe(()=>Data.crearIngrediente(d.n,d.u,d.c)));}
@@ -82,12 +85,11 @@ function initAdminEvents(){
   $('btnDeudaNueva')?.addEventListener('click',()=>Modal.show('Nueva deuda',[{label:'Nombre',key:'d'},{label:'Total',key:'t',type:'number'},{label:'Cuota',key:'c',type:'number'},{label:'Plan de pago',key:'f',type:'select',options:['Unico','Semanal','Quincenal','Mensual'].map(x=>({val:x,txt:x==='Unico'?'Una sola vez':x}))},{label:'Día de pago / vencimiento',key:'dp',type:'number',value:1}],d=>safe(()=>Data.nuevaDeuda(d.d,d.t,d.c,d.f,d.dp))));
   $('btnAbonoCuota')?.addEventListener('click',()=>{const id=$('abonoDeudaSelect')?.value;if(!id)return alert('Selecciona una deuda.');if(confirm('¿Confirmar abono?'))safe(()=>Data.abonarDeuda(id));});
   $('btnConfigKM')?.addEventListener('click',()=>{if(Data.getState().parametros.kmInicialConfigurado)return alert('El kilometraje ya se gestiona con tus actividades.');Modal.show('Configurar kilometraje',[{label:'KM actuales',key:'k',type:'number'}],d=>safe(()=>Data.configurarKM(d.k)));});
-  $('btnConfigSaldo')?.addEventListener('click',()=>{if(Data.getState().parametros.saldoInicialConfigurado)return;Modal.show('¿Cuánto dinero tienes ahora?',[{label:'Saldo personal ($)',key:'m',type:'number'}],d=>safe(()=>Data.saldoInicial(d.m)));});
   $('btnExportJSON')?.addEventListener('click',async()=>{const json=JSON.stringify(Data.getState(),null,2);try{await navigator.clipboard.writeText(json);alert('Respaldo copiado.');}catch{const blob=new Blob([json],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`hecagus-finance-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url);alert('Respaldo descargado.');}});
   $('btnRestoreBackup')?.addEventListener('click',()=>Modal.show('Restaurar respaldo',[{label:'JSON',key:'j'}],d=>{if(!confirm('Esto reemplazará los datos actuales. ¿Continuar?'))return;safe(()=>Data.restaurar(d.j));}));
 }
 
-function initGlobalEvents(){$('btnInstallApp')?.addEventListener('click',async()=>{const installed=await promptInstall();if(!installed)alert(installationHelp());});}
+function initGlobalEvents(){$('btnInstallApp')?.addEventListener('click',async()=>{const installed=await promptInstall();if(!installed){const status=$('installStatus');if(status)status.textContent=installationHelp();}});}
 
 function initDelegation(){document.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(!b||b.disabled)return;const action=b.dataset.action,id=b.dataset.id;
   if(action==='ahorro')return Modal.show('Abonar ahorro',[{label:'Monto',key:'m',type:'number'}],d=>safe(()=>Data.abonarAhorro(id,d.m)));
