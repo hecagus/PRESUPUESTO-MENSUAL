@@ -7,6 +7,7 @@
   <meta name="description" content="La app del HecAgus: finanzas, trabajo, hogar y negocio configurables para cada usuario.">
   <meta name="color-scheme" content="light">
   <title>La app del HecAgus</title>
+  <script src="./js/pwa-bootstrap.js"></script>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="hecagus-finance-192.png" type="image/png">
   <link rel="apple-touch-icon" href="hecagus-finance-192.png">
@@ -50,7 +51,7 @@
     <a href="stats.html" class="card" style="display:block;text-decoration:none;color:inherit;border-left:5px solid #7c3aed"><strong>📊 Análisis y salud financiera</strong><small style="display:block;color:var(--text-sec);margin-top:5px">Tendencias, rentabilidad por fuente, proyección y explicación de tu salud financiera.</small></a>
 
     <section id="syncCard" class="card hidden" style="border-left:5px solid #2563eb"><h2>☁️ Protege tus datos</h2><div id="syncPanel"></div></section>
-    <section id="appInstallCard" class="card hidden"><h2>📱 Instala la aplicación</h2><p style="font-size:.85rem;color:var(--text-sec);margin-bottom:12px">Ten La app del HecAgus como una app normal y conserva operación offline.</p><button id="btnInstallApp" class="btn btn-primary">Instalar app</button></section>
+    <section id="appInstallCard" class="card hidden"><h2>📱 Instala la aplicación</h2><p style="font-size:.85rem;color:var(--text-sec);margin-bottom:7px">Ten La app del HecAgus como una app normal y conserva operación offline.</p><p id="installStatus" style="font-size:.82rem;color:var(--text-sec);margin-bottom:12px">Comprobando instalación…</p><button id="btnInstallApp" class="btn btn-primary">Instalar app</button></section>
   </main>
 
   <nav class="bottom-nav" aria-label="Navegación principal">
