@@ -1,5 +1,5 @@
-/* v2.7.1 - Analítica genérica por fuente y capacidades. Sin mutar estado. */
-import { safeFloat, periodIdFor } from './01_consts_utils.js';
+/* v2.9.0 - Analítica genérica por fuente, combustible y costos operativos. Sin mutar estado. */
+import { safeFloat, periodIdFor, CATEGORIAS_BASE } from './01_consts_utils.js';
 
 const horasTurno=t=>Number.isFinite(t.duracionHoras)?t.duracionHoras:Math.max(0,(safeFloat(t.fin)-safeFloat(t.inicio))/3600000);
 const sourceOf=(store,item)=>store.workSources?.find(s=>s.id===(item?.sourceId||item?.fuente))||null;
@@ -45,6 +45,30 @@ export function resumenNegocio(store){
   const products=store.business?.products||[],sales=store.business?.sales||[];
   const ingresos=sales.reduce((a,s)=>a+safeFloat(s.total),0),costos=sales.reduce((a,s)=>a+safeFloat(s.unitCost)*safeFloat(s.qty),0);
   return {productos:products.length,ventas:sales.length,ingresos,costos,margen:ingresos-costos};
+}
+
+/* Rendimiento por método entre cargas. Para que km/L sea representativo, las cargas deben registrarse con odómetro y de preferencia llenar a un nivel comparable. */
+export function rendimientoCombustible(store,{maxSegments=8}={}){
+  const fills=(store.cargasCombustible||[])
+    .map(c=>({...c,km:safeFloat(c.km),litros:safeFloat(c.litros),costo:safeFloat(c.costo)}))
+    .filter(c=>c.km>0&&c.litros>0&&c.costo>=0)
+    .sort((a,b)=>a.km-b.km||new Date(a.fecha)-new Date(b.fecha));
+  const segments=[];
+  for(let i=1;i<fills.length;i++){
+    const prev=fills[i-1],current=fills[i],distance=current.km-prev.km;
+    if(!(distance>0)||!(current.litros>0))continue;
+    segments.push({from:prev,to:current,km:distance,litros:current.litros,costo:current.costo,kmL:distance/current.litros,costoKm:current.costo/distance,precioLitro:current.costo/current.litros});
+  }
+  const recent=segments.slice(-Math.max(1,maxSegments)),totalKm=recent.reduce((a,x)=>a+x.km,0),totalLitros=recent.reduce((a,x)=>a+x.litros,0),totalCosto=recent.reduce((a,x)=>a+x.costo,0);
+  return {fills,segments,recent,last:segments.at(-1)||null,hasEstimate:segments.length>0,totalKm,totalLitros,avgKmL:totalLitros>0?totalKm/totalLitros:0,avgCostoKm:totalKm>0?totalCosto/totalKm:0};
+}
+
+export function gastosOperativosRecientes(store,limit=6){
+  const cats=new Set(CATEGORIAS_BASE.operativo||[]);
+  return (store.movimientos||[])
+    .filter(m=>m.tipo==='gasto'&&m.affectsPersonal!==false&&!m.householdExpenseId&&!m.debtId&&!String(m.desc||'').startsWith('⛽')&&(Array.isArray(m.tags)&&m.tags.includes('operational')||cats.has(m.categoria)))
+    .sort((a,b)=>new Date(b.fecha)-new Date(a.fecha))
+    .slice(0,Math.max(1,limit));
 }
 
 /* Compatibilidad con componentes v1.x mientras termina la migración visual. */
