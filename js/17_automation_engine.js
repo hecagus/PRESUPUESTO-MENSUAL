@@ -1,4 +1,4 @@
-/* v2.7.0 - Reglas automáticas y alertas explicables. */
+/* v3.1.0 - Reglas automáticas y alertas explicables, reutilizando cálculos compartidos. */
 import { safeFloat, uuid } from './01_consts_utils.js';
 import { getState, saveData } from './02_data.js';
 import { financialPosition, upcomingFinancialEvents } from './21_financial_life_v27.js';
@@ -61,9 +61,9 @@ export function runAutomationEngine(){
 
 const alert=(id,level,title,message,meta={})=>({id,level,title,message,...meta});
 
-export function smartAlerts(now=new Date()){
+export function smartAlerts(now=new Date(),context={}){
   ensureAutomationEngine();const state=getState();if(state.automationPreferences.alertsEnabled===false)return [];
-  const rows=[],position=financialPosition(now),forecast=cashFlowForecast({days:45,now}),minFree=safeFloat(state.automationPreferences.minFreeCash);
+  const rows=[],position=context.position||financialPosition(now),forecast=context.forecast||cashFlowForecast({days:45,now}),minFree=safeFloat(state.automationPreferences.minFreeCash);
   if(position.free<0)rows.push(alert('free-negative','critical','Dinero libre negativo',`Tienes compromisos y reservas por encima de tu efectivo en ${Math.abs(position.free).toFixed(2)}.`));
   else if(minFree>0&&position.free<minFree)rows.push(alert('free-floor','warning','Colchón por debajo de tu mínimo',`Tu dinero libre está por debajo del mínimo que configuraste.`));
   if(forecast.firstNegativeDate)rows.push(alert('forecast-negative','critical','Se aproxima un faltante',`La proyección cae por debajo de $0 el ${new Date(forecast.firstNegativeDate).toLocaleDateString('es-MX')}.`,{date:forecast.firstNegativeDate}));
@@ -73,7 +73,7 @@ export function smartAlerts(now=new Date()){
     if(ratio>=1)rows.push(alert(`home-budget-${b.item.id}`,'critical','Presupuesto del hogar agotado',`Ya consumiste el presupuesto de ${b.item.name}.`));
     else if(ratio>=0.8)rows.push(alert(`home-budget-${b.item.id}`,'warning','Presupuesto del hogar cerca del límite',`Ya utilizaste ${Math.round(ratio*100)}% de ${b.item.name}.`));
   }
-  const soon=upcomingFinancialEvents({days:3,now}).filter(e=>['expense','debt'].includes(e.type)&&safeFloat(e.amount)>0);
+  const soon=context.soonEvents||upcomingFinancialEvents({days:3,now}).filter(e=>['expense','debt'].includes(e.type)&&safeFloat(e.amount)>0);
   const soonTotal=soon.reduce((a,e)=>a+safeFloat(e.amount),0);
   if(soonTotal>Math.max(0,position.free))rows.push(alert('soon-payments','warning','Pagos próximos superan tu dinero libre',`En los próximos 3 días vienen ${soon.length} pago(s) por un total de ${soonTotal.toFixed(2)}.`));
   return rows;
