@@ -82,6 +82,24 @@ test('gasto bimestral conserva vencido hasta pagarlo y no inventa octubre',()=>{
   assert.equal(after.length,0);
 });
 
+test('pago quincenal repetido no adelanta la siguiente quincena',()=>{
+  const food=Home.createHouseholdExpense({name:'Comida',category:'Alimentación',amount:3000,frequency:'biweekly',priority:'obligatory',nextDueDate:'2026-09-15'});
+  Home.recordHouseholdExpense(food.id,3000,new Date(2026,8,1,12).getTime());
+  let moves=Data.getState().movimientos.filter(m=>m.householdExpenseId===food.id);
+  assert.equal(moves.length,1);
+  assert.equal(moves[0].householdPeriod,'Q:2026-09:1');
+
+  assert.throws(()=>Home.recordHouseholdExpense(food.id,3000,new Date(2026,8,1,13).getTime()),/GASTO_HOGAR_YA_PAGADO/);
+  assert.throws(()=>Home.recordHouseholdExpense(food.id,3000,new Date(2026,8,2,12).getTime()),/GASTO_HOGAR_YA_PAGADO/);
+  moves=Data.getState().movimientos.filter(m=>m.householdExpenseId===food.id);
+  assert.equal(moves.length,1);
+
+  Home.recordHouseholdExpense(food.id,3000,new Date(2026,8,16,12).getTime());
+  moves=Data.getState().movimientos.filter(m=>m.householdExpenseId===food.id);
+  assert.equal(moves.length,2);
+  assert.deepEqual(moves.map(m=>m.householdPeriod),['Q:2026-09:1','Q:2026-09:2']);
+});
+
 test('migra vivienda, servicios y presupuestos anteriores sin duplicarlos',()=>{
   Data.restaurar(JSON.stringify({
     schemaVersion:26,profile:{onboarded:true,useCases:['personal'],transportMode:'none',capabilities:['personal_finance'],currency:'MXN'},

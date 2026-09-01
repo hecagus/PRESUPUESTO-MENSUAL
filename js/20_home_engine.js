@@ -1,4 +1,4 @@
-/* v2.7.1 - Motor de hogar: obligaciones, presupuestos, vencidos y reservas de recibos. Cero DOM. */
+/* v3.1.0 - Motor de hogar: obligaciones, presupuestos, vencidos, reservas y pagos idempotentes. Cero DOM. */
 import { safeFloat, uuid } from './01_consts_utils.js';
 import { getState, saveData } from './02_data.js';
 
@@ -169,6 +169,10 @@ function nextUnpaidFuture(item,now,state,days=400){
   const start=startOfDay(now),end=new Date(start.getTime()+days*DAY);
   return occurrenceDates(item,start,end).find(d=>!paidOccurrence(state,item,occurrenceKey(item,d)))||null;
 }
+function nextScheduledFuture(item,now,days=400){
+  const start=startOfDay(now),end=new Date(start.getTime()+days*DAY);
+  return occurrenceDates(item,start,end)[0]||null;
+}
 
 export function householdUpcomingEvents({days=45,now=new Date()}={}){
   const state=getState(),start=startOfDay(now),end=new Date(start.getTime()+days*DAY),events=[];
@@ -228,11 +232,13 @@ function paymentPeriod(item,at){
   const boundary=new Date(at),from=new Date(boundary.getTime()-lookbackDays(item)*DAY),past=occurrenceDates(item,from,boundary)
     .filter(d=>d<=boundary&&!paidOccurrence(state,item,occurrenceKey(item,d))).sort((a,b)=>b-a);
   if(past.length)return occurrenceKey(item,past[0]);
-  const future=nextUnpaidFuture(item,boundary,state,740);return future?occurrenceKey(item,future):occurrenceKey(item,boundary);
+  const future=nextScheduledFuture(item,boundary,740);return future?occurrenceKey(item,future):occurrenceKey(item,boundary);
 }
 export function recordHouseholdExpense(id,amount=null,fecha=Date.now()){
   const state=getState(),item=householdById(id);if(!item||item.active===false)throw new Error('GASTO_HOGAR_NO_ENCONTRADO');
-  const m=amount===null||amount===''?positive(item.amount):positive(amount),d=new Date(fecha),period=item.priority==='obligatory'?paymentPeriod(item,d):occurrenceKey(item,d);
+  const m=amount===null||amount===''?positive(item.amount):positive(amount),d=new Date(fecha);
+  if(item.priority==='obligatory'&&(state.movimientos||[]).some(x=>x.tipo==='gasto'&&x.householdExpenseId===item.id&&isoDay(new Date(x.fecha))===isoDay(d)))throw new Error('GASTO_HOGAR_YA_PAGADO');
+  const period=item.priority==='obligatory'?paymentPeriod(item,d):occurrenceKey(item,d);
   if(item.priority==='obligatory'&&paidOccurrence(state,item,period))throw new Error('GASTO_HOGAR_YA_PAGADO');
   state.movimientos.push({id:uuid(),fecha:d.toISOString(),tipo:'gasto',desc:item.name,monto:m,categoria:item.category,accountId:PERSONAL_ACCOUNT_ID,affectsPersonal:true,householdExpenseId:item.id,householdPeriod:period});
   if(item.frequency==='one_time')item.active=false;

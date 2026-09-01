@@ -18,7 +18,7 @@ test('usuarios sin datos locales ven acceso y recuperación antes del onboarding
   assert.match(html,/id="setupFlow" class="hidden"/);
   assert.match(js,/initSync\(\)/);assert.match(js,/budget:remote-applied/);assert.match(js,/budget:sync-complete/);
   assert.match(js,/profile\?\.onboarded/);assert.match(js,/notifyLocalChange\(\)/);
-  assert.match(sync,/budget:sync-complete/);assert.match(sync,/emitSyncComplete\('pull'\)/);assert.match(sync,/emitSyncComplete\('push'\)/);
+  assert.match(sync,/budget:sync-complete/);assert.match(sync,/emitSyncComplete\('pull'\)/);assert.match(sync,/emitSyncComplete\(result\.kind\)/);assert.match(sync,/kind:'noop'/);
 });
 
 test('onboarding permite cambiar situación y configurar transporte público',async()=>{
@@ -92,7 +92,7 @@ test('gasto realizado deja confirmación visible y puede deshacerse sin crear pl
 
 test('Wallet no duplica Últimos movimientos; la línea de tiempo queda en Historial',async()=>{
   const wallet=await read('wallet.html'),history=await read('historial.html');
-  assert.match(wallet,/id="platformRecentMovements" class="hidden"/);
+  assert.doesNotMatch(wallet,/platformRecentMovements/);
   assert.doesNotMatch(wallet,/>Últimos movimientos</);
   assert.match(history,/Historial/);
   assert.match(history,/TODO LO QUE PASÓ|Todo lo que pasó/i);

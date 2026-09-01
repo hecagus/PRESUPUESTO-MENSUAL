@@ -1,10 +1,10 @@
-/* v2.6.0 - UI integrada de cuentas, proyección, automatización, salud y metas inteligentes. */
+/* v3.1.0 - UI integrada por página: una sola línea de tiempo y cálculos sólo donde se usan. */
 import { $, fmtMoney, safeFloat } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { Modal } from './03_render.js';
 import {
   ensureAccountsEngine,getPersonalAccounts,accountBalance,accountTypeLabel,createPersonalAccount,
-  setAccountActive,recordUniversalMovement,transferBetweenAccounts,recentFinancialMovements
+  setAccountActive,recordUniversalMovement,transferBetweenAccounts
 } from './15_accounts_engine.js';
 import { cashFlowForecast } from './16_forecast_engine.js';
 import {
@@ -35,37 +35,26 @@ function ensureAfter(anchor,id,html){if($(id))return $(id);const node=document.c
 
 function renderAccountsHub(){
   const container=$('accountsContainer');if(!container)return;ensureAccountsEngine();
-  const controls=ensureBefore(container,'platformAccountControls','<section class="card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><div><strong>🏦 Mis cuentas</strong><small style="display:block;color:var(--text-sec);margin-top:3px">Dónde está cada peso, sin confundir transferencias con ingresos.</small></div></div><div class="grid-2" style="margin-top:10px"><button class="btn btn-primary" data-platform-action="new-account">+ Cuenta</button><button class="btn btn-outline" data-platform-action="transfer">⇄ Transferir</button></div><button class="btn btn-outline" style="margin-top:8px" data-platform-action="movement">+ Registrar movimiento</button></section>');
-  void controls;
+  ensureBefore(container,'platformAccountControls','<section class="card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><div><strong>🏦 Mis cuentas</strong><small style="display:block;color:var(--text-sec);margin-top:3px">Dónde está cada peso, sin confundir transferencias con ingresos.</small></div></div><div class="grid-2" style="margin-top:10px"><button class="btn btn-primary" data-platform-action="new-account">+ Cuenta</button><button class="btn btn-outline" data-platform-action="transfer">⇄ Transferir</button></div><button class="btn btn-outline" style="margin-top:8px" data-platform-action="movement">+ Registrar movimiento</button></section>');
   const state=Data.getState();
   container.innerHTML=(state.accounts||[]).filter(a=>a.active!==false).map(a=>{
     const third=a.ownership==='third_party',balance=third?Data.saldoCuenta(a.id):accountBalance(a.id);
     return `<section class="card" style="border-left:4px solid ${third?'#f59e0b':'#2563eb'}"><div style="display:flex;justify-content:space-between;gap:10px"><div><strong>${third?'🏢':'💳'} ${esc(a.name)}</strong><small style="display:block;color:var(--text-sec);margin-top:3px">${third?'Fondos de tercero · no son patrimonio':esc(accountTypeLabel(a.type))}</small></div><div style="text-align:right"><strong>${fmtMoney(balance)}</strong>${!third&&a.id!=='acct-personal'?`<br><button class="btn btn-outline" style="width:auto;padding:5px 8px;margin-top:5px" data-platform-action="archive-account" data-id="${a.id}">Archivar</button>`:''}</div></div></section>`;
   }).join('')||'<section class="card">No hay cuentas activas.</section>';
-
-  const history=ensureAfter(container,'platformRecentMovements','<section><h2 style="margin:14px 4px 8px">Últimos movimientos</h2><div id="platformRecentMovementRows"></div></section>');
-  const rows=$('platformRecentMovementRows'),recent=recentFinancialMovements(8);
-  if(rows)rows.innerHTML=recent.length?recent.map(m=>{
-    if(m.tipo==='transferencia')return `<div class="card" style="margin:7px 0"><div style="display:flex;justify-content:space-between;gap:8px"><span><strong>⇄ ${esc(m.fromAccount?.name||'Cuenta')} → ${esc(m.toAccount?.name||'Cuenta')}</strong><small style="display:block;color:var(--text-sec)">${dateLabel(m.fecha)} · transferencia interna</small></span><strong>${fmtMoney(m.monto)}</strong></div></div>`;
-    return `<div class="card" style="margin:7px 0"><div style="display:flex;justify-content:space-between;gap:8px"><span><strong>${m.tipo==='ingreso'?'💵':'🧾'} ${esc(m.desc)}</strong><small style="display:block;color:var(--text-sec)">${dateLabel(m.fecha)} · ${esc(m.account?.name||'Cuenta personal')}</small></span><strong style="color:${m.tipo==='ingreso'?'#16a34a':'#dc2626'}">${m.tipo==='ingreso'?'+':'-'}${fmtMoney(m.monto)}</strong></div></div>`;
-  }).join(''):'<small>Sin movimientos todavía.</small>';
-  void history;
 }
 
-function renderForecast(){
-  const page=document.body.dataset.page,f=cashFlowForecast({days:45});
+function renderForecast(forecast=null){
+  const page=document.body.dataset.page;if(page!=='index'&&page!=='calendar')return;const f=forecast||cashFlowForecast({days:45});
   if(page==='index'){
-    const anchor=$('calendarPreviewZone');if(!anchor)return;const zone=ensureAfter(anchor,'platformForecastZone','<section class="card" style="border-left:5px solid #7c3aed"><h2>🔮 Proyección de flujo</h2><div id="platformForecastSummary"></div></section>');
+    const anchor=$('calendarPreviewZone');if(!anchor)return;ensureAfter(anchor,'platformForecastZone','<section class="card" style="border-left:5px solid #7c3aed"><h2>🔮 Proyección de flujo</h2><div id="platformForecastSummary"></div></section>');
     const box=$('platformForecastSummary');if(box){
       const msg=f.firstNegativeDate?`🔴 Con los datos actuales tu efectivo caería debajo de $0 alrededor del ${dateLabel(f.firstNegativeDate)}.`:f.firstTightDate?`🟠 Alrededor del ${dateLabel(f.firstTightDate)} empezarías a tocar dinero reservado o presupuesto necesario.`:`✅ No detecto faltantes en los próximos 45 días. Ingresos esperados: ${fmtMoney(f.totalExpectedIncome)}.`;
       box.innerHTML=`<div class="grid-2"><div><small>Efectivo en 45 días</small><strong style="display:block">${fmtMoney(f.endingCash)}</strong></div><div><small>Libre proyectado</small><strong style="display:block">${fmtMoney(f.endingFree)}</strong></div></div><small style="display:block;margin-top:8px;color:var(--text-sec)">${msg}</small>`;
     }
-    void zone;
+    return;
   }
-  if(page==='calendar'){
-    const anchor=$('calendarEvents');if(!anchor)return;ensureAfter(anchor,'platformForecastDetail','<section class="card" style="border-left:5px solid #7c3aed"><h2>🔮 Flujo proyectado</h2><div id="platformForecastTimeline"></div></section>');
-    const box=$('platformForecastTimeline');if(box)box.innerHTML=`<div class="grid-2" style="margin-bottom:8px"><div><small>Efectivo actual</small><strong style="display:block">${fmtMoney(f.startCash)}</strong></div><div><small>Libre al final</small><strong style="display:block">${fmtMoney(f.endingFree)}</strong></div></div>${f.events.slice(0,10).map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid #e2e8f0"><span>${dateLabel(e.date)} · ${esc(e.title)}${e.estimated?' <small>(estimado)</small>':''}</span><strong>${e.delta>=0?'+':'-'}${fmtMoney(Math.abs(e.delta))}<br><small>saldo ${fmtMoney(e.projectedCash)} · libre ${fmtMoney(e.projectedFree)}</small></strong></div>`).join('')||'<small>No hay movimientos futuros suficientes para proyectar.</small>'}`;
-  }
+  const anchor=$('calendarEvents');if(!anchor)return;ensureAfter(anchor,'platformForecastDetail','<section class="card" style="border-left:5px solid #7c3aed"><h2>🔮 Flujo proyectado</h2><div id="platformForecastTimeline"></div></section>');
+  const box=$('platformForecastTimeline');if(box)box.innerHTML=`<div class="grid-2" style="margin-bottom:8px"><div><small>Efectivo actual</small><strong style="display:block">${fmtMoney(f.startCash)}</strong></div><div><small>Libre al final</small><strong style="display:block">${fmtMoney(f.endingFree)}</strong></div></div>${f.events.slice(0,10).map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid #e2e8f0"><span>${dateLabel(e.date)} · ${esc(e.title)}${e.estimated?' <small>(estimado)</small>':''}</span><strong>${e.delta>=0?'+':'-'}${fmtMoney(Math.abs(e.delta))}<br><small>saldo ${fmtMoney(e.projectedCash)} · libre ${fmtMoney(e.projectedFree)}</small></strong></div>`).join('')||'<small>No hay movimientos futuros suficientes para proyectar.</small>'}`;
 }
 
 function renderAutomation(){
@@ -74,18 +63,12 @@ function renderAutomation(){
   const rules=listAutomationRules(),rows=$('platformRuleRows');if(rows)rows.innerHTML=rules.length?rules.map(r=>{const goal=Data.getState().savingsGoals?.find(g=>g.id===r.goalId),source=r.sourceId?Data.fuenteById(r.sourceId):null;return `<div style="padding:8px 0;border-top:1px solid #e2e8f0"><div style="display:flex;justify-content:space-between;gap:8px"><span><strong>${esc(r.name)}</strong><small style="display:block;color:var(--text-sec)">${r.percent}% de ${source?esc(source.name):'cualquier ingreso'} → ${esc(goal?.name||'meta')}</small></span><button class="btn btn-outline" style="width:auto" data-platform-action="toggle-rule" data-id="${r.id}" data-active="${r.active!==false}">${r.active!==false?'Pausar':'Activar'}</button></div></div>`;}).join(''):'<small>No tienes reglas automáticas. Puedes crear una para apartar un porcentaje de cada ingreso hacia una meta.</small>';
 }
 
-function renderAlerts(){
-  const alerts=smartAlerts(),panel=$('panelAlerts');
-  if(panel){
-    panel.querySelectorAll('[data-platform-alert]').forEach(node=>node.remove());
-    for(const a of alerts){const div=document.createElement('div');div.dataset.platformAlert='1';div.style.cssText='padding:7px 0;border-top:1px solid #e2e8f0';div.innerHTML=`${a.level==='critical'?'🔴':'🟠'} <strong>${esc(a.title)}</strong><br><small>${esc(a.message)}</small>`;panel.append(div);}
-  }
-  if(document.body.dataset.page!=='calendar')return;
-  let zone=$('platformCalendarAlerts');
-  if(!alerts.length){zone?.remove();return;}
-  const anchor=$('calendarPosition');if(!anchor)return;
-  if(!zone){zone=document.createElement('div');zone.id='platformCalendarAlerts';anchor.parentElement.insertAdjacentElement('afterend',zone);}
-  zone.innerHTML=`<section class="card" style="border-left:5px solid #f59e0b"><h2>⚠️ Atención</h2>${alerts.map(a=>`<div style="padding:5px 0"><strong>${esc(a.title)}</strong><br><small>${esc(a.message)}</small></div>`).join('')}</section>`;
+function renderAlerts(alerts=null){
+  const page=document.body.dataset.page;if(page!=='index'&&page!=='calendar')return;const rows=alerts||smartAlerts(),panel=$('panelAlerts');
+  if(panel){panel.querySelectorAll('[data-platform-alert]').forEach(node=>node.remove());for(const a of rows){const div=document.createElement('div');div.dataset.platformAlert='1';div.style.cssText='padding:7px 0;border-top:1px solid #e2e8f0';div.innerHTML=`${a.level==='critical'?'🔴':'🟠'} <strong>${esc(a.title)}</strong><br><small>${esc(a.message)}</small>`;panel.append(div);}}
+  if(page!=='calendar')return;
+  let zone=$('platformCalendarAlerts');if(!rows.length){zone?.remove();return;}const anchor=$('calendarPosition');if(!anchor)return;if(!zone){zone=document.createElement('div');zone.id='platformCalendarAlerts';anchor.parentElement.insertAdjacentElement('afterend',zone);}
+  zone.innerHTML=`<section class="card" style="border-left:5px solid #f59e0b"><h2>⚠️ Atención</h2>${rows.map(a=>`<div style="padding:5px 0"><strong>${esc(a.title)}</strong><br><small>${esc(a.message)}</small></div>`).join('')}</section>`;
 }
 
 function renderHealth(){
@@ -115,7 +98,15 @@ function renderHistory(){
 }
 
 export function ensureFinancialPlatform(){ensureAccountsEngine();ensureAutomationEngine();}
-export function renderFinancialPlatform(){renderAccountsHub();renderForecast();renderAutomation();renderAlerts();renderHealth();renderSmartGoals();renderHistory();}
+export function renderFinancialPlatform(){
+  const page=document.body.dataset.page;
+  if(page==='wallet'){renderAccountsHub();renderSmartGoals();return;}
+  if(page==='index'||page==='calendar'){
+    const forecast=cashFlowForecast({days:45}),alerts=smartAlerts(new Date(),{forecast});renderForecast(forecast);renderAlerts(alerts);if(page==='calendar')renderAutomation();return;
+  }
+  if(page==='stats'){renderHealth();return;}
+  if(page==='historial')renderHistory();
+}
 
 function newAccount(){Modal.show('Nueva cuenta',[{label:'Nombre',key:'n',placeholder:'Efectivo, BBVA, Nu...'},{label:'Tipo',key:'t',type:'select',options:[{val:'cash',txt:'Efectivo / caja'},{val:'bank',txt:'Cuenta bancaria'},{val:'wallet',txt:'Wallet digital'}]}],d=>run(()=>createPersonalAccount({name:d.n,type:d.t}),{automate:false}));}
 function transfer(){const accounts=getPersonalAccounts({activeOnly:true});if(accounts.length<2)return alert('Necesitas al menos dos cuentas personales para transferir.');Modal.show('Transferir entre mis cuentas',[{label:'Desde',key:'f',type:'select',options:accounts.map(a=>({val:a.id,txt:`${a.name} · ${fmtMoney(accountBalance(a.id))}`}))},{label:'Hacia',key:'t',type:'select',options:accounts.map(a=>({val:a.id,txt:a.name}))},{label:'Monto',key:'m',type:'number'},{label:'Nota (opcional)',key:'n'}],d=>run(()=>transferBetweenAccounts({fromAccountId:d.f,toAccountId:d.t,amount:d.m,note:d.n}),{automate:false}));}
