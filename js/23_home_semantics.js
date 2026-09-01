@@ -1,4 +1,4 @@
-/* v3.0.0 - Semántica canónica de Hogar + migraciones y reparación segura de duplicados. */
+/* v3.1.0 - Semántica canónica de Hogar + migraciones y reparación segura de duplicados. */
 import { safeFloat } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import * as Base from './20_home_engine.js';
@@ -44,7 +44,7 @@ function canonicalFrequency(value){
 function migrateLegacyCommitments(plan,map){
   if(Number(plan.householdCanonicalMigrationVersion||0)>=3)return false;
   plan.householdExpenses=Array.isArray(plan.householdExpenses)?plan.householdExpenses:[];
-  const commitments=Array.isArray(plan.commitments)?plan.commitments:[];let changed=true; // el marcador de migración también es un cambio
+  const commitments=Array.isArray(plan.commitments)?plan.commitments:[];let changed=true;
   for(const c of commitments){
     if(c.active===false||CORE_LEGACY_IDS.has(c.id)||!(safeFloat(c.amount)>0))continue;
     const duplicate=plan.householdExpenses.some(x=>sameText(x.name,c.name)&&sameMoney(x.amount,c.amount));
@@ -74,9 +74,7 @@ function repairExactDirectDuplicates(state,map){
     const stamp=new Date(movement.recordedAt||item.createdAt||movement.fecha).getTime();
     const day=String(movement.fecha||'').slice(0,10),key=`${normalizedText(item.name||movement.desc)}|${safeFloat(movement.monto).toFixed(2)}|${day}`;
     const previous=seen.get(key);
-    if(previous&&Number.isFinite(stamp)&&stamp-previous.stamp>=0&&stamp-previous.stamp<=DUPLICATE_WINDOW_MS){
-      removeMovements.add(movement.id);removeItems.add(item.id);continue;
-    }
+    if(previous&&Number.isFinite(stamp)&&stamp-previous.stamp>=0&&stamp-previous.stamp<=DUPLICATE_WINDOW_MS){removeMovements.add(movement.id);removeItems.add(item.id);continue;}
     seen.set(key,{stamp,id:movement.id,itemId:item.id});
   }
   if(removeMovements.size){
@@ -94,8 +92,7 @@ export function ensureHousehold(){
   if(Number(plan.householdSemanticsVersion||0)<1){plan.householdSemanticsVersion=1;changed=true;}
   if(migrateLegacyCommitments(plan,map))changed=true;
   const repair=repairExactDirectDuplicates(state,map);
-  if(repair.removed>0)Data.sanearDatos();
-  else if(changed||repair.changed)Data.saveData();
+  if(repair.removed>0)Data.sanearDatos();else if(changed||repair.changed)Data.saveData();
   return (plan.householdExpenses||[]).map(decorate);
 }
 export function householdItems({activeOnly=false}={}){const items=ensureHousehold();return activeOnly?items.filter(x=>x.active!==false):items;}
@@ -113,8 +110,8 @@ export function createHouseholdExpense(config={}){
 }
 export function updateHouseholdExpense(id,patch={}){
   const current=householdById(id);if(!current)throw new Error('GASTO_HOGAR_NO_ENCONTRADO');
-  const kind=validKind(patch.kind)||current.kind,{next}=configForKind({...patch,kind});
-  if(patch.kind===undefined)delete next.priority;
+  const kind=validKind(patch.kind)||current.kind;if(kind==='spent')throw new Error('USA_GASTO_REALIZADO');
+  const {next}=configForKind({...patch,kind});if(patch.kind===undefined)delete next.priority;
   const item=Base.updateHouseholdExpense(id,next);remember(id,kind);return decorate(item);
 }
 export function setHouseholdExpenseActive(id,active){const item=Base.setHouseholdExpenseActive(id,active);return decorate(item);}
@@ -168,9 +165,7 @@ export function recordDirectHouseholdExpense(config={}){
 
 export function recentDirectHouseholdExpenses(limit=8){
   const state=Data.getState(),map=semantics(),items=new Map(Base.householdItems().map(x=>[x.id,x]));
-  return (state.movimientos||[]).filter(m=>m.tipo==='gasto'&&map[m.householdExpenseId]==='spent').map(m=>({
-    item:decorate(items.get(m.householdExpenseId)),movement:m,amount:safeFloat(m.monto),date:m.fecha,recordedAt:m.recordedAt||items.get(m.householdExpenseId)?.createdAt||m.fecha
-  })).filter(x=>x.item).sort((a,b)=>new Date(b.recordedAt)-new Date(a.recordedAt)).slice(0,Math.max(0,limit));
+  return (state.movimientos||[]).filter(m=>m.tipo==='gasto'&&map[m.householdExpenseId]==='spent').map(m=>({item:decorate(items.get(m.householdExpenseId)),movement:m,amount:safeFloat(m.monto),date:m.fecha,recordedAt:m.recordedAt||items.get(m.householdExpenseId)?.createdAt||m.fecha})).filter(x=>x.item).sort((a,b)=>new Date(b.recordedAt)-new Date(a.recordedAt)).slice(0,Math.max(0,limit));
 }
 
 export function undoDirectHouseholdExpense(id){
