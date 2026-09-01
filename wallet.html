@@ -1,20 +1,24 @@
 <!DOCTYPE html>
 <html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="theme-color" content="#2563eb"><title>Wallet · La app del HecAgus</title><link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="style.css"></head>
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="theme-color" content="#2563eb">
+  <title>Wallet · La app del HecAgus</title>
+  <script src="./js/pwa-bootstrap.js"></script>
+  <link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/hecagus-finance-192.png" type="image/png"><link rel="stylesheet" href="style.css">
+</head>
 <body data-page="wallet">
 <header class="header"><h1>💰 Wallet</h1></header>
 <main class="container">
   <section class="card text-center" style="background:linear-gradient(135deg,#2563eb 0%,#1e40af 100%);color:white;border:none"><div id="valWallet">$0.00</div></section>
   <section><h2 style="margin:14px 4px 8px">Cuentas</h2><div id="accountsContainer"></div></section>
-  <!-- Wallet administra saldos, cuentas y metas. La línea de tiempo vive únicamente en Historial. -->
+  <!-- Historial es la única línea de tiempo. Este ancla oculta impide que capas antiguas vuelvan a insertar movimientos aquí. -->
   <div id="platformRecentMovements" class="hidden" aria-hidden="true"></div>
   <section>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 4px 8px"><h2 style="margin:0">🎯 Metas de ahorro</h2><button id="btnNewSavingsGoal" class="btn btn-primary" style="width:auto;padding:9px 12px">+ Nueva meta</button></div>
     <div id="savingsGoalsContainer"></div>
   </section>
-  <section><h2 style="margin:14px 4px 8px">Compromisos</h2><div id="sobresContainer"></div></section>
 </main>
-<nav class="bottom-nav"><a href="index.html" class="nav-link"><span>▥</span>Panel</a><a href="wallet.html" class="nav-link active"><span>◉</span>Wallet</a><a href="admin.html" class="nav-link"><span>▶</span>Actividad</a><a href="stats.html" class="nav-link"><span>⌁</span>Stats</a><a href="historial.html" class="nav-link"><span>≡</span>Historial</a></nav>
+<nav class="bottom-nav" aria-label="Navegación principal"></nav>
 <div id="appModal" class="modal-overlay"><div class="modal"><h3 id="modalTitle"></h3><div id="modalBody"></div><div class="modal-actions"><button id="modalCancel" class="btn btn-outline">Cancelar</button><button id="modalConfirm" class="btn btn-primary">Guardar</button></div></div></div>
 <script type="module" src="./js/05_init.js"></script>
 </body></html>

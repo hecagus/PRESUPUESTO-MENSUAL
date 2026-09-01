@@ -1,14 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <meta name="theme-color" content="#2563eb">
-  <meta name="description" content="Actividad, combustible y costos operativos de La app del HecAgus.">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="theme-color" content="#2563eb"><meta name="description" content="Trabajo, costos y rendimiento de La app del HecAgus.">
   <title>Actividad · La app del HecAgus</title>
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="hecagus-finance-192.png" type="image/png">
-  <link rel="stylesheet" href="style.css">
+  <script src="./js/pwa-bootstrap.js"></script>
+  <link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/hecagus-finance-192.png" type="image/png"><link rel="stylesheet" href="style.css">
 </head>
 <body data-page="admin">
 <header class="header"><h1>▶️ Actividad</h1></header>
@@ -16,26 +12,24 @@
   <section class="card" style="border-left:5px solid var(--primary)">
     <h2>🗓️ Trabajo / actividad</h2>
     <div style="display:flex;justify-content:space-between;margin-bottom:10px;background:#f8fafc;padding:10px;border-radius:8px"><div id="activityStatus">Sin actividad en curso</div><div id="activityTimer" style="font-family:monospace;color:var(--text-sec)">00:00:00</div></div>
-    <div id="activitySourceZone"></div>
-    <small style="display:block;margin-top:8px;color:var(--text-sec)">Aquí sólo vive lo relacionado con tu trabajo. Tu dinero personal se consulta en Panel y Wallet.</small>
+    <div id="activitySourceZone"></div><small style="display:block;margin-top:8px;color:var(--text-sec)">La app muestra sólo las actividades que configuraste.</small>
   </section>
 
   <section class="card" style="border-left:5px solid #0f766e"><h2>💵 Pagos por periodo</h2><div id="sourcePaymentZone"></div></section>
 
-  <section class="card" style="border-left:5px solid #2563eb"><h2>📈 Rendimiento de actividad</h2><div id="activityPerformanceZone"></div></section>
-
   <section id="fuelCard" class="card hidden" style="border-left:5px solid #f59e0b">
     <h2>⛽ Combustible</h2><div id="fuelFundSummary" style="margin-bottom:10px"></div>
-    <div id="fuelEfficiencySummary" style="margin:10px 0 14px"></div>
     <div class="grid-2"><button id="btnCompanyFund" class="btn btn-success">💳 Depósito empresa</button><button id="btnFuel" class="btn btn-warning">⛽ Repostaje</button></div>
-    <small style="display:block;margin-top:8px;color:var(--text-sec)">El rendimiento usa litros y odómetro de cargas consecutivas. El pagador sólo define de qué fondo sale el dinero.</small>
+    <div id="fuelEfficiencySummary" style="margin-top:14px"></div>
   </section>
 
   <section id="transportCard" class="card hidden"><h2>🛣️ Transporte</h2><div style="display:flex;justify-content:space-between;align-items:center"><div><strong id="transportLabel">Sin transporte</strong><br><small id="kmActual">0 km</small></div><button id="btnConfigKM" class="btn btn-outline" style="width:auto">KM inicial</button></div></section>
 
-  <section class="card hidden" style="border-left:5px solid #7c3aed"><h2>🏪 Negocio · costos y recetas</h2><div id="businessZone"></div></section>
+  <section class="card" style="border-left:5px solid #2563eb"><h2>📈 Rendimiento de actividad</h2><div id="activityPerformanceZone"></div></section>
 
-  <section class="card"><h2>🛠️ Costos de actividad</h2><div class="grid-2"><button id="btnGastoOperativo" class="btn btn-primary">+ Registrar costo</button><button id="btnGastoHogar" class="btn btn-outline">🏠 Gastos personales</button></div><small style="display:block;margin-top:8px;color:var(--text-sec)">Aquí se registran gastos que ya ocurrieron por trabajar: mantenimiento, equipo, seguro, renta operativa, etc. Los gastos de vida van en Hogar.</small><div id="operationalExpenseRows" style="margin-top:10px"></div></section>
+  <section class="card"><h2>🛠️ Costos de trabajo</h2><div class="grid-2"><button id="btnGastoHogar" class="btn btn-outline">🏠 Gasto personal</button><button id="btnGastoOperativo" class="btn btn-primary">+ Costo operativo</button></div><div id="operationalExpenseRows" style="margin-top:12px"></div><small style="display:block;margin-top:8px;color:var(--text-sec)">Los personales viven en Hogar. Aquí sólo costos ligados al trabajo.</small></section>
+
+  <section class="card hidden" style="border-left:5px solid #7c3aed"><h2>🏪 Negocio · costos y recetas</h2><div id="businessZone"></div></section>
 
   <section class="card"><h2>Gestión de deudas</h2><button id="btnDeudaNueva" class="btn btn-outline" style="margin-bottom:15px">+ Nueva deuda</button><div style="background:#f1f5f9;padding:10px;border-radius:8px"><label style="font-size:.8rem;color:var(--text-sec)">Realizar abono:</label><div style="display:flex;gap:5px"><select id="abonoDeudaSelect" class="input-control" style="margin:0"><option value="">Seleccionar...</option></select><button id="btnAbonoCuota" class="btn btn-success" style="width:auto">OK</button></div></div><ul id="listaDeudasAdmin" style="margin-top:10px;list-style:none"></ul></section>
 

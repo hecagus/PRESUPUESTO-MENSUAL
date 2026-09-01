@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mi Panel Financiero">
-  <rect width="512" height="512" rx="112" fill="#2563eb"/>
-  <rect x="92" y="92" width="328" height="328" rx="72" fill="#ffffff" opacity="0.12"/>
-  <path d="M144 334V220h56v114h-56Zm84 0V166h56v168h-56Zm84 0V246h56v88h-56Z" fill="#ffffff"/>
-  <path d="M136 368h240" stroke="#ffffff" stroke-width="20" stroke-linecap="round" opacity="0.9"/>
-</svg>

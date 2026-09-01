@@ -1,8 +1,8 @@
-/* v2.9.0 - Constantes, capacidades y utilidades puras. */
-export const APP_VERSION = '2.9.0';
+/* v3.0.0 - Constantes, capacidades y utilidades puras. */
+export const APP_VERSION = '3.0.0';
 export const STORAGE_KEY = 'moto_finanzas_vFinal';
 export const LEGACY_KEYS = ['moto_finanzas_v3', 'moto_finanzas', 'app_moto_data'];
-export const SCHEMA_VERSION = 26;
+export const SCHEMA_VERSION = 30;
 
 export const SOURCE_KINDS = Object.freeze({employment:{label:'Empleo',icon:'💼'},gig:{label:'Plataforma / turnos',icon:'🛵'},freelance:{label:'Freelance',icon:'💻'},business:{label:'Negocio',icon:'🏪'},other:{label:'Otro ingreso',icon:'💰'}});
 export const COMPENSATIONS = Object.freeze({daily:{label:'Diario',captureOnActivity:false},weekly:{label:'Semanal',captureOnActivity:false},biweekly:{label:'Quincenal',captureOnActivity:false},monthly:{label:'Mensual',captureOnActivity:false},per_shift:{label:'Por turno',captureOnActivity:true},per_project:{label:'Por proyecto',captureOnActivity:false},per_sale:{label:'Por venta',captureOnActivity:false},variable:{label:'Variable',captureOnActivity:true}});

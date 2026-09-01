@@ -1,4 +1,4 @@
-/* v2.8.1 - Semántica de Hogar: obligación, presupuesto, reserva, opcional y gasto real. */
+/* v3.0.0 - Semántica canónica de Hogar + migraciones y reparación segura de duplicados. */
 import { safeFloat } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import * as Base from './20_home_engine.js';
@@ -15,6 +15,7 @@ export const HOME_CATEGORIES=Base.HOME_CATEGORIES;
 export const HOME_PRIORITIES=Base.HOME_PRIORITIES;
 
 const DUPLICATE_WINDOW_MS=5*60*1000;
+const CORE_LEGACY_IDS=new Set(['life-housing','life-services']);
 const kindFromPriority=p=>p==='obligatory'?'obligation':p==='budgeted'?'budget':'optional';
 const priorityFromKind=k=>k==='obligation'?'obligatory':k==='budget'?'budgeted':'discretionary';
 const validKind=k=>HOME_KINDS[k]?k:null;
@@ -29,13 +30,73 @@ const decorate=item=>item?{...item,kind:itemKind(item)}:null;
 const remember=(id,kind)=>{semantics()[id]=validKind(kind)||'budget';Data.saveData();};
 const dayFromDate=value=>{if(!value)return null;const d=new Date(`${String(value).slice(0,10)}T12:00:00`);return Number.isNaN(d.getTime())?null:d.getDate();};
 const sameMoney=(a,b)=>Math.abs(safeFloat(a)-safeFloat(b))<0.005;
-const sameText=(a,b)=>String(a||'').trim().toLocaleLowerCase('es-MX')===String(b||'').trim().toLocaleLowerCase('es-MX');
+const normalizedText=v=>String(v||'').trim().toLocaleLowerCase('es-MX');
+const sameText=(a,b)=>normalizedText(a)===normalizedText(b);
+
+function canonicalFrequency(value){
+  const f=String(value||'monthly').toLowerCase();
+  if(f.includes('diar'))return'daily';
+  if(f.includes('seman'))return'weekly';
+  if(f.includes('quinc')||f==='biweekly')return'biweekly';
+  return'monthly';
+}
+
+function migrateLegacyCommitments(plan,map){
+  if(Number(plan.householdCanonicalMigrationVersion||0)>=3)return false;
+  plan.householdExpenses=Array.isArray(plan.householdExpenses)?plan.householdExpenses:[];
+  const commitments=Array.isArray(plan.commitments)?plan.commitments:[];let changed=true; // el marcador de migración también es un cambio
+  for(const c of commitments){
+    if(c.active===false||CORE_LEGACY_IDS.has(c.id)||!(safeFloat(c.amount)>0))continue;
+    const duplicate=plan.householdExpenses.some(x=>sameText(x.name,c.name)&&sameMoney(x.amount,c.amount));
+    if(!duplicate){
+      const id=`home-commitment-${c.id}`;
+      plan.householdExpenses.push({
+        id,name:String(c.name||'Compromiso').trim()||'Compromiso',
+        category:HOME_CATEGORIES.includes(c.category)?c.category:'Otros',amount:safeFloat(c.amount),
+        frequency:canonicalFrequency(c.frequency),priority:'obligatory',dueDay:Number(c.dueDay)||1,
+        nextDueDate:null,active:true,createdAt:c.createdAt||new Date().toISOString(),notes:'Migrado del calendario anterior'
+      });
+      map[id]='obligation';
+    }
+    c.active=false;
+  }
+  plan.householdCanonicalMigrationVersion=3;
+  return changed;
+}
+
+function repairExactDirectDuplicates(state,map){
+  const plan=state.financialPlan;
+  if(Number(plan.householdDirectRepairVersion||0)>=1)return {removed:0,changed:false};
+  const items=new Map((plan.householdExpenses||[]).map(x=>[x.id,x])),seen=new Map(),removeMovements=new Set(),removeItems=new Set();
+  const rows=(state.movimientos||[]).filter(m=>m.tipo==='gasto'&&m.householdExpenseId&&map[m.householdExpenseId]==='spent').sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
+  for(const movement of rows){
+    const item=items.get(movement.householdExpenseId);if(!item)continue;
+    const stamp=new Date(movement.recordedAt||item.createdAt||movement.fecha).getTime();
+    const day=String(movement.fecha||'').slice(0,10),key=`${normalizedText(item.name||movement.desc)}|${safeFloat(movement.monto).toFixed(2)}|${day}`;
+    const previous=seen.get(key);
+    if(previous&&Number.isFinite(stamp)&&stamp-previous.stamp>=0&&stamp-previous.stamp<=DUPLICATE_WINDOW_MS){
+      removeMovements.add(movement.id);removeItems.add(item.id);continue;
+    }
+    seen.set(key,{stamp,id:movement.id,itemId:item.id});
+  }
+  if(removeMovements.size){
+    state.movimientos=(state.movimientos||[]).filter(m=>!removeMovements.has(m.id));
+    plan.householdExpenses=(plan.householdExpenses||[]).filter(x=>!removeItems.has(x.id));
+    for(const id of removeItems)delete map[id];
+  }
+  plan.householdDirectRepairVersion=1;
+  return {removed:removeMovements.size,changed:true};
+}
 
 export function ensureHousehold(){
-  const items=Base.ensureHousehold(),map=semantics();let changed=false;
-  for(const item of items)if(!validKind(map[item.id])){map[item.id]=kindFromPriority(item.priority);changed=true;}
-  const plan=Data.getState().financialPlan;if(Number(plan.householdSemanticsVersion||0)<1){plan.householdSemanticsVersion=1;changed=true;}
-  if(changed)Data.saveData();return items.map(decorate);
+  Base.ensureHousehold();const state=Data.getState(),plan=state.financialPlan,map=semantics();let changed=false;
+  for(const item of plan.householdExpenses||[])if(!validKind(map[item.id])){map[item.id]=kindFromPriority(item.priority);changed=true;}
+  if(Number(plan.householdSemanticsVersion||0)<1){plan.householdSemanticsVersion=1;changed=true;}
+  if(migrateLegacyCommitments(plan,map))changed=true;
+  const repair=repairExactDirectDuplicates(state,map);
+  if(repair.removed>0)Data.sanearDatos();
+  else if(changed||repair.changed)Data.saveData();
+  return (plan.householdExpenses||[]).map(decorate);
 }
 export function householdItems({activeOnly=false}={}){const items=ensureHousehold();return activeOnly?items.filter(x=>x.active!==false):items;}
 export function householdById(id){return decorate(Base.householdById(id));}
