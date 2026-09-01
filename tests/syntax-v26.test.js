@@ -16,6 +16,6 @@ test('módulos financieros tienen sintaxis JavaScript válida',()=>{
 test('service worker v3 cachea plataforma sin depender de addAll',()=>{
   const sw=readFileSync('sw.js','utf8');
   for(const name of ['15_accounts_engine.js','16_forecast_engine.js','17_automation_engine.js','18_health_goals.js','19_platform_ui.js','20_home_engine.js','21_financial_life_v27.js','22_home_ui.js','23_home_semantics.js','24_home_ui_v28.js','25_activity_insights.js','pwa-bootstrap.js'])assert.match(sw,new RegExp(name.replace('.','\\.')));
-  assert.match(sw,/home\.html/);assert.match(sw,/hecagus-finance-3\.0\.0-shell/);
+  assert.match(sw,/home\.html/);assert.match(sw,/hecagus-finance-3\.1\.0-shell/);
   assert.match(sw,/Promise\.allSettled/);assert.doesNotMatch(sw,/cache\.addAll\(/);
 });
