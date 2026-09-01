@@ -1,4 +1,4 @@
-/* v2.8.1 - UI de Hogar: semántica financiera + confirmación visible de gastos realizados. */
+/* v3.1.0 - UI de Hogar: semántica financiera, gasto realizado seguro y confirmación visible. */
 import { $, fmtMoney } from './01_consts_utils.js';
 import { getState } from './02_data.js';
 import { Modal } from './03_render.js';
@@ -71,7 +71,7 @@ export function renderHome(){
 }
 
 const categoryOptions=()=>HOME_CATEGORIES.map(x=>({val:x,txt:x}));
-const kindOptions=()=>Object.entries(HOME_KINDS).map(([val,x])=>({val,txt:`${x.icon} ${x.label}`}));
+const kindOptions=({allowSpent=true}={})=>Object.entries(HOME_KINDS).filter(([val])=>allowSpent||val!=='spent').map(([val,x])=>({val,txt:`${x.icon} ${x.label}`}));
 const frequencyOptions=()=>Object.entries(HOME_FREQUENCIES).map(([val,txt])=>({val,txt}));
 
 function nextDateFromDueDay(item){
@@ -92,15 +92,24 @@ function payloadFor(data,item){
   return d;
 }
 
+function recordDirectWithConfirmation(payload){
+  try{return recordDirectHouseholdExpense({...payload,date:payload.nextDueDate||isoDate(new Date())});}
+  catch(e){
+    if(e.message!=='GASTO_HOGAR_DUPLICADO_RECIENTE')throw e;
+    if(!confirm('Ya existe un gasto igual registrado hace unos minutos. ¿Realmente son dos compras distintas?'))throw e;
+    return recordDirectHouseholdExpense({...payload,date:payload.nextDueDate||isoDate(new Date()),allowDuplicate:true});
+  }
+}
+
 function itemModal(item,refresh){
   Modal.show(item?'Editar registro del hogar':'Nuevo registro del hogar',[
     {label:'Nombre',key:'name',value:item?.name||'',placeholder:'Renta, comida, papel higiénico, Netflix...'},
     {label:'Monto ($)',key:'amount',type:'number',value:item?.amount||''},
     {label:'Categoría',key:'category',type:'select',options:categoryOptions()},
-    {label:'¿Qué representa este dinero?',key:'kind',type:'select',options:kindOptions()},
+    {label:'¿Qué representa este dinero?',key:'kind',type:'select',options:kindOptions({allowSpent:!item})},
     {label:'Frecuencia',key:'frequency',type:'select',options:frequencyOptions()},
     {label:'Fecha',key:'nextDueDate',type:'date',value:item?scheduleDateValue(item):''}
-  ],d=>run(()=>{const payload=payloadFor(d,item);if(!item&&payload.kind==='spent')return recordDirectHouseholdExpense({...payload,date:payload.nextDueDate||isoDate(new Date())});return item?updateHouseholdExpense(item.id,payload):createHouseholdExpense(payload);},refresh));
+  ],d=>run(()=>{const payload=payloadFor(d,item);if(!item&&payload.kind==='spent')return recordDirectWithConfirmation(payload);return item?updateHouseholdExpense(item.id,payload):createHouseholdExpense(payload);},refresh));
   setTimeout(()=>{
     const body=$('modalBody');if(!body)return;const set=(key,value)=>{const el=body.querySelector(`[data-k="${key}"]`);if(el)el.value=value;};
     set('category',item?.category||'Alimentación');set('kind',item?.kind||'obligation');set('frequency',item?.frequency||'monthly');
@@ -117,7 +126,7 @@ function itemModal(item,refresh){
   },0);
 }
 
-function run(fn,refresh){try{fn();refresh?.();document.dispatchEvent(new CustomEvent('budget:data-changed'));}catch(e){console.error(e);const map={MONTO_INVALIDO:'Ingresa un monto mayor a 0.',NOMBRE_INVALIDO:'Escribe un nombre.',FECHA_HOGAR_INVALIDA:'La fecha no es válida.',GASTO_HOGAR_NO_ENCONTRADO:'No se encontró ese registro.',GASTO_HOGAR_YA_PAGADO:'Ese pago ya quedó registrado para este periodo.',GASTO_HOGAR_DUPLICADO_RECIENTE:'Ese mismo gasto ya se registró hace unos minutos. Revisa “Gastos realizados recientes” antes de volver a capturarlo.',USA_GASTO_REALIZADO:'Usa la opción Gasto realizado.'};alert(map[e.message]||'No se pudo completar la operación.');}}
+function run(fn,refresh){try{fn();refresh?.();document.dispatchEvent(new CustomEvent('budget:data-changed'));}catch(e){console.error(e);const map={MONTO_INVALIDO:'Ingresa un monto mayor a 0.',NOMBRE_INVALIDO:'Escribe un nombre.',FECHA_HOGAR_INVALIDA:'La fecha no es válida.',GASTO_HOGAR_NO_ENCONTRADO:'No se encontró ese registro.',GASTO_HOGAR_YA_PAGADO:'Ese pago ya quedó registrado para este periodo.',GASTO_HOGAR_DUPLICADO_RECIENTE:'Ese mismo gasto ya está registrado. No se creó una segunda copia.',USA_GASTO_REALIZADO:'Usa la opción Gasto realizado.'};alert(map[e.message]||'No se pudo completar la operación.');}}
 function record(item,refresh){const label=item.kind==='obligation'?'Importe pagado ($)':item.kind==='reserve'?'Importe de la compra ($)':'Importe gastado ($)';Modal.show(`${actionLabel(item)} · ${item.name}`,[{label,key:'amount',type:'number',value:item.amount}],d=>run(()=>recordHouseholdExpense(item.id,d.amount),refresh));}
 
 export function initHomeEvents(refresh){
