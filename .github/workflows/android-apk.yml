@@ -1,0 +1,59 @@
+name: Android APK
+
+on:
+  push:
+    branches: [feat/android-capacitor-apk]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run domain tests
+        run: npm test
+
+      - name: Prepare web assets
+        run: npm run android:web
+
+      - name: Generate Android project
+        run: npx cap add android
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Stage APK
+        run: |
+          mkdir -p artifacts
+          cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/HecAgus-Wallet-3.1.0-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HecAgus-Wallet-Android
+          path: artifacts/HecAgus-Wallet-3.1.0-debug.apk
+          if-no-files-found: error
+          retention-days: 14
