@@ -1,0 +1,8 @@
+{
+  "appId": "com.hecagus.wallet",
+  "appName": "HecAgus Wallet",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
