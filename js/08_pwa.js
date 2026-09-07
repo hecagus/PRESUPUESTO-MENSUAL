@@ -5,11 +5,13 @@ let registrationPromise=window.__hecagusSWRegistrationPromise||null;
 let readiness={checked:false,secure:window.isSecureContext,manifest:false,icons:false,serviceWorker:false,error:null};
 let readinessPromise=null;
 
-export const isStandalone=()=>window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
-export const canPromptInstall=()=>Boolean(deferredPrompt||window.__hecagusInstallPrompt);
-export const pwaReadiness=()=>({...readiness,installPrompt:canPromptInstall(),standalone:isStandalone()});
+const isNativeApp=()=>Boolean(window.__hecagusNativeApp||window.Capacitor?.isNativePlatform?.());
+export const isStandalone=()=>isNativeApp()||window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+export const canPromptInstall=()=>!isNativeApp()&&Boolean(deferredPrompt||window.__hecagusInstallPrompt);
+export const pwaReadiness=()=>({...readiness,installPrompt:canPromptInstall(),standalone:isStandalone(),native:isNativeApp()});
 
 function baseHint(){
+  if(isNativeApp())return 'Aplicación Android instalada.';
   if(!window.isSecureContext)return 'La instalación requiere una conexión segura HTTPS.';
   if(!('serviceWorker' in navigator))return 'Este navegador no admite Service Workers para esta aplicación.';
   if(window.__hecagusSWError)return 'No se pudo preparar el modo offline. Recarga la página para volver a intentarlo.';
@@ -44,6 +46,10 @@ export function updateInstallUI(){
 
 async function fetchOk(url){try{const response=await fetch(url,{cache:'no-store'});return response.ok;}catch{return false;}}
 async function checkReadiness(){
+  if(isNativeApp()){
+    readiness={checked:true,secure:true,manifest:true,icons:true,serviceWorker:true,error:null};
+    return pwaReadiness();
+  }
   if(readinessPromise)return readinessPromise;
   readinessPromise=(async()=>{
     const next={checked:true,secure:window.isSecureContext,manifest:false,icons:false,serviceWorker:false,error:null};
@@ -67,6 +73,7 @@ async function checkReadiness(){
 }
 
 function capturePrompt(event){
+  if(isNativeApp())return;
   event.preventDefault?.();deferredPrompt=event;window.__hecagusInstallPrompt=event;updateInstallUI();
   document.dispatchEvent(new CustomEvent('budget:pwa-installable'));
 }
@@ -86,6 +93,7 @@ function bindLifecycle(){
 
 export function initPWA(){
   bindLifecycle();updateInstallUI();
+  if(isNativeApp())return Promise.resolve(null);
   if(!registrationPromise&&'serviceWorker' in navigator){
     registrationPromise=navigator.serviceWorker.register('/sw.js',{scope:'/',updateViaCache:'none'})
       .then(async reg=>{try{await reg.update();await navigator.serviceWorker.ready;}catch{}readinessPromise=null;await checkReadiness();return reg;})
