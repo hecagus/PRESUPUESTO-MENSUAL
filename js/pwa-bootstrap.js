@@ -1,18 +1,21 @@
-/* v3.0.0 - Arranque PWA mínimo. Se ejecuta en <head> antes del motor de la app. */
+/* v3.1.0 - Arranque PWA mínimo. En Capacitor nativo no registra SW ni solicita instalación. */
 window.__hecagusInstallPrompt=window.__hecagusInstallPrompt||null;
 window.__hecagusSWError=null;
+window.__hecagusNativeApp=Boolean(window.Capacitor?.isNativePlatform?.());
 
-window.addEventListener('beforeinstallprompt',event=>{
-  event.preventDefault();
-  window.__hecagusInstallPrompt=event;
-  document.dispatchEvent(new CustomEvent('budget:pwa-installable-early'));
-});
-window.addEventListener('appinstalled',()=>{
-  window.__hecagusInstallPrompt=null;
-  document.dispatchEvent(new CustomEvent('budget:pwa-installed-early'));
-});
+if(!window.__hecagusNativeApp){
+  window.addEventListener('beforeinstallprompt',event=>{
+    event.preventDefault();
+    window.__hecagusInstallPrompt=event;
+    document.dispatchEvent(new CustomEvent('budget:pwa-installable-early'));
+  });
+  window.addEventListener('appinstalled',()=>{
+    window.__hecagusInstallPrompt=null;
+    document.dispatchEvent(new CustomEvent('budget:pwa-installed-early'));
+  });
+}
 
-if('serviceWorker' in navigator&&!window.__hecagusSWRegistrationPromise){
+if(!window.__hecagusNativeApp&&'serviceWorker' in navigator&&!window.__hecagusSWRegistrationPromise){
   window.__hecagusSWRegistrationPromise=navigator.serviceWorker.register('/sw.js',{scope:'/',updateViaCache:'none'})
     .then(async registration=>{
       try{await registration.update();}catch{}
