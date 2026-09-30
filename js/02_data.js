@@ -19,6 +19,7 @@ const INITIAL_STATE={
 
 let store=structuredClone(INITIAL_STATE);
 export const getState=()=>store;
+export const createEmptyState=()=>structuredClone({...INITIAL_STATE,accounts:[defaultPersonalAccount()]});
 export const getCapabilities=()=>new Set(store.profile?.capabilities||[]);
 export const fuenteById=id=>store.workSources.find(x=>x.id===id)||null;
 export const cuentaById=id=>store.accounts.find(x=>x.id===id)||null;
