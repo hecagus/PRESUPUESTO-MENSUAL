@@ -32,7 +32,7 @@ function reset(){
 test.beforeEach(reset);
 
 test('obligaciones y presupuesto del hogar reducen dinero realmente libre',()=>{
-  Home.createHouseholdExpense({name:'Renta',category:'Vivienda',amount:4000,frequency:'monthly',priority:'obligatory',dueDay:5});
+  Home.createHouseholdExpense({name:'Renta',category:'Vivienda',amount:4000,frequency:'monthly',priority:'obligatory',dueDay:5,nextDueDate:'2026-09-05'});
   Home.createHouseholdExpense({name:'Despensa',category:'Alimentación',amount:2000,frequency:'monthly',priority:'budgeted'});
   const pos=Finance.financialPosition(new Date(2026,8,1,12));
   assert.equal(Math.round(pos.homeDue),4000);

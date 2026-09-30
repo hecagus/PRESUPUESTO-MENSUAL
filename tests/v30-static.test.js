@@ -25,7 +25,7 @@ test('Calendario es vista y no vuelve a crear compromisos paralelos',async()=>{
 
 test('sincronización fusiona Hogar y evita sondeo/escrituras agresivas',async()=>{
   const sync=await read('js/07_sync.js');
-  assert.match(sync,/householdKinds:\{\.\.\.\(remote\?\.financialPlan\?\.householdKinds/);
+  assert.match(sync,/import \{ mergeStates, syncOutcome, assertSyncSize \} from '\.\/26_sync_merge\.js'/);
   assert.match(sync,/FALLBACK_OBSERVER_MS=12000/);
   assert.match(sync,/budget:data-changed/);
   assert.match(sync,/visibilitychange/);
@@ -35,7 +35,7 @@ test('sincronización fusiona Hogar y evita sondeo/escrituras agresivas',async()
 
 test('v3.1 mantiene storage histórico y esquema sin borrar datos',async()=>{
   const constants=await read('js/01_consts_utils.js'),pkg=JSON.parse(await read('package.json'));
-  assert.match(constants,/APP_VERSION = '3\.1\.0'/);assert.match(constants,/STORAGE_KEY = 'moto_finanzas_vFinal'/);assert.match(constants,/SCHEMA_VERSION = 30/);assert.equal(pkg.version,'3.1.0');
+  assert.match(constants,/APP_VERSION = '3\.1\.1'/);assert.match(constants,/STORAGE_KEY = 'moto_finanzas_vFinal'/);assert.match(constants,/SCHEMA_VERSION = 30/);assert.equal(pkg.version,'3.1.1');
 });
 
 test('onboarding no contiene el falso botón Comprobar instalación',async()=>{
