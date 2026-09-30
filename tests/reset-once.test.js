@@ -59,3 +59,42 @@ test('cancelling the confirmation performs no writes and retains local records',
   const f=await fixture();navigator.onLine=true;document.getElementById('btnResetOnce').click();
   assert.equal(f.writes(),0);assert.deepEqual(Data.getState(),f.old);
 });
+
+test('fresh setup clears both the previous cloud budget and local records before opening the form',async()=>{
+  const f=await fixture();navigator.onLine=true;globalThis.confirm=()=>true;
+  assert.equal(await f.Sync.prepareFreshBudget(),true);
+  assert.equal(f.writes(),1);assert.equal(Data.getState().movimientos.length,0);
+  assert.equal(Data.getState().workSources.length,0);assert.equal(Data.getState().deudas.length,0);
+  assert.equal(f.cloud().state.profile.onboarded,false);assert.ok(f.cloud().oneTimeResetUsedAt);
+});
+test('cancelled or failed fresh setup does not permit the form or erase records',async()=>{
+  let f=await fixture();navigator.onLine=true;globalThis.confirm=()=>false;
+  assert.equal(await f.Sync.prepareFreshBudget(),false);assert.deepEqual(Data.getState(),f.old);
+  f=await fixture({fail:true});navigator.onLine=true;globalThis.confirm=()=>true;
+  await assert.rejects(f.Sync.prepareFreshBudget(),/Network failure/);assert.deepEqual(Data.getState(),f.old);
+});
+test('reset, configure, save to cloud and reload never resurrect the previous budget',async()=>{
+  const f=await fixture();navigator.onLine=true;globalThis.confirm=()=>true;
+  await f.Sync.prepareFreshBudget();const marker=Data.getState().resetGeneration;
+  Data.configurarOnboarding({displayName:'Nueva app',useCases:['personal'],transportMode:'none',openingBalance:'',sources:[]});
+  f.Sync.notifyLocalChange();await f.Sync.syncNow();
+  Data.loadData();await f.Sync.syncNow();
+  assert.equal(Data.getState().profile.displayName,'Nueva app');assert.equal(Data.getState().wallet.saldo,0);
+  for(const key of ['movimientos','deudas','workSources','turnos'])assert.equal(Data.getState()[key].length,0,key);
+  assert.equal(Data.getState().resetGeneration,marker);assert.equal(f.cloud().state.profile.onboarded,true);
+  assert.equal(f.cloud().state.movimientos.length,0);
+});
+test('saving during an in-flight sync waits and uploads the newer configuration',async()=>{
+  const f=await fixture();navigator.onLine=true;await f.Sync.resetBudgetOnce();
+  const transaction=globalThis.__resetSDK.runTransaction;
+  let release,started;
+  const gate=new Promise(resolve=>{release=resolve;}),entered=new Promise(resolve=>{started=resolve;});
+  let blocked=false;
+  globalThis.__resetSDK.runTransaction=async(...args)=>{if(!blocked){blocked=true;started();await gate;}return transaction(...args);};
+  const first=f.Sync.syncNow();await entered;
+  Data.getState().profile.onboarded=true;Data.getState().profile.displayName='Configuración nueva';Data.saveData();f.Sync.notifyLocalChange();
+  let finished=false;const second=f.Sync.syncNow().then(()=>{finished=true;});
+  await Promise.resolve();assert.equal(finished,false);
+  release();await Promise.all([first,second]);
+  assert.equal(f.cloud().state.profile.displayName,'Configuración nueva');assert.equal(f.cloud().state.profile.onboarded,true);
+});

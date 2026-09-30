@@ -1,7 +1,7 @@
 /* v2.7.1 - Acceso primero, PWA, onboarding adaptativo y edición conectada a Hogar. */
 import { SOURCE_KINDS, COMPENSATIONS, TRANSPORT_MODES, fmtMoney } from './01_consts_utils.js';
 import * as Data from './02_data.js';
-import { initSync, notifyLocalChange } from './07_sync.js';
+import { initSync, notifyLocalChange, prepareFreshBudget, syncNow } from './07_sync.js';
 import { initPWA, promptInstall, installationHelp } from './08_pwa.js';
 import { ensureFinancialLife, updateSourceLife } from './21_financial_life_v27.js';
 import { householdById } from './23_home_semantics.js';
@@ -9,7 +9,7 @@ import { HOUSING_MODES, nextHousingDate, validateLivingSetup, saveLivingSetup } 
 
 Data.loadData();ensureFinancialLife();initPWA();
 const edit=new URLSearchParams(location.search).get('edit')==='1';
-let step=0,sourceDrafts=[],setupShown=false;
+let step=0,sourceDrafts=[],setupShown=false,freshStarting=false;
 const $=id=>document.getElementById(id);
 const selectedUseCases=()=>[...document.querySelectorAll('input[name="useCase"]:checked')].map(x=>x.value);
 const compensationOptions=kind=>{
@@ -58,6 +58,7 @@ function showSetup(){
   showStep();
 }
 function finishRestore(){
+  if(freshStarting||setupShown)return;
   if(Data.getState().profile?.onboarded){location.replace('index.html');return;}
   showSetup();
 }
@@ -139,7 +140,7 @@ function validateStep(){
   return true;
 }
 
-function save(){
+async function save(){
   try{
     validateLivingSetup(livingValues());syncDrafts();syncTransportDrafts();
     const useCases=selectedUseCases();if(!useCases.length)useCases.push('personal');
@@ -155,6 +156,7 @@ function save(){
     }
     saveLivingSetup(livingValues());
     notifyLocalChange();
+    await syncNow();
     location.replace('index.html');
   }catch(e){console.error(e);alert(e.message==='NOMBRE_INVALIDO'?'Revisa los nombres de tus fuentes.':`No se pudo guardar la configuración.${e?.message?` (${e.message})`:''}`);}
 }
@@ -162,14 +164,21 @@ function save(){
 $('btnAddSource').onclick=addSource;$('setupTransport').onchange=()=>{for(const s of sourceDrafts){if(!s.transport?.mode||s.transport.mode==='none')s.transport={...(s.transport||{}),mode:$('setupTransport').value};}renderTransportConfig();};
 $('setupBack').onclick=()=>{if(step>0){step--;showStep();}};
 $('setupNext').onclick=()=>{if(!validateStep())return;if(step<4){if(step===0)ensureDrafts();step++;showStep();}else save();};
-$('btnStartFresh')?.addEventListener('click',showSetup);
+$('btnStartFresh')?.addEventListener('click',async()=>{
+  if(freshStarting)return;
+  freshStarting=true;
+  const button=$('btnStartFresh');button.disabled=true;button.textContent='Comprobando presupuesto…';
+  try{if(await prepareFreshBudget()){setupShown=false;showSetup();}}
+  catch(error){console.error('Fresh setup:',error);alert(error.message||'No se pudo iniciar desde cero. No se abrió la configuración.');}
+  finally{freshStarting=false;button.disabled=false;button.textContent='Configurar desde cero';}
+});
 $('btnInstallApp')?.addEventListener('click',async()=>{const installed=await promptInstall();if(!installed)alert(installationHelp());});
 document.addEventListener('budget:remote-applied',finishRestore);
 document.addEventListener('budget:sync-complete',finishRestore);
 
 if(edit)showSetup();
 else if(Data.getState().profile?.onboarded)location.replace('index.html');
-else{$('authGate')?.classList.remove('hidden');$('setupFlow')?.classList.add('hidden');initSync();}
+else{$('authGate')?.classList.remove('hidden');$('setupFlow')?.classList.add('hidden');initSync().catch(()=>{});}
 
 document.querySelectorAll('input[name="housingMode"],input[name="foodMode"]').forEach(input=>input.addEventListener('change',renderLivingChoices));
 $('btnHousingCalendar').addEventListener('click',()=>{const input=$('setupHousingDate');try{if(typeof input.showPicker==='function')input.showPicker();else input.focus();}catch{input.focus();}});
