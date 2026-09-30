@@ -205,7 +205,7 @@ export function householdBudgetStatus(now=new Date()){
     if(initial?.startDate&&isoDay(now)>=initial.startDate&&isoDay(now)<(initial.endDate||isoDay(new Date(now.getFullYear(),now.getMonth()+1,1)))){
       budget=safeFloat(initial.amount);periodStart=new Date(`${initial.startDate}T00:00:00`);
     }
-    if(!(budget>0))continue;
+    if(!(budget>=0))continue;
     const spent=(state.movimientos||[]).filter(m=>m.tipo==='gasto'&&m.affectsPersonal!==false&&m.householdExpenseId===item.id&&new Date(m.fecha)>=periodStart&&new Date(m.fecha)<periodEnd).reduce((a,m)=>a+safeFloat(m.monto),0);
     rows.push({item,budget,spent,remaining:Math.max(0,budget-spent)});
   }
