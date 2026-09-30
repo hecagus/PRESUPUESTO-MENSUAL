@@ -19,8 +19,8 @@ initPWA();
 
 function renderBottomNav(){
   const nav=document.querySelector('.bottom-nav');if(!nav)return;const page=document.body.dataset.page;
-  const items=[['index','index.html','▥','Panel'],['home','home.html','⌂','Hogar'],['wallet','wallet.html','◉','Wallet'],['admin','admin.html','▶','Actividad'],['historial','historial.html','≡','Historial']];
-  nav.innerHTML=items.map(([key,href,icon,label])=>`<a href="${href}" class="nav-link ${page===key?'active':''}"${page===key?' aria-current="page"':''}><span aria-hidden="true">${icon}</span>${label}</a>`).join('');
+  const items=[['index','index.html','▥','Inicio'],['home','home.html','⌂','Presupuesto'],['admin','admin.html','▶','Actividad'],['wallet','wallet.html','◉','Dinero'],['more','more.html','•••','Más']];\n  const activeKey=['calendar','stats','historial'].includes(page)?'more':page;
+  nav.innerHTML=items.map(([key,href,icon,label])=>`<a href="${href}" class="nav-link ${activeKey===key?'active':''}"${activeKey===key?' aria-current="page"':''}><span aria-hidden="true">${icon}</span>${label}</a>`).join('');
 }
 
 const refresh=()=>{
