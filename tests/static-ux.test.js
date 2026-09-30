@@ -23,7 +23,7 @@ test('usuarios sin datos locales ven acceso y recuperación antes del onboarding
 
 test('onboarding permite cambiar situación y configurar transporte público',async()=>{
   const html=await read('onboarding.html'),js=await read('js/10_onboarding.js');
-  assert.match(html,/¿Cómo llegas a trabajar\?/);assert.match(html,/¿Cuánto cuesta vivir\?/);
+  assert.match(html,/¿Cómo llegas a trabajar\?/);assert.match(html,/¿Cómo cubres tu vivienda\?/);
   assert.match(js,/source-status/);assert.match(js,/public-out/);assert.match(js,/public-back/);assert.match(js,/updateSourceLife/);
 });
 

@@ -3,8 +3,9 @@ import { SOURCE_KINDS, COMPENSATIONS, TRANSPORT_MODES, fmtMoney } from './01_con
 import * as Data from './02_data.js';
 import { initSync, notifyLocalChange } from './07_sync.js';
 import { initPWA, promptInstall, installationHelp } from './08_pwa.js';
-import { ensureFinancialLife, updateSourceLife, configureLivingSetup } from './21_financial_life_v27.js';
-import { householdById } from './20_home_engine.js';
+import { ensureFinancialLife, updateSourceLife } from './21_financial_life_v27.js';
+import { householdById } from './23_home_semantics.js';
+import { HOUSING_MODES, nextHousingDate, validateLivingSetup, saveLivingSetup } from './28_onboarding_living.js';
 
 Data.loadData();ensureFinancialLife();initPWA();
 const edit=new URLSearchParams(location.search).get('edit')==='1';
@@ -32,14 +33,23 @@ function seedFromState(){
   }));
 
   /* Desde v2.7 la fuente de verdad del costo de vida es Hogar, no livingBudgets/commitments. */
-  const housing=householdById('home-housing'),services=householdById('home-services'),groceries=householdById('home-groceries'),health=householdById('home-health'),leisure=householdById('home-leisure'),other=householdById('home-other');
-  $('setupHousing').value=housing?.active===false?'':housing?.amount||'';$('setupHousingDay').value=housing?.dueDay||1;
-  $('setupServices').value=services?.active===false?'':services?.amount||'';$('setupServicesDay').value=services?.dueDay||10;
+  const housing=householdById('home-housing'),groceries=householdById('home-groceries');
+  const housingMode=housing?.active!==false&&housing?.amount>0?(/hipoteca/i.test(housing.name)?'mortgage':/aport/i.test(housing.name)?'contribution':'rent'):(edit?'none':'');
+  const housingRadio=document.querySelector(`input[name="housingMode"][value="${housingMode}"]`);if(housingRadio)housingRadio.checked=true;
+  $('setupHousing').value=housing?.active===false?'':housing?.amount||'';
+  $('setupHousingDate').value=nextHousingDate(housing);
   $('setupGroceries').value=groceries?.active===false?'':groceries?.amount||'';
-  $('setupHealth').value=health?.active===false?'':health?.amount||'';
-  $('setupLeisure').value=leisure?.active===false?'':leisure?.amount||'';
-  $('setupOtherLiving').value=other?.active===false?'':other?.amount||'';
+  document.querySelector(`input[name="foodMode"][value="${groceries?.active!==false&&groceries?.amount>0?'budget':'later'}"]`).checked=true;
+  renderLivingChoices();
   if(edit){$('setupHeading').textContent='Mi situación cambió';$('setupBalance').disabled=true;$('setupBalance').placeholder='El saldo inicial ya está definido';}
+}
+
+function livingValues(){return {housingMode:document.querySelector('input[name="housingMode"]:checked')?.value||'',housingAmount:$('setupHousing').value,housingDate:$('setupHousingDate').value,foodMode:document.querySelector('input[name="foodMode"]:checked')?.value||'later',foodAmount:$('setupGroceries').value};}
+function renderLivingChoices(){
+  const values=livingValues(),hasHousing=Boolean(values.housingMode)&&values.housingMode!=='none';
+  $('housingDetails').classList.toggle('hidden',!hasHousing);$('setupHousing').disabled=!hasHousing;$('setupHousingDate').disabled=!hasHousing;
+  $('foodDetails').classList.toggle('hidden',values.foodMode!=='budget');$('setupGroceries').disabled=values.foodMode!=='budget';
+  $('livingSetupError').textContent='';
 }
 
 function showSetup(){
@@ -116,7 +126,7 @@ function addSource(){syncDrafts();sourceDrafts.push({id:null,name:'',kind:'other
 
 const draftPublicMonthly=s=>{const p=s.transport?.public||{};return s.transport?.mode==='public'?(Number(p.outboundRides||0)+Number(p.returnRides||0))*Number(p.fare||0)*Number(p.daysPerWeek??0)*(52/12):0;};
 
-function review(){syncDrafts();syncTransportDrafts();const transport=TRANSPORT_MODES[$('setupTransport').value]?.label||'Ninguno';$('setupReview').innerHTML=`<strong>Tu app quedará así:</strong><ul style="margin:8px 0 0 18px">${sourceDrafts.filter(s=>s.name).map(s=>`<li>${SOURCE_KINDS[s.kind]?.icon||'💰'} ${esc(s.name)} · ${COMPENSATIONS[s.compensation]?.label||s.compensation} · ${statusLabel(s.status)}${draftPublicMonthly(s)>0?` · traslado ${fmtMoney(draftPublicMonthly(s))}/mes`:''}</li>`).join('')||'<li>Finanzas personales</li>'}<li>🚦 Transporte predeterminado: ${transport}</li><li>🏠 Costo de vida conectado a Hogar y calendario</li></ul>`;}
+function review(){syncDrafts();syncTransportDrafts();const transport=TRANSPORT_MODES[$('setupTransport').value]?.label||'Ninguno';$('setupReview').innerHTML=`<strong>Tu app quedará así:</strong><ul style="margin:8px 0 0 18px">${sourceDrafts.filter(s=>s.name).map(s=>`<li>${SOURCE_KINDS[s.kind]?.icon||'💰'} ${esc(s.name)} · ${COMPENSATIONS[s.compensation]?.label||s.compensation} · ${statusLabel(s.status)}${draftPublicMonthly(s)>0?` · traslado ${fmtMoney(draftPublicMonthly(s))}/mes`:''}</li>`).join('')||'<li>Finanzas personales</li>'}<li>🚦 Transporte predeterminado: ${transport}</li><li>🏠 ${HOUSING_MODES[livingValues().housingMode]||'Vivienda'}${livingValues().housingMode!=='none'?` · ${fmtMoney(livingValues().housingAmount)}/mes · próximo pago ${esc(livingValues().housingDate)}`:''}</li><li>🛒 Despensa y comida: ${livingValues().foodMode==='budget'?`${fmtMoney(livingValues().foodAmount)}/mes`:'lo configuraré después'}</li></ul>`;}
 
 function showStep(){
   document.querySelectorAll('.setup-step').forEach((el,i)=>el.classList.toggle('active',i===step));document.querySelectorAll('.setup-progress span').forEach((el,i)=>el.classList.toggle('on',i<=step));$('setupBack').style.visibility=step===0?'hidden':'visible';$('setupNext').textContent=step===4?(edit?'Guardar cambios':'Crear mi app'):'Siguiente';
@@ -125,12 +135,13 @@ function showStep(){
 
 function validateStep(){
   if(step===1){syncDrafts();const incomplete=sourceDrafts.some(s=>s.status!=='ended'&&!s.name);if(incomplete){alert('Pon un nombre a cada fuente o quita el borrador que no necesites.');return false;}}
+  if(step===3){try{validateLivingSetup(livingValues());}catch(error){$('livingSetupError').textContent=error.message;return false;}}
   return true;
 }
 
 function save(){
   try{
-    syncDrafts();syncTransportDrafts();
+    validateLivingSetup(livingValues());syncDrafts();syncTransportDrafts();
     const useCases=selectedUseCases();if(!useCases.length)useCases.push('personal');
     const sources=sourceDrafts.filter(s=>s.name).map(s=>{
       const mode=s.transport?.mode||$('setupTransport').value||'none',vehicle=['motorcycle','car'].includes(mode);
@@ -142,7 +153,7 @@ function save(){
       updateSourceLife(real.id,{status:draft.status||'active',transportMode:draft.transport?.mode||$('setupTransport').value,outboundRides:draft.transport?.public?.outboundRides||0,returnRides:draft.transport?.public?.returnRides||0,fare:draft.transport?.public?.fare||0,daysPerWeek:draft.transport?.public?.daysPerWeek??5});
       real.trackDistance=draft.trackDistance;real.fuelPayer=draft.fuelPayer;Data.saveData();
     }
-    configureLivingSetup({housing:$('setupHousing').value,housingDay:$('setupHousingDay').value,services:$('setupServices').value,servicesDay:$('setupServicesDay').value,groceries:$('setupGroceries').value,health:$('setupHealth').value,leisure:$('setupLeisure').value,other:$('setupOtherLiving').value});
+    saveLivingSetup(livingValues());
     notifyLocalChange();
     location.replace('index.html');
   }catch(e){console.error(e);alert(e.message==='NOMBRE_INVALIDO'?'Revisa los nombres de tus fuentes.':`No se pudo guardar la configuración.${e?.message?` (${e.message})`:''}`);}
@@ -159,3 +170,6 @@ document.addEventListener('budget:sync-complete',finishRestore);
 if(edit)showSetup();
 else if(Data.getState().profile?.onboarded)location.replace('index.html');
 else{$('authGate')?.classList.remove('hidden');$('setupFlow')?.classList.add('hidden');initSync();}
+
+document.querySelectorAll('input[name="housingMode"],input[name="foodMode"]').forEach(input=>input.addEventListener('change',renderLivingChoices));
+$('btnHousingCalendar').addEventListener('click',()=>{const input=$('setupHousingDate');try{if(typeof input.showPicker==='function')input.showPicker();else input.focus();}catch{input.focus();}});
