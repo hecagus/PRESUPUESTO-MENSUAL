@@ -73,13 +73,13 @@
           </div>
         </div>
         <div class="card living-card food-card">
-          <span class="living-eyebrow">TU PRESUPUESTO MENSUAL</span>
-          <h2>¿Cuánto quieres destinar al mes a despensa y comida?</h2>
+          <span class="living-eyebrow">PRESUPUESTO POR PERIODO</span>
+          <h2>¿Cómo organizas tu presupuesto de despensa y comida?</h2>
           <fieldset class="food-choices"><legend class="sr-only">Presupuesto de despensa y comida</legend>
             <label class="food-choice"><input type="radio" name="foodMode" value="budget"> Definir un presupuesto</label>
             <label class="food-choice"><input type="radio" name="foodMode" value="later" checked> Lo configuraré después</label>
           </fieldset>
-          <div id="foodDetails" class="hidden"><label for="setupGroceries">Presupuesto mensual</label><div class="money-field"><span aria-hidden="true">$</span><input id="setupGroceries" class="input-control" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Ej. 2,500"></div></div>
+          <div id="foodDetails" class="hidden"><label for="setupFoodFrequency">Frecuencia</label><select id="setupFoodFrequency" class="input-control"><option value="weekly">Semanal · lunes a domingo</option><option value="biweekly">Quincenal · del 1 al 15 y del 16 al fin de mes</option><option value="monthly" selected>Mensual</option></select><label for="setupGroceries">¿Cuánto necesitas para terminar el periodo actual?</label><div class="money-field"><span aria-hidden="true">$</span><input id="setupGroceries" class="input-control" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Ej. 500"></div><label for="setupGroceriesMonthly">Presupuesto habitual por periodo (opcional)</label><div class="money-field"><span aria-hidden="true">$</span><input id="setupGroceriesMonthly" class="input-control" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Ej. 3,000 por quincena"></div><p class="muted">El primer importe aplica solo al cierre del periodo actual. El habitual se usa desde el siguiente periodo. Si lo omites, se conserva el primer importe. La equivalencia mensual es informativa.</p></div>
           <p class="muted">Esto organiza tu dinero; no registra un gasto ni descuenta tu saldo. Los servicios y otros gastos se agregan después en Hogar.</p>
         </div>
         <p id="livingSetupError" class="living-error" role="alert"></p>

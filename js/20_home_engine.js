@@ -45,7 +45,8 @@ function normalizeItem(raw={}){
     amount:Math.max(0,safeFloat(raw.amount??raw.monto)),frequency,priority,
     dueDay:clamp(Math.round(safeFloat(raw.dueDay??raw.diaPago??1)),1,31),
     nextDueDate:normalizedDate(raw.nextDueDate||raw.dueDate),active:raw.active!==false,createdAt,
-    notes:String(raw.notes||'').trim()
+    notes:String(raw.notes||'').trim(),
+    ...(raw.initialBudget && /^\d{4}-\d{2}$/.test(raw.initialBudget.month) ? {initialBudget:{month:raw.initialBudget.month,amount:Math.max(0,safeFloat(raw.initialBudget.amount)),startDate:normalizedDate(raw.initialBudget.startDate),endDate:normalizedDate(raw.initialBudget.endDate)}} : {})
   };
 }
 
@@ -93,6 +94,7 @@ export function updateHouseholdExpense(id,patch={}){
   if(patch.dueDay!==undefined)item.dueDay=clamp(Math.round(safeFloat(patch.dueDay||1)),1,31);
   if(patch.nextDueDate!==undefined)item.nextDueDate=assertOptionalDate(patch.nextDueDate);
   if(patch.notes!==undefined)item.notes=String(patch.notes||'').trim();
+  if(patch.initialBudget!==undefined)item.initialBudget=patch.initialBudget;
   if(patch.active!==undefined)item.active=Boolean(patch.active);
   saveData();return item;
 }
@@ -191,8 +193,20 @@ export function householdUpcomingEvents({days=45,now=new Date()}={}){
 export function householdBudgetStatus(now=new Date()){
   const state=getState(),start=new Date(now.getFullYear(),now.getMonth(),1),rows=[];
   for(const item of householdItems({activeOnly:true}).filter(x=>x.priority==='budgeted')){
-    const budget=monthlyEquivalent(item,now);if(!(budget>0))continue;
-    const spent=(state.movimientos||[]).filter(m=>m.tipo==='gasto'&&m.affectsPersonal!==false&&m.householdExpenseId===item.id&&new Date(m.fecha)>=start).reduce((a,m)=>a+safeFloat(m.monto),0);
+    let periodStart=new Date(start),periodEnd=new Date(now.getFullYear(),now.getMonth()+1,1),budget=monthlyEquivalent(item,now);
+    if(item.frequency==='biweekly'){
+      periodStart=new Date(now.getFullYear(),now.getMonth(),now.getDate()<=15?1:16);
+      periodEnd=now.getDate()<=15?new Date(now.getFullYear(),now.getMonth(),16):periodEnd;budget=safeFloat(item.amount);
+    }else if(item.frequency==='weekly'){
+      periodStart=new Date(now.getFullYear(),now.getMonth(),now.getDate()-((now.getDay()+6)%7));
+      periodEnd=new Date(periodStart);periodEnd.setDate(periodEnd.getDate()+7);budget=safeFloat(item.amount);
+    }
+    const initial=item.initialBudget;
+    if(initial?.startDate&&isoDay(now)>=initial.startDate&&isoDay(now)<(initial.endDate||isoDay(new Date(now.getFullYear(),now.getMonth()+1,1)))){
+      budget=safeFloat(initial.amount);periodStart=new Date(`${initial.startDate}T00:00:00`);
+    }
+    if(!(budget>0))continue;
+    const spent=(state.movimientos||[]).filter(m=>m.tipo==='gasto'&&m.affectsPersonal!==false&&m.householdExpenseId===item.id&&new Date(m.fecha)>=periodStart&&new Date(m.fecha)<periodEnd).reduce((a,m)=>a+safeFloat(m.monto),0);
     rows.push({item,budget,spent,remaining:Math.max(0,budget-spent)});
   }
   return rows;
