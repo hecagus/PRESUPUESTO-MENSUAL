@@ -6,7 +6,7 @@ import { mergeStates, syncOutcome, assertSyncSize } from './26_sync_merge.js';
 let META_KEY='presupuesto_sync_meta_v1';
 const DEVICE_KEY='presupuesto_device_id_v1';
 const FALLBACK_OBSERVER_MS=12000;
-let mergeChoices={},conflictLocalHash=null;
+let mergeChoices={},conflictLocalHash=null,resetting=false;
 let auth=null,db=null,firebase=null,currentUser=null,conflictRemote=null,syncing=false,syncTimer=null,observerTimer=null,observedHash=null,authReady=false,lifecycleBound=false;
 const getDeviceId=()=>{let id=localStorage.getItem(DEVICE_KEY);if(!id){id=`dev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;localStorage.setItem(DEVICE_KEY,id);}return id;};
 const loadMeta=()=>{try{return {...{baseRevision:0,dirty:false,lastSync:null},...JSON.parse(localStorage.getItem(META_KEY)||'{}')}}catch{return {baseRevision:0,dirty:false,lastSync:null}}};
@@ -26,7 +26,7 @@ const hasMeaningfulLocalData=()=>{
 };
 
 function setStatus(message,tone='neutral'){const el=document.getElementById('syncStatus');if(!el)return;el.textContent=message;el.dataset.tone=tone;}
-export function renderSyncUI(){const card=document.getElementById('syncCard'),zone=document.getElementById('syncPanel');if(!zone)return;if(!FIREBASE_SYNC.enabled||!authReady){card?.classList.add('hidden');return;}if(currentUser&&!conflictRemote){card?.classList.add('hidden');zone.innerHTML='';return;}card?.classList.remove('hidden');if(currentUser&&conflictRemote){zone.innerHTML='<div class="sync-conflict"><strong>⚠️ Conflicto de sincronización</strong><p style="margin:6px 0 10px">Hay cambios distintos en este dispositivo y en la nube. Puedes elegir una versión completa o combinar cambios. Los campos incompatibles requieren una elección explícita; las eliminaciones se respetan cuando existe una base común.</p><button id="btnUseCloud" class="btn btn-outline">Usar nube</button><button id="btnUseLocal" class="btn btn-outline" style="margin-top:7px">Conservar local</button><button id="btnMergeSync" class="btn btn-primary" style="margin-top:7px">Fusionar</button></div>';document.getElementById('btnUseCloud')?.addEventListener('click',()=>resolveUseCloud().catch(showSyncError));document.getElementById('btnUseLocal')?.addEventListener('click',()=>resolveUseLocal().catch(showSyncError));document.getElementById('btnMergeSync')?.addEventListener('click',()=>resolveMerge().catch(showSyncError));renderMergeChoices(zone);return;}zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización disponible</strong><p>Inicia sesión con Google para respaldar y sincronizar tus datos entre dispositivos.</p><p id="syncStatus" style="margin:6px 0 12px;color:var(--text-sec)" aria-live="polite">Listo para iniciar sesión.</p><button id="btnSyncLogin" class="btn btn-primary">Continuar con Google</button></div>';document.getElementById('btnSyncLogin')?.addEventListener('click',signIn);}
+export function renderSyncUI(){renderResetUI();const card=document.getElementById('syncCard'),zone=document.getElementById('syncPanel');if(!zone)return;if(!FIREBASE_SYNC.enabled||!authReady){card?.classList.add('hidden');return;}if(currentUser&&!conflictRemote){card?.classList.add('hidden');zone.innerHTML='';return;}card?.classList.remove('hidden');if(currentUser&&conflictRemote){zone.innerHTML='<div class="sync-conflict"><strong>⚠️ Conflicto de sincronización</strong><p style="margin:6px 0 10px">Hay cambios distintos en este dispositivo y en la nube. Puedes elegir una versión completa o combinar cambios. Los campos incompatibles requieren una elección explícita; las eliminaciones se respetan cuando existe una base común.</p><button id="btnUseCloud" class="btn btn-outline">Usar nube</button><button id="btnUseLocal" class="btn btn-outline" style="margin-top:7px">Conservar local</button><button id="btnMergeSync" class="btn btn-primary" style="margin-top:7px">Fusionar</button></div>';document.getElementById('btnUseCloud')?.addEventListener('click',()=>resolveUseCloud().catch(showSyncError));document.getElementById('btnUseLocal')?.addEventListener('click',()=>resolveUseLocal().catch(showSyncError));document.getElementById('btnMergeSync')?.addEventListener('click',()=>resolveMerge().catch(showSyncError));renderMergeChoices(zone);return;}zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización disponible</strong><p>Inicia sesión con Google para respaldar y sincronizar tus datos entre dispositivos.</p><p id="syncStatus" style="margin:6px 0 12px;color:var(--text-sec)" aria-live="polite">Listo para iniciar sesión.</p><button id="btnSyncLogin" class="btn btn-primary">Continuar con Google</button></div>';document.getElementById('btnSyncLogin')?.addEventListener('click',signIn);}
 function showSyncError(error){console.error('Firebase sync:',error);const card=document.getElementById('syncCard'),zone=document.getElementById('syncPanel'),code=String(error?.code||'');let message='⚠️ No se pudo sincronizar.';if(code.includes('unauthorized-domain'))message='⚠️ El dominio de esta app no está autorizado en Firebase Authentication.';else if(code.includes('popup-blocked'))message='⚠️ El navegador bloqueó la ventana de Google. Permite ventanas emergentes e intenta otra vez.';else if(code.includes('popup-closed'))message='Inicio de sesión cancelado.';else if(code.includes('operation-not-allowed'))message='⚠️ El proveedor Google no está habilitado en Firebase.';else if(code.includes('network-request-failed'))message='⚠️ No se pudo contactar Firebase. Revisa tu conexión e intenta otra vez.';else if(code.startsWith('sync/'))message=error.message;else if(code)message=`⚠️ Error de sincronización (${code}).`;card?.classList.remove('hidden');if(zone&&!document.getElementById('syncStatus'))zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización</strong><p id="syncStatus" style="margin:6px 0 0;color:var(--text-sec)" aria-live="polite"></p></div>';setStatus(message,'error');}
 export function notifyLocalChange(){if(!FIREBASE_SYNC.enabled)return;observedHash=stateHash();meta={...meta,dirty:true};saveMeta(meta);if(currentUser&&navigator.onLine){clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow().catch(showSyncError),1400);}}
 
@@ -34,7 +34,7 @@ async function loadFirebase(){if(firebase)return firebase;const v=FIREBASE_SYNC.
 async function signIn(){const button=document.getElementById('btnSyncLogin');try{if(button){button.disabled=true;button.textContent='Abriendo Google…';}setStatus('Abriendo acceso con Google…');const f=await loadFirebase(),provider=new f.GoogleAuthProvider(),result=await f.signInWithPopup(auth,provider);activateUser(result.user);if(navigator.onLine)await syncNow();}catch(e){showSyncError(e);if(button){button.disabled=false;button.textContent='Continuar con Google';}}}
 const docRef=()=>firebase.doc(db,'users',currentUser.uid,'budget','state');
 async function applyRemote(remote){Data.restaurar(JSON.stringify(remote.state));observedHash=stateHash();meta={...meta,baseRevision:Number(remote.revision)||0,baseState:clone(remote.state),dirty:false,lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;renderSyncUI();document.dispatchEvent(new CustomEvent('budget:remote-applied'));}
-export async function syncNow({forceLocal=false}={}){if(!FIREBASE_SYNC.enabled||!currentUser||syncing||!navigator.onLine)return;const currentHash=stateHash();if(observedHash!==null&&currentHash!==observedHash){observedHash=currentHash;meta={...meta,dirty:true};saveMeta(meta);}const userId=currentUser.uid;syncing=true;let completed=false;try{const f=await loadFirebase(),ref=docRef(),sentState=clone(Data.getState()),sentHash=stateHash(),baseRevision=meta.baseRevision,wasDirty=meta.dirty;if(currentUser?.uid!==userId)return;const result=await f.runTransaction(db,async tx=>{if(currentUser?.uid!==userId)throw Object.assign(new Error('La cuenta cambió durante la sincronización.'),{code:'sync/user-changed'});const snap=await tx.get(ref),remote=snap.exists()?snap.data():null,remoteRevision=Number(remote?.revision)||0;if(remote&&remoteRevision!==Number(baseRevision||0)){if(wasDirty||forceLocal||stateHash()!==sentHash)return{kind:'conflict',remote};return{kind:'pull',remote};}if(remote&&!forceLocal&&!wasDirty&&remoteRevision===Number(baseRevision||0))return{kind:'noop',revision:remoteRevision};const revision=Math.max(remoteRevision,Number(meta.baseRevision)||0)+1;assertSyncSize(sentState);tx.set(ref,{state:sentState,revision,updatedAt:new Date().toISOString(),deviceId:getDeviceId()});return{kind:'push',revision};});if(currentUser?.uid!==userId)return;if(result.kind==='conflict'){conflictRemote=result.remote;mergeChoices={};conflictLocalHash=stateHash();renderSyncUI();return;}if(result.kind==='pull'){if(stateHash()!==sentHash){conflictRemote=result.remote;mergeChoices={};conflictLocalHash=stateHash();renderSyncUI();return;}await applyRemote(result.remote);emitSyncComplete('pull');return;}observedHash=stateHash();meta={...meta,...syncOutcome(sentState,Data.getState(),result.revision??meta.baseRevision),lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;renderSyncUI();emitSyncComplete(result.kind);completed=true;}finally{syncing=false;if((completed||currentUser?.uid!==userId)&&meta.dirty&&!conflictRemote){clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow().catch(showSyncError),1400);}}}
+export async function syncNow({forceLocal=false}={}){if(!FIREBASE_SYNC.enabled||!currentUser||syncing||!navigator.onLine)return;const currentHash=stateHash();if(observedHash!==null&&currentHash!==observedHash){observedHash=currentHash;meta={...meta,dirty:true};saveMeta(meta);}const userId=currentUser.uid;syncing=true;let completed=false;try{const f=await loadFirebase(),ref=docRef(),sentState=clone(Data.getState()),sentHash=stateHash(),baseRevision=meta.baseRevision,wasDirty=meta.dirty;if(currentUser?.uid!==userId)return;const result=await f.runTransaction(db,async tx=>{if(currentUser?.uid!==userId)throw Object.assign(new Error('La cuenta cambió durante la sincronización.'),{code:'sync/user-changed'});const snap=await tx.get(ref),remote=snap.exists()?snap.data():null,remoteRevision=Number(remote?.revision)||0;if(remote?.oneTimeResetUsedAt&&sentState.resetGeneration!==remote.oneTimeResetUsedAt)return{kind:'reset-pull',remote};if(remote&&remoteRevision!==Number(baseRevision||0)){if(wasDirty||forceLocal||stateHash()!==sentHash)return{kind:'conflict',remote};return{kind:'pull',remote};}if(remote&&!forceLocal&&!wasDirty&&remoteRevision===Number(baseRevision||0))return{kind:'noop',revision:remoteRevision};const revision=Math.max(remoteRevision,Number(meta.baseRevision)||0)+1;assertSyncSize(sentState);tx.set(ref,{state:sentState,oneTimeResetUsedAt:remote?.oneTimeResetUsedAt||null,revision,updatedAt:new Date().toISOString(),deviceId:getDeviceId()});return{kind:'push',revision};});if(currentUser?.uid!==userId)return;if(result.kind==='conflict'){conflictRemote=result.remote;mergeChoices={};conflictLocalHash=stateHash();renderSyncUI();return;}if(result.kind==='reset-pull'){await applyRemote(result.remote);emitSyncComplete('reset-pull');if(!Data.getState().profile?.onboarded)location.replace('onboarding.html');return;}if(result.kind==='pull'){if(stateHash()!==sentHash){conflictRemote=result.remote;mergeChoices={};conflictLocalHash=stateHash();renderSyncUI();return;}await applyRemote(result.remote);emitSyncComplete('pull');return;}observedHash=stateHash();meta={...meta,...syncOutcome(sentState,Data.getState(),result.revision??meta.baseRevision),lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;renderSyncUI();emitSyncComplete(result.kind);completed=true;}finally{syncing=false;if((completed||currentUser?.uid!==userId)&&meta.dirty&&!conflictRemote){clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow().catch(showSyncError),1400);}}}
 function renderMergeChoices(zone){
   const result=mergeStates(Data.getState(),conflictRemote.state,meta.baseState,mergeChoices);
   if(!result.conflicts.length)return;
@@ -82,3 +82,66 @@ function activateUser(user){
 }
 
 export async function initSync(){renderSyncUI();if(!FIREBASE_SYNC.enabled)return;observedHash=stateHash();if(meta.baseRevision===0&&!meta.lastSync&&hasMeaningfulLocalData()){meta={...meta,dirty:true};saveMeta(meta);}clearInterval(observerTimer);observerTimer=setInterval(observeState,FALLBACK_OBSERVER_MS);bindLifecycle();try{const f=await loadFirebase();f.onAuthStateChanged(auth,user=>{activateUser(user);if(user&&navigator.onLine)syncNow().catch(showSyncError);});}catch(e){authReady=true;renderSyncUI();showSyncError(e);}}
+/* Temporary, one-use reset per authenticated account. Cloud commits before local data changes. */
+function renderResetUI(){
+  let card=document.getElementById('oneTimeResetCard');
+  if(Data.getState().resetGeneration){card?.remove();return;}
+  if(!card){
+    const anchor=document.getElementById('syncCard');
+    if(!anchor)return;
+    card=document.createElement('section');card.id='oneTimeResetCard';card.className='card';
+    const heading=document.createElement('h2');heading.textContent='Empezar desde cero';
+    const detail=document.createElement('p');detail.textContent='Reinicio de un solo uso: borra saldos, movimientos, deudas, metas, turnos y configuración de esta cuenta, en este dispositivo y en la nube.';
+    const button=document.createElement('button');button.id='btnResetOnce';button.className='btn btn-outline';button.textContent='Reiniciar todo a $0 · un solo uso';button.style.color='var(--danger)';
+    button.addEventListener('click',handleResetOnce);
+    const status=document.createElement('p');status.id='resetOnceStatus';status.setAttribute('aria-live','polite');
+    card.append(heading,detail,button,status);anchor.insertAdjacentElement('afterend',card);
+  }
+  const button=document.getElementById('btnResetOnce');if(button)button.disabled=!authReady||!currentUser||resetting;
+  const status=document.getElementById('resetOnceStatus');if(status&&!currentUser)status.textContent='Inicia sesión con Google y conecta internet para reiniciar también la nube.';
+}
+async function handleResetOnce(){
+  if(!currentUser||resetting)return;
+  if(!navigator.onLine){document.getElementById('resetOnceStatus').textContent='Conecta internet. No se ha borrado ningún dato.';return;}
+  if(!confirm('¿Borrar TODOS los datos de tu presupuesto y empezar en $0? Se sustituirán el presupuesto local y el de la nube de esta cuenta. No se puede deshacer.'))return;
+  const button=document.getElementById('btnResetOnce');button.disabled=true;button.textContent='Reiniciando…';
+  try{
+    await resetBudgetOnce();
+    location.replace('onboarding.html');
+  }catch(error){
+    const status=document.getElementById('resetOnceStatus');if(status)status.textContent=error.message||'No se pudo reiniciar. Intenta de nuevo con internet.';
+    button.disabled=false;button.textContent='Reiniciar todo a $0 · un solo uso';
+  }
+}
+export async function resetBudgetOnce(){
+  if(!currentUser)throw new Error('Inicia sesión con Google antes de reiniciar.');
+  if(!navigator.onLine)throw new Error('Conecta internet. No se ha borrado ningún dato.');
+  if(syncing||resetting)throw new Error('Espera a que termine la sincronización e intenta otra vez.');
+  const userId=currentUser.uid,usedAt=new Date().toISOString(),empty={...Data.createEmptyState(),resetGeneration:usedAt};
+  resetting=true;syncing=true;clearTimeout(syncTimer);
+  let cloudCommitted=false;
+  try{
+    const f=await loadFirebase();
+    if(currentUser?.uid!==userId)throw new Error('La cuenta cambió. No se ha reiniciado el presupuesto.');
+    const ref=docRef();
+    const result=await f.runTransaction(db,async tx=>{
+      const snap=await tx.get(ref),remote=snap.exists()?snap.data():null;
+      if(currentUser?.uid!==userId)throw new Error('La cuenta cambió. No se ha reiniciado el presupuesto.');
+      if(remote?.oneTimeResetUsedAt)throw new Error('El reinicio de un solo uso ya se utilizó en esta cuenta.');
+      const revision=(Number(remote?.revision)||0)+1;
+      tx.set(ref,{state:empty,revision,oneTimeResetUsedAt:usedAt,updatedAt:usedAt,deviceId:getDeviceId()});
+      return {state:empty,revision};
+    });
+    cloudCommitted=true;
+    if(currentUser?.uid!==userId)throw new Error('La cuenta reiniciada cambió. Vuelve a iniciar sesión en ella.');
+    localStorage.removeItem(`presupuesto_local_backup_${userId}`);
+    localStorage.removeItem('presupuesto_sync_meta_v1');
+    localStorage.removeItem('forecast_include_variable');
+    await applyRemote(result);
+    emitSyncComplete('reset');
+    return result;
+  }catch(error){
+    if(cloudCommitted)throw new Error('La nube quedó reiniciada. Recarga la app para recuperar el presupuesto vacío. '+error.message);
+    throw error;
+  }finally{resetting=false;syncing=false;}
+}
