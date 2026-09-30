@@ -1,5 +1,5 @@
 /* v3.1.0 - Service worker resiliente. Un recurso fallido no invalida toda la instalación. */
-const CACHE='hecagus-finance-3.1.1-shell-v3-living';
+const CACHE='hecagus-finance-3.1.1-shell-v4-fresh-sync';
 const APP_SHELL=[
   '/','/index.html','/onboarding.html','/admin.html','/home.html','/wallet.html','/stats.html','/historial.html','/calendar.html','/offline.html',
   '/style.css','/manifest.webmanifest','/hecagus-finance-192.png','/hecagus-finance-512.png','/js/pwa-bootstrap.js',

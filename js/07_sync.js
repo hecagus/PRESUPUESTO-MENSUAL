@@ -6,7 +6,7 @@ import { mergeStates, syncOutcome, assertSyncSize } from './26_sync_merge.js';
 let META_KEY='presupuesto_sync_meta_v1';
 const DEVICE_KEY='presupuesto_device_id_v1';
 const FALLBACK_OBSERVER_MS=12000;
-let mergeChoices={},conflictLocalHash=null,resetting=false;
+let mergeChoices={},conflictLocalHash=null,resetting=false,initialSyncPromise=null,initialSyncError=null,activeSyncPromise=null;
 let auth=null,db=null,firebase=null,currentUser=null,conflictRemote=null,syncing=false,syncTimer=null,observerTimer=null,observedHash=null,authReady=false,lifecycleBound=false;
 const getDeviceId=()=>{let id=localStorage.getItem(DEVICE_KEY);if(!id){id=`dev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;localStorage.setItem(DEVICE_KEY,id);}return id;};
 const loadMeta=()=>{try{return {...{baseRevision:0,dirty:false,lastSync:null},...JSON.parse(localStorage.getItem(META_KEY)||'{}')}}catch{return {baseRevision:0,dirty:false,lastSync:null}}};
@@ -34,7 +34,12 @@ async function loadFirebase(){if(firebase)return firebase;const v=FIREBASE_SYNC.
 async function signIn(){const button=document.getElementById('btnSyncLogin');try{if(button){button.disabled=true;button.textContent='Abriendo Google…';}setStatus('Abriendo acceso con Google…');const f=await loadFirebase(),provider=new f.GoogleAuthProvider(),result=await f.signInWithPopup(auth,provider);activateUser(result.user);if(navigator.onLine)await syncNow();}catch(e){showSyncError(e);if(button){button.disabled=false;button.textContent='Continuar con Google';}}}
 const docRef=()=>firebase.doc(db,'users',currentUser.uid,'budget','state');
 async function applyRemote(remote){Data.restaurar(JSON.stringify(remote.state));observedHash=stateHash();meta={...meta,baseRevision:Number(remote.revision)||0,baseState:clone(remote.state),dirty:false,lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;renderSyncUI();document.dispatchEvent(new CustomEvent('budget:remote-applied'));}
-export async function syncNow({forceLocal=false}={}){if(!FIREBASE_SYNC.enabled||!currentUser||syncing||!navigator.onLine)return;const currentHash=stateHash();if(observedHash!==null&&currentHash!==observedHash){observedHash=currentHash;meta={...meta,dirty:true};saveMeta(meta);}const userId=currentUser.uid;syncing=true;let completed=false;try{const f=await loadFirebase(),ref=docRef(),sentState=clone(Data.getState()),sentHash=stateHash(),baseRevision=meta.baseRevision,wasDirty=meta.dirty;if(currentUser?.uid!==userId)return;const result=await f.runTransaction(db,async tx=>{if(currentUser?.uid!==userId)throw Object.assign(new Error('La cuenta cambió durante la sincronización.'),{code:'sync/user-changed'});const snap=await tx.get(ref),remote=snap.exists()?snap.data():null,remoteRevision=Number(remote?.revision)||0;if(remote?.oneTimeResetUsedAt&&sentState.resetGeneration!==remote.oneTimeResetUsedAt)return{kind:'reset-pull',remote};if(remote&&remoteRevision!==Number(baseRevision||0)){if(wasDirty||forceLocal||stateHash()!==sentHash)return{kind:'conflict',remote};return{kind:'pull',remote};}if(remote&&!forceLocal&&!wasDirty&&remoteRevision===Number(baseRevision||0))return{kind:'noop',revision:remoteRevision};const revision=Math.max(remoteRevision,Number(meta.baseRevision)||0)+1;assertSyncSize(sentState);tx.set(ref,{state:sentState,oneTimeResetUsedAt:remote?.oneTimeResetUsedAt||null,revision,updatedAt:new Date().toISOString(),deviceId:getDeviceId()});return{kind:'push',revision};});if(currentUser?.uid!==userId)return;if(result.kind==='conflict'){conflictRemote=result.remote;mergeChoices={};conflictLocalHash=stateHash();renderSyncUI();return;}if(result.kind==='reset-pull'){await applyRemote(result.remote);emitSyncComplete('reset-pull');if(!Data.getState().profile?.onboarded)location.replace('onboarding.html');return;}if(result.kind==='pull'){if(stateHash()!==sentHash){conflictRemote=result.remote;mergeChoices={};conflictLocalHash=stateHash();renderSyncUI();return;}await applyRemote(result.remote);emitSyncComplete('pull');return;}observedHash=stateHash();meta={...meta,...syncOutcome(sentState,Data.getState(),result.revision??meta.baseRevision),lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;renderSyncUI();emitSyncComplete(result.kind);completed=true;}finally{syncing=false;if((completed||currentUser?.uid!==userId)&&meta.dirty&&!conflictRemote){clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow().catch(showSyncError),1400);}}}
+export async function syncNow(options={}){
+  while(activeSyncPromise)await activeSyncPromise;
+  const pending=performSync(options);activeSyncPromise=pending;
+  try{return await pending;}finally{if(activeSyncPromise===pending)activeSyncPromise=null;}
+}
+async function performSync({forceLocal=false}={}){if(!FIREBASE_SYNC.enabled||!currentUser||syncing||!navigator.onLine)return;const currentHash=stateHash();if(observedHash!==null&&currentHash!==observedHash){observedHash=currentHash;meta={...meta,dirty:true};saveMeta(meta);}const userId=currentUser.uid;syncing=true;let completed=false;try{const f=await loadFirebase(),ref=docRef(),sentState=clone(Data.getState()),sentHash=stateHash(),baseRevision=meta.baseRevision,wasDirty=meta.dirty;if(currentUser?.uid!==userId)return;const result=await f.runTransaction(db,async tx=>{if(currentUser?.uid!==userId)throw Object.assign(new Error('La cuenta cambió durante la sincronización.'),{code:'sync/user-changed'});const snap=await tx.get(ref),remote=snap.exists()?snap.data():null,remoteRevision=Number(remote?.revision)||0;if(remote?.oneTimeResetUsedAt&&sentState.resetGeneration!==remote.oneTimeResetUsedAt)return{kind:'reset-pull',remote};if(remote&&remoteRevision!==Number(baseRevision||0)){if(wasDirty||forceLocal||stateHash()!==sentHash)return{kind:'conflict',remote};return{kind:'pull',remote};}if(remote&&!forceLocal&&!wasDirty&&remoteRevision===Number(baseRevision||0))return{kind:'noop',revision:remoteRevision};const revision=Math.max(remoteRevision,Number(meta.baseRevision)||0)+1;assertSyncSize(sentState);tx.set(ref,{state:sentState,oneTimeResetUsedAt:remote?.oneTimeResetUsedAt||null,revision,updatedAt:new Date().toISOString(),deviceId:getDeviceId()});return{kind:'push',revision};});if(currentUser?.uid!==userId)return;if(result.kind==='conflict'){conflictRemote=result.remote;mergeChoices={};conflictLocalHash=stateHash();renderSyncUI();return;}if(result.kind==='reset-pull'){await applyRemote(result.remote);emitSyncComplete('reset-pull');if(!Data.getState().profile?.onboarded)location.replace('onboarding.html');return;}if(result.kind==='pull'){if(stateHash()!==sentHash){conflictRemote=result.remote;mergeChoices={};conflictLocalHash=stateHash();renderSyncUI();return;}await applyRemote(result.remote);emitSyncComplete('pull');return;}observedHash=stateHash();meta={...meta,...syncOutcome(sentState,Data.getState(),result.revision??meta.baseRevision),lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;renderSyncUI();emitSyncComplete(result.kind);completed=true;}finally{syncing=false;if((completed||currentUser?.uid!==userId)&&meta.dirty&&!conflictRemote){clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow().catch(showSyncError),1400);}}}
 function renderMergeChoices(zone){
   const result=mergeStates(Data.getState(),conflictRemote.state,meta.baseState,mergeChoices);
   if(!result.conflicts.length)return;
@@ -81,7 +86,44 @@ function activateUser(user){
   authReady=true;renderSyncUI();
 }
 
-export async function initSync(){renderSyncUI();if(!FIREBASE_SYNC.enabled)return;observedHash=stateHash();if(meta.baseRevision===0&&!meta.lastSync&&hasMeaningfulLocalData()){meta={...meta,dirty:true};saveMeta(meta);}clearInterval(observerTimer);observerTimer=setInterval(observeState,FALLBACK_OBSERVER_MS);bindLifecycle();try{const f=await loadFirebase();f.onAuthStateChanged(auth,user=>{activateUser(user);if(user&&navigator.onLine)syncNow().catch(showSyncError);});}catch(e){authReady=true;renderSyncUI();showSyncError(e);}}
+export function initSync(){
+  if(initialSyncPromise)return initialSyncPromise;
+  initialSyncPromise=initializeSync();
+  return initialSyncPromise;
+}
+async function initializeSync(){
+  renderSyncUI();if(!FIREBASE_SYNC.enabled)return;
+  observedHash=stateHash();
+  if(meta.baseRevision===0&&!meta.lastSync&&hasMeaningfulLocalData()){meta={...meta,dirty:true};saveMeta(meta);}
+  clearInterval(observerTimer);observerTimer=setInterval(observeState,FALLBACK_OBSERVER_MS);bindLifecycle();
+  try{
+    const f=await loadFirebase();
+    await new Promise((resolve,reject)=>{
+      f.onAuthStateChanged(auth,async user=>{
+        try{activateUser(user);if(user&&navigator.onLine)await syncNow();resolve();}
+        catch(error){showSyncError(error);reject(error);}
+      },reject);
+    });
+  }catch(error){authReady=true;renderSyncUI();showSyncError(error);initialSyncError=error;}
+}
+/* Finish account recovery before opening a new setup, then clear the actual budget. */
+export async function prepareFreshBudget(){
+  await initSync();
+  if(initialSyncError)throw initialSyncError;
+  if(currentUser){
+    if(!navigator.onLine)throw new Error('Conecta internet para comprobar y reiniciar también los datos de tu cuenta.');
+    await syncNow();
+  }
+  if(!hasMeaningfulLocalData())return true;
+  if(!confirm('¿Borrar TODOS los datos del presupuesto y configurar desde cero? Se reiniciarán también los datos de la nube si has iniciado sesión. No se puede deshacer.'))return false;
+  if(currentUser)await resetBudgetOnce();
+  else{
+    if(localStorage.getItem('presupuesto_state_owner_v1'))throw new Error('Inicia sesión con Google para reiniciar el presupuesto de esta cuenta también en la nube.');
+    Data.restaurar(JSON.stringify(Data.createEmptyState()));notifyLocalChange();
+  }
+  return true;
+}
+
 /* Temporary, one-use reset per authenticated account. Cloud commits before local data changes. */
 function renderResetUI(){
   let card=document.getElementById('oneTimeResetCard');
