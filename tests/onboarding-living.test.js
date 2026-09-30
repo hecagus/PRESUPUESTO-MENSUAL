@@ -28,7 +28,7 @@ test('editing only vivienda and food preserves services, health and existing spe
   Living.saveLivingSetup({housingMode:'none',foodMode:'later'});assert.equal(Home.householdById('home-housing').active,false);assert.equal(Home.householdById('home-groceries').amount,2500);
 });
 test('required choices, invalid amounts and invalid calendar dates do not mutate data',()=>{
-  for(const patch of [{housingMode:''},{housingAmount:0},{housingAmount:-1},{housingDate:''},{housingDate:'2026-02-30'},{foodAmount:0},{foodAmount:'abc'}]){
+  for(const patch of [{housingMode:''},{housingAmount:0},{housingAmount:-1},{housingDate:''},{housingDate:'2026-02-30'},{foodAmount:-1},{foodAmount:'abc'}]){
     const before=JSON.stringify(Data.getState());assert.throws(()=>Living.saveLivingSetup({...setup,...patch}));assert.equal(JSON.stringify(Data.getState()),before);
   }
 });
@@ -86,4 +86,38 @@ test('fresh form waits for reset and final navigation waits for cloud save',asyn
   assert.equal(redirects.length,0);
   releaseSave();await tick();assert.deepEqual(redirects,['index.html']);
   Data.loadData();assert.equal(Data.getState().wallet.saldo,0);assert.equal(Data.getState().movimientos.length,0);
+});
+
+test('month-end budget is scoped to initial month and survives reload without expenses',()=>{
+  Living.saveLivingSetup({...setup,foodAmount:200,foodMonthlyAmount:6000},new Date(2026,8,30));
+  assert.equal(Home.householdCommittedRemaining(new Date(2026,8,30)),200);
+  Data.loadData();
+  assert.equal(Home.householdCommittedRemaining(new Date(2026,8,30)),200);
+  assert.equal(Home.householdCommittedRemaining(new Date(2026,9,1)),6000);
+  assert.equal(Data.getState().movimientos.length,0);
+});
+test('zero remaining budget does not reserve full next month budget',()=>{
+  Living.saveLivingSetup({...setup,foodAmount:0,foodMonthlyAmount:6000},new Date(2026,8,30));
+  assert.equal(Home.householdCommittedRemaining(new Date(2026,8,30)),0);
+  assert.equal(Home.householdCommittedRemaining(new Date(2026,9,1)),6000);
+});
+
+test('quincenal uses remaining amount then 3000 per half-month, monthly equivalent 6000',()=>{
+  Living.saveLivingSetup({...setup,foodAmount:100,foodMonthlyAmount:3000,foodFrequency:'biweekly'},new Date(2026,8,14));
+  assert.equal(Home.householdCommittedRemaining(new Date(2026,8,15)),100);
+  assert.equal(Home.householdCommittedRemaining(new Date(2026,8,16)),3000);
+  assert.equal(Home.householdMonthlyEquivalent(Home.householdById('home-groceries'),new Date(2026,8,16)),6000);
+});
+test('weekly resets on Monday without reserving monthly equivalent',()=>{
+  Living.saveLivingSetup({...setup,foodAmount:100,foodMonthlyAmount:500,foodFrequency:'weekly'},new Date(2026,8,30));
+  assert.equal(Home.householdCommittedRemaining(new Date(2026,9,4)),100);
+  assert.equal(Home.householdCommittedRemaining(new Date(2026,9,5)),500);
+  assert.ok(Math.abs(Home.householdMonthlyEquivalent(Home.householdById('home-groceries'))-500*52/12)<0.001);
+});
+
+test('period budget subtracts only expenses since setup and excludes earlier and future periods',()=>{
+  Living.saveLivingSetup({...setup,foodAmount:200,foodMonthlyAmount:3000,foodFrequency:'biweekly'},new Date(2026,8,28));
+  Data.getState().movimientos.push(...[['2026-09-20',1000],['2026-09-29',50],['2026-10-01',200]].map(([date,monto],i)=>({id:'test-'+i,tipo:'gasto',householdExpenseId:'home-groceries',fecha:date+'T12:00:00',monto})));
+  assert.equal(Home.householdCommittedRemaining(new Date(2026,8,30)),150);
+  assert.equal(Home.householdCommittedRemaining(new Date(2026,9,2)),2800);
 });

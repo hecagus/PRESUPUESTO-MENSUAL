@@ -27,7 +27,7 @@ function isCompletedOneTime(item){return item.frequency==='one_time'&&(getState(
 
 function itemStatus(item){
   if(item.kind==='budget'){
-    const row=spentFor(item.id);return row?`${fmtMoney(row.spent)} usados · ${fmtMoney(row.remaining)} por cubrir este mes`:`Necesidad estimada ${fmtMoney(householdMonthlyEquivalent(item))}/mes`;
+    const row=spentFor(item.id);return row?`${fmtMoney(row.spent)} usados · ${fmtMoney(row.remaining)} disponibles en este periodo`:`Necesidad estimada ${fmtMoney(householdMonthlyEquivalent(item))}/mes`;
   }
   if(item.kind==='obligation'){
     const overdue=overdueFor(item.id);if(overdue)return `⚠️ Vencido ${dateLabel(overdue.dueDate||overdue.date)} · pendiente de registrar`;

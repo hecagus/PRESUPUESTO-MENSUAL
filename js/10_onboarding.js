@@ -38,17 +38,21 @@ function seedFromState(){
   const housingRadio=document.querySelector(`input[name="housingMode"][value="${housingMode}"]`);if(housingRadio)housingRadio.checked=true;
   $('setupHousing').value=housing?.active===false?'':housing?.amount||'';
   $('setupHousingDate').value=nextHousingDate(housing);
-  $('setupGroceries').value=groceries?.active===false?'':groceries?.amount||'';
+  $('setupGroceries').value=groceries?.active===false?'':groceries?.initialBudget?.endDate>new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0')+'-'+String(new Date().getDate()).padStart(2,'0')?groceries.initialBudget.amount:groceries?.amount||'';
+  $('setupFoodFrequency').value=groceries?.frequency||'monthly';
+  $('setupGroceriesMonthly').value=groceries?.active===false?'':groceries?.amount||'';
   document.querySelector(`input[name="foodMode"][value="${groceries?.active!==false&&groceries?.amount>0?'budget':'later'}"]`).checked=true;
   renderLivingChoices();
   if(edit){$('setupHeading').textContent='Mi situación cambió';$('setupBalance').disabled=true;$('setupBalance').placeholder='El saldo inicial ya está definido';}
 }
 
-function livingValues(){return {housingMode:document.querySelector('input[name="housingMode"]:checked')?.value||'',housingAmount:$('setupHousing').value,housingDate:$('setupHousingDate').value,foodMode:document.querySelector('input[name="foodMode"]:checked')?.value||'later',foodAmount:$('setupGroceries').value};}
+function livingValues(){return {housingMode:document.querySelector('input[name="housingMode"]:checked')?.value||'',housingAmount:$('setupHousing').value,housingDate:$('setupHousingDate').value,foodMode:document.querySelector('input[name="foodMode"]:checked')?.value||'later',foodAmount:$('setupGroceries').value,foodMonthlyAmount:$('setupGroceriesMonthly').value,foodFrequency:$('setupFoodFrequency').value};}
 function renderLivingChoices(){
   const values=livingValues(),hasHousing=Boolean(values.housingMode)&&values.housingMode!=='none';
   $('housingDetails').classList.toggle('hidden',!hasHousing);$('setupHousing').disabled=!hasHousing;$('setupHousingDate').disabled=!hasHousing;
   $('foodDetails').classList.toggle('hidden',values.foodMode!=='budget');$('setupGroceries').disabled=values.foodMode!=='budget';
+  $('setupFoodFrequency').disabled=values.foodMode!=='budget';
+  $('setupGroceriesMonthly').disabled=values.foodMode!=='budget';
   $('livingSetupError').textContent='';
 }
 
@@ -127,7 +131,7 @@ function addSource(){syncDrafts();sourceDrafts.push({id:null,name:'',kind:'other
 
 const draftPublicMonthly=s=>{const p=s.transport?.public||{};return s.transport?.mode==='public'?(Number(p.outboundRides||0)+Number(p.returnRides||0))*Number(p.fare||0)*Number(p.daysPerWeek??0)*(52/12):0;};
 
-function review(){syncDrafts();syncTransportDrafts();const transport=TRANSPORT_MODES[$('setupTransport').value]?.label||'Ninguno';$('setupReview').innerHTML=`<strong>Tu app quedará así:</strong><ul style="margin:8px 0 0 18px">${sourceDrafts.filter(s=>s.name).map(s=>`<li>${SOURCE_KINDS[s.kind]?.icon||'💰'} ${esc(s.name)} · ${COMPENSATIONS[s.compensation]?.label||s.compensation} · ${statusLabel(s.status)}${draftPublicMonthly(s)>0?` · traslado ${fmtMoney(draftPublicMonthly(s))}/mes`:''}</li>`).join('')||'<li>Finanzas personales</li>'}<li>🚦 Transporte predeterminado: ${transport}</li><li>🏠 ${HOUSING_MODES[livingValues().housingMode]||'Vivienda'}${livingValues().housingMode!=='none'?` · ${fmtMoney(livingValues().housingAmount)}/mes · próximo pago ${esc(livingValues().housingDate)}`:''}</li><li>🛒 Despensa y comida: ${livingValues().foodMode==='budget'?`${fmtMoney(livingValues().foodAmount)}/mes`:'lo configuraré después'}</li></ul>`;}
+function review(){syncDrafts();syncTransportDrafts();const transport=TRANSPORT_MODES[$('setupTransport').value]?.label||'Ninguno';$('setupReview').innerHTML=`<strong>Tu app quedará así:</strong><ul style="margin:8px 0 0 18px">${sourceDrafts.filter(s=>s.name).map(s=>`<li>${SOURCE_KINDS[s.kind]?.icon||'💰'} ${esc(s.name)} · ${COMPENSATIONS[s.compensation]?.label||s.compensation} · ${statusLabel(s.status)}${draftPublicMonthly(s)>0?` · traslado ${fmtMoney(draftPublicMonthly(s))}/mes`:''}</li>`).join('')||'<li>Finanzas personales</li>'}<li>🚦 Transporte predeterminado: ${transport}</li><li>🏠 ${HOUSING_MODES[livingValues().housingMode]||'Vivienda'}${livingValues().housingMode!=='none'?` · ${fmtMoney(livingValues().housingAmount)}/mes · próximo pago ${esc(livingValues().housingDate)}`:''}</li><li>🛒 Despensa y comida: ${livingValues().foodMode==='budget'?`${fmtMoney(livingValues().foodAmount)} para terminar el periodo · ${fmtMoney(livingValues().foodMonthlyAmount||livingValues().foodAmount)} por periodo (${{weekly:'semanal',biweekly:'quincenal',monthly:'mensual'}[livingValues().foodFrequency]}) · equivalente mensual ${fmtMoney(Number(livingValues().foodMonthlyAmount||livingValues().foodAmount)*({weekly:52/12,biweekly:2,monthly:1}[livingValues().foodFrequency]))}`:'lo configuraré después'}</li></ul>`;}
 
 function showStep(){
   document.querySelectorAll('.setup-step').forEach((el,i)=>el.classList.toggle('active',i===step));document.querySelectorAll('.setup-progress span').forEach((el,i)=>el.classList.toggle('on',i<=step));$('setupBack').style.visibility=step===0?'hidden':'visible';$('setupNext').textContent=step===4?(edit?'Guardar cambios':'Crear mi app'):'Siguiente';
