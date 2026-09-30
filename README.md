@@ -124,3 +124,22 @@ La suite cubre dominio financiero, onboarding, cuentas, metas, calendario, Hogar
 ## Regla de arquitectura
 
 > Un dato se captura una sola vez. Las demás pantallas lo interpretan; no crean una segunda copia del mismo concepto.
+
+## v3.1.1 — integridad y auditoría
+
+- Sincronización con base común por usuario: combina cambios independientes, propaga eliminaciones y requiere elegir local/nube para cada campo incompatible. La primera sincronización desde una versión anterior puede pedir reconciliación al no tener una base común.
+- Los cambios capturados durante una subida permanecen pendientes; una edición durante una descarga genera conflicto. Una confirmación local no autoriza sobrescribir revisiones posteriores.
+- Cambiar de cuenta Google conserva un respaldo local separado y cambia al presupuesto de la cuenta seleccionada.
+- La proyección puede incluir flujos variables **netos estimados**, usando hasta 56 días de ingresos y costos de la fuente, con días sin actividad incluidos. Requiere al menos 14 días de historial y 3 ingresos. Las fuentes pausadas/finalizadas y movimientos futuros se excluyen. La opción está desactivada inicialmente.
+- Las migraciones de respaldos históricos viven en `js/27_legacy_migrations.js`. Se mantienen los datos y APIs de compatibilidad; retirar las funciones legacy restantes requiere una migración posterior.
+- La sincronización conserva el formato de un documento Firestore y rechaza respaldos cuyo tamaño conservador excede 900,000 bytes antes de subirlos. Los datos permanecen locales. Esta protección no sustituye una futura migración a documentos separados si crece el historial.
+
+### Validación
+
+```bash
+npm ci
+npm test
+npm run test:rules
+```
+
+`test:rules` requiere Java 21 y ejecuta exclusivamente un proyecto `demo-` en el emulador. Comprueba acceso del propietario, rechazo entre usuarios, rechazo sin autenticación y bloqueo fuera del espacio de presupuestos. CI ejecuta ambas suites.

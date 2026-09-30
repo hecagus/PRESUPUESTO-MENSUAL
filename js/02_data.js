@@ -1,3 +1,4 @@
+import { defaultPersonalAccount,normalizeSource,migrateFixedIncome,migrateWorkSources,migrateTurns,migrateMovements,migrateProfile,migrateAccounts,normalizeBusiness } from './27_legacy_migrations.js';
 /* v2.7.1 - Motor financiero configurable. Cero DOM. */
 import {
   STORAGE_KEY, LEGACY_KEYS, SCHEMA_VERSION, MAPA_DIAS, CAPABILITIES,
@@ -6,9 +7,6 @@ import {
 } from './01_consts_utils.js';
 
 const PERSONAL_ACCOUNT_ID='acct-personal';
-const LEGACY_JAIMAU_ID='source-jaimau';
-const LEGACY_UBER_ID='source-uber';
-const LEGACY_TICKET_ID='acct-ticketcar';
 
 const INITIAL_STATE={
   schemaVersion:SCHEMA_VERSION,
@@ -33,22 +31,6 @@ const sourceStatus=s=>s?.status||((s?.active===false)?(s?.endedAt?'ended':'pause
 const sourceUsable=s=>sourceStatus(s)==='active';
 const sourceTransportMode=s=>s?.transport?.mode||s?.transportMode||store.profile?.transportMode||'none';
 
-function hasMeaningfulLegacy(x){return ['turnos','movimientos','cargasCombustible','fondosCombustibleEmpresa','deudas','gastosFijosMensuales','ingresosFijos'].some(k=>Array.isArray(x?.[k])&&x[k].length>0)||Boolean(x?.parametros?.saldoInicialConfigurado)||Boolean(x?.parametros?.kmInicialConfigurado);}
-function defaultPersonalAccount(){return{id:PERSONAL_ACCOUNT_ID,name:'Caja personal',type:'cash',ownership:'personal',active:true};}
-function normalizeSource(s){const status=sourceStatus(s);return{...s,status,active:status==='active'};}
-function legacySources(){return[
-  {id:LEGACY_JAIMAU_ID,name:'Jaimau / Ingenico',kind:'employment',compensation:'biweekly',trackTime:true,trackDistance:true,fuelPayer:'company',fundAccountId:LEGACY_TICKET_ID,active:true,status:'active',legacyKey:'jaimau'},
-  {id:LEGACY_UBER_ID,name:'Uber Eats',kind:'gig',compensation:'per_shift',trackTime:true,trackDistance:true,fuelPayer:'personal',fundAccountId:null,active:true,status:'active',legacyKey:'uber'}
-];}
-
-function migrateFixedIncome(list){return(Array.isArray(list)?list:[]).map(f=>{if(Array.isArray(f.pagos))return{...f,pagos:f.pagos.map(p=>({...p,monto:safeFloat(p.monto)}))};const frecuencia=['Semanal','Quincenal','Mensual'].includes(f.frecuencia)?f.frecuencia:'Mensual';let pagos=[];if(frecuencia==='Semanal')pagos=[{id:uuid(),monto:0,diaSemana:String(f.diaPago||'6')}];else if(frecuencia==='Quincenal')pagos=[{id:uuid(),monto:0,diaMes:'15'},{id:uuid(),monto:0,diaMes:'fin_mes'}];else pagos=[{id:uuid(),monto:0,diaMes:String(f.diaPago||'1')}];return{...f,frecuencia,pagos};});}
-function migrateWorkSources(x){if(Array.isArray(x.workSources)&&x.workSources.length)return x.workSources.map(normalizeSource);if(!hasMeaningfulLegacy(x))return[];return legacySources();}
-function legacySourceId(item){const key=item?.tipoTrabajo||item?.fuente;if(key==='jaimau')return LEGACY_JAIMAU_ID;if(key==='uber'||key==='reparto'||item?.desc==='Turno Finalizado')return LEGACY_UBER_ID;return item?.sourceId||null;}
-function migrateTurns(list,sources){return(Array.isArray(list)?list:[]).map(t=>{const sourceId=t.sourceId||legacySourceId(t),source=sources.find(s=>s.id===sourceId);return{...t,sourceId,tipoTrabajo:t.tipoTrabajo||source?.legacyKey||null,fuente:t.fuente||source?.legacyKey||sourceId,compensacion:t.compensacion||source?.compensation||'per_shift',combustible:t.combustible||source?.fuelPayer||'personal'};});}
-function migrateMovements(list){return(Array.isArray(list)?list:[]).map(m=>({...m,sourceId:m.sourceId||legacySourceId(m),accountId:m.tipo==='transferencia'?(m.accountId||null):(m.accountId||PERSONAL_ACCOUNT_ID),affectsPersonal:m.tipo==='transferencia'?false:m.affectsPersonal!==false}));}
-function migrateProfile(x,sources){if(x.profile?.onboarded!==undefined)return{...structuredClone(INITIAL_STATE.profile),...x.profile,capabilities:Array.isArray(x.profile.capabilities)?x.profile.capabilities:[CAPABILITIES.PERSONAL_FINANCE]};if(!hasMeaningfulLegacy(x))return structuredClone(INITIAL_STATE.profile);return{onboarded:true,displayName:'',useCases:['employment','gig'],transportMode:'motorcycle',capabilities:[CAPABILITIES.PERSONAL_FINANCE,CAPABILITIES.WORK,CAPABILITIES.TIME_TRACKING,CAPABILITIES.TRANSPORT,CAPABILITIES.VEHICLE,CAPABILITIES.FUEL,CAPABILITIES.THIRD_PARTY_FUNDS],currency:'MXN'};}
-function migrateAccounts(x,sources){if(Array.isArray(x.accounts)&&x.accounts.length)return x.accounts.map(a=>({...a,active:a.active!==false}));const accounts=[defaultPersonalAccount()];if(sources.some(s=>s.fuelPayer==='company'))accounts.push({id:LEGACY_TICKET_ID,name:'Fondo empresa',type:'third_party',ownership:'third_party',active:true});return accounts;}
-function normalizeBusiness(business){return{ingredients:Array.isArray(business?.ingredients)?business.ingredients:[],products:Array.isArray(business?.products)?business.products:[],sales:Array.isArray(business?.sales)?business.sales:[]};}
 
 export function loadData(){
   let raw=localStorage.getItem(STORAGE_KEY);if(!raw||raw.length<50){for(const k of LEGACY_KEYS){const v=localStorage.getItem(k);if(v&&v.length>=50){raw=v;break;}}}

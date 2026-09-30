@@ -13,7 +13,7 @@ export function expectedIncomeForSource(sourceId,now=new Date()){
   const state=getState(),source=state.workSources.find(s=>s.id===sourceId);if(!source)return 0;
   const cutoff=new Date(now.getTime()-180*DAY);
   const incomes=(state.movimientos||[])
-    .filter(m=>m.tipo==='ingreso'&&m.affectsPersonal!==false&&m.sourceId===sourceId&&new Date(m.fecha)>=cutoff)
+    .filter(m=>m.tipo==='ingreso'&&m.affectsPersonal!==false&&m.sourceId===sourceId&&new Date(m.fecha)>=cutoff&&new Date(m.fecha)<=now&&m.categoria!=='Sistema')
     .sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
   if(!incomes.length)return 0;
   if(['monthly','biweekly','weekly','daily'].includes(source.compensation)){
@@ -22,6 +22,27 @@ export function expectedIncomeForSource(sourceId,now=new Date()){
     return avg(sample.map(m=>safeFloat(m.monto)));
   }
   return 0;
+}
+
+export function variableIncomeEvents({days=45,now=new Date()}={}){
+  const state=getState(),events=[],start=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const cutoff=new Date(start);cutoff.setDate(cutoff.getDate()-56);
+  for(const source of state.workSources||[]){
+    if(source.compensation!=='per_shift'||source.active===false||['paused','ended'].includes(source.status))continue;
+    const history=(state.movimientos||[]).filter(m=>m.sourceId===source.id&&m.affectsPersonal!==false&&['ingreso','gasto'].includes(m.tipo)&&m.categoria!=='Sistema'&&!m.householdExpenseId&&!m.debtId&&!m.commitmentId&&new Date(m.fecha)>=cutoff&&new Date(m.fecha)<start);
+    const incomes=history.filter(m=>m.tipo==='ingreso');if(incomes.length<3)continue;
+    const first=new Date(Math.min(...incomes.map(m=>new Date(m.fecha).getTime())));first.setHours(0,0,0,0);
+    const sampleStart=first>cutoff?first:cutoff,counts=Array(7).fill(0),totals=Array(7).fill(0);let observedDays=0;
+    for(const d=new Date(sampleStart);d<start;d.setDate(d.getDate()+1)){counts[d.getDay()]++;observedDays++;}
+    if(observedDays<14)continue;
+    for(const m of history){const d=new Date(m.fecha);if(d<sampleStart)continue;totals[d.getDay()]+=(m.tipo==='ingreso'?1:-1)*safeFloat(m.monto);}
+    for(let i=1;i<=days;i++){
+      const d=new Date(start);d.setDate(d.getDate()+i);d.setHours(12);
+      const weekday=d.getDay(),net=counts[weekday]?totals[weekday]/counts[weekday]:0;
+      if(net!==0)events.push({id:`variable-${source.id}-${d.toISOString()}`,sourceId:source.id,type:net>0?'income':'expense',date:d.toISOString(),amount:Math.abs(net),title:`Flujo variable neto estimado · ${source.name}`,estimated:true,variable:true,sampleDays:observedDays});
+    }
+  }
+  return events;
 }
 
 function alreadyPaid(event){
@@ -48,13 +69,13 @@ function reserveSnapshot(position,now){
   return {savings,baseLocked,accrued,accruedByItem,initial:baseLocked+accrued};
 }
 
-export function cashFlowForecast({days=45,now=new Date()}={}){
+export function cashFlowForecast({days=45,now=new Date(),includeVariable=false}={}){
   const start=new Date(now),end=new Date(start.getTime()+days*DAY),position=financialPosition(start),reserve=reserveSnapshot(position,start);
   let cash=personalCashTotal(),minCash=cash,totalIncome=0,totalOutflow=0,firstNegativeDate=null,firstTightDate=null,dynamicAccrued=reserve.accrued;
-  const raw=upcomingFinancialEvents({days,now:start}),events=[];
+  const raw=[...upcomingFinancialEvents({days,now:start}),...(includeVariable?variableIncomeEvents({days,now:start}):[])].sort((a,b)=>new Date(a.date)-new Date(b.date)),events=[];
   for(const event of raw){
     if(new Date(event.date)>end||event.type==='goal'||alreadyPaid(event))continue;
-    let amount=safeFloat(event.amount),delta=0,estimated=false;
+    let amount=safeFloat(event.amount),delta=0,estimated=event.estimated===true;
     if(event.type==='income'){
       if(!(amount>0)){amount=expectedIncomeForSource(event.sourceId,start);estimated=true;}
       if(!(amount>0))continue;
@@ -77,15 +98,15 @@ export function cashFlowForecast({days=45,now=new Date()}={}){
   }
   const endingReserve=reserve.baseLocked+dynamicAccrued,endingFree=cash-endingReserve;
   return {
-    now:start.toISOString(),days,startCash:personalCashTotal(),startFree:position.free,reserved:reserve.savings,
+    now:start.toISOString(),days,includeVariable,startCash:personalCashTotal(),startFree:position.free,reserved:reserve.savings,
     ongoingReserve:reserve.initial,endingReserve,totalExpectedIncome:totalIncome,totalExpectedOutflow:totalOutflow,endingCash:cash,endingFree,
     minCash,firstNegativeDate,firstTightDate,events,
     risk:firstNegativeDate?'negative':firstTightDate||endingFree<0?'tight':position.free<0?'tight':'ok'
   };
 }
 
-export function forecastDaily({days=30,now=new Date()}={}){
-  const forecast=cashFlowForecast({days,now}),rows=[];let cash=forecast.startCash,reserve=forecast.ongoingReserve,index=0;
+export function forecastDaily({days=30,now=new Date(),includeVariable=false}={}){
+  const forecast=cashFlowForecast({days,now,includeVariable}),rows=[];let cash=forecast.startCash,reserve=forecast.ongoingReserve,index=0;
   for(let i=0;i<=days;i++){
     const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()+i,23,59,59);
     while(index<forecast.events.length&&new Date(forecast.events[index].date)<=d){cash=forecast.events[index].projectedCash;reserve=forecast.events[index].projectedReserve??reserve;index++;}
