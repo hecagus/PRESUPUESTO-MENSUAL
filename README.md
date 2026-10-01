@@ -1,4 +1,4 @@
-# La app del HecAgus · v3.0.0
+# La app del HecAgus · v3.1.1
 
 **La app del HecAgus** es un sistema financiero personal configurable, offline-first y sincronizable. Modela dinero, hogar, trabajo, cuentas, fondos de terceros, deudas, metas y negocio sin depender de nombres concretos de empresas o plataformas.
 
@@ -17,14 +17,22 @@ Quién eres
 
 v3 elimina varias capas duplicadas acumuladas durante v2.x sin borrar la información histórica.
 
-### Una fuente de verdad por dominio
+### Navegación y responsabilidades
 
-- **Panel**: situación general, dinero realmente libre, calendario resumido y alertas.
-- **Hogar**: obligaciones, presupuestos necesarios, reservas concretas, opcionales y gastos realizados.
-- **Wallet**: cuentas, transferencias y metas de ahorro.
-- **Actividad**: jornadas, pagos laborales, costos operativos, combustible y rendimiento.
-- **Historial**: única línea de tiempo de dinero, actividades, fondos de tercero y combustible.
-- **Calendario**: vista/proyección de eventos; ya no crea una segunda copia de los gastos de Hogar.
+La barra inferior tiene cinco áreas: **Inicio / Presupuesto / Actividad / Dinero / Más**.
+
+- **Inicio** (index.html): situación actual, alertas, fuentes, actividad del día y próximos eventos.
+- **Presupuesto** (home.html): única fuente para obligaciones, presupuestos necesarios, reservas, opcionales y gastos realizados.
+- **Actividad** (admin.html): jornadas, pagos laborales, costos operativos, combustible, rendimiento y negocio.
+- **Dinero** (wallet.html + historial.html): cuentas, movimientos, metas y deudas.
+- **Más** (more.html): accesos a Calendario, Análisis y Configuración.
+- **Configuración** (settings.html): perfil, fuentes, transporte, preferencias, Google, sincronización, backup e instalación PWA.
+- **Calendario** (calendar.html): vista/proyección de eventos; no crea gastos ni obligaciones.
+- **Onboarding** (onboarding.html): primer arranque. El enlace histórico ?edit=1 redirige a Configuración.
+
+Las URLs antiguas y los IDs persistentes se conservan. La reorganización no introduce una migración de datos ni modifica fórmulas financieras. El presupuesto semanal/quincenal/mensual y el importe inicial para cerrar el periodo mantienen la semántica de main.
+
+Consulta [el mapa de módulos y la estrategia de compatibilidad](docs/information-architecture.md).
 
 ### Dinero realmente libre
 

@@ -4,8 +4,8 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('panel ofrece login e instalación a usuarios nuevos hasta completar setup',async()=>{
-  const html=await read('index.html'),init=await read('js/05_init.js');
+test('Configuración ofrece sincronización e instalación fuera de Inicio',async()=>{
+  const html=await read('settings.html'),init=await read('js/05_init.js');
   assert.match(html,/id="syncCard"/);assert.match(html,/id="syncPanel"/);
   assert.match(html,/id="appInstallCard"/);assert.match(html,/id="btnInstallApp"/);
   assert.match(init,/initGlobalEvents/);assert.match(init,/promptInstall/);
@@ -44,7 +44,7 @@ test('calendario financiero forma parte del shell offline',async()=>{
 test('Hogar es pestaña principal y alimenta el motor financiero',async()=>{
   const html=await read('home.html'),init=await read('js/05_init.js'),semantics=await read('js/23_home_semantics.js'),bridge=await read('js/21_financial_life_v27.js'),sw=await read('sw.js');
   assert.match(html,/data-page="home"/);assert.match(html,/Cuánto cuesta vivir/);assert.match(html,/id="btnNewHomeExpense"/);
-  assert.match(init,/home\.html/);assert.match(init,/renderHome/);assert.match(init,/initHomeEvents/);
+  assert.match(await read('js/app/navigation.js'),/home\.html/);assert.match(init,/renderHome/);assert.match(init,/initHomeEvents/);
   assert.match(semantics,/HOME_KINDS/);assert.match(semantics,/householdExplicitReserveStatus/);assert.match(semantics,/recordDirectHouseholdExpense/);
   assert.match(bridge,/23_home_semantics\.js/);assert.match(bridge,/householdCommittedRemaining/);
   assert.match(sw,/23_home_semantics\.js/);assert.match(sw,/24_home_ui_v28\.js/);
@@ -56,7 +56,7 @@ test('saldo inicial no se repite en Actividad y deuda permite pago único',async
   assert.doesNotMatch(admin,/id="valSaldoAdmin"/);
   assert.match(onboarding,/setupBalance/);
   assert.match(onboarding,/edit\?undefined:\$\('setupBalance'\)\.value/);
-  assert.match(init,/Una sola vez/);
+  assert.match(await read('js/ui/debt.js'),/Una sola vez/);
 });
 
 test('nuevo logo es el icono PWA y forma parte del shell offline',async()=>{
@@ -94,6 +94,6 @@ test('Wallet no duplica Últimos movimientos; la línea de tiempo queda en Histo
   const wallet=await read('wallet.html'),history=await read('historial.html');
   assert.doesNotMatch(wallet,/platformRecentMovements/);
   assert.doesNotMatch(wallet,/>Últimos movimientos</);
-  assert.match(history,/Historial/);
+  assert.match(history,/Movimientos/);
   assert.match(history,/TODO LO QUE PASÓ|Todo lo que pasó/i);
 });

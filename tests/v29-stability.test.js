@@ -34,7 +34,7 @@ test('Actividad queda enfocada en trabajo y recupera gastos/rendimiento',async()
 });
 
 test('PWA v3 captura prompt temprano, registra SW temprano y no finge instalabilidad',async()=>{
-  const html=await read('index.html'),bootstrap=await read('js/pwa-bootstrap.js'),pwa=await read('js/08_pwa.js'),manifest=JSON.parse(await read('manifest.webmanifest')),admin=await read('admin.html'),vercel=JSON.parse(await read('vercel.json'));
+  const html=await read('settings.html'),bootstrap=await read('js/pwa-bootstrap.js'),pwa=await read('js/08_pwa.js'),manifest=JSON.parse(await read('manifest.webmanifest')),admin=await read('admin.html'),vercel=JSON.parse(await read('vercel.json'));
   assert.match(html,/pwa-bootstrap\.js/);assert.match(html,/id="appInstallCard"/);assert.match(html,/id="btnInstallApp"[^>]*hidden/);
   assert.match(bootstrap,/beforeinstallprompt/);assert.match(bootstrap,/serviceWorker\.register\('\/sw\.js'/);
   assert.match(pwa,/window\.__hecagusInstallPrompt/);assert.match(pwa,/updateViaCache:'none'/);assert.match(pwa,/classList\.toggle\('hidden',!ready\)/);
