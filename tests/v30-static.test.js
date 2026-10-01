@@ -35,7 +35,7 @@ test('sincronización fusiona Hogar y evita sondeo/escrituras agresivas',async()
 
 test('v3.1 mantiene storage histórico y esquema sin borrar datos',async()=>{
   const constants=await read('js/01_consts_utils.js'),pkg=JSON.parse(await read('package.json'));
-  assert.equal(constants.match(/APP_VERSION = '([^']+)'/)?.[1],pkg.version);assert.match(constants,/STORAGE_KEY = 'moto_finanzas_vFinal'/);assert.match(constants,/SCHEMA_VERSION = 30/);assert.equal(pkg.version,'3.1.2');
+  assert.equal(constants.match(/APP_VERSION = '([^']+)'/)?.[1],pkg.version);assert.match(constants,/STORAGE_KEY = 'moto_finanzas_vFinal'/);assert.match(constants,/SCHEMA_VERSION = 30/);assert.equal(pkg.version,'3.1.3');
 });
 
 test('onboarding no contiene el falso botón Comprobar instalación',async()=>{
