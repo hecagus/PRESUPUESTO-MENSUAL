@@ -112,7 +112,8 @@ function monthlyEquivalent(item,now=new Date()){
 }
 export function householdMonthlyEquivalent(item,now=new Date()){return monthlyEquivalent(normalizeItem(item),now);}
 
-function occurrenceKey(item,date){
+// Shared scheduling helpers: operational obligations use these dates without creating household data.
+export function occurrenceKey(item,date){
   if(item.frequency==='daily')return `D:${isoDay(date)}`;
   if(item.frequency==='weekly'){
     const d=new Date(date),day=d.getDay()||7;d.setDate(d.getDate()-day+1);return `W:${isoDay(d)}`;
@@ -142,7 +143,7 @@ function monthlyOccurrences(item,start,end,step=1){
     if(d<notBefore)continue;if(d>=start&&d<=end)out.push(d);
   }return out;
 }
-function occurrenceDates(item,start,end){
+export function occurrenceDates(item,start,end){
   const notBefore=startOfDay(itemAnchor(item));
   if(item.frequency==='variable')return [];
   if(item.frequency==='one_time'){

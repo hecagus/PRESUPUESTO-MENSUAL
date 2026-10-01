@@ -2,6 +2,7 @@
 import { safeFloat } from './01_consts_utils.js';
 import { getState, saveData } from './02_data.js';
 import * as Base from './13_financial_life.js';
+import { operatingObligations, operatingUpcomingEvents } from './domain/operating-costs.js';
 import {
   ensureHousehold,householdUpcomingEvents,householdCommittedRemaining,householdReserveNeed,
   householdBudgetStatus,seedHouseholdFromLivingSetup
@@ -39,6 +40,7 @@ function retireLegacyLivingState(){
 export function ensureFinancialLife(){
   Base.ensureFinancialLife();
   ensureHousehold();
+  operatingObligations();
   retireLegacyLivingState();
   return getState().financialPlan;
 }
@@ -65,9 +67,10 @@ export function upcomingFinancialEvents({days=45,now=new Date()}={}){
   ensureFinancialLife();
   const base=Base.upcomingFinancialEvents({days,now}).filter(e=>!isRetiredLegacyEvent(e));
   const home=householdUpcomingEvents({days,now});
+  const operating=operatingUpcomingEvents({days,now});
   const byKey=new Map();
   /* Base primero y Hogar después: si alguna migración vieja representa el mismo evento, gana Hogar. */
-  for(const event of [...base,...home])byKey.set(eventKey(event),event);
+  for(const event of [...base,...home,...operating])byKey.set(eventKey(event),event);
   return [...byKey.values()].sort((a,b)=>new Date(a.date)-new Date(b.date));
 }
 

@@ -27,10 +27,10 @@ test('costos operativos recientes no mezclan Hogar, deuda ni gasolina',()=>{
 });
 
 test('Actividad queda enfocada en trabajo y recupera gastos/rendimiento',async()=>{
-  const html=await read('admin.html'),init=await read('js/05_init.js'),insights=await read('js/25_activity_insights.js');
+  const html=await read('admin.html'),init=await read('js/05_init.js'),insights=await read('js/25_activity_insights.js'),operatingUI=await read('js/ui/operating-costs.js');
   assert.match(html,/id="fuelEfficiencySummary"/);assert.match(html,/id="operationalExpenseRows"/);assert.match(html,/id="activityPerformanceZone"/);
   assert.doesNotMatch(html,/id="valSaldoAdmin"/);assert.doesNotMatch(html,/id="metaDiariaValor"/);assert.doesNotMatch(html,/id="appInstallCard"/);
-  assert.match(init,/recordUniversalMovement/);assert.match(init,/tags:\['operational'\]/);assert.match(insights,/rendimientoCombustible/);assert.match(insights,/gastosOperativosRecientes/);
+  assert.match(init,/initOperatingCostEvents/);assert.match(operatingUI,/recordUniversalMovement/);assert.match(operatingUI,/tags:\['operational'\]/);assert.match(insights,/rendimientoCombustible/);assert.match(insights,/gastosOperativosRecientes/);
 });
 
 test('PWA v3 captura prompt temprano, registra SW temprano y no finge instalabilidad',async()=>{
