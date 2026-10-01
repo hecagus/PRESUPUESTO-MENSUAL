@@ -100,3 +100,11 @@ test('Backup tools round-trip the same state and conflict notices lead to Settin
   assert.equal(document.querySelector('#syncNotice a').getAttribute('href'),'settings.html#syncCard');
   setSyncNotice(null);assert.equal(document.getElementById('syncNotice'),null);
 });
+
+test('editing a bicycle source retains kilometer tracking and its existing ID',async()=>{
+  await surface('settings.html');seed();
+  Data.crearFuenteTrabajo({id:'bike',name:'Reparto en bici',kind:'gig',compensation:'per_shift',transportMode:'bicycle',trackDistance:true,fuelPayer:'none'});
+  saveSourceSettings('bike',{name:'Reparto en bici',kind:'gig',compensation:'per_shift',status:'active',transportMode:'bicycle',trackTime:'yes',trackDistance:'yes',fuelPayer:'none',outboundRides:0,returnRides:0,fare:0,daysPerWeek:5});
+  assert.equal(Data.fuenteById('bike').trackDistance,true);assert.equal(Data.fuenteById('bike').fuelPayer,'none');
+  assert.equal(Data.getState().workSources.filter(s=>s.id==='bike').length,1);
+});

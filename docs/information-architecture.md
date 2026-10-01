@@ -71,7 +71,7 @@ Configuración no captura saldo inicial ni vuelve a crear la cuenta. El primer a
 
 Las pruebas cubren navegación, anclas/rutas, bootstrap de todas las páginas con cuenta existente, edición de fuentes, abonos, backup, invariancia de posición financiera, transferencias, fondos de terceros y calentamiento/actualización/navegación offline del service worker.
 
-El navegador local agent-browser no logró iniciar su daemon en este entorno. Las verificaciones DOM y offline son automatizadas; no equivalen a una prueba de instalación real en Android. Firebase requiere las comprobaciones del emulador/CI y una cuenta de prueba para verificar el acceso real de Google, sin tocar datos de usuarios.
+El navegador local agent-browser no logró iniciar su daemon en este entorno. Las verificaciones DOM y offline son automatizadas; no equivalen a una prueba de instalación real en Android. El emulador de Firebase pasó en GitHub Actions con Java 21; localmente está bloqueado por Java 17. La vista previa de Vercel requiere inicio de sesión y no se pudo inspeccionar visualmente. El acceso real de Google requiere una cuenta de prueba, sin tocar datos de usuarios.
 
 ## Próxima etapa
 

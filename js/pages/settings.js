@@ -30,8 +30,8 @@ export function saveSourceSettings(id,values){
   }
   const source=id?Data.fuenteById(id):null;
   if(id&&!source)throw new Error('FUENTE_NO_ENCONTRADA');
-  const vehicle=['motorcycle','car'].includes(values.transportMode);
-  const patch={name,kind:values.kind,compensation:values.compensation,status:values.status,trackTime:values.trackTime==='yes',trackDistance:vehicle&&values.trackDistance==='yes',fuelPayer:vehicle?values.fuelPayer:'none',transportMode:values.transportMode,transport:{...(source?.transport||{}),mode:values.transportMode,public:{...(source?.transport?.public||{}),...publicValues}}};
+  const vehicle=['motorcycle','car'].includes(values.transportMode),distanceTransport=Boolean(TRANSPORT_MODES[values.transportMode]?.vehicle);
+  const patch={name,kind:values.kind,compensation:values.compensation,status:values.status,trackTime:values.trackTime==='yes',trackDistance:distanceTransport&&values.trackDistance==='yes',fuelPayer:vehicle?values.fuelPayer:'none',transportMode:values.transportMode,transport:{...(source?.transport||{}),mode:values.transportMode,public:{...(source?.transport?.public||{}),...publicValues}}};
   if(id)Data.actualizarFuenteTrabajo(id,patch);
   else{
     const ids=new Set(Data.getState().workSources.map(s=>s.id));Data.crearFuenteTrabajo(patch);
@@ -50,7 +50,7 @@ function editSource(id,run){
     choice('Estado','status',[{val:'active',txt:'Activa'},{val:'paused',txt:'Pausada'},{val:'ended',txt:'Finalizada'}],source?.status||(source?.active===false?'paused':'active')),
     choice('Transporte de esta fuente','transportMode',options(TRANSPORT_MODES),transport.mode||source?.transportMode||Data.getState().profile.transportMode||'none'),
     choice('Registrar jornadas y horas','trackTime',[{val:'yes',txt:'Sí'},{val:'no',txt:'No'}],source?.trackTime===false?'no':'yes'),
-    choice('Registrar kilómetros (moto o auto)','trackDistance',[{val:'yes',txt:'Sí'},{val:'no',txt:'No'}],source?.trackDistance?'yes':'no'),
+    choice('Registrar kilómetros (moto, auto o bicicleta)','trackDistance',[{val:'yes',txt:'Sí'},{val:'no',txt:'No'}],source?.trackDistance?'yes':'no'),
     choice('Quién paga gasolina (moto o auto)','fuelPayer',[{val:'personal',txt:'Yo'},{val:'company',txt:'Empresa / tercero'},{val:'none',txt:'No aplica'}],source?.fuelPayer||'personal'),
     {label:'Transporte público: viajes de ida',key:'outboundRides',type:'number',value:pub.outboundRides||0},
     {label:'Transporte público: viajes de regreso',key:'returnRides',type:'number',value:pub.returnRides||0},
