@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { historicalOpening } from './helpers/ledger.js';
 import assert from 'node:assert/strict';
 
 class MemoryStorage {
@@ -22,7 +23,7 @@ function reset(){
     business:{ingredients:[],products:[],sales:[]},wallet:{saldo:0,sobres:[]},parametros:{ultimoKM:0,costoPorKm:0,metaDiaria:0,metaBase:0,deficitTotal:0,moraVencida:0,kmInicialConfigurado:false,saldoInicialConfigurado:false},
     categoriasPersonalizadas:{operativo:[],hogar:[]},activeActivity:null,turnoActivo:null,financialPlan:{livingBudgets:{groceries:0,health:0,leisure:0,other:0},commitments:[]}
   }));
-  Data.saldoInicial(10000);Home.ensureHousehold();
+  historicalOpening(Data,10000);Home.ensureHousehold();
 }
 test.beforeEach(reset);
 

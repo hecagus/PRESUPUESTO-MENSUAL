@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { historicalOpening } from './helpers/ledger.js';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
@@ -16,9 +17,9 @@ const upcoming=options=>Costs.operatingUpcomingEvents({now,days:30,...options});
 const make=(patch={},options)=>Costs.createOperatingObligation({...config,...patch},options);
 function reset(){
   Data.restaurar(JSON.stringify({profile:{onboarded:true,transportMode:'none'},workSources:[{id:'gig',name:'Uber',compensation:'per_shift',status:'active',active:true,transportMode:'none'}],movimientos:[],turnos:[],accounts:[],wallet:{saldo:0,sobres:[]},parametros:{},financialPlan:{householdExpenses:[],householdKinds:{},commitments:[],livingBudgets:{},householdSemanticsVersion:1,householdCanonicalMigrationVersion:3,householdDirectRepairVersion:1}}));
-  Life.ensureFinancialLife();Data.saldoInicial(2223);
+  Life.ensureFinancialLife();historicalOpening(Data,2223);
 }
-test.beforeEach(reset);
+test.beforeEach(t=>{t.mock.timers.enable({apis:['Date'],now:new Date('2026-11-30T12:00:00')});reset();});
 
 test('Mottu pendiente programa $490 cada jueves sin descontar efectivo ni crear Hogar',()=>{
   const item=make(),events=upcoming();
@@ -83,12 +84,12 @@ test('finalizar detiene vencimientos futuros y conserva pagos vencidos aunque la
 
 test('frecuencias comparten calendario, fin de mes y cambio de año con las obligaciones existentes',()=>{
   for(const [frequency,start,days,expected] of [
-    ['daily','2026-10-01',2,['2026-10-01','2026-10-02','2026-10-03']],
+    ['daily','2026-10-01',3,['2026-10-01','2026-10-02','2026-10-03']],
     ['biweekly','2026-10-01',31,['2026-10-15','2026-10-31']],
-    ['monthly','2026-10-31',92,['2026-10-31','2026-11-30','2026-12-31','2027-01-31']],
+    ['monthly','2026-10-31',93,['2026-10-31','2026-11-30','2026-12-31','2027-01-31']],
     ['bimonthly','2026-10-31',92,['2026-10-31','2026-12-31']],
-    ['yearly','2026-10-01',365,['2026-10-01','2027-10-01']],
-    ['weekly','2026-12-31',7,['2026-12-31','2027-01-07']]
+    ['yearly','2026-10-01',366,['2026-10-01','2027-10-01']],
+    ['weekly','2026-12-31',8,['2026-12-31','2027-01-07']]
   ]){
     reset();make({frequency,nextDueDate:start});
     assert.deepEqual(upcoming({now:new Date(`${start}T12:00:00`),days}).map(e=>Costs.localDay(new Date(e.dueDate))),expected,frequency);
@@ -129,17 +130,17 @@ test('proyección variable no resta un pago recurrente de nuevo dentro del ingre
   const item=make({nextDueDate:'2026-09-03'});
   for(let i=28;i>=1;i--){const d=new Date(now);d.setDate(d.getDate()-i);d.setHours(12);Data.getState().movimientos.push({id:`income-${i}`,fecha:d.toISOString(),tipo:'ingreso',monto:700,categoria:'Trabajo',sourceId:'gig',affectsPersonal:true});}
   for(const event of upcoming({now:new Date('2026-09-03T12:00:00'),days:27}))Costs.payOperatingObligation(item.id,{period:event.operatingPeriod,amount:490,date:new Date(event.dueDate)});
-  const variable=Forecast.variableIncomeEvents({days:7,now});assert.equal(variable.length,7);assert.ok(variable.every(e=>e.amount===700));
-  const forecast=Forecast.cashFlowForecast({days:7,now,includeVariable:true});assert.equal(forecast.totalExpectedIncome,4900);assert.equal(forecast.totalExpectedOutflow,980);
+  const variable=Forecast.variableIncomeEvents({days:8,now});assert.equal(variable.length,7);assert.ok(variable.every(e=>e.amount===700));
+  const forecast=Forecast.cashFlowForecast({days:8,now,includeVariable:true});assert.equal(forecast.totalExpectedIncome,4900);assert.equal(forecast.totalExpectedOutflow,980);
 });
 
 test('PWA calienta los nuevos módulos, los sirve offline y elimina la caché anterior al activar',async()=>{
   const source=await readFile(new URL('../sw.js',import.meta.url),'utf8'),listeners={},entries=new Map(),deleted=[];
   const cache={put:async(request,response)=>entries.set(request.url,response),match:async(request)=>entries.get(request.url||request)};
-  const ctx={self:{location:{origin:'https://app.test'},addEventListener:(type,fn)=>listeners[type]=fn,skipWaiting:async()=>{},clients:{claim:async()=>{}}},caches:{open:async()=>cache,keys:async()=>['hecagus-finance-3.1.1-shell-v9-remove-reset-ui','other-cache'],delete:async key=>deleted.push(key),match:async request=>cache.match(request)},Request:class{constructor(path){this.url=`https://app.test${path}`;}},Response,URL,console,fetch:async()=>new Response('export const loaded=true;')};
+  const ctx={self:{location:{origin:'https://app.test'},addEventListener:(type,fn)=>listeners[type]=fn,skipWaiting:async()=>{},clients:{claim:async()=>{}}},caches:{open:async()=>cache,keys:async()=>['hecagus-finance-3.1.1-shell-v10-operating-obligations','other-cache'],delete:async key=>deleted.push(key),match:async request=>cache.match(request)},Request:class{constructor(path){this.url=`https://app.test${path}`;}},Response,URL,console,fetch:async()=>new Response('export const loaded=true;')};
   vm.runInNewContext(source,ctx);let pending;listeners.install({waitUntil:p=>pending=p});await pending;
-  for(const path of ['/js/domain/operating-costs.js','/js/ui/operating-costs.js'])assert.ok(entries.has(`https://app.test${path}`));
+  for(const path of ['/js/domain/financial-rules.js','/js/domain/operating-costs.js','/js/ui/operating-costs.js'])assert.ok(entries.has(`https://app.test${path}`));
   ctx.fetch=async()=>{throw new Error('offline');};
   let response;listeners.fetch({request:{method:'GET',url:'https://app.test/js/domain/operating-costs.js'},respondWith:p=>response=p});assert.equal((await response).status,200);
-  listeners.activate({waitUntil:p=>pending=p});await pending;assert.deepEqual(deleted,['hecagus-finance-3.1.1-shell-v9-remove-reset-ui']);
+  listeners.activate({waitUntil:p=>pending=p});await pending;assert.deepEqual(deleted,['hecagus-finance-3.1.1-shell-v10-operating-obligations']);
 });

@@ -14,14 +14,14 @@ function reset({paused=false,short=false}={}){
   Data.restaurar(JSON.stringify({profile:{onboarded:true,transportMode:'none'},workSources:[{id:'gig',name:'Uber',compensation:'per_shift',status:paused?'paused':'active',active:!paused}],movimientos,turnos:[],wallet:{saldo:0,sobres:[]},parametros:{},financialPlan:{householdExpenses:[],householdKinds:{},commitments:[],livingBudgets:{},householdSemanticsVersion:1,householdCanonicalMigrationVersion:3,householdDirectRepairVersion:1}}));
 }
 test('variable forecast is opt-in, uses net income and includes zero-work weekdays',()=>{
-  reset();const events=variableIncomeEvents({days:7,now});assert.equal(events.length,6);assert.ok(events.every(e=>e.amount===300&&e.estimated));
-  assert.equal(cashFlowForecast({days:7,now}).totalExpectedIncome,0);
-  const projected=cashFlowForecast({days:7,now,includeVariable:true});assert.equal(projected.totalExpectedIncome,1800);assert.equal(projected.totalExpectedOutflow,0);
+  reset();const events=variableIncomeEvents({days:8,now});assert.equal(events.length,6);assert.ok(events.every(e=>e.amount===300&&e.estimated));
+  assert.equal(cashFlowForecast({days:8,now}).totalExpectedIncome,0);
+  const projected=cashFlowForecast({days:8,now,includeVariable:true});assert.equal(projected.totalExpectedIncome,1800);assert.equal(projected.totalExpectedOutflow,0);
   assert.ok(projected.events.every(e=>e.estimated));
 });
 test('paused sources and insufficient history produce no estimated income',()=>{
-  reset({paused:true});assert.deepEqual(variableIncomeEvents({days:7,now}),[]);
-  reset({short:true});assert.deepEqual(variableIncomeEvents({days:7,now}),[]);
+  reset({paused:true});assert.deepEqual(variableIncomeEvents({days:8,now}),[]);
+  reset({short:true});assert.deepEqual(variableIncomeEvents({days:8,now}),[]);
 });
 test('future income and initial balance cannot inflate salary estimates',()=>{
   reset();Data.getState().workSources.push({id:'salary',compensation:'monthly'});
@@ -31,6 +31,6 @@ test('future income and initial balance cannot inflate salary estimates',()=>{
 test('unprofitable weekdays remain forecast expenses rather than being clamped to zero',()=>{
   reset();const s=Data.getState();
   for(let i=1;i<=28;i++){const d=new Date(now);d.setDate(d.getDate()-i);if(d.getDay()!==0)continue;s.movimientos.push({id:`sunday-cost-${i}`,tipo:'gasto',monto:100,sourceId:'gig',fecha:d.toISOString(),categoria:'Transporte'});}
-  const events=variableIncomeEvents({days:7,now});assert.equal(events.length,7);assert.equal(events.find(e=>e.type==='expense').amount,100);
-  assert.equal(cashFlowForecast({days:7,now,includeVariable:true}).totalExpectedOutflow,100);
+  const events=variableIncomeEvents({days:8,now});assert.equal(events.length,7);assert.equal(events.find(e=>e.type==='expense').amount,100);
+  assert.equal(cashFlowForecast({days:8,now,includeVariable:true}).totalExpectedOutflow,100);
 });

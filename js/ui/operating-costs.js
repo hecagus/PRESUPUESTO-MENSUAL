@@ -1,4 +1,4 @@
-import { $, CATEGORIAS_BASE, fmtMoney } from '../01_consts_utils.js';
+import { $, CATEGORIAS_BASE, fmtMoney, uuid } from '../01_consts_utils.js';
 import { getState } from '../02_data.js';
 import { Modal } from '../03_render.js';
 import { getPersonalAccounts, recordUniversalMovement } from '../15_accounts_engine.js';
@@ -9,6 +9,7 @@ const dateLabel=value=>new Date(value).toLocaleDateString('es-MX',{weekday:'long
 const accounts=()=>getPersonalAccounts({activeOnly:true}).map(a=>({val:a.id,txt:a.name}));
 
 export function showOperatingCostModal(safe){
+  const operationId=uuid();
   const sources=(getState().workSources||[]).filter(s=>s.active!==false&&!['paused','ended'].includes(s.status)).map(s=>({val:s.id,txt:s.name})),accountOptions=accounts();
   const fields=[{label:'Descripción',key:'name',placeholder:'Ej. Mottu'},{label:'Monto pagado ($)',key:'amount',type:'number'},
     {label:'Frecuencia de pago',key:'frequency',type:'select',options:[{val:'one_time',txt:'Una sola vez'},...Object.entries(OPERATING_FREQUENCIES).map(([val,txt])=>({val,txt}))]},
@@ -19,8 +20,8 @@ export function showOperatingCostModal(safe){
   if(accountOptions.length>1)fields.push({label:'Cuenta de pago',key:'accountId',type:'select',options:accountOptions});
   Modal.show('Registrar costo operativo',fields,data=>safe(()=>{
     const accountId=data.accountId||accountOptions[0]?.val||'acct-personal',sourceId=data.sourceId||sources[0]?.val||null;
-    if(data.frequency==='one_time')return recordUniversalMovement({type:'expense',description:data.name,amount:data.amount,category:data.category,accountId,sourceId,tags:['operational']});
-    return createOperatingObligation({name:data.name,amount:data.amount,category:data.category,sourceId,accountId,frequency:data.frequency,nextDueDate:data.dueDate},{paid:data.firstPayment==='paid'});
+    if(data.frequency==='one_time')return recordUniversalMovement({type:'expense',description:data.name,amount:data.amount,category:data.category,accountId,sourceId,tags:['operational'],operationId});
+    return createOperatingObligation({name:data.name,amount:data.amount,category:data.category,sourceId,accountId,frequency:data.frequency,nextDueDate:data.dueDate,operationId},{paid:data.firstPayment==='paid'});
   }));
   const body=$('modalBody'),frequency=body.querySelector('[data-k="frequency"]'),amount=body.querySelector('[data-k="amount"]');
   const hint=document.createElement('small');hint.style.cssText='display:block;color:var(--text-sec);margin-top:8px';body.append(hint);
@@ -55,6 +56,7 @@ export function initOperatingCostEvents(safe){
       {label:'Fecha del pago',key:'date',type:'date',value:localDay(new Date())},
       {label:'Si pagas menos del pendiente',key:'settlement',type:'select',options:[{val:'partial',txt:'Conservar la diferencia pendiente'},{val:'settled',txt:'Liquidar: ya no debo la diferencia'}]}];
     if(options.length>1)fields.push({label:'Cuenta de pago',key:'accountId',type:'select',options,value:item.accountId});
-    Modal.show(`Pagar · ${item.name}`,fields,data=>safe(()=>payOperatingObligation(id,{period:pending.operatingPeriod,amount:data.amount,date:`${data.date}T12:00:00`,accountId:data.accountId||options[0]?.val,settled:data.settlement==='settled'})));
+    const operationId=uuid();
+    Modal.show(`Pagar · ${item.name}`,fields,data=>safe(()=>payOperatingObligation(id,{period:pending.operatingPeriod,amount:data.amount,date:`${data.date}T12:00:00`,accountId:data.accountId||options[0]?.val,settled:data.settlement==='settled',operationId})));
   });
 }

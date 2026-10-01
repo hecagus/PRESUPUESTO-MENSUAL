@@ -1,5 +1,6 @@
 /* v2.9.0 - Analítica genérica por fuente, combustible y costos operativos. Sin mutar estado. */
 import { safeFloat, periodIdFor, CATEGORIAS_BASE } from './01_consts_utils.js';
+import { personalCash, reservedSavings, isPersonalMovement, inObservedPeriod, sourceObservedTotals } from './domain/financial-rules.js';
 
 const horasTurno=t=>Number.isFinite(t.duracionHoras)?t.duracionHoras:Math.max(0,(safeFloat(t.fin)-safeFloat(t.inicio))/3600000);
 const sourceOf=(store,item)=>store.workSources?.find(s=>s.id===(item?.sourceId||item?.fuente))||null;
@@ -7,37 +8,33 @@ const sourceOf=(store,item)=>store.workSources?.find(s=>s.id===(item?.sourceId||
 export function metricasFuente(store,sourceId,{days=7,now=new Date()}={}){
   const source=store.workSources?.find(s=>s.id===sourceId);if(!source)return{source:null,turnos:0,ingresos:0,horas:0,km:0,combustible:0,neto:0,dias:0,ingresoHora:0,ingresoKm:0};
   const limit=new Date(now);limit.setDate(limit.getDate()-days);limit.setHours(0,0,0,0);
-  const turnos=(store.turnos||[]).filter(t=>t.sourceId===sourceId&&new Date(t.fecha)>=limit);
-  const movimientos=(store.movimientos||[]).filter(m=>m.sourceId===sourceId&&m.tipo==='ingreso'&&m.categoria!=='Sistema'&&new Date(m.fecha)>=limit&&m.affectsPersonal!==false);
+  const turnos=(store.turnos||[]).filter(t=>t.sourceId===sourceId&&inObservedPeriod(t.fecha,limit,now));
+  const movimientos=(store.movimientos||[]).filter(m=>m.sourceId===sourceId&&m.tipo==='ingreso'&&m.categoria!=='Sistema'&&inObservedPeriod(m.fecha,limit,now)&&isPersonalMovement(store,m));
   const ingresos=movimientos.reduce((a,m)=>a+safeFloat(m.monto),0);
   const horas=turnos.reduce((a,t)=>a+horasTurno(t),0);
   const km=turnos.reduce((a,t)=>a+safeFloat(t.kmRecorrido),0);
-  const combustible=(store.cargasCombustible||[]).filter(c=>c.sourceId===sourceId&&c.pagador!=='empresa'&&new Date(c.fecha)>=limit).reduce((a,c)=>a+safeFloat(c.costo),0);
+  const combustible=(store.cargasCombustible||[]).filter(c=>c.sourceId===sourceId&&c.pagador!=='empresa'&&inObservedPeriod(c.fecha,limit,now)).reduce((a,c)=>a+safeFloat(c.costo),0);
   const dias=new Set(turnos.map(t=>new Date(t.fecha).toDateString())).size;
-  const neto=ingresos-combustible;
-  return {source,turnos:turnos.length,ingresos,horas,km,combustible,neto,dias,ingresoHora:horas>0?ingresos/horas:0,netoHora:horas>0?neto/horas:0,ingresoKm:km>0?ingresos/km:0,ingresoDiario:dias>0?ingresos/dias:0};
+  const costs=sourceObservedTotals(store,sourceId,limit,now).costs,neto=ingresos-costs;
+  return {source,turnos:turnos.length,ingresos,horas,km,combustible,costosOperativos:costs,neto,dias,ingresoHora:horas>0?ingresos/horas:0,netoHora:horas>0?neto/horas:0,ingresoKm:km>0?ingresos/km:0,ingresoDiario:dias>0?ingresos/dias:0};
 }
 
 export function resumenPeriodoFuente(store,sourceId,fecha=new Date()){
   const source=store.workSources?.find(s=>s.id===sourceId);if(!source)return null;
   const periodo=periodIdFor(source.compensation,fecha);
-  const turnos=(store.turnos||[]).filter(t=>t.sourceId===sourceId&&(t.periodo||periodIdFor(source.compensation,t.fecha))===periodo);
-  const pago=(store.movimientos||[]).find(m=>m.sourceId===sourceId&&m.tipo==='ingreso'&&m.periodo===periodo&&m.paymentKind==='source_period');
-  const ingresos=(store.movimientos||[]).filter(m=>m.sourceId===sourceId&&m.tipo==='ingreso'&&m.categoria!=='Sistema'&&m.periodo===periodo&&m.affectsPersonal!==false).reduce((a,m)=>a+safeFloat(m.monto),0);
+  const turnos=(store.turnos||[]).filter(t=>t.sourceId===sourceId&&inObservedPeriod(t.fecha,0,fecha)&&(t.periodo||periodIdFor(source.compensation,t.fecha))===periodo);
+  const pago=(store.movimientos||[]).find(m=>m.sourceId===sourceId&&inObservedPeriod(m.fecha,0,fecha)&&m.tipo==='ingreso'&&m.periodo===periodo&&m.paymentKind==='source_period');
+  const ingresos=(store.movimientos||[]).filter(m=>m.sourceId===sourceId&&m.tipo==='ingreso'&&m.categoria!=='Sistema'&&m.periodo===periodo&&isPersonalMovement(store,m)&&inObservedPeriod(m.fecha,0,fecha)).reduce((a,m)=>a+safeFloat(m.monto),0);
   const horas=turnos.reduce((a,t)=>a+horasTurno(t),0),km=turnos.reduce((a,t)=>a+safeFloat(t.kmRecorrido),0);
   return {source,periodo,turnos:turnos.length,jornadas:new Set(turnos.map(t=>new Date(t.fecha).toDateString())).size,horas,km,pago:safeFloat(pago?.monto),pagado:Boolean(pago),ingresos};
 }
 
-export function resumenGlobal(store){
-  const personal=(store.movimientos||[]).filter(m=>m.affectsPersonal!==false);
-  const cashInflows=personal.filter(m=>m.tipo==='ingreso').reduce((a,m)=>a+safeFloat(m.monto),0);
+export function resumenGlobal(store,now=new Date()){
+  const personal=(store.movimientos||[]).filter(m=>isPersonalMovement(store,m)&&inObservedPeriod(m.fecha,0,now));
   const ingresos=personal.filter(m=>m.tipo==='ingreso'&&m.categoria!=='Sistema').reduce((a,m)=>a+safeFloat(m.monto),0);
   const gastos=personal.filter(m=>m.tipo==='gasto').reduce((a,m)=>a+safeFloat(m.monto),0);
-  const hasGoals=Array.isArray(store.savingsGoals);
-  const ahorro=hasGoals
-    ?store.savingsGoals.filter(g=>g.active!==false).reduce((a,g)=>a+safeFloat(g.reserved),0)
-    :(store.wallet?.sobres||[]).filter(s=>s.categoria==='Ahorro'||s.categoria==='Meta').reduce((a,s)=>a+safeFloat(s.acumulado),0);
-  const saldo=cashInflows-gastos;
+  const ahorro=reservedSavings(store,now);
+  const saldo=personalCash(store,now);
   return {ingresos,gastos,saldo,ahorro,disponible:saldo-ahorro};
 }
 

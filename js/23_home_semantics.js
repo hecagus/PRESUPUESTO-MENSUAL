@@ -2,6 +2,7 @@
 import { safeFloat } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import * as Base from './20_home_engine.js';
+import { normalizeFrequency, inObservedPeriod, localDay } from './domain/financial-rules.js';
 
 export const HOME_KINDS=Object.freeze({
   obligation:{label:'Obligación',icon:'🔴',description:'Lo tienes que pagar sí o sí.'},
@@ -34,11 +35,7 @@ const normalizedText=v=>String(v||'').trim().toLocaleLowerCase('es-MX');
 const sameText=(a,b)=>normalizedText(a)===normalizedText(b);
 
 function canonicalFrequency(value){
-  const f=String(value||'monthly').toLowerCase();
-  if(f.includes('diar'))return'daily';
-  if(f.includes('seman'))return'weekly';
-  if(f.includes('quinc')||f==='biweekly')return'biweekly';
-  return'monthly';
+  return normalizeFrequency(value);
 }
 
 function migrateLegacyCommitments(plan,map){
@@ -47,14 +44,13 @@ function migrateLegacyCommitments(plan,map){
   const commitments=Array.isArray(plan.commitments)?plan.commitments:[];let changed=true;
   for(const c of commitments){
     if(c.active===false||CORE_LEGACY_IDS.has(c.id)||!(safeFloat(c.amount)>0))continue;
-    const duplicate=plan.householdExpenses.some(x=>sameText(x.name,c.name)&&sameMoney(x.amount,c.amount));
-    if(!duplicate){
-      const id=`home-commitment-${c.id}`;
+    const id=`home-commitment-${c.id}`;
+    if(!plan.householdExpenses.some(x=>x.id===id)){
       plan.householdExpenses.push({
         id,name:String(c.name||'Compromiso').trim()||'Compromiso',
         category:HOME_CATEGORIES.includes(c.category)?c.category:'Otros',amount:safeFloat(c.amount),
         frequency:canonicalFrequency(c.frequency),priority:'obligatory',dueDay:Number(c.dueDay)||1,
-        nextDueDate:null,active:true,createdAt:c.createdAt||new Date().toISOString(),notes:'Migrado del calendario anterior'
+        nextDueDate:c.nextDueDate||(canonicalFrequency(c.frequency)==='one_time'?localDay(c.createdAt||new Date()):null),active:true,createdAt:c.createdAt||new Date().toISOString(),notes:'Migrado del calendario anterior',legacyCommitmentIds:[c.id]
       });
       map[id]='obligation';
     }
@@ -66,24 +62,11 @@ function migrateLegacyCommitments(plan,map){
 
 function repairExactDirectDuplicates(state,map){
   const plan=state.financialPlan;
-  if(Number(plan.householdDirectRepairVersion||0)>=1)return {removed:0,changed:false};
-  const items=new Map((plan.householdExpenses||[]).map(x=>[x.id,x])),seen=new Map(),removeMovements=new Set(),removeItems=new Set();
-  const rows=(state.movimientos||[]).filter(m=>m.tipo==='gasto'&&m.householdExpenseId&&map[m.householdExpenseId]==='spent').sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
-  for(const movement of rows){
-    const item=items.get(movement.householdExpenseId);if(!item)continue;
-    const stamp=new Date(movement.recordedAt||item.createdAt||movement.fecha).getTime();
-    const day=String(movement.fecha||'').slice(0,10),key=`${normalizedText(item.name||movement.desc)}|${safeFloat(movement.monto).toFixed(2)}|${day}`;
-    const previous=seen.get(key);
-    if(previous&&Number.isFinite(stamp)&&stamp-previous.stamp>=0&&stamp-previous.stamp<=DUPLICATE_WINDOW_MS){removeMovements.add(movement.id);removeItems.add(item.id);continue;}
-    seen.set(key,{stamp,id:movement.id,itemId:item.id});
-  }
-  if(removeMovements.size){
-    state.movimientos=(state.movimientos||[]).filter(m=>!removeMovements.has(m.id));
-    plan.householdExpenses=(plan.householdExpenses||[]).filter(x=>!removeItems.has(x.id));
-    for(const id of removeItems)delete map[id];
-  }
-  plan.householdDirectRepairVersion=1;
-  return {removed:removeMovements.size,changed:true};
+  if(Number(plan.householdDirectRepairVersion||0)>=2)return {removed:0,changed:false};
+  // Equal amounts/descriptions/timestamps do not prove a duplicate transaction.
+  // Retire the destructive v1 heuristic; keep every existing item and movement.
+  plan.householdDirectRepairVersion=2;
+  return {removed:0,changed:true};
 }
 
 export function ensureHousehold(){
@@ -120,25 +103,25 @@ export const householdUpcomingEvents=Base.householdUpcomingEvents;
 export const householdBudgetStatus=Base.householdBudgetStatus;
 export const householdCommittedRemaining=Base.householdCommittedRemaining;
 
-export function householdExplicitReserveStatus(){
+export function householdExplicitReserveStatus(now=new Date()){
   const state=Data.getState(),rows=[];
   for(const item of householdItems({activeOnly:true}).filter(x=>x.kind==='reserve')){
-    const spent=(state.movimientos||[]).filter(m=>m.tipo==='gasto'&&m.householdExpenseId===item.id).reduce((a,m)=>a+safeFloat(m.monto),0);
+    const spent=(state.movimientos||[]).filter(m=>m.tipo==='gasto'&&m.affectsPersonal!==false&&m.householdExpenseId===item.id&&inObservedPeriod(m.fecha,0,now)).reduce((a,m)=>a+safeFloat(m.monto),0);
     rows.push({item,reserved:safeFloat(item.amount),spent,remaining:Math.max(0,safeFloat(item.amount)-spent)});
   }
   return rows;
 }
 export function householdReserveNeed(now=new Date(),horizonDays=30){
-  const base=Base.householdReserveNeed(now,horizonDays),explicit=householdExplicitReserveStatus().filter(x=>x.remaining>0.005).map(x=>({item:x.item,amount:x.remaining,dueDate:x.item.nextDueDate?`${x.item.nextDueDate}T09:00:00`:null,reason:'explicit'}));
+  const base=Base.householdReserveNeed(now,horizonDays),explicit=householdExplicitReserveStatus(now).filter(x=>x.remaining>0.005).map(x=>({item:x.item,amount:x.remaining,dueDate:x.item.nextDueDate?`${x.item.nextDueDate}T09:00:00`:null,reason:'explicit'}));
   const rows=[...explicit,...base.rows];return {total:rows.reduce((a,x)=>a+safeFloat(x.amount),0),rows};
 }
 export function householdSummary(now=new Date()){
   const state=Data.getState(),start=new Date(now.getFullYear(),now.getMonth(),1),items=householdItems({activeOnly:true});
-  const spent=(state.movimientos||[]).filter(m=>m.tipo==='gasto'&&m.affectsPersonal!==false&&m.householdExpenseId&&new Date(m.fecha)>=start).reduce((a,m)=>a+safeFloat(m.monto),0);
+  const spent=(state.movimientos||[]).filter(m=>m.tipo==='gasto'&&m.affectsPersonal!==false&&m.householdExpenseId&&inObservedPeriod(m.fecha,start,now)).reduce((a,m)=>a+safeFloat(m.monto),0);
   const mandatory=items.filter(x=>x.kind==='obligation').reduce((a,x)=>a+Base.householdMonthlyEquivalent(x,now),0);
   const budgeted=items.filter(x=>x.kind==='budget').reduce((a,x)=>a+Base.householdMonthlyEquivalent(x,now),0);
   const optional=items.filter(x=>x.kind==='optional').reduce((a,x)=>a+Base.householdMonthlyEquivalent(x,now),0);
-  const explicitReserve=householdExplicitReserveStatus().reduce((a,x)=>a+x.remaining,0),reserve=householdReserveNeed(now).total;
+  const explicitReserve=householdExplicitReserveStatus(now).reduce((a,x)=>a+x.remaining,0),reserve=householdReserveNeed(now).total;
   return {spent,mandatory,budgeted,optional,explicitReserve,reserve,planned:mandatory+budgeted+reserve};
 }
 

@@ -5,6 +5,7 @@ import { financialPosition, upcomingFinancialEvents } from './21_financial_life_
 import { householdBudgetStatus } from './20_home_engine.js';
 import { contributeToSavingsGoal, savingsGoalSummary } from './11_savings_goals.js';
 import { cashFlowForecast } from './16_forecast_engine.js';
+import { inObservedPeriod } from './domain/financial-rules.js';
 
 const clamp=(n,min,max)=>Math.min(max,Math.max(min,n));
 
@@ -32,7 +33,7 @@ export function createReserveRule({goalId,percent=10,sourceId=null,name=''}={}){
   const rule=normalizeRule({name:name||`Apartar ${p}% para ${goal.name}`,goalId,sourceId,percent:p,createdAt:new Date().toISOString()});
   state.automationRules.push(rule);
   for(const movement of (state.movimientos||[]).filter(m=>m.tipo==='ingreso'&&m.affectsPersonal!==false&&(sourceId?m.sourceId===sourceId:true))){
-    state.ruleApplications.push({id:uuid(),ruleId:rule.id,movementId:movement.id,amount:0,status:'before_rule',createdAt:new Date().toISOString()});
+    state.ruleApplications.push({id:`rule-${rule.id}-${movement.id}`,ruleId:rule.id,movementId:movement.id,amount:0,status:'before_rule',createdAt:new Date().toISOString()});
   }
   saveData();return rule;
 }
@@ -44,15 +45,15 @@ export function runAutomationEngine(){
   ensureAutomationEngine();const state=getState();let applied=0,touched=false;
   for(const rule of state.automationRules.filter(r=>r.active!==false&&r.type==='reserve_income_percent')){
     const goal=savingsGoalSummary(rule.goalId);if(!goal)continue;
-    const movements=(state.movimientos||[]).filter(m=>m.tipo==='ingreso'&&m.affectsPersonal!==false&&m.categoria!=='Sistema'&&(rule.sourceId?m.sourceId===rule.sourceId:true));
+    const movements=(state.movimientos||[]).filter(m=>m.tipo==='ingreso'&&m.affectsPersonal!==false&&m.categoria!=='Sistema'&&inObservedPeriod(m.fecha,0,new Date())&&(rule.sourceId?m.sourceId===rule.sourceId:true));
     for(const movement of movements){
       if(state.ruleApplications.some(a=>a.ruleId===rule.id&&a.movementId===movement.id))continue;
       const current=savingsGoalSummary(rule.goalId);
-      if(!current||current.complete){state.ruleApplications.push({id:uuid(),ruleId:rule.id,movementId:movement.id,amount:0,status:'goal_complete',createdAt:new Date().toISOString()});touched=true;continue;}
+      if(!current||current.complete){state.ruleApplications.push({id:`rule-${rule.id}-${movement.id}`,ruleId:rule.id,movementId:movement.id,amount:0,status:'goal_complete',createdAt:new Date().toISOString()});touched=true;continue;}
       const free=Math.max(0,financialPosition().free),desired=safeFloat(movement.monto)*(rule.percent/100),amount=Math.min(desired,current.remaining,free);
       if(amount<0.01)continue;
-      contributeToSavingsGoal(rule.goalId,amount,{sourceId:movement.sourceId||null,note:`Automatización · ${rule.name}`});
-      state.ruleApplications.push({id:uuid(),ruleId:rule.id,movementId:movement.id,amount,status:'applied',createdAt:new Date().toISOString()});applied++;touched=true;
+      contributeToSavingsGoal(rule.goalId,amount,{sourceId:movement.sourceId||null,note:`Automatización · ${rule.name}`,operationId:`rule:${rule.id}:income:${movement.id}`});
+      state.ruleApplications.push({id:`rule-${rule.id}-${movement.id}`,ruleId:rule.id,movementId:movement.id,amount,status:'applied',createdAt:new Date().toISOString()});applied++;touched=true;
     }
   }
   if(touched)saveData();

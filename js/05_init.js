@@ -1,5 +1,5 @@
 /* v3.0.0 - Orquestador único de UI, dominio, PWA y sincronización. */
-import { $, APP_VERSION, COMPENSATIONS } from './01_consts_utils.js';
+import { $, APP_VERSION, COMPENSATIONS, uuid } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { Modal, renderIndex, renderWallet, renderStats, renderAdmin } from './03_render.js';
 import { initSync, notifyLocalChange } from './07_sync.js';
@@ -36,6 +36,7 @@ const refresh=()=>{
 };
 
 const ERROR_MESSAGES={
+  PAGO_FECHA_FUTURA:'La fecha de un pago realizado no puede estar en el futuro. Usa el vencimiento para programar un pago pendiente.',
   KM_MENOR:'⛔ El kilometraje no puede ser menor al anterior.',KM_INVALIDO:'Ingresa un kilometraje válido mayor a 0.',SALDO_INVALIDO:'El saldo inicial no puede ser negativo.',MONTO_INVALIDO:'Ingresa un monto mayor a 0.',
   LITROS_INVALIDOS:'Ingresa una cantidad de litros mayor a 0.',GANANCIA_INVALIDA:'La ganancia no puede ser negativa.',DESCRIPCION_INVALIDA:'Escribe una descripción.',NOMBRE_INVALIDO:'Escribe un nombre válido.',TOTAL_INVALIDO:'El total de la deuda debe ser mayor a 0.',
   CUOTA_INVALIDA:'La cuota debe ser mayor a 0.',TURNO_NO_ACTIVO:'No hay una actividad activa para finalizar.',TURNO_YA_ACTIVO:'Ya hay una actividad en curso.',FUENTE_NO_ENCONTRADA:'No se encontró esa fuente de ingreso.',ORIGEN_COMBUSTIBLE_REQUERIDO:'Selecciona a qué actividad corresponde el combustible.',
@@ -78,7 +79,7 @@ function initAdminEvents(){
   $('btnGastoHogar')?.addEventListener('click',()=>{location.href='home.html';});
   initOperatingCostEvents(safe);
   $('btnDeudaNueva')?.addEventListener('click',()=>Modal.show('Nueva deuda',[{label:'Nombre',key:'d'},{label:'Total',key:'t',type:'number'},{label:'Cuota',key:'c',type:'number'},{label:'Plan de pago',key:'f',type:'select',options:['Unico','Semanal','Quincenal','Mensual'].map(x=>({val:x,txt:x==='Unico'?'Una sola vez':x}))},{label:'Día de pago / vencimiento',key:'dp',type:'number',value:1}],d=>safe(()=>Data.nuevaDeuda(d.d,d.t,d.c,d.f,d.dp))));
-  $('btnAbonoCuota')?.addEventListener('click',()=>{const id=$('abonoDeudaSelect')?.value;if(!id)return alert('Selecciona una deuda.');if(confirm('¿Confirmar abono?'))safe(()=>Data.abonarDeuda(id));});
+  $('btnAbonoCuota')?.addEventListener('click',()=>{const id=$('abonoDeudaSelect')?.value;if(!id)return alert('Selecciona una deuda.');if(confirm('¿Confirmar abono?')){const operationId=uuid();safe(()=>Data.abonarDeuda(id,Date.now(),{operationId}));}});
   $('btnConfigKM')?.addEventListener('click',()=>{if(Data.getState().parametros.kmInicialConfigurado)return alert('El kilometraje ya se gestiona con tus actividades.');Modal.show('Configurar kilometraje',[{label:'KM actuales',key:'k',type:'number'}],d=>safe(()=>Data.configurarKM(d.k)));});
   $('btnExportJSON')?.addEventListener('click',async()=>{const json=JSON.stringify(Data.getState(),null,2);try{await navigator.clipboard.writeText(json);alert('Respaldo copiado.');}catch{const blob=new Blob([json],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`hecagus-finance-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url);alert('Respaldo descargado.');}});
   $('btnRestoreBackup')?.addEventListener('click',()=>Modal.show('Restaurar respaldo',[{label:'JSON',key:'j'}],d=>{if(!confirm('Esto reemplazará los datos actuales. ¿Continuar?'))return;safe(()=>Data.restaurar(d.j));}));

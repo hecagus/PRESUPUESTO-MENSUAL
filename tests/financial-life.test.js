@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { historicalOpening } from './helpers/ledger.js';
 import assert from 'node:assert/strict';
 
 class MemoryStorage {
@@ -49,7 +50,7 @@ test('transporte público calcula ida y regreso por fuente',()=>{
 });
 
 test('dinero libre separa efectivo, compromisos y metas',()=>{
-  Data.saldoInicial(10000);
+  historicalOpening(Data,10000);
   const state=Data.getState();state.savingsGoals=[{id:'goal',name:'Meta',targetAmount:5000,reserved:1000,active:true}];Data.saveData();
   Life.configureLivingSetup({housing:4000,housingDay:30,services:0,groceries:2000,health:0,leisure:0,other:0});
   const pos=Life.financialPosition(new Date('2026-08-29T12:00:00'));
@@ -67,7 +68,7 @@ test('calendario combina compromisos, ingresos y metas',()=>{
 });
 
 test('pagar compromiso registra gasto real una sola vez por mes',()=>{
-  Data.saldoInicial(3000);const c=Life.createCommitment({name:'Internet',amount:500,dueDay:5,category:'Servicios'});
+  historicalOpening(Data,3000);const c=Life.createCommitment({name:'Internet',amount:500,dueDay:5,category:'Servicios'});
   Life.payCommitment(c.id,new Date('2026-08-05T10:00:00'));
   assert.equal(Life.financialPosition(new Date('2026-08-05T12:00:00')).cash,2500);
   assert.throws(()=>Life.payCommitment(c.id,new Date('2026-08-20T10:00:00')),/COMPROMISO_YA_PAGADO/);
