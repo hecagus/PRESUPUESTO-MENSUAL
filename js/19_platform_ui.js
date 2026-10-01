@@ -51,7 +51,7 @@ function renderForecast(forecast=null){
       const msg=f.firstNegativeDate?`🔴 Con los datos actuales tu efectivo caería debajo de $0 alrededor del ${dateLabel(f.firstNegativeDate)}.`:f.firstTightDate?`🟠 Alrededor del ${dateLabel(f.firstTightDate)} empezarías a tocar dinero reservado o presupuesto necesario.`:`✅ No detecto faltantes en los próximos 45 días. Ingresos esperados: ${fmtMoney(f.totalExpectedIncome)}.`;
       box.innerHTML=`<div class="grid-2"><div><small>Efectivo en 45 días</small><strong style="display:block">${fmtMoney(f.endingCash)}</strong></div><div><small>Libre proyectado</small><strong style="display:block">${fmtMoney(f.endingFree)}</strong></div></div><small style="display:block;margin-top:8px;color:var(--text-sec)">${msg}</small>`;
     }
-    renderForecastOption($('platformForecastZone'),includeVariable);return;
+    return;
   }
   const anchor=$('calendarEvents');if(!anchor)return;ensureAfter(anchor,'platformForecastDetail','<section class="card" style="border-left:5px solid #7c3aed"><h2>🔮 Flujo proyectado</h2><div id="platformForecastTimeline"></div></section>');
   const box=$('platformForecastTimeline');if(box)box.innerHTML=`<div class="grid-2" style="margin-bottom:8px"><div><small>Efectivo actual</small><strong style="display:block">${fmtMoney(f.startCash)}</strong></div><div><small>Libre al final</small><strong style="display:block">${fmtMoney(f.endingFree)}</strong></div></div>${f.events.slice(0,10).map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid #e2e8f0"><span>${dateLabel(e.date)} · ${esc(e.title)}${e.estimated?' <small>(estimado)</small>':''}</span><strong>${e.delta>=0?'+':'-'}${fmtMoney(Math.abs(e.delta))}<br><small>saldo ${fmtMoney(e.projectedCash)} · libre ${fmtMoney(e.projectedFree)}</small></strong></div>`).join('')||'<small>No hay movimientos futuros suficientes para proyectar.</small>'}`;
@@ -67,7 +67,7 @@ function renderForecastOption(zone,enabled){
 }
 
 function renderAutomation(){
-  if(document.body.dataset.page!=='calendar')return;ensureAutomationEngine();const anchor=$('workTransportZone')?.parentElement||$('calendarCommitments');if(!anchor)return;
+  if(document.body.dataset.page!=='settings')return;ensureAutomationEngine();const anchor=$('settingsAutomationAnchor');if(!anchor)return;
   ensureAfter(anchor,'platformAutomationZone','<section class="card"><div style="display:flex;justify-content:space-between;gap:8px"><div><h2 style="margin:0">🤖 Automatizaciones</h2><small style="color:var(--text-sec)">Reglas que actúan cuando entra dinero.</small></div><button class="btn btn-primary" style="width:auto" data-platform-action="new-rule">+ Regla</button></div><button class="btn btn-outline" style="margin-top:8px" data-platform-action="min-free">Configurar colchón mínimo</button><div id="platformRuleRows" style="margin-top:10px"></div></section>');
   const rules=listAutomationRules(),rows=$('platformRuleRows');if(rows)rows.innerHTML=rules.length?rules.map(r=>{const goal=Data.getState().savingsGoals?.find(g=>g.id===r.goalId),source=r.sourceId?Data.fuenteById(r.sourceId):null;return `<div style="padding:8px 0;border-top:1px solid #e2e8f0"><div style="display:flex;justify-content:space-between;gap:8px"><span><strong>${esc(r.name)}</strong><small style="display:block;color:var(--text-sec)">${r.percent}% de ${source?esc(source.name):'cualquier ingreso'} → ${esc(goal?.name||'meta')}</small></span><button class="btn btn-outline" style="width:auto" data-platform-action="toggle-rule" data-id="${r.id}" data-active="${r.active!==false}">${r.active!==false?'Pausar':'Activar'}</button></div></div>`;}).join(''):'<small>No tienes reglas automáticas. Puedes crear una para apartar un porcentaje de cada ingreso hacia una meta.</small>';
 }
@@ -111,8 +111,9 @@ export function renderFinancialPlatform(){
   const page=document.body.dataset.page;
   if(page==='wallet'){renderAccountsHub();renderSmartGoals();return;}
   if(page==='index'||page==='calendar'){
-    const forecast=cashFlowForecast({days:45,includeVariable:localStorage.getItem('forecast_include_variable')==='true'}),alerts=smartAlerts(new Date(),{forecast});renderForecast(forecast);renderAlerts(alerts);if(page==='calendar')renderAutomation();return;
+    const forecast=cashFlowForecast({days:45,includeVariable:localStorage.getItem('forecast_include_variable')==='true'}),alerts=smartAlerts(new Date(),{forecast});renderForecast(forecast);renderAlerts(alerts);return;
   }
+  if(page==='settings'){renderAutomation();renderForecastOption($('settingsForecastZone'),localStorage.getItem('forecast_include_variable')==='true');return;}
   if(page==='stats'){renderHealth();return;}
   if(page==='historial')renderHistory();
 }

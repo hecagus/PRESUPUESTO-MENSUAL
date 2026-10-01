@@ -37,7 +37,7 @@ export function financialHealth(now=new Date()){
   const liquidityScore=clamp((liquidityRatio/0.30)*25,0,25),commitmentsScore=clamp(((1.20-commitmentRatio)/0.70)*25,0,25),savingsScore=clamp((savingsRate/0.20)*25,0,25),debtScore=clamp(((0.50-debtRatio)/0.40)*25,0,25),score=Math.round(liquidityScore+commitmentsScore+savingsScore+debtScore);
   const breakdown=[
     {key:'liquidity',label:'Liquidez',score:Math.round(liquidityScore),max:25,value:liquidityRatio,detail:`${Math.round(liquidityRatio*100)}% de tu efectivo queda realmente libre.`},
-    {key:'commitments',label:'Carga fija',score:Math.round(commitmentsScore),max:25,value:commitmentRatio,detail:income>0?`Hogar, compromisos y costos esenciales equivalen a ${Math.round(commitmentRatio*100)}% del ingreso mensual observado.`:'Aún no hay suficiente historial de ingresos para medir esta relación.'},
+    {key:'commitments',label:'Carga fija',score:Math.round(commitmentsScore),max:25,value:commitmentRatio,detail:income>0?`Presupuesto, compromisos y costos esenciales equivalen a ${Math.round(commitmentRatio*100)}% del ingreso mensual observado.`:'Aún no hay suficiente historial de ingresos para medir esta relación.'},
     {key:'savings',label:'Ahorro',score:Math.round(savingsScore),max:25,value:savingsRate,detail:income>0?`Has reservado un equivalente aproximado a ${Math.round(savingsRate*100)}% de tu ingreso mensual.`:'Aún no hay suficiente historial para calcular tasa de ahorro.'},
     {key:'debt',label:'Deuda',score:Math.round(debtScore),max:25,value:debtRatio,detail:income>0?`Las cuotas de deuda representan cerca de ${Math.round(debtRatio*100)}% del ingreso mensual.`:'No hay ingreso histórico suficiente para comparar la deuda.'}
   ];

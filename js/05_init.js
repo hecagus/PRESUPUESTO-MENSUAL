@@ -2,7 +2,7 @@
 import { $, CATEGORIAS_BASE, APP_VERSION, COMPENSATIONS } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { Modal, renderIndex, renderWallet, renderStats, renderAdmin } from './03_render.js';
-import { initSync, notifyLocalChange } from './07_sync.js';
+import { initSync, notifyLocalChange, signOutAccount } from './07_sync.js';
 import { initPWA, promptInstall, canPromptInstall } from './08_pwa.js';
 import { ensureSavingsGoals } from './11_savings_goals.js';
 import { renderSavingsGoalsUI, initSavingsGoalEvents } from './12_savings_ui.js';
@@ -13,29 +13,33 @@ import { runAutomationEngine } from './17_automation_engine.js';
 import { ensureFinancialPlatform, renderFinancialPlatform, initFinancialPlatformEvents } from './19_platform_ui.js';
 import { renderHome, initHomeEvents } from './22_home_ui.js';
 import { renderActivityInsights } from './25_activity_insights.js';
+import { renderBottomNav, renderMoneyNav } from './app/navigation.js';
+import { renderDebt, initDebtEvents } from './ui/debt.js';
+import { initDataTools } from './ui/data-tools.js';
+import { renderMore } from './pages/more.js';
+import { renderSettings, initSettingsEvents } from './pages/settings.js';
 
 /* El bootstrap del <head> captura lo más temprano posible; esto enlaza el resto del ciclo PWA. */
 initPWA();
 
-function renderBottomNav(){
-  const nav=document.querySelector('.bottom-nav');if(!nav)return;const page=document.body.dataset.page;
-  const items=[['index','index.html','▥','Panel'],['home','home.html','⌂','Hogar'],['wallet','wallet.html','◉','Wallet'],['admin','admin.html','▶','Actividad'],['historial','historial.html','≡','Historial']];
-  nav.innerHTML=items.map(([key,href,icon,label])=>`<a href="${href}" class="nav-link ${page===key?'active':''}"${page===key?' aria-current="page"':''}><span aria-hidden="true">${icon}</span>${label}</a>`).join('');
-}
 
 const refresh=()=>{
   const page=document.body.dataset.page;
   if(page==='index'){renderIndex();renderFinancialPositionPanel();renderCalendarPreview();}
   else if(page==='home')renderHome();
-  else if(page==='wallet')renderWallet();
+  else if(page==='wallet'){renderWallet();renderDebt();renderMoneyNav();}
   else if(page==='stats')renderStats();
   else if(page==='admin'){renderAdmin();renderActivityInsights();}
   else if(page==='calendar')renderCalendarPage();
+  else if(page==='more')renderMore();
+  else if(page==='settings'){renderSettings();renderMore();}
+  if(page==='historial')renderMoneyNav();
   /* Historial y extensiones financieras tienen un solo renderer canónico en platform_ui. */
   renderSavingsGoalsUI();renderFinancialPlatform();
 };
 
 const ERROR_MESSAGES={
+  CONFIGURACION_INVALIDA:'Revisa las opciones y los importes de transporte. Los días por semana deben estar entre 0 y 7.',
   KM_MENOR:'⛔ El kilometraje no puede ser menor al anterior.',KM_INVALIDO:'Ingresa un kilometraje válido mayor a 0.',SALDO_INVALIDO:'El saldo inicial no puede ser negativo.',MONTO_INVALIDO:'Ingresa un monto mayor a 0.',
   LITROS_INVALIDOS:'Ingresa una cantidad de litros mayor a 0.',GANANCIA_INVALIDA:'La ganancia no puede ser negativa.',DESCRIPCION_INVALIDA:'Escribe una descripción.',NOMBRE_INVALIDO:'Escribe un nombre válido.',TOTAL_INVALIDO:'El total de la deuda debe ser mayor a 0.',
   CUOTA_INVALIDA:'La cuota debe ser mayor a 0.',TURNO_NO_ACTIVO:'No hay una actividad activa para finalizar.',TURNO_YA_ACTIVO:'Ya hay una actividad en curso.',FUENTE_NO_ENCONTRADA:'No se encontró esa fuente de ingreso.',ORIGEN_COMBUSTIBLE_REQUERIDO:'Selecciona a qué actividad corresponde el combustible.',
@@ -80,16 +84,13 @@ function saleProduct(productId){Modal.show('Registrar venta',[{label:'Cantidad',
 
 function initAdminEvents(){
   $('btnFuel')?.addEventListener('click',fuelModal);$('btnCompanyFund')?.addEventListener('click',companyFundModal);
-  $('btnGastoHogar')?.addEventListener('click',()=>{location.href='home.html';});
   $('btnGastoOperativo')?.addEventListener('click',operationalExpenseModal);
-  $('btnDeudaNueva')?.addEventListener('click',()=>Modal.show('Nueva deuda',[{label:'Nombre',key:'d'},{label:'Total',key:'t',type:'number'},{label:'Cuota',key:'c',type:'number'},{label:'Plan de pago',key:'f',type:'select',options:['Unico','Semanal','Quincenal','Mensual'].map(x=>({val:x,txt:x==='Unico'?'Una sola vez':x}))},{label:'Día de pago / vencimiento',key:'dp',type:'number',value:1}],d=>safe(()=>Data.nuevaDeuda(d.d,d.t,d.c,d.f,d.dp))));
-  $('btnAbonoCuota')?.addEventListener('click',()=>{const id=$('abonoDeudaSelect')?.value;if(!id)return alert('Selecciona una deuda.');if(confirm('¿Confirmar abono?'))safe(()=>Data.abonarDeuda(id));});
   $('btnConfigKM')?.addEventListener('click',()=>{if(Data.getState().parametros.kmInicialConfigurado)return alert('El kilometraje ya se gestiona con tus actividades.');Modal.show('Configurar kilometraje',[{label:'KM actuales',key:'k',type:'number'}],d=>safe(()=>Data.configurarKM(d.k)));});
-  $('btnExportJSON')?.addEventListener('click',async()=>{const json=JSON.stringify(Data.getState(),null,2);try{await navigator.clipboard.writeText(json);alert('Respaldo copiado.');}catch{const blob=new Blob([json],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`hecagus-finance-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url);alert('Respaldo descargado.');}});
-  $('btnRestoreBackup')?.addEventListener('click',()=>Modal.show('Restaurar respaldo',[{label:'JSON',key:'j'}],d=>{if(!confirm('Esto reemplazará los datos actuales. ¿Continuar?'))return;safe(()=>Data.restaurar(d.j));}));
+
 }
 
 function initGlobalEvents(){
+  $('btnGoogleSignOut')?.addEventListener('click',()=>signOutAccount().catch(error=>{console.error(error);alert('No se pudo cerrar la sesión.');}));
   $('btnInstallApp')?.addEventListener('click',async()=>{if(canPromptInstall())await promptInstall();});
 }
 
@@ -110,5 +111,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(document.body.dataset.page==='home')initHomeEvents(refresh);
   if(document.body.dataset.page==='admin')initAdminEvents();
   if(document.body.dataset.page==='calendar')initCalendarEvents(refresh);
+  if(document.body.dataset.page==='wallet')initDebtEvents(safe);
+  if(document.body.dataset.page==='settings'){initDataTools(safe);initSettingsEvents(safe);}
+  window.addEventListener('hashchange',renderMoneyNav);
   startTimer();initSync();console.log(`La app del HecAgus v${APP_VERSION}`);
 });

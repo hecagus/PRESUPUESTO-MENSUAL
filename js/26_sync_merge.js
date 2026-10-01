@@ -65,5 +65,5 @@ export function snapshotSize(value){
   return measure(value);
 }
 export function assertSyncSize(state){
-  if(snapshotSize(state)>900000)throw Object.assign(new Error('El respaldo es demasiado grande para sincronizarlo con seguridad. Tus datos siguen en este dispositivo; exporta un respaldo desde Administración.'),{code:'sync/document-too-large'});
+  if(snapshotSize(state)>900000)throw Object.assign(new Error('El respaldo es demasiado grande para sincronizarlo con seguridad. Tus datos siguen en este dispositivo; exporta un respaldo desde Configuración → Backup.'),{code:'sync/document-too-large'});
 }

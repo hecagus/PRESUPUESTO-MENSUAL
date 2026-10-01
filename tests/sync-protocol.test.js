@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 class Storage{data=new Map();getItem(k){return this.data.get(k)||null;}setItem(k,v){this.data.set(k,String(v));}}
 globalThis.localStorage=new Storage();
 Object.defineProperty(globalThis,'navigator',{value:{onLine:false},configurable:true});
-globalThis.document={hidden:false,getElementById:()=>null,dispatchEvent:()=>{},addEventListener:()=>{}};
+globalThis.document={hidden:false,querySelector:()=>null,getElementById:()=>null,dispatchEvent:()=>{},addEventListener:()=>{}};
 globalThis.window={addEventListener:()=>{}};
 globalThis.CustomEvent=class{constructor(type,options){this.type=type;this.detail=options?.detail;}};
 globalThis.setTimeout=()=>1;globalThis.clearTimeout=()=>{};globalThis.setInterval=()=>1;globalThis.clearInterval=()=>{};

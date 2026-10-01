@@ -180,7 +180,7 @@ $('btnInstallApp')?.addEventListener('click',async()=>{const installed=await pro
 document.addEventListener('budget:remote-applied',finishRestore);
 document.addEventListener('budget:sync-complete',finishRestore);
 
-if(edit)showSetup();
+if(edit)location.replace('settings.html');
 else if(Data.getState().profile?.onboarded)location.replace('index.html');
 else{$('authGate')?.classList.remove('hidden');$('setupFlow')?.classList.add('hidden');initSync().catch(()=>{});}
 
