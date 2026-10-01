@@ -28,5 +28,9 @@ jobs:
           java-version: '21'
       - name: Test financial engine
         run: npm test
+      - name: Verify financial calendar in Mexico
+        run: npm test
+        env:
+          TZ: America/Mexico_City
       - name: Verify Firestore isolation
         run: npm run test:rules

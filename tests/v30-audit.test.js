@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { historicalOpening } from './helpers/ledger.js';
 import assert from 'node:assert/strict';
 
 class MemoryStorage{#data=new Map();getItem(k){return this.#data.has(k)?this.#data.get(k):null;}setItem(k,v){this.#data.set(String(k),String(v));}removeItem(k){this.#data.delete(String(k));}clear(){this.#data.clear();}}
@@ -23,7 +24,7 @@ function reset(extra={}){
 test.beforeEach(()=>reset());
 
 test('v3 ignora gastos fijos legacy como motor activo',()=>{
-  Data.saldoInicial(10000);const s=Data.getState();
+  historicalOpening(Data,10000);const s=Data.getState();
   s.gastosFijosMensuales.push({id:'legacy-netflix',desc:'Netflix viejo',monto:399,categoria:'Otro',frecuencia:'Mensual'});Data.saveData();
   const events=Life.upcomingFinancialEvents({days:45,now:new Date('2026-08-31T12:00:00')});
   assert.equal(events.some(e=>String(e.id).startsWith('fixed-')||e.refId==='legacy-netflix'),false);
@@ -31,7 +32,7 @@ test('v3 ignora gastos fijos legacy como motor activo',()=>{
 });
 
 test('v3 no cuenta dos veces Hogar al calcular dinero realmente libre',()=>{
-  Data.saldoInicial(10000);const s=Data.getState();s.savingsGoals=[{id:'goal',name:'Meta',targetAmount:5000,reserved:1000,active:true}];Data.saveData();
+  historicalOpening(Data,10000);const s=Data.getState();s.savingsGoals=[{id:'goal',name:'Meta',targetAmount:5000,reserved:1000,active:true}];Data.saveData();
   Home.createHouseholdExpense({name:'Renta',amount:4000,category:'Vivienda',kind:'obligation',frequency:'monthly',nextDueDate:'2026-09-05'});
   Home.createHouseholdExpense({name:'Comida',amount:2000,category:'Alimentación',kind:'budget',frequency:'monthly'});
   const pos=Life.financialPosition(new Date('2026-08-31T12:00:00'));
@@ -45,7 +46,7 @@ test('v3 migra compromiso manual antiguo a Hogar y desactiva el duplicado',()=>{
   const item=Home.householdItems().find(x=>x.name==='Colegiatura');assert.ok(item);assert.equal(item.kind,'obligation');assert.equal(item.amount,1200);
 });
 
-test('v3 repara una doble captura directa idéntica dentro de cinco minutos',()=>{
+test('v3 conserva gastos parecidos: igual importe y hora no prueban duplicación',()=>{
   reset({
     movimientos:[
       {id:'opening',fecha:'2026-08-31T10:00:00.000Z',tipo:'ingreso',desc:'Saldo Inicial',monto:2000,categoria:'Sistema',accountId:'acct-personal',affectsPersonal:true},
@@ -58,5 +59,5 @@ test('v3 repara una doble captura directa idéntica dentro de cinco minutos',()=
     ]}
   });
   Life.ensureFinancialLife();const s=Data.getState();
-  assert.equal(s.movimientos.filter(m=>m.desc==='Despensa').length,1);assert.equal(Home.recentDirectHouseholdExpenses(10).length,1);assert.equal(Math.round(s.wallet.saldo),1347);
+  assert.equal(s.movimientos.filter(m=>m.desc==='Despensa').length,2);assert.equal(Home.recentDirectHouseholdExpenses(10).length,2);assert.equal(Math.round(s.wallet.saldo),694);
 });
