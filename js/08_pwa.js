@@ -5,7 +5,7 @@ let registrationPromise=window.__hecagusSWRegistrationPromise||null;
 let readiness={checked:false,secure:window.isSecureContext,manifest:false,icons:false,serviceWorker:false,error:null};
 let readinessPromise=null;
 
-export const isStandalone=()=>window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+export const isStandalone=()=>Boolean(window.__hecagusNative)||window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
 export const canPromptInstall=()=>Boolean(deferredPrompt||window.__hecagusInstallPrompt);
 export const pwaReadiness=()=>({...readiness,installPrompt:canPromptInstall(),standalone:isStandalone()});
 
@@ -85,6 +85,7 @@ function bindLifecycle(){
 }
 
 export function initPWA(){
+  if(window.__hecagusNative){updateInstallUI();return Promise.resolve(null);}
   bindLifecycle();updateInstallUI();
   if(!registrationPromise&&'serviceWorker' in navigator){
     registrationPromise=navigator.serviceWorker.register('/sw.js',{scope:'/',updateViaCache:'none'})
