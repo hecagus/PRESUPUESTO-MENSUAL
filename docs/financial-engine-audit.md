@@ -159,9 +159,10 @@ Las obligaciones operativas solas cuentan como datos locales significativos.
 
 ## Pendiente de datos privados y riesgos
 
-Los dos renglones Mottu del 29 de octubre no permiten demostrar duplicación sin
-`operatingObligationId`, `operatingPeriod`, `operatingDueDate` e IDs originales.
-Podrían ser pagos distintos de períodos diferentes en el mismo día. El código no
+El usuario aclaró el 1 de octubre que realizó cuatro pagos reales ese día y que
+capturó fechas equivocadas. Una fecha repetida no demuestra un pago duplicado.
+Se conservan los cuatro registros; corregir sus fechas y verificar los períodos
+que cubrieron requiere los datos privados con IDs y metadata originales. El código no
 contiene un valor 499 por defecto: es configuración/historial de la cuenta.
 Este cambio no sustituye 499 por 490, no modifica pagos anteriores y no elimina
 filas Mottu. Un importe actual de 490 debe editarse deliberadamente en la obligación;
@@ -192,3 +193,18 @@ hasta actualizar; durante esa coexistencia siguen siendo importantes los conflic
 - `npm run test:rules` usa Firestore emulator y Java 21 en GitHub Actions. Localmente
   Java 17 no permite iniciarlo; esto no cuenta como una prueba aprobada localmente.
 - No se ha accedido ni escrito el estado privado de Firebase del usuario.
+
+## Registro de pagos 3.1.3
+
+El formulario de pago de obligaciones operativas ya no ofrece un calendario de
+fecha del movimiento. Al confirmar usa la fecha y hora actuales; el vencimiento
+y período cubiertos permanecen separados. Se muestra qué vencimiento cubre y que
+el saldo se descuenta hoy. La creación conserva el calendario de primer vencimiento
+para programar la obligación; la opción «Ya lo pagué hoy» registra efectivo hoy,
+aunque cubra una fecha futura. Se conservan los pagos parciales y su saldo pendiente.
+
+No se cambian fórmulas, APIs de importación histórica, sincronización ni movimientos
+existentes. Las fechas erróneas ya guardadas no se reescriben automáticamente.
+Cuatro regresiones de interfaz ejercitan pago a cuatro semanas, cuatro pagos reales
+hoy, primer vencimiento futuro ya pagado y abono parcial adelantado. La actualización
+PWA 3.1.3 / shell v12 sustituye la caché 3.1.2 y mantiene los mismos recursos offline.

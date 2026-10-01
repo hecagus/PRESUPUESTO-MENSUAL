@@ -1,6 +1,6 @@
 /* v3.1.0 - Constantes, capacidades y utilidades puras. */
 import { sourcePeriodId } from './domain/financial-rules.js';
-export const APP_VERSION = '3.1.2';
+export const APP_VERSION = '3.1.3';
 export const STORAGE_KEY = 'moto_finanzas_vFinal';
 export const LEGACY_KEYS = ['moto_finanzas_v3', 'moto_finanzas', 'app_moto_data'];
 export const SCHEMA_VERSION = 30;

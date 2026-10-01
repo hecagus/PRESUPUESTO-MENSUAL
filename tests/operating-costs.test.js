@@ -137,10 +137,10 @@ test('proyección variable no resta un pago recurrente de nuevo dentro del ingre
 test('PWA calienta los nuevos módulos, los sirve offline y elimina la caché anterior al activar',async()=>{
   const source=await readFile(new URL('../sw.js',import.meta.url),'utf8'),listeners={},entries=new Map(),deleted=[];
   const cache={put:async(request,response)=>entries.set(request.url,response),match:async(request)=>entries.get(request.url||request)};
-  const ctx={self:{location:{origin:'https://app.test'},addEventListener:(type,fn)=>listeners[type]=fn,skipWaiting:async()=>{},clients:{claim:async()=>{}}},caches:{open:async()=>cache,keys:async()=>['hecagus-finance-3.1.1-shell-v10-operating-obligations','other-cache'],delete:async key=>deleted.push(key),match:async request=>cache.match(request)},Request:class{constructor(path){this.url=`https://app.test${path}`;}},Response,URL,console,fetch:async()=>new Response('export const loaded=true;')};
+  const ctx={self:{location:{origin:'https://app.test'},addEventListener:(type,fn)=>listeners[type]=fn,skipWaiting:async()=>{},clients:{claim:async()=>{}}},caches:{open:async()=>cache,keys:async()=>['hecagus-finance-3.1.2-shell-v11-financial-audit','other-cache'],delete:async key=>deleted.push(key),match:async request=>cache.match(request)},Request:class{constructor(path){this.url=`https://app.test${path}`;}},Response,URL,console,fetch:async()=>new Response('export const loaded=true;')};
   vm.runInNewContext(source,ctx);let pending;listeners.install({waitUntil:p=>pending=p});await pending;
   for(const path of ['/js/domain/financial-rules.js','/js/domain/operating-costs.js','/js/ui/operating-costs.js'])assert.ok(entries.has(`https://app.test${path}`));
   ctx.fetch=async()=>{throw new Error('offline');};
   let response;listeners.fetch({request:{method:'GET',url:'https://app.test/js/domain/operating-costs.js'},respondWith:p=>response=p});assert.equal((await response).status,200);
-  listeners.activate({waitUntil:p=>pending=p});await pending;assert.deepEqual(deleted,['hecagus-finance-3.1.1-shell-v10-operating-obligations']);
+  listeners.activate({waitUntil:p=>pending=p});await pending;assert.deepEqual(deleted,['hecagus-finance-3.1.2-shell-v11-financial-audit']);
 });
