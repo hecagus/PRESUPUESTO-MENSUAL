@@ -30,7 +30,7 @@ function itemStatus(item){
     const row=spentFor(item.id);return row?`${fmtMoney(row.spent)} usados · ${fmtMoney(row.remaining)} disponibles en este periodo`:`Necesidad estimada ${fmtMoney(householdMonthlyEquivalent(item))}/mes`;
   }
   if(item.kind==='obligation'){
-    const overdue=overdueFor(item.id);if(overdue)return `⚠️ Vencido ${dateLabel(overdue.dueDate||overdue.date)} · pendiente de registrar`;
+    const overdue=overdueFor(item.id);if(overdue)return `⚠️ Vencido ${dateLabel(overdue.dueDate||overdue.date)} · ${fmtMoney(overdue.amount)} pendientes`;
     if(item.frequency==='variable')return 'Obligación variable · se reserva una estimación';
     const next=nextFor(item.id);return next?`${freqLabel(item.frequency)} · próximo ${dateLabel(next.dueDate||next.date)}`:freqLabel(item.frequency);
   }
@@ -127,7 +127,12 @@ function itemModal(item,refresh){
 }
 
 function run(fn,refresh){try{fn();refresh?.();document.dispatchEvent(new CustomEvent('budget:data-changed'));}catch(e){console.error(e);const map={MONTO_INVALIDO:'Ingresa un monto mayor a 0.',NOMBRE_INVALIDO:'Escribe un nombre.',FECHA_HOGAR_INVALIDA:'La fecha no es válida.',GASTO_HOGAR_NO_ENCONTRADO:'No se encontró ese registro.',GASTO_HOGAR_YA_PAGADO:'Ese pago ya quedó registrado para este periodo.',GASTO_HOGAR_DUPLICADO_RECIENTE:'Ese mismo gasto ya está registrado. No se creó una segunda copia.',USA_GASTO_REALIZADO:'Usa la opción Gasto realizado.'};alert(map[e.message]||'No se pudo completar la operación.');}}
-function record(item,refresh){const label=item.kind==='obligation'?'Importe pagado ($)':item.kind==='reserve'?'Importe de la compra ($)':'Importe gastado ($)';Modal.show(`${actionLabel(item)} · ${item.name}`,[{label,key:'amount',type:'number',value:item.amount}],d=>run(()=>recordHouseholdExpense(item.id,d.amount),refresh));}
+function record(item,refresh){
+  const label=item.kind==='obligation'?'Importe pagado ($)':item.kind==='reserve'?'Importe de la compra ($)':'Importe gastado ($)';
+  const pending=overdueFor(item.id)||nextFor(item.id),fields=[{label,key:'amount',type:'number',value:pending?.amount??item.amount}];
+  if(item.kind==='obligation')fields.push({label:'Si pagas menos, ¿qué hacemos con lo restante?',key:'settlement',type:'select',options:[{val:'partial',txt:'Conservar pendiente para pagarlo después'},{val:'settled',txt:'Liquidar con lo pagado: ya no debo la diferencia'}]});
+  Modal.show(`${actionLabel(item)} · ${item.name}`,fields,d=>run(()=>recordHouseholdExpense(item.id,d.amount,Date.now(),{settled:d.settlement==='settled'}),refresh));
+}
 
 export function initHomeEvents(refresh){
   $('btnNewHomeExpense')?.addEventListener('click',()=>itemModal(null,refresh));

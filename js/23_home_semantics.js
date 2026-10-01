@@ -142,8 +142,8 @@ export function householdSummary(now=new Date()){
   return {spent,mandatory,budgeted,optional,explicitReserve,reserve,planned:mandatory+budgeted+reserve};
 }
 
-export function recordHouseholdExpense(id,amount=null,fecha=Date.now()){
-  const kind=householdById(id)?.kind||'optional',item=Base.recordHouseholdExpense(id,amount,fecha);remember(id,kind);Data.sanearDatos();return decorate(item);
+export function recordHouseholdExpense(id,amount=null,fecha=Date.now(),options={}){
+  const kind=householdById(id)?.kind||'optional',item=Base.recordHouseholdExpense(id,amount,fecha,options);remember(id,kind);Data.sanearDatos();return decorate(item);
 }
 
 function recentDirectDuplicate({name,amount,date,now=Date.now()}={}){
