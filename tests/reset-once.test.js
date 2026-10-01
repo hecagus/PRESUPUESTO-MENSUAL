@@ -55,8 +55,12 @@ test('a stale local budget is replaced by the reset cloud state instead of resur
   const f=await fixture();navigator.onLine=true;await f.Sync.resetBudgetOnce();Data.restaurar(JSON.stringify(f.old));
   await f.Sync.syncNow({forceLocal:true});assert.equal(f.writes(),1);assert.equal(Data.getState().wallet.saldo,0);assert.equal(Data.getState().movimientos.length,0);
 });
-test('cancelling the confirmation performs no writes and retains local records',async()=>{
-  const f=await fixture();navigator.onLine=true;document.getElementById('btnResetOnce').click();
+test('sync no longer exposes the temporary reset and removes an existing card without writes',async()=>{
+  const f=await fixture();navigator.onLine=true;
+  assert.equal(document.getElementById('btnResetOnce'),null);
+  const card=document.createElement('section');card.id='oneTimeResetCard';document.body.append(card);
+  f.Sync.renderSyncUI();
+  assert.equal(document.getElementById('oneTimeResetCard'),null);
   assert.equal(f.writes(),0);assert.deepEqual(Data.getState(),f.old);
 });
 
