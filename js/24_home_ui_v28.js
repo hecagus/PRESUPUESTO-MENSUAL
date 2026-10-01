@@ -1,5 +1,5 @@
 /* v3.1.0 - UI de Hogar: semántica financiera, gasto realizado seguro y confirmación visible. */
-import { $, fmtMoney } from './01_consts_utils.js';
+import { $, fmtMoney, uuid } from './01_consts_utils.js';
 import { getState } from './02_data.js';
 import { Modal } from './03_render.js';
 import {
@@ -126,12 +126,13 @@ function itemModal(item,refresh){
   },0);
 }
 
-function run(fn,refresh){try{fn();refresh?.();document.dispatchEvent(new CustomEvent('budget:data-changed'));}catch(e){console.error(e);const map={MONTO_INVALIDO:'Ingresa un monto mayor a 0.',NOMBRE_INVALIDO:'Escribe un nombre.',FECHA_HOGAR_INVALIDA:'La fecha no es válida.',GASTO_HOGAR_NO_ENCONTRADO:'No se encontró ese registro.',GASTO_HOGAR_YA_PAGADO:'Ese pago ya quedó registrado para este periodo.',GASTO_HOGAR_DUPLICADO_RECIENTE:'Ese mismo gasto ya está registrado. No se creó una segunda copia.',USA_GASTO_REALIZADO:'Usa la opción Gasto realizado.'};alert(map[e.message]||'No se pudo completar la operación.');}}
+function run(fn,refresh){try{fn();refresh?.();document.dispatchEvent(new CustomEvent('budget:data-changed'));}catch(e){console.error(e);const map={PAGO_FECHA_FUTURA:'La fecha de un pago realizado no puede estar en el futuro.',MONTO_INVALIDO:'Ingresa un monto mayor a 0.',NOMBRE_INVALIDO:'Escribe un nombre.',FECHA_HOGAR_INVALIDA:'La fecha no es válida.',GASTO_HOGAR_NO_ENCONTRADO:'No se encontró ese registro.',GASTO_HOGAR_YA_PAGADO:'Ese pago ya quedó registrado para este periodo.',GASTO_HOGAR_DUPLICADO_RECIENTE:'Ese mismo gasto ya está registrado. No se creó una segunda copia.',USA_GASTO_REALIZADO:'Usa la opción Gasto realizado.'};alert(map[e.message]||'No se pudo completar la operación.');}}
 function record(item,refresh){
   const label=item.kind==='obligation'?'Importe pagado ($)':item.kind==='reserve'?'Importe de la compra ($)':'Importe gastado ($)';
   const pending=overdueFor(item.id)||nextFor(item.id),fields=[{label,key:'amount',type:'number',value:pending?.amount??item.amount}];
   if(item.kind==='obligation')fields.push({label:'Si pagas menos, ¿qué hacemos con lo restante?',key:'settlement',type:'select',options:[{val:'partial',txt:'Conservar pendiente para pagarlo después'},{val:'settled',txt:'Liquidar con lo pagado: ya no debo la diferencia'}]});
-  Modal.show(`${actionLabel(item)} · ${item.name}`,fields,d=>run(()=>recordHouseholdExpense(item.id,d.amount,Date.now(),{settled:d.settlement==='settled'}),refresh));
+  const operationId=uuid();
+  Modal.show(`${actionLabel(item)} · ${item.name}`,fields,d=>run(()=>recordHouseholdExpense(item.id,d.amount,Date.now(),{settled:d.settlement==='settled',period:pending?.householdPeriod,operationId}),refresh));
 }
 
 export function initHomeEvents(refresh){
