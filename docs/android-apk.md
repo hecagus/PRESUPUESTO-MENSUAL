@@ -33,6 +33,8 @@ El APK tiene almacenamiento propio. No lee ni borra el almacenamiento de Chrome/
 
 Los recursos empaquetados funcionan offline y la instalación PWA se oculta dentro de Android. Las operaciones de nube siguen requiriendo conexión. Actualizar la web en Vercel no actualiza automáticamente los recursos incluidos en un APK: es necesario compilar e instalar una versión nueva.
 
+La compilación incorpora las obligaciones operativas de Actividad: Mottu por $490 semanales, primer vencimiento, pagos parciales y eventos del calendario canónico. No descuenta pagos pendientes del efectivo. La programación y sus pagos viajan en el mismo backup del presupuesto.
+
 ## Firma y distribución
 
 El artefacto es una **compilación de prueba**, con firma debug; no es una publicación en Play ni en Firebase App Distribution. El certificado debug de CI puede cambiar entre ejecuciones, por lo que esta compilación no establece una identidad de firma permanente. No desinstalar una versión con datos locales sin exportar primero el backup. Antes de distribución estable se requiere una clave de firma permanente conservada fuera de Git y añadida al proceso de build, y registrar sus huellas en Firebase. No se publican claves privadas ni se cargan datos del usuario.

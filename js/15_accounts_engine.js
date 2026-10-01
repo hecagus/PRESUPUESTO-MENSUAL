@@ -74,14 +74,16 @@ export function setAccountActive(accountId,active){
   account.active=Boolean(active);saveData();return account;
 }
 
-export function recordUniversalMovement({type,description,amount,accountId,category='Otro',sourceId=null,tags=[]}={}){
+export function recordUniversalMovement({type,description,amount,accountId,category='Otro',sourceId=null,tags=[],date=new Date(),operatingPayment=null}={}){
   ensureAccountsEngine();const state=getState(),account=state.accounts.find(a=>a.id===accountId&&a.ownership!=='third_party'&&a.active!==false);
   if(!account)throw new Error('CUENTA_NO_ENCONTRADA');
   const tipo=type==='income'?'ingreso':type==='expense'?'gasto':null;if(!tipo)throw new Error('TIPO_MOVIMIENTO_INVALIDO');
+  const recordedDate=new Date(date);if(Number.isNaN(recordedDate.getTime()))throw new Error('FECHA_INVALIDA');
   const movement={
-    id:uuid(),fecha:new Date().toISOString(),tipo,desc:text(description),monto:positive(amount),categoria:String(category||'Otro'),
+    id:uuid(),fecha:recordedDate.toISOString(),tipo,desc:text(description),monto:positive(amount),categoria:String(category||'Otro'),
     sourceId:sourceId||null,fuente:sourceId||'personal',accountId,affectsPersonal:true,movementKind:'universal',
-    tags:Array.isArray(tags)?tags.map(x=>String(x).trim()).filter(Boolean):[]
+    tags:Array.isArray(tags)?tags.map(x=>String(x).trim()).filter(Boolean):[],
+    ...(operatingPayment?{operatingObligationId:operatingPayment.id,operatingPeriod:operatingPayment.period,operatingDueDate:operatingPayment.dueDate,operatingExpectedAmount:operatingPayment.expectedAmount,...(operatingPayment.settled===true?{operatingSettled:true}:{})}:{})
   };
   state.movimientos.push(movement);sanearDatos();return movement;
 }

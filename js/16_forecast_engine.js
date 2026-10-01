@@ -29,7 +29,8 @@ export function variableIncomeEvents({days=45,now=new Date()}={}){
   const cutoff=new Date(start);cutoff.setDate(cutoff.getDate()-56);
   for(const source of state.workSources||[]){
     if(source.compensation!=='per_shift'||source.active===false||['paused','ended'].includes(source.status))continue;
-    const history=(state.movimientos||[]).filter(m=>m.sourceId===source.id&&m.affectsPersonal!==false&&['ingreso','gasto'].includes(m.tipo)&&m.categoria!=='Sistema'&&!m.householdExpenseId&&!m.debtId&&!m.commitmentId&&new Date(m.fecha)>=cutoff&&new Date(m.fecha)<start);
+    // Scheduled operating payments are projected separately; do not subtract them again from estimated net income.
+    const history=(state.movimientos||[]).filter(m=>m.sourceId===source.id&&m.affectsPersonal!==false&&['ingreso','gasto'].includes(m.tipo)&&m.categoria!=='Sistema'&&!m.householdExpenseId&&!m.debtId&&!m.commitmentId&&!m.operatingObligationId&&new Date(m.fecha)>=cutoff&&new Date(m.fecha)<start);
     const incomes=history.filter(m=>m.tipo==='ingreso');if(incomes.length<3)continue;
     const first=new Date(Math.min(...incomes.map(m=>new Date(m.fecha).getTime())));first.setHours(0,0,0,0);
     const sampleStart=first>cutoff?first:cutoff,counts=Array(7).fill(0),totals=Array(7).fill(0);let observedDays=0;
