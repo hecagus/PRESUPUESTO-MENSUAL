@@ -1,0 +1,8 @@
+{
+  "appId": "com.hecagus.presupuesto",
+  "appName": "La app del HecAgus",
+  "webDir": "www",
+  "server": { "androidScheme": "https", "hostname": "localhost" },
+  "android": { "allowMixedContent": false, "backgroundColor": "#f6f8fc" },
+  "plugins": { "FirebaseAuthentication": { "skipNativeAuth": true, "providers": ["google.com"] } }
+}
