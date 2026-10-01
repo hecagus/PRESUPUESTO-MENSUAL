@@ -2,19 +2,21 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="theme-color" content="#2563eb">
-  <title>Wallet · La app del HecAgus</title>
+  <title>Dinero · La app del HecAgus</title>
   <script src="./js/pwa-bootstrap.js"></script>
   <link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/hecagus-finance-192.png" type="image/png"><link rel="stylesheet" href="style.css">
 </head>
 <body data-page="wallet">
-<header class="header"><h1>💰 Wallet</h1></header>
+<header class="header"><h1>◉ Dinero</h1></header>
 <main class="container">
+  <nav id="moneyNav" class="section-nav" aria-label="Secciones de Dinero"></nav>
   <section class="card text-center" style="background:linear-gradient(135deg,#2563eb 0%,#1e40af 100%);color:white;border:none"><div id="valWallet">$0.00</div></section>
-  <section><h2 style="margin:14px 4px 8px">Cuentas</h2><div id="accountsContainer"></div></section>
-  <section>
+  <section id="accounts"><h2 style="margin:14px 4px 8px">Cuentas</h2><div id="accountsContainer"></div></section>
+  <section id="goals">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 4px 8px"><h2 style="margin:0">🎯 Metas de ahorro</h2><button id="btnNewSavingsGoal" class="btn btn-primary" style="width:auto;padding:9px 12px">+ Nueva meta</button></div>
     <div id="savingsGoalsContainer"></div>
   </section>
+  <section id="debts" class="card"><h2>Deudas</h2><button id="btnDeudaNueva" class="btn btn-outline" style="margin-bottom:15px">+ Nueva deuda</button><div style="background:#f1f5f9;padding:10px;border-radius:8px"><label style="font-size:.8rem;color:var(--text-sec)">Realizar abono:</label><div style="display:flex;gap:5px"><select id="abonoDeudaSelect" class="input-control" style="margin:0"><option value="">Seleccionar...</option></select><button id="btnAbonoCuota" class="btn btn-success" style="width:auto">OK</button></div></div><ul id="debtList" style="margin-top:10px;list-style:none"></ul></section>
 </main>
 <nav class="bottom-nav" aria-label="Navegación principal"></nav>
 <div id="appModal" class="modal-overlay"><div class="modal"><h3 id="modalTitle"></h3><div id="modalBody"></div><div class="modal-actions"><button id="modalCancel" class="btn btn-outline">Cancelar</button><button id="modalConfirm" class="btn btn-primary">Guardar</button></div></div></div>

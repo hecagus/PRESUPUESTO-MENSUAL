@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="theme-color" content="#2563eb">
+<title>Configuración · La app del HecAgus</title>
+<script src="./js/pwa-bootstrap.js"></script>
+<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/hecagus-finance-192.png" type="image/png"><link rel="stylesheet" href="style.css">
+</head>
+<body data-page="settings">
+<header class="header"><h1>Configuración</h1></header>
+<main class="container"><p class="page-intro">Edita una sección cuando cambie tu situación.</p>
+<section id="profile" class="card"><h2>Perfil y transporte</h2>
+<form id="profileForm"><label for="profileName">Tu nombre</label><input id="profileName" class="input-control" autocomplete="name">
+<label for="profileTransport">Transporte principal</label><select id="profileTransport" class="input-control"><option value="none">No uso transporte para trabajar</option><option value="public">Transporte público</option><option value="motorcycle">Moto</option><option value="car">Auto</option><option value="bicycle">Bicicleta</option></select>
+<button class="btn btn-primary" type="submit">Guardar perfil</button><p id="profileSaveStatus" role="status" class="muted"></p></form></section>
+<section id="sources"><div class="section-heading"><h2>Fuentes de ingreso</h2><button id="btnSettingsSource" class="btn btn-primary" type="button">+ Fuente</button></div><p class="muted">Empleo, periodicidad de pago, transporte, jornadas, kilómetros y gasolina por fuente.</p><div id="settingsSources"></div></section>
+<section id="settingsForecastZone" class="card"><h2>Preferencias de proyección</h2><p class="muted">Las estimaciones requieren historial suficiente. No se registran como ingresos reales.</p></section>
+<div id="settingsAutomationAnchor"></div>
+<section id="googleAccount" class="card"><h2>Cuenta Google</h2><p id="googleAccountStatus" class="muted">Comprobando sesión…</p><button id="btnGoogleSignOut" class="btn btn-outline hidden" type="button">Cerrar sesión</button></section>
+<section id="syncCard" class="card hidden"><h2>Sincronización</h2><div id="syncPanel"></div></section>
+  <section id="backup" class="card"><h2>Backup y restauración</h2><div class="grid-2"><button id="btnExportJSON" class="btn btn-outline">📋 Copiar datos</button><button id="btnRestoreBackup" class="btn btn-outline" style="color:var(--danger);border-color:var(--danger)">♻️ Restaurar</button></div></section>    <section id="appInstallCard" class="card hidden" style="border-left:5px solid #7c3aed"><h2>📱 Instalar aplicación</h2><p style="font-size:.85rem;color:var(--text-sec);margin-bottom:7px">El navegador controla cuándo habilita el instalador; cuando esté listo aparecerá el botón.</p><p id="installStatus" style="font-size:.82rem;color:var(--text-sec);margin-bottom:12px">Preparando modo offline…</p><button id="btnInstallApp" class="btn btn-primary hidden" type="button" disabled>Instalar app</button></section><p id="appVersion" class="version-label"></p></main>
+<div id="appModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal"><h3 id="modalTitle">Título</h3><div id="modalBody"></div><div class="modal-actions"><button id="modalCancel" class="btn btn-outline">Cancelar</button><button id="modalConfirm" class="btn btn-primary">Guardar</button></div></div></div>
+<nav class="bottom-nav" aria-label="Navegación principal"></nav>
+<script type="module" src="./js/05_init.js"></script>
+</body></html>

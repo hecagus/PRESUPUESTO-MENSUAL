@@ -24,7 +24,7 @@
       <section id="syncCard" class="card" style="border-left:5px solid #2563eb"><h2>☁️ Iniciar sesión / recuperar progreso</h2><div id="syncPanel"><p class="muted">Comprobando sesión…</p></div></section>
       <div class="auth-separator">o</div>
       <button id="btnStartFresh" class="btn btn-outline" type="button">Configurar desde cero</button>
-      <p class="muted" style="text-align:center;margin-top:10px">La instalación se ofrece desde el Panel cuando el navegador confirma que está disponible.</p>
+      <p class="muted" style="text-align:center;margin-top:10px">La instalación se ofrece desde Más → Configuración cuando el navegador confirma que está disponible.</p>
     </section>
 
     <section id="setupFlow" class="hidden">
@@ -80,7 +80,7 @@
             <label class="food-choice"><input type="radio" name="foodMode" value="later" checked> Lo configuraré después</label>
           </fieldset>
           <div id="foodDetails" class="hidden"><label for="setupFoodFrequency">Frecuencia</label><select id="setupFoodFrequency" class="input-control"><option value="weekly">Semanal · lunes a domingo</option><option value="biweekly">Quincenal · del 1 al 15 y del 16 al fin de mes</option><option value="monthly" selected>Mensual</option></select><label for="setupGroceries">¿Cuánto necesitas para terminar el periodo actual?</label><div class="money-field"><span aria-hidden="true">$</span><input id="setupGroceries" class="input-control" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Ej. 500"></div><label for="setupGroceriesMonthly">Presupuesto habitual por periodo (opcional)</label><div class="money-field"><span aria-hidden="true">$</span><input id="setupGroceriesMonthly" class="input-control" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Ej. 3,000 por quincena"></div><p class="muted">El primer importe aplica solo al cierre del periodo actual. El habitual se usa desde el siguiente periodo. Si lo omites, se conserva el primer importe. La equivalencia mensual es informativa.</p></div>
-          <p class="muted">Esto organiza tu dinero; no registra un gasto ni descuenta tu saldo. Los servicios y otros gastos se agregan después en Hogar.</p>
+          <p class="muted">Esto organiza tu dinero; no registra un gasto ni descuenta tu saldo. Los servicios y otros gastos se agregan después en Presupuesto.</p>
         </div>
         <p id="livingSetupError" class="living-error" role="alert"></p>
       </section>

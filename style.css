@@ -134,3 +134,28 @@ body[data-page="index"] #resumenHumanoContainer>section.card:last-child .grid-2 
 
 @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
 @keyframes pulse{0%{opacity:1}50%{opacity:.5}100%{opacity:1}}
+
+/* Information architecture: compact menus and one money entry point. */
+.page-intro,.muted{color:var(--text-sec);font-size:.9rem;line-height:1.5}
+.page-intro{margin-bottom:18px}
+.menu-list{display:grid;gap:12px}
+.menu-card{display:flex;align-items:center;gap:16px;padding:18px;background:var(--surface);border:1px solid var(--border);border-radius:18px;color:var(--text-main);text-decoration:none;box-shadow:var(--shadow-sm)}
+.menu-card>span{font-size:1.5rem;color:var(--primary);min-width:24px;text-align:center}
+.menu-card strong,.menu-card small{display:block}
+.menu-card small{margin-top:5px;color:var(--text-sec);font-size:.85rem;line-height:1.4}
+.section-nav{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:18px}
+.section-nav a{flex:1;text-align:center;padding:10px 6px;border:1px solid var(--border);border-radius:12px;color:var(--text-sec);background:var(--surface);text-decoration:none;font-size:.85rem}
+.section-nav a[aria-current]{color:var(--primary);background:var(--primary-soft);border-color:var(--primary)}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0 8px}
+.section-heading .btn{width:auto}
+#settingsSources{margin-top:12px}
+#debtList{list-style:none;margin-top:14px}
+#debtList li{padding:10px 0;border-top:1px solid var(--border)}
+#debtList small{display:block;margin-top:5px;color:var(--text-sec)}
+.version-label{text-align:center;color:var(--text-sec);font-size:.8rem;margin:20px 0}
+section[id]{scroll-margin-top:84px}
+.modal{max-height:85dvh;overflow-y:auto}
+.menu-card:focus-visible,.section-nav a:focus-visible,.nav-link:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
+.sync-notice{border-left:4px solid var(--warning)}
+.sync-notice a{display:inline-block;margin-top:8px;color:var(--primary)}
+@media(max-width:360px){.nav-link{font-size:.61rem}.container{padding:12px}.section-nav a{font-size:.77rem}}

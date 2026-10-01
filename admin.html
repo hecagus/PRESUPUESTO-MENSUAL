@@ -27,14 +27,11 @@
 
   <section class="card" style="border-left:5px solid #2563eb"><h2>📈 Rendimiento de actividad</h2><div id="activityPerformanceZone"></div></section>
 
-  <section class="card"><h2>🛠️ Costos de trabajo</h2><div class="grid-2"><button id="btnGastoHogar" class="btn btn-outline">🏠 Gasto personal</button><button id="btnGastoOperativo" class="btn btn-primary">+ Costo operativo</button></div><div id="operationalExpenseRows" style="margin-top:12px"></div><small style="display:block;margin-top:8px;color:var(--text-sec)">Los personales viven en Hogar. Aquí sólo costos ligados al trabajo.</small></section>
+  <section class="card"><h2>🛠️ Costos de trabajo</h2><div><button id="btnGastoOperativo" class="btn btn-primary">+ Costo operativo</button></div><div id="operationalExpenseRows" style="margin-top:12px"></div><small style="display:block;margin-top:8px;color:var(--text-sec)">Aquí sólo costos ligados al trabajo. Los gastos personales se administran en Presupuesto.</small></section>
 
   <section class="card hidden" style="border-left:5px solid #7c3aed"><h2>🏪 Negocio · costos y recetas</h2><div id="businessZone"></div></section>
 
-  <section class="card"><h2>Gestión de deudas</h2><button id="btnDeudaNueva" class="btn btn-outline" style="margin-bottom:15px">+ Nueva deuda</button><div style="background:#f1f5f9;padding:10px;border-radius:8px"><label style="font-size:.8rem;color:var(--text-sec)">Realizar abono:</label><div style="display:flex;gap:5px"><select id="abonoDeudaSelect" class="input-control" style="margin:0"><option value="">Seleccionar...</option></select><button id="btnAbonoCuota" class="btn btn-success" style="width:auto">OK</button></div></div><ul id="listaDeudasAdmin" style="margin-top:10px;list-style:none"></ul></section>
 
-  <section id="syncCard" class="card hidden" style="border-left:5px solid #2563eb"><h2>☁️ Sincronización</h2><div id="syncPanel"></div></section>
-  <section class="card" style="opacity:.9"><h2>Sistema</h2><div class="grid-2"><button id="btnExportJSON" class="btn btn-outline">📋 Copiar datos</button><button id="btnRestoreBackup" class="btn btn-outline" style="color:var(--danger);border-color:var(--danger)">♻️ Restaurar</button></div></section>
 </main>
 <div id="appModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal"><h3 id="modalTitle">Título</h3><div id="modalBody"></div><div class="modal-actions"><button id="modalCancel" class="btn btn-outline">Cancelar</button><button id="modalConfirm" class="btn btn-primary">Guardar</button></div></div></div>
 <nav class="bottom-nav" aria-label="Navegación principal"></nav>
