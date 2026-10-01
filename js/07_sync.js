@@ -20,7 +20,7 @@ const hasMeaningfulLocalData=()=>{
   const s=Data.getState(),plan=s?.financialPlan||{},business=s?.business||{};
   const activity=['turnos','movimientos','cargasCombustible','fondosCombustibleEmpresa','deudas','gastosFijosMensuales','ingresosFijos','workSources','savingsGoals','automationRules','ruleApplications'].some(k=>Array.isArray(s?.[k])&&s[k].length>0);
   const customAccounts=(s?.accounts||[]).some(a=>a?.id!=='acct-personal');
-  const planned=(plan.commitments||[]).length>0||(plan.householdExpenses||[]).length>0||Object.values(plan.livingBudgets||{}).some(v=>Number(v)>0)||Number(plan.minCashBuffer||0)>0;
+  const planned=(plan.commitments||[]).length>0||(plan.householdExpenses||[]).length>0||(plan.operatingObligations||[]).length>0||Object.values(plan.livingBudgets||{}).some(v=>Number(v)>0)||Number(plan.minCashBuffer||0)>0;
   const businessData=['ingredients','products','sales'].some(k=>Array.isArray(business?.[k])&&business[k].length>0);
   return activity||customAccounts||planned||businessData||Boolean(s?.profile?.onboarded)||Boolean(s?.parametros?.saldoInicialConfigurado)||Boolean(s?.parametros?.kmInicialConfigurado);
 };
@@ -47,11 +47,12 @@ function renderMergeChoices(zone){
   const label=value=>value===undefined?'Eliminar':JSON.stringify(value);
   for(const conflict of result.conflicts){
     const row=document.createElement('label');row.style.display='block';
-    const title=document.createElement('p');title.textContent=conflict.path;row.append(title);
+    const title=document.createElement('p');title.textContent=conflict.kind==='financial_period'?`Hay pagos en ambos dispositivos para el mismo período (${conflict.path}). Elige una versión o conserva ambos si son pagos distintos.`:conflict.path;row.append(title);
     const select=document.createElement('select');
     for(const [value,text] of [['','Elige una versión'],['local',`Dispositivo: ${label(conflict.local)}`],['remote',`Nube: ${label(conflict.remote)}`]]){
       const option=document.createElement('option');option.value=value;option.textContent=text;select.append(option);
     }
+    if(conflict.kind==='financial_period'){const option=document.createElement('option');option.value='both';option.textContent='Conservar ambos: son pagos distintos';select.append(option);}
     select.addEventListener('change',()=>{mergeChoices[conflict.path]=select.value;});row.append(select);list.append(row);
   }
   zone.append(list);
