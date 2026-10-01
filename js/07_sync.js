@@ -124,37 +124,8 @@ export async function prepareFreshBudget(){
   return true;
 }
 
-/* Temporary, one-use reset per authenticated account. Cloud commits before local data changes. */
-function renderResetUI(){
-  let card=document.getElementById('oneTimeResetCard');
-  if(Data.getState().resetGeneration){card?.remove();return;}
-  if(!card){
-    const anchor=document.getElementById('syncCard');
-    if(!anchor)return;
-    card=document.createElement('section');card.id='oneTimeResetCard';card.className='card';
-    const heading=document.createElement('h2');heading.textContent='Empezar desde cero';
-    const detail=document.createElement('p');detail.textContent='Reinicio de un solo uso: borra saldos, movimientos, deudas, metas, turnos y configuración de esta cuenta, en este dispositivo y en la nube.';
-    const button=document.createElement('button');button.id='btnResetOnce';button.className='btn btn-outline';button.textContent='Reiniciar todo a $0 · un solo uso';button.style.color='var(--danger)';
-    button.addEventListener('click',handleResetOnce);
-    const status=document.createElement('p');status.id='resetOnceStatus';status.setAttribute('aria-live','polite');
-    card.append(heading,detail,button,status);anchor.insertAdjacentElement('afterend',card);
-  }
-  const button=document.getElementById('btnResetOnce');if(button)button.disabled=!authReady||!currentUser||resetting;
-  const status=document.getElementById('resetOnceStatus');if(status&&!currentUser)status.textContent='Inicia sesión con Google y conecta internet para reiniciar también la nube.';
-}
-async function handleResetOnce(){
-  if(!currentUser||resetting)return;
-  if(!navigator.onLine){document.getElementById('resetOnceStatus').textContent='Conecta internet. No se ha borrado ningún dato.';return;}
-  if(!confirm('¿Borrar TODOS los datos de tu presupuesto y empezar en $0? Se sustituirán el presupuesto local y el de la nube de esta cuenta. No se puede deshacer.'))return;
-  const button=document.getElementById('btnResetOnce');button.disabled=true;button.textContent='Reiniciando…';
-  try{
-    await resetBudgetOnce();
-    location.replace('onboarding.html');
-  }catch(error){
-    const status=document.getElementById('resetOnceStatus');if(status)status.textContent=error.message||'No se pudo reiniciar. Intenta de nuevo con internet.';
-    button.disabled=false;button.textContent='Reiniciar todo a $0 · un solo uso';
-  }
-}
+// Retira la herramienta temporal sin cambiar el protocolo de reinicio legacy.
+function renderResetUI(){document.getElementById('oneTimeResetCard')?.remove();}
 export async function resetBudgetOnce(){
   if(!currentUser)throw new Error('Inicia sesión con Google antes de reiniciar.');
   if(!navigator.onLine)throw new Error('Conecta internet. No se ha borrado ningún dato.');
