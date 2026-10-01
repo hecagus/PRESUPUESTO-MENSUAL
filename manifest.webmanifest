@@ -18,7 +18,7 @@
   ],
   "shortcuts": [
     {"name":"Actividad","short_name":"Actividad","url":"/admin.html"},
-    {"name":"Hogar","short_name":"Hogar","url":"/home.html"},
-    {"name":"Wallet","short_name":"Wallet","url":"/wallet.html"}
+    {"name":"Presupuesto","short_name":"Presupuesto","url":"/home.html"},
+    {"name":"Dinero","short_name":"Dinero","url":"/wallet.html"}
   ]
 }
