@@ -114,3 +114,60 @@ test('migra vivienda, servicios y presupuestos anteriores sin duplicarlos',()=>{
   assert.equal(Data.getState().financialPlan.livingBudgets.groceries,0);
   assert.equal(new Set(items.map(x=>x.id)).size,items.length);
 });
+test('abono quincenal conserva 400 pendientes y solo descuenta 2600 del efectivo',()=>{
+  const food=Home.createHouseholdExpense({name:'Comida',amount:3000,frequency:'biweekly',priority:'obligatory',nextDueDate:'2026-09-30'});
+  Home.recordHouseholdExpense(food.id,2600,new Date(2026,8,30,12));
+  let pos=Finance.financialPosition(new Date(2026,8,30,13));
+  assert.equal(pos.cash,7400);assert.equal(pos.committed,3400);
+  const due=Home.householdUpcomingEvents({days:30,now:new Date(2026,8,30,13)}).filter(e=>e.refId===food.id);
+  assert.deepEqual(due.map(e=>e.amount),[400,3000]);
+  Home.recordHouseholdExpense(food.id,400,new Date(2026,9,1,12));
+  pos=Finance.financialPosition(new Date(2026,9,1,13));
+  assert.equal(pos.cash,7000);
+  assert.equal(Data.getState().movimientos.filter(m=>m.householdExpenseId===food.id).length,2);
+  assert.ok(Data.getState().movimientos.filter(m=>m.householdExpenseId===food.id).every(m=>m.householdPeriod==='Q:2026-09:2'));
+  assert.ok(!Home.householdUpcomingEvents({days:30,now:new Date(2026,9,1,13)}).some(e=>e.householdPeriod==='Q:2026-09:2'));
+});
+
+test('pago completo por menos requiere liquidación explícita y no cambia importe habitual',()=>{
+  const food=Home.createHouseholdExpense({name:'Comida',amount:3000,frequency:'biweekly',priority:'obligatory',nextDueDate:'2026-09-30'});
+  Home.recordHouseholdExpense(food.id,2600,new Date(2026,8,30,12),{settled:true});
+  assert.equal(Finance.financialPosition(new Date(2026,8,30,13)).committed,3000);
+  assert.equal(Home.householdById(food.id).amount,3000);
+});
+
+test('abonos antiguos sobreviven a backup y a la ventana de vencimientos',()=>{
+  const item=Home.createHouseholdExpense({name:'Luz',amount:1000,frequency:'monthly',priority:'obligatory',dueDay:5,nextDueDate:'2026-01-05'});
+  Home.recordHouseholdExpense(item.id,600,new Date(2026,0,5,12));
+  Data.restaurar(JSON.stringify(Data.getState()));
+  assert.ok(Home.householdUpcomingEvents({days:30,now:new Date(2026,8,30,12)}).some(e=>e.householdPeriod==='M:2026-01'&&e.amount===400));
+  Home.recordHouseholdExpense(item.id,400,new Date(2026,8,30,13));
+  assert.equal(Data.getState().movimientos.at(-1).householdPeriod,'M:2026-01');
+});
+
+test('proyección incluye el saldo pendiente de la obligación sin repetir el abono',async()=>{
+  const Forecast=await import('../js/16_forecast_engine.js');
+  const food=Home.createHouseholdExpense({name:'Comida',amount:3000,frequency:'biweekly',priority:'obligatory',nextDueDate:'2026-09-30'});
+  Home.recordHouseholdExpense(food.id,2600,new Date(2026,8,30,12));
+  const forecast=Forecast.cashFlowForecast({days:30,now:new Date(2026,8,30,13)});
+  assert.equal(forecast.totalExpectedOutflow,3400);
+});
+
+test('abonos del mismo día liquidan una obligación única al completar su importe',()=>{
+  const item=Home.createHouseholdExpense({name:'Compra obligatoria',amount:3000,frequency:'one_time',priority:'obligatory',nextDueDate:'2026-09-30'});
+  Home.recordHouseholdExpense(item.id,2600,new Date(2026,8,30,12));
+  assert.equal(Home.householdById(item.id).active,true);
+  Home.recordHouseholdExpense(item.id,400,new Date(2026,8,30,13));
+  assert.equal(Home.householdById(item.id).active,false);
+  assert.equal(Data.getState().movimientos.filter(m=>m.householdExpenseId===item.id).reduce((sum,m)=>sum+m.monto,0),3000);
+});
+
+test('pago parcial legacy se reconoce sin cambiar sus movimientos ni duplicarlos',()=>{
+  const item=Home.createHouseholdExpense({name:'Comida',amount:3000,frequency:'biweekly',priority:'obligatory',nextDueDate:'2026-09-30'});
+  const state=Data.getState();
+  state.movimientos.push({id:'legacy-partial',tipo:'gasto',monto:2600,fecha:'2026-09-30T12:00:00.000Z',householdExpenseId:item.id,householdPeriod:'Q:2026-09:2',affectsPersonal:true});
+  const before=JSON.stringify(state.movimientos);
+  const pos=Finance.financialPosition(new Date(2026,8,30,13));
+  assert.equal(pos.committed,3400);
+  assert.equal(JSON.stringify(Data.getState().movimientos),before);
+});

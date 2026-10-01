@@ -47,7 +47,7 @@ export function variableIncomeEvents({days=45,now=new Date()}={}){
 
 function alreadyPaid(event){
   const state=getState(),d=new Date(event.date),period=monthId(d);
-  if(event.household&&event.householdPeriod)return (state.movimientos||[]).some(m=>m.householdExpenseId===event.refId&&m.householdPeriod===event.householdPeriod);
+  if(event.household&&event.householdPeriod)return false; // La fuente canónica ya entrega únicamente el importe pendiente.
   if(event.type==='expense'&&event.refId){
     const c=state.financialPlan?.commitments?.find(x=>x.id===event.refId);
     if(c?.lastPaidPeriod===period)return true;

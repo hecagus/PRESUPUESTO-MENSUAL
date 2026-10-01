@@ -124,7 +124,13 @@ function occurrenceKey(item,date){
   if(item.frequency==='one_time')return `O:${item.id}`;
   return `V:${monthKey(date)}`;
 }
-const paidOccurrence=(state,item,key)=>(state.movimientos||[]).some(m=>m.householdExpenseId===item.id&&m.householdPeriod===key);
+function occurrenceBalance(state,item,key){
+  const payments=(state.movimientos||[]).filter(m=>m.tipo==='gasto'&&m.householdExpenseId===item.id&&m.householdPeriod===key);
+  const target=payments.find(m=>Number.isFinite(m.householdExpectedAmount))?.householdExpectedAmount??safeFloat(item.amount);
+  const paid=payments.reduce((sum,m)=>sum+safeFloat(m.monto),0);
+  return {target,paid,remaining:payments.some(m=>m.householdSettled===true)?0:Math.max(0,target-paid)};
+}
+const paidOccurrence=(state,item,key)=>occurrenceBalance(state,item,key).remaining<=0.005;
 const itemAnchor=item=>validDate(item.nextDueDate)||new Date(item.createdAt||Date.now());
 
 function monthlyOccurrences(item,start,end,step=1){
@@ -181,10 +187,20 @@ export function householdUpcomingEvents({days=45,now=new Date()}={}){
   for(const item of householdItems({activeOnly:true})){
     if(item.priority!=='obligatory'||item.frequency==='variable')continue;
     const overdue=latestUnpaidPast(item,start,state);
-    if(overdue){const shown=new Date(start);shown.setHours(9,0,0,0);events.push({id:`home-${item.id}-overdue-${isoDay(overdue)}`,refId:item.id,date:shown.toISOString(),dueDate:overdue.toISOString(),overdue:true,title:item.name,amount:safeFloat(item.amount),type:'expense',category:item.category,household:true,householdPeriod:occurrenceKey(item,overdue)});}
+    if(overdue){const shown=new Date(start);shown.setHours(9,0,0,0);events.push({id:`home-${item.id}-overdue-${isoDay(overdue)}`,refId:item.id,date:shown.toISOString(),dueDate:overdue.toISOString(),overdue:true,title:item.name,amount:occurrenceBalance(state,item,occurrenceKey(item,overdue)).remaining,type:'expense',category:item.category,household:true,householdPeriod:occurrenceKey(item,overdue)});}
     for(const date of occurrenceDates(item,start,end)){
       const key=occurrenceKey(item,date);if(paidOccurrence(state,item,key))continue;
-      events.push({id:`home-${item.id}-${isoDay(date)}`,refId:item.id,date:date.toISOString(),dueDate:date.toISOString(),overdue:false,title:item.name,amount:safeFloat(item.amount),type:'expense',category:item.category,household:true,householdPeriod:key});
+      events.push({id:`home-${item.id}-${isoDay(date)}`,refId:item.id,date:date.toISOString(),dueDate:date.toISOString(),overdue:false,title:item.name,amount:occurrenceBalance(state,item,key).remaining,type:'expense',category:item.category,household:true,householdPeriod:key});
+    }
+    // Un abono pendiente debe sobrevivir a la ventana de búsqueda de vencimientos.
+    for(const movement of state.movimientos||[]){
+      const key=movement.householdPeriod;
+      if(movement.tipo!=='gasto'||movement.householdExpenseId!==item.id||!key||paidOccurrence(state,item,key)||events.some(e=>e.refId===item.id&&e.householdPeriod===key))continue;
+      const paidAt=new Date(movement.fecha);if(paidAt>end)continue;
+      const scheduled=occurrenceDates(item,new Date(paidAt.getTime()-400*DAY),new Date(paidAt.getTime()+400*DAY)).find(d=>occurrenceKey(item,d)===key)||paidAt;
+      const overdue=scheduled<start,shown=overdue?new Date(start):scheduled;
+      shown.setHours(9,0,0,0);
+      events.push({id:`home-${item.id}-pending-${key}`,refId:item.id,date:shown.toISOString(),dueDate:scheduled.toISOString(),overdue,title:item.name,amount:occurrenceBalance(state,item,key).remaining,type:'expense',category:item.category,household:true,householdPeriod:key});
     }
   }
   return events.sort((a,b)=>new Date(a.date)-new Date(b.date));
@@ -242,20 +258,22 @@ export function householdSummary(now=new Date()){
 
 function paymentPeriod(item,at){
   const state=getState();
+  const partials=(state.movimientos||[]).filter(m=>m.tipo==='gasto'&&m.householdExpenseId===item.id&&m.householdPeriod&&!paidOccurrence(state,item,m.householdPeriod)).sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
+  if(partials.length)return partials[0].householdPeriod;
   if(item.frequency==='variable')return occurrenceKey(item,at);
   const boundary=new Date(at),from=new Date(boundary.getTime()-lookbackDays(item)*DAY),past=occurrenceDates(item,from,boundary)
     .filter(d=>d<=boundary&&!paidOccurrence(state,item,occurrenceKey(item,d))).sort((a,b)=>b-a);
   if(past.length)return occurrenceKey(item,past[0]);
   const future=nextScheduledFuture(item,boundary,740);return future?occurrenceKey(item,future):occurrenceKey(item,boundary);
 }
-export function recordHouseholdExpense(id,amount=null,fecha=Date.now()){
+export function recordHouseholdExpense(id,amount=null,fecha=Date.now(),options={}){
   const state=getState(),item=householdById(id);if(!item||item.active===false)throw new Error('GASTO_HOGAR_NO_ENCONTRADO');
   const m=amount===null||amount===''?positive(item.amount):positive(amount),d=new Date(fecha);
-  if(item.priority==='obligatory'&&(state.movimientos||[]).some(x=>x.tipo==='gasto'&&x.householdExpenseId===item.id&&isoDay(new Date(x.fecha))===isoDay(d)))throw new Error('GASTO_HOGAR_YA_PAGADO');
+  if(item.priority==='obligatory'&&(state.movimientos||[]).some(x=>x.tipo==='gasto'&&x.householdExpenseId===item.id&&isoDay(new Date(x.fecha))===isoDay(d)&&paidOccurrence(state,item,x.householdPeriod)))throw new Error('GASTO_HOGAR_YA_PAGADO');
   const period=item.priority==='obligatory'?paymentPeriod(item,d):occurrenceKey(item,d);
   if(item.priority==='obligatory'&&paidOccurrence(state,item,period))throw new Error('GASTO_HOGAR_YA_PAGADO');
-  state.movimientos.push({id:uuid(),fecha:d.toISOString(),tipo:'gasto',desc:item.name,monto:m,categoria:item.category,accountId:PERSONAL_ACCOUNT_ID,affectsPersonal:true,householdExpenseId:item.id,householdPeriod:period});
-  if(item.frequency==='one_time')item.active=false;
+  state.movimientos.push({id:uuid(),fecha:d.toISOString(),tipo:'gasto',desc:item.name,monto:m,categoria:item.category,accountId:PERSONAL_ACCOUNT_ID,affectsPersonal:true,householdExpenseId:item.id,householdPeriod:period,...(item.priority==='obligatory'?{householdExpectedAmount:occurrenceBalance(state,item,period).target,...(options.settled===true?{householdSettled:true}:{})}:{})});
+  if(item.frequency==='one_time'&&(item.priority!=='obligatory'||paidOccurrence(state,item,period)))item.active=false;
   saveData();return item;
 }
 
