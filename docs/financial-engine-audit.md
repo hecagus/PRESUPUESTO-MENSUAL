@@ -208,3 +208,27 @@ existentes. Las fechas erróneas ya guardadas no se reescriben automáticamente.
 Cuatro regresiones de interfaz ejercitan pago a cuatro semanas, cuatro pagos reales
 hoy, primer vencimiento futuro ya pagado y abono parcial adelantado. La actualización
 PWA 3.1.3 / shell v12 sustituye la caché 3.1.2 y mantiene los mismos recursos offline.
+
+## Corrección explícita de fechas 3.1.4
+
+El usuario confirmó que los cuatro pagos eran reales y que las fechas futuras
+guardadas eran un error de captura. No se deduplican. Se agrega en Costos de trabajo
+una reparación opcional de un solo uso para los pagos personales de obligaciones
+operativas con fecha real futura; la revisión muestra registros, fechas y total.
+Sólo al guardar se cambia la fecha real a la fecha/hora actual. Se preservan
+importes, IDs, cuentas, fuentes y vencimientos/períodos cubiertos, y se recalcula
+el efectivo con `personalCash`, sin alterar fórmulas financieras.
+
+El marcador aditivo y las fechas originales quedan en `financialPlan` para
+backups/sync. No hay migración automática, esquema nuevo, otra colección Firestore
+ni acceso al estado privado. Los cambios concurrentes exigen una nueva revisión
+y un fallo de escritura revierte los cambios en memoria. La documentación de
+obligaciones operativas detalla el comportamiento al restaurar respaldos antiguos.
+PWA 3.1.4 / shell v13 conserva los mismos recursos y retira la caché v12.
+
+Verificación local: 197/197 pruebas pasan en UTC y `America/Mexico_City`, con 19
+regresiones nuevas sobre conservación de datos, cambio de fecha al confirmar,
+uso único, cancelación, backups, sincronización y fallo de escritura. Las reglas
+Firestore requieren Java 21 y se verifican en GitHub Actions; el entorno local
+dispone de Java 17. Las cuatro fechas del usuario siguen sin modificarse desde el
+repositorio: la reparación se aplica únicamente cuando guarda la revisión en la app.

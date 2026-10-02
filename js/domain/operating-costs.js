@@ -3,7 +3,7 @@ import { safeFloat, uuid } from '../01_consts_utils.js';
 import { getState, saveData } from '../02_data.js';
 import { recordUniversalMovement } from '../15_accounts_engine.js';
 import { occurrenceDates, occurrenceKey } from '../20_home_engine.js';
-import { horizonEnd, inObservedPeriod, actualPaymentDate, localDay as civilDay } from './financial-rules.js';
+import { horizonEnd, inObservedPeriod, actualPaymentDate, isPersonalMovement, personalCash, localDay as civilDay } from './financial-rules.js';
 
 export const OPERATING_FREQUENCIES=Object.freeze({
   daily:'Diario',weekly:'Semanal',biweekly:'Quincenal (15 y fin de mes)',monthly:'Mensual',bimonthly:'Bimestral',quarterly:'Trimestral',yearly:'Anual'
@@ -25,6 +25,51 @@ export function operatingObligations(){
   return state.financialPlan.operatingObligations;
 }
 export const operatingObligationById=id=>operatingObligations().find(item=>item.id===id)||null;
+
+// Explicit, one-use repair for payments already recorded with a future actual date.
+// Read-only preview: schedules, amounts and covered periods are never changed.
+export function operatingPaymentDateRepairPreview(now=new Date()){
+  const state=getState(),stamp=new Date(now).getTime();
+  if(!Number.isFinite(stamp))throw new Error('FECHA_INVALIDA');
+  const used=Boolean(state.financialPlan?.operatingPaymentDateRepair);
+  const payments=used?[]:(state.movimientos||[]).filter(m=>
+    typeof m.id==='string'&&m.id.length>0&&m.tipo==='gasto'&&
+    typeof m.operatingObligationId==='string'&&m.operatingObligationId.length>0&&
+    typeof m.operatingPeriod==='string'&&m.operatingPeriod.length>0&&
+    isPersonalMovement(state,m)&&Number.isFinite(Number(m.monto))&&Number(m.monto)>0&&
+    Number.isFinite(new Date(m.fecha).getTime())&&new Date(m.fecha).getTime()>stamp
+  ).map(m=>structuredClone(m));
+  return {used,payments,total:payments.reduce((sum,m)=>sum+Number(m.monto),0)};
+}
+
+export function repairOperatingPaymentDates(reviewedPayments){
+  const state=getState();
+  if(state.financialPlan?.operatingPaymentDateRepair)return state.financialPlan.operatingPaymentDateRepair;
+  const now=new Date(),preview=operatingPaymentDateRepairPreview(now);
+  // A sync, account change or edit while the confirmation is open needs a new review.
+  if(!Array.isArray(reviewedPayments)||JSON.stringify(preview.payments)!==JSON.stringify(reviewedPayments))throw new Error('PAGOS_OPERATIVOS_CAMBIARON');
+  if(!preview.payments.length)return null;
+  const ids=new Set(preview.payments.map(m=>m.id)),rows=state.movimientos.filter(m=>ids.has(m.id));
+  if(ids.size!==preview.payments.length||rows.length!==ids.size)throw new Error('PAGOS_OPERATIVOS_CAMBIARON');
+  const appliedAt=now.toISOString(),repair={version:1,appliedAt,payments:rows.map(m=>({id:m.id,previousDate:m.fecha}))};
+  const hadPlan=Object.hasOwn(state,'financialPlan'),oldPlan=state.financialPlan,plan=oldPlan||{};
+  const hadRepair=Object.hasOwn(plan,'operatingPaymentDateRepair'),oldRepair=plan.operatingPaymentDateRepair;
+  const oldSaldo=state.wallet.saldo,oldSchema=state.schemaVersion;
+  try{
+    for(const m of rows)m.fecha=appliedAt;
+    plan.operatingPaymentDateRepair=repair;state.financialPlan=plan;
+    state.wallet.saldo=personalCash(state,now);
+    // One local write contains dates, derived cash and the shared/backup one-use marker.
+    saveData();
+  }catch(error){
+    rows.forEach((m,i)=>{m.fecha=repair.payments[i].previousDate;});
+    if(hadRepair)plan.operatingPaymentDateRepair=oldRepair;else delete plan.operatingPaymentDateRepair;
+    if(hadPlan)state.financialPlan=oldPlan;else delete state.financialPlan;
+    state.wallet.saldo=oldSaldo;state.schemaVersion=oldSchema;
+    throw error;
+  }
+  return repair;
+}
 
 function personalAccount(id){
   const account=getState().accounts.find(a=>a.id===id&&a.active!==false&&a.ownership!=='third_party');
