@@ -106,3 +106,11 @@ test('los nombres de pagos en la revisión se muestran como texto seguro',()=>{
   const body=document.getElementById('modalBody');assert.equal(body.querySelector('img'),null);assert.match(body.textContent,/<img src=x onerror=alert\(1\)>/);
   document.getElementById('modalCancel').click();
 });
+
+test('reemplazar el estado o cambiar de cuenta, incluso con un backup idéntico, requiere abrir otra revisión',()=>{
+  oldFuturePayments();repairButton().click();const backup=JSON.stringify(Data.getState());
+  Data.restaurar(backup);const before=structuredClone(Data.getState());
+  assert.throws(()=>document.getElementById('modalConfirm').onclick(),/PAGOS_OPERATIVOS_CAMBIARON/);assert.deepEqual(Data.getState(),before);
+  document.getElementById('modalCancel').click();UI.renderOperatingCosts();repairButton().click();document.getElementById('modalConfirm').click();
+  assert.equal(Data.getState().wallet.saldo,227);
+});

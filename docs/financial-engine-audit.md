@@ -226,7 +226,7 @@ y un fallo de escritura revierte los cambios en memoria. La documentación de
 obligaciones operativas detalla el comportamiento al restaurar respaldos antiguos.
 PWA 3.1.4 / shell v13 conserva los mismos recursos y retira la caché v12.
 
-Verificación local: 196/196 pruebas pasan en UTC y `America/Mexico_City`, con 18
+Verificación local: 197/197 pruebas pasan en UTC y `America/Mexico_City`, con 19
 regresiones nuevas sobre conservación de datos, cambio de fecha al confirmar,
 uso único, cancelación, backups, sincronización y fallo de escritura. Las reglas
 Firestore requieren Java 21 y se verifican en GitHub Actions; el entorno local

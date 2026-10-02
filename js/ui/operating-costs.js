@@ -46,9 +46,12 @@ export function renderOperatingCosts(now=new Date()){
 }
 
 function showPaymentDateRepair(safe){
-  const preview=operatingPaymentDateRepairPreview();
+  const reviewedState=getState(),preview=operatingPaymentDateRepairPreview();
   if(!preview.payments.length){renderOperatingCosts();return;}
-  Modal.show('Corregir fechas a hoy',[],()=>safe(()=>repairOperatingPaymentDates(preview.payments)));
+  Modal.show('Corregir fechas a hoy',[],()=>safe(()=>{
+    if(getState()!==reviewedState)throw new Error('PAGOS_OPERATIVOS_CAMBIARON');
+    return repairOperatingPaymentDates(preview.payments);
+  }));
   $('modalBody').innerHTML=`<p>Confirma que estos ${preview.payments.length} ${preview.payments.length===1?'pago ya se hizo':'pagos ya se hicieron'}. Se descontarán ${fmtMoney(preview.total)} de tu saldo hoy.</p>${preview.payments.map(m=>`<p><strong>${esc(m.desc)}</strong> · ${fmtMoney(m.monto)}<br><small>Fecha guardada: ${dateLabel(m.fecha)}</small></p>`).join('')}<p>Se conserva cada pago, su importe y el vencimiento que cubre. Las fechas originales quedarán guardadas. Esta corrección se puede usar una sola vez.</p>`;
 }
 
