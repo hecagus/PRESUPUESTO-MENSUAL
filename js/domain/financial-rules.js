@@ -83,16 +83,20 @@ export function reservedSavings(state, now = new Date()) {
   return state.savingsGoals.filter(g => g.active !== false).reduce((sum,g) => sum + goalReserved(g,now),0);
 }
 
+export function fuelFundTotals(state, accountId, now = new Date()) {
+  const account = (state.accounts || []).find(a => a.id === accountId);
+  if (!account || account.ownership !== 'third_party') return {depositado:0, utilizado:0, disponible:0};
+  const sources = (state.workSources || []).filter(s => s.fundAccountId === accountId).map(s => s.id);
+  const belongs = row => row.accountId === accountId || (!row.accountId && (sources.includes(row.sourceId) || accountId === 'acct-ticketcar'));
+  const depositado = (state.fondosCombustibleEmpresa || []).filter(row => belongs(row) && inObservedPeriod(row.fecha,0,now)).reduce((sum,row) => sum + money(row.monto),0);
+  const utilizado = (state.cargasCombustible || []).filter(row => belongs(row) && row.pagador === 'empresa' && inObservedPeriod(row.fecha,0,now)).reduce((sum,row) => sum + money(row.costo),0);
+  return {depositado, utilizado, disponible:depositado - utilizado};
+}
+
 export function accountLedgerBalance(state, accountId, now = new Date()) {
   const account = (state.accounts || []).find(a => a.id === accountId);
   if (!account) return 0;
-  if (account.ownership === 'third_party') {
-    const sources = (state.workSources || []).filter(s => s.fundAccountId === accountId).map(s => s.id);
-    const belongs = row => row.accountId === accountId || (!row.accountId && (sources.includes(row.sourceId) || accountId === 'acct-ticketcar'));
-    const deposits = (state.fondosCombustibleEmpresa || []).filter(row => belongs(row) && inObservedPeriod(row.fecha,0,now)).reduce((sum,row) => sum + money(row.monto),0);
-    const used = (state.cargasCombustible || []).filter(row => belongs(row) && row.pagador === 'empresa' && inObservedPeriod(row.fecha,0,now)).reduce((sum,row) => sum + money(row.costo),0);
-    return deposits - used;
-  }
+  if (account.ownership === 'third_party') return fuelFundTotals(state,accountId,now).disponible;
   return (state.movimientos || []).reduce((sum,m) => {
     if (!inObservedPeriod(m.fecha,0,now)) return sum;
     if (m.tipo === 'transferencia') return sum + (m.toAccountId === accountId ? money(m.monto) : 0) - (m.fromAccountId === accountId ? money(m.monto) : 0);

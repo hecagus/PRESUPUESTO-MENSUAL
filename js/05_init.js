@@ -9,6 +9,7 @@ import { renderSavingsGoalsUI, initSavingsGoalEvents } from './12_savings_ui.js'
 import { ensureFinancialLife } from './21_financial_life_v27.js';
 import { renderFinancialPositionPanel, renderCalendarPreview, renderCalendarPage, initCalendarEvents } from './14_calendar_ui.js';
 import { renderOperatingCosts, initOperatingCostEvents } from './ui/operating-costs.js';
+import { showFuelModal } from './ui/fuel.js';
 import { runAutomationEngine } from './17_automation_engine.js';
 import { ensureFinancialPlatform, renderFinancialPlatform, initFinancialPlatformEvents } from './19_platform_ui.js';
 import { renderHome, initHomeEvents } from './22_home_ui.js';
@@ -40,17 +41,17 @@ const ERROR_MESSAGES={
   PAGOS_OPERATIVOS_CAMBIARON:'Los pagos cambiaron mientras revisabas la corrección. Vuelve a abrirla para comprobar las fechas y el total.',
   KM_MENOR:'⛔ El kilometraje no puede ser menor al anterior.',KM_INVALIDO:'Ingresa un kilometraje válido mayor a 0.',SALDO_INVALIDO:'El saldo inicial no puede ser negativo.',MONTO_INVALIDO:'Ingresa un monto mayor a 0.',
   LITROS_INVALIDOS:'Ingresa una cantidad de litros mayor a 0.',GANANCIA_INVALIDA:'La ganancia no puede ser negativa.',DESCRIPCION_INVALIDA:'Escribe una descripción.',NOMBRE_INVALIDO:'Escribe un nombre válido.',TOTAL_INVALIDO:'El total de la deuda debe ser mayor a 0.',
-  CUOTA_INVALIDA:'La cuota debe ser mayor a 0.',TURNO_NO_ACTIVO:'No hay una actividad activa para finalizar.',TURNO_YA_ACTIVO:'Ya hay una actividad en curso.',FUENTE_NO_ENCONTRADA:'No se encontró esa fuente de ingreso.',ORIGEN_COMBUSTIBLE_REQUERIDO:'Selecciona a qué actividad corresponde el combustible.',
+  CUOTA_INVALIDA:'La cuota debe ser mayor a 0.',TURNO_NO_ACTIVO:'No hay una actividad activa para finalizar.',TURNO_YA_ACTIVO:'Ya hay una actividad en curso.',FUENTE_NO_ENCONTRADA:'No se encontró esa fuente de ingreso.',ORIGEN_COMBUSTIBLE_REQUERIDO:'Selecciona de dónde se pagó el combustible.',
+  CUENTA_COMBUSTIBLE_REQUERIDA:'Selecciona con qué pagaste el combustible.',
   FONDO_NO_APLICA:'Esa fuente no usa fondos de empresa.',BACKUP_INVALIDO:'El respaldo no es un JSON válido de esta aplicación.',COBRO_DUPLICADO:'Ya existe un cobro registrado para este periodo.',RECETA_INVALIDA:'Selecciona un ingrediente válido.',
   INGREDIENTE_NO_ENCONTRADO:'No se encontró el ingrediente.',PRODUCTO_NO_ENCONTRADO:'No se encontró el producto.',CANTIDAD_INVALIDA:'Ingresa una cantidad mayor a 0.',
-  FECHA_INVALIDA:'Elige una fecha válida.',FRECUENCIA_INVALIDA:'Elige una frecuencia de pago.',CUENTA_NO_ENCONTRADA:'Selecciona una cuenta personal activa.',
+  FECHA_INVALIDA:'Elige una fecha válida.',FRECUENCIA_INVALIDA:'Elige una frecuencia de pago.',CUENTA_NO_ENCONTRADA:'Selecciona una cuenta activa.',
   COSTO_OPERATIVO_YA_PAGADO:'Este pago ya quedó liquidado.',COSTO_OPERATIVO_NO_ENCONTRADO:'No se encontró esa obligación de trabajo.',PAGO_OPERATIVO_NO_ENCONTRADO:'No se encontró ese vencimiento.'
 };
 
 const emitChange=()=>document.dispatchEvent(new CustomEvent('budget:data-changed'));
 const safe=fn=>{try{fn();runAutomationEngine();refresh();emitChange();}catch(e){console.error(e);alert(ERROR_MESSAGES[e.message]||'No se pudo completar la operación.');}};
 const sourceUsable=s=>s.active!==false&&s.status!=='paused'&&s.status!=='ended';
-const optionsSources=(filter=()=>true)=>Data.getState().workSources.filter(s=>sourceUsable(s)&&filter(s)).map(s=>({val:s.id,txt:s.name}));
 
 function finishActive(){
   const state=Data.getState(),active=state.activeActivity;if(!active)return alert(ERROR_MESSAGES.TURNO_NO_ACTIVO);const source=Data.fuenteById(active.sourceId);if(!source)return alert(ERROR_MESSAGES.FUENTE_NO_ENCONTRADA);const fields=[];
@@ -59,10 +60,7 @@ function finishActive(){
 }
 
 function fuelModal(){
-  const state=Data.getState(),active=state.activeActivity?Data.fuenteById(state.activeActivity.sourceId):null,fields=[];
-  if(!active){const opts=optionsSources(s=>s.fuelPayer==='company'||s.fuelPayer==='personal');opts.push({val:'personal',txt:'Uso personal'});fields.push({label:'¿A qué actividad corresponde?',key:'source',type:'select',options:opts});}
-  fields.push({label:'Litros',key:'l',type:'number'},{label:'Costo ($)',key:'c',type:'number'},{label:'KM actual',key:'k',type:'number'},{label:'Gasolinera / referencia (opcional)',key:'e'});
-  Modal.show(active?`Combustible · ${active.name}`:'Repostaje de combustible',fields,d=>safe(()=>{const sourceId=active?.id||(d.source==='personal'?null:d.source||null),payer=d.source==='personal'?'personal':null;Data.registrarCombustible({litros:d.l,costo:d.c,km:d.k,sourceId,payer,gasolinera:d.e});}));
+  showFuelModal(safe);
 }
 
 function companyFundModal(){
