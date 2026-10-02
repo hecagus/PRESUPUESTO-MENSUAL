@@ -1,6 +1,6 @@
 /* v2.9.0 - Analítica genérica por fuente, combustible y costos operativos. Sin mutar estado. */
 import { safeFloat, periodIdFor, CATEGORIAS_BASE } from './01_consts_utils.js';
-import { personalCash, reservedSavings, isPersonalMovement, inObservedPeriod, sourceObservedTotals } from './domain/financial-rules.js';
+import { personalCash, reservedSavings, isPersonalMovement, inObservedPeriod, sourceObservedTotals, fuelFundTotals } from './domain/financial-rules.js';
 
 const horasTurno=t=>Number.isFinite(t.duracionHoras)?t.duracionHoras:Math.max(0,(safeFloat(t.fin)-safeFloat(t.inicio))/3600000);
 const sourceOf=(store,item)=>store.workSources?.find(s=>s.id===(item?.sourceId||item?.fuente))||null;
@@ -73,7 +73,7 @@ export function metricasUltimos7Dias(store){const s=store.workSources?.find(x=>x
 export function resumenJaimau(store,fecha=new Date()){
   const s=store.workSources?.find(x=>x.legacyKey==='jaimau'||x.kind==='employment');
   const base=s?resumenPeriodoFuente(store,s.id,fecha):null;if(!base)return{periodo:'',turnos:0,jornadas:0,horas:0,km:0,pago:0,pagado:false,gasDepositado:0,gasUtilizado:0,gasDisponible:0};
-  const depositado=(store.fondosCombustibleEmpresa||[]).filter(x=>x.sourceId===s.id).reduce((a,x)=>a+safeFloat(x.monto),0),gas=(store.cargasCombustible||[]).filter(x=>x.sourceId===s.id&&x.pagador==='empresa').reduce((a,x)=>a+safeFloat(x.costo),0);
+  const {depositado,utilizado:gas}=fuelFundTotals(store,s.fundAccountId,fecha);
   return {...base,gasDepositado:depositado,gasUtilizado:gas,gasDisponible:depositado-gas};
 }
 export function resumenUber(store){const s=store.workSources?.find(x=>x.legacyKey==='uber'||x.kind==='gig');if(!s)return{turnos:0,ingresos:0,horas:0,km:0,gasolina:0,utilidad:0,ingresoHora:0,ingresoKm:0};const m=metricasFuente(store,s.id,{days:7});return{...m,gasolina:m.combustible,utilidad:m.neto};}

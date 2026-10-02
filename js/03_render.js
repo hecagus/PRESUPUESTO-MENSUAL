@@ -8,7 +8,7 @@ export const Modal={
     const modal=$('appModal'),body=$('modalBody'),titleEl=$('modalTitle'),ok=$('modalConfirm'),cancel=$('modalCancel');if(!modal||!body||!titleEl||!ok||!cancel)return;
     titleEl.textContent=title;body.replaceChildren();
     for(const f of fields){const wrap=document.createElement('div'),label=document.createElement('label');label.textContent=f.label;label.style.cssText='display:block;font-size:.8rem;color:#666;margin-top:7px';const input=document.createElement(f.type==='select'?'select':'input');input.className='input-control';input.dataset.k=f.key;if(f.type==='select')(f.options||[]).forEach(o=>input.add(new Option(o.txt??o.text??o.val??o.value,o.val??o.value??'')));else{input.type=f.type||'text';if(f.placeholder)input.placeholder=f.placeholder;}if(f.value!==undefined)input.value=f.value;wrap.append(label,input);body.append(wrap);}
-    ok.onclick=()=>{const values={};body.querySelectorAll('.input-control').forEach(el=>values[el.dataset.k]=el.value);onConfirm(values);modal.style.display='none';};cancel.onclick=()=>{modal.style.display='none';};modal.style.display='flex';
+    ok.onclick=()=>{const values={};body.querySelectorAll('.input-control').forEach(el=>values[el.dataset.k]=el.value);if(onConfirm(values)!==false)modal.style.display='none';};cancel.onclick=()=>{modal.style.display='none';};modal.style.display='flex';
   }
 };
 

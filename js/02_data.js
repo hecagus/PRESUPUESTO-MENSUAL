@@ -1,5 +1,5 @@
 import { defaultPersonalAccount,normalizeSource,migrateFixedIncome,migrateWorkSources,migrateTurns,migrateMovements,migrateProfile,migrateAccounts,normalizeBusiness } from './27_legacy_migrations.js';
-import { personalCash, actualPaymentDate, debtPeriodId, accountLedgerBalance } from './domain/financial-rules.js';
+import { personalCash, actualPaymentDate, debtPeriodId, accountLedgerBalance, fuelFundTotals } from './domain/financial-rules.js';
 /* v2.7.1 - Motor financiero configurable. Cero DOM. */
 import {
   STORAGE_KEY, LEGACY_KEYS, SCHEMA_VERSION, MAPA_DIAS, CAPABILITIES,
@@ -100,8 +100,28 @@ export function registrarPagoFuente(sourceId,monto,fecha=Date.now(),options={}){
   store.movimientos.push({id:uuid(),fecha:date.toISOString(),tipo:'ingreso',desc:`Pago · ${source.name}`,monto:m,categoria:'Trabajo',fuente:source.id,sourceId:source.id,accountId:PERSONAL_ACCOUNT_ID,affectsPersonal:true,periodo,paymentKind:'source_period'});return commit();
 }
 export function registrarFondoFuente(sourceId,monto,descripcion='Depósito de empresa'){const source=fuenteById(sourceId);if(!source||!sourceUsable(source))throw new Error('FUENTE_NO_ENCONTRADA');if(source.fuelPayer!=='company')throw new Error('FONDO_NO_APLICA');if(!source.fundAccountId){const a={id:uuid(),name:`Fondo ${source.name}`,type:'third_party',ownership:'third_party',active:true};store.accounts.push(a);source.fundAccountId=a.id;}const m=requirePositive(monto);store.fondosCombustibleEmpresa.push({id:uuid(),fecha:new Date().toISOString(),monto:m,sourceId:source.id,accountId:source.fundAccountId,fuente:source.id,tipo:'deposito',desc:descripcion});return commit();}
-export function saldoFondoFuente(sourceId){const source=fuenteById(sourceId);if(!source||!source.fundAccountId)return{depositado:0,utilizado:0,disponible:0};const depositado=store.fondosCombustibleEmpresa.filter(x=>x.sourceId===source.id||(!x.sourceId&&source.legacyKey==='jaimau')).reduce((a,x)=>a+safeFloat(x.monto),0),utilizado=store.cargasCombustible.filter(x=>x.sourceId===source.id||(!x.sourceId&&x.pagador==='empresa'&&source.legacyKey==='jaimau')).reduce((a,x)=>a+safeFloat(x.costo),0);return{depositado,utilizado,disponible:depositado-utilizado};}
-export function registrarCombustible({litros,costo,km,sourceId=null,payer=null,gasolinera=''}={}){const l=requirePositive(litros,'LITROS_INVALIDOS'),c=requirePositive(costo),k=safeFloat(km);if(!(k>0))throw new Error('KM_INVALIDO');if(k<store.parametros.ultimoKM)throw new Error('KM_MENOR');const activeSource=store.activeActivity?fuenteById(store.activeActivity.sourceId):null,source=activeSource||fuenteById(sourceId),resolvedPayer=source?.fuelPayer==='company'?'company':source?.fuelPayer==='personal'?'personal':payer;if(!['company','personal'].includes(resolvedPayer))throw new Error('ORIGEN_COMBUSTIBLE_REQUERIDO');const company=resolvedPayer==='company';if(company&&!source)throw new Error('FUENTE_NO_ENCONTRADA');const accountId=company?source.fundAccountId:PERSONAL_ACCOUNT_ID,fecha=new Date().toISOString(),station=String(gasolinera||'').trim();store.cargasCombustible.push({id:uuid(),fecha,litros:l,costo:c,km:k,pagador:company?'empresa':'personal',sourceId:source?.id||null,accountId,fuente:source?.id||'personal',tipoTrabajo:source?.id||'personal',gasolinera:station});if(!company)store.movimientos.push({id:uuid(),fecha,tipo:'gasto',desc:station?`⛽ Combustible · ${station}`:'⛽ Combustible',monto:c,categoria:'Transporte',fuente:source?.id||'personal',sourceId:source?.id||null,accountId:PERSONAL_ACCOUNT_ID,affectsPersonal:true});if(k>store.parametros.ultimoKM)store.parametros.ultimoKM=k;return commit();}
+export function saldoFondoFuente(sourceId,now=new Date()){return fuelFundTotals(store,fuenteById(sourceId)?.fundAccountId,now);}
+export function registrarCombustible({litros,costo,km,sourceId=undefined,payer=null,accountId=null,gasolinera=''}={}){
+  const l=requirePositive(litros,'LITROS_INVALIDOS'),c=requirePositive(costo),k=safeFloat(km);
+  if(!(k>0))throw new Error('KM_INVALIDO');if(k<store.parametros.ultimoKM)throw new Error('KM_MENOR');
+  const selectedSourceId=sourceId===undefined?store.activeActivity?.sourceId:sourceId,source=fuenteById(selectedSourceId);
+  if(selectedSourceId&&!source)throw new Error('FUENTE_NO_ENCONTRADA');
+  // Older callers may omit the account. The current UI always requires a choice.
+  // Explicit account/payer wins over the activity's configured fuel default.
+  let paymentAccountId=accountId;
+  if(paymentAccountId===null){
+    const resolvedPayer=payer??source?.fuelPayer;
+    if(!['company','personal'].includes(resolvedPayer))throw new Error('ORIGEN_COMBUSTIBLE_REQUERIDO');
+    paymentAccountId=resolvedPayer==='company'?source?.fundAccountId:PERSONAL_ACCOUNT_ID;
+  }
+  if(!paymentAccountId)throw new Error('CUENTA_COMBUSTIBLE_REQUERIDA');
+  const account=cuentaById(paymentAccountId);
+  if(!account||account.active===false)throw new Error('CUENTA_NO_ENCONTRADA');
+  const company=account.ownership==='third_party',fecha=new Date().toISOString(),station=String(gasolinera||'').trim();
+  store.cargasCombustible.push({id:uuid(),fecha,litros:l,costo:c,km:k,pagador:company?'empresa':'personal',sourceId:source?.id||null,accountId:account.id,fuente:source?.id||'personal',tipoTrabajo:source?.id||'personal',gasolinera:station});
+  if(!company)store.movimientos.push({id:uuid(),fecha,tipo:'gasto',desc:station?`⛽ Combustible · ${station}`:'⛽ Combustible',monto:c,categoria:'Transporte',fuente:source?.id||'personal',sourceId:source?.id||null,accountId:account.id,affectsPersonal:true});
+  if(k>store.parametros.ultimoKM)store.parametros.ultimoKM=k;return commit();
+}
 
 /* Compatibilidad v1.x */
 function legacySource(key){return store.workSources.find(s=>s.legacyKey===key)||store.workSources.find(s=>key==='jaimau'?s.kind==='employment':s.kind==='gig');}
@@ -109,7 +129,13 @@ export function iniciarTurno(tipoTrabajo='uber'){const s=legacySource(tipoTrabaj
 export function finalizarTurno(kmFinal,ganancia){return finalizarActividad({kmFinal,income:ganancia});}
 export function registrarFondoJaimau(monto){const s=legacySource('jaimau');if(!s)throw new Error('FUENTE_NO_ENCONTRADA');return registrarFondoFuente(s.id,monto,'Depósito de su Empresa');}
 export function saldoCombustibleEmpresa(){const s=legacySource('jaimau')||store.workSources.find(x=>x.fuelPayer==='company');return s?saldoFondoFuente(s.id):{depositado:0,utilizado:0,disponible:0};}
-export function registrarGasolina(litros,costo,km,pagador=null,gasolinera=''){const active=store.activeActivity?fuenteById(store.activeActivity.sourceId):null;let source=active;if(!source&&pagador==='empresa')source=store.workSources.find(s=>sourceUsable(s)&&s.fuelPayer==='company');if(!source&&pagador==='personal')source=store.workSources.find(s=>sourceUsable(s)&&s.kind==='gig')||null;return registrarCombustible({litros,costo,km,sourceId:source?.id||null,payer:pagador==='empresa'?'company':pagador==='personal'?'personal':null,gasolinera});}
+export function registrarGasolina(litros,costo,km,pagador=null,gasolinera=''){
+  const active=store.activeActivity?fuenteById(store.activeActivity.sourceId):null;
+  const companySources=store.workSources.filter(s=>sourceUsable(s)&&s.fuelPayer==='company');
+  const companySource=active?.fuelPayer==='company'?active:companySources.length===1?companySources[0]:null;
+  const source=active||(pagador==='empresa'?companySource:pagador==='personal'?store.workSources.find(s=>sourceUsable(s)&&s.kind==='gig'):null);
+  return registrarCombustible({litros,costo,km,sourceId:source?.id||null,payer:pagador==='empresa'?'company':pagador==='personal'?'personal':null,accountId:pagador==='empresa'?(active?.fuelPayer==='company'?active.fundAccountId:companySource?.fundAccountId)||'':null,gasolinera});
+}
 export function registrarPagoJaimau(monto,fecha=Date.now()){const s=legacySource('jaimau');if(!s)throw new Error('FUENTE_NO_ENCONTRADA');return registrarPagoFuente(s.id,monto,fecha);}
 
 export function nuevoGasto(desc,monto,categoria,frecuencia){const d=requireText(desc),m=requirePositive(monto),id=uuid();if(frecuencia!=='Unico'||categoria==='Ahorro')store.gastosFijosMensuales.push({id,desc:d,monto:m,categoria,frecuencia});if(frecuencia==='Unico'&&categoria!=='Ahorro')store.movimientos.push({id,fecha:new Date().toISOString(),tipo:'gasto',desc:d,monto:m,categoria,accountId:PERSONAL_ACCOUNT_ID,affectsPersonal:true});return commit();}
