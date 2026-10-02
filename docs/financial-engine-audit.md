@@ -232,3 +232,49 @@ uso único, cancelación, backups, sincronización y fallo de escritura. Las reg
 Firestore requieren Java 21 y se verifican en GitHub Actions; el entorno local
 dispone de Java 17. Las cuatro fechas del usuario siguen sin modificarse desde el
 repositorio: la reparación se aplica únicamente cuando guarda la revisión en la app.
+
+## Disponible hoy y pagos futuros (3.1.5)
+
+Causa de la captura del 2 de octubre: `financialPosition` toma los pagos pendientes
+de una ventana de 30 días. Comida del 15 y del 31 suma $6,000. El cálculo original
+`free = cash - reserved - committed` produce $4,830.66 - $807 - $6,000 = -$1,976.34.
+Es la reserva de un plan usando únicamente efectivo actual; no es efectivo negativo
+ni demuestra que esos $6,000 estén vencidos. El problema de presentación era usarlo
+como importe principal de la situación de hoy sin indicar el horizonte.
+
+Se conserva `committed`, `free`, fechas, fórmulas de proyección y sus consumidores
+(metas, automatización y salud). Se agrega un desglose calculado en el núcleo:
+
+- `overdue`: importe pendiente con fecha original anterior al día local actual.
+- `dueToday`: importe pendiente que vence hoy, independientemente de la hora usada
+  para dibujarlo en el calendario.
+- `dueNow = overdue + dueToday`.
+- `futureDue`: pagos programados posteriores a hoy dentro de la misma ventana.
+- `availableToday = cash - reserved - dueNow`: antes de pagos futuros y presupuestos.
+- `planningReserve`: presupuestos del hogar, reservas y transporte ya incluidos en
+  el plan original. `planningDays` y `planningUntil` hacen explícito el horizonte.
+
+`paymentDueBreakdown` es una función pura en `js/domain/financial-rules.js`; usa
+`dueDate` original, y respeta fechas civiles sin convertirlas en medianoche UTC.
+`js/21_financial_life_v27.js` agrega los resultados sin escribirlos en el estado.
+La UI de Inicio y Calendario consume ese mismo resultado: **Disponible hoy** como
+resumen actual, **Exigible hoy** con vencidos/vence hoy, y pagos futuros y libre después
+del plan en una sección separada. En el escenario de la captura, $4,023.66 están
+disponibles antes de atender el plan futuro; no se presentan como libres para
+gastarlos ignorando presupuestos. Los ingresos futuros siguen siendo estimaciones
+de la proyección y nunca incrementan el disponible actual.
+
+Riesgos y compatibilidad: no se elimina una obligación al no estar vencida, ni se
+modifica el efectivo sólo por cambiar de fecha. Cuando llega el día, el pendiente
+entra en exigible; después pasa a vencido si no se paga. Abonos conservan sólo el
+saldo pendiente y un anticipo descuenta efectivo real una vez. Sin migraciones,
+datos nuevos persistidos, cambios de Firestore, reglas, backups, navegación ni CSS.
+Se conservan rutas, nombres de módulos y el botón de corrección de fechas de 3.1.4.
+PWA 3.1.5 / shell v14 mantiene APP_SHELL y retira la caché v13.
+
+Verificación: 211/211 pruebas en UTC y México, con 14 regresiones nuevas para el
+caso de la captura, transición a vencimiento, abonos, anticipos, obligaciones
+operativas, deuda, presupuestos, metas, ingresos futuros, pureza, calendario y UI.
+El escenario completo conserva la proyección $19,800 de ingresos, $9,499 de egresos,
+$15,131.66 de efectivo final y $14,324.66 después de reservas. Reglas Firestore en
+CI con Java 21. No se ha leído ni modificado el estado privado del usuario.
