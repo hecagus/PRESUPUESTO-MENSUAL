@@ -37,6 +37,7 @@ const refresh=()=>{
 
 const ERROR_MESSAGES={
   PAGO_FECHA_FUTURA:'La fecha de un pago realizado no puede estar en el futuro. Usa el vencimiento para programar un pago pendiente.',
+  PAGOS_OPERATIVOS_CAMBIARON:'Los pagos cambiaron mientras revisabas la corrección. Vuelve a abrirla para comprobar las fechas y el total.',
   KM_MENOR:'⛔ El kilometraje no puede ser menor al anterior.',KM_INVALIDO:'Ingresa un kilometraje válido mayor a 0.',SALDO_INVALIDO:'El saldo inicial no puede ser negativo.',MONTO_INVALIDO:'Ingresa un monto mayor a 0.',
   LITROS_INVALIDOS:'Ingresa una cantidad de litros mayor a 0.',GANANCIA_INVALIDA:'La ganancia no puede ser negativa.',DESCRIPCION_INVALIDA:'Escribe una descripción.',NOMBRE_INVALIDO:'Escribe un nombre válido.',TOTAL_INVALIDO:'El total de la deuda debe ser mayor a 0.',
   CUOTA_INVALIDA:'La cuota debe ser mayor a 0.',TURNO_NO_ACTIVO:'No hay una actividad activa para finalizar.',TURNO_YA_ACTIVO:'Ya hay una actividad en curso.',FUENTE_NO_ENCONTRADA:'No se encontró esa fuente de ingreso.',ORIGEN_COMBUSTIBLE_REQUERIDO:'Selecciona a qué actividad corresponde el combustible.',
