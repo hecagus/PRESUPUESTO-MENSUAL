@@ -2,7 +2,7 @@
 import { safeFloat } from './01_consts_utils.js';
 import { getState, saveData } from './02_data.js';
 import * as Base from './13_financial_life.js';
-import { personalCash, reservedSavings } from './domain/financial-rules.js';
+import { personalCash, reservedSavings, paymentDueBreakdown, horizonEnd } from './domain/financial-rules.js';
 import { operatingObligations, operatingUpcomingEvents } from './domain/operating-costs.js';
 import {
   ensureHousehold,householdUpcomingEvents,householdCommittedRemaining,householdReserveNeed,
@@ -10,6 +10,7 @@ import {
 } from './23_home_semantics.js';
 
 const RETIRED_CORE_COMMITMENTS=new Set(['life-housing','life-services']);
+const PLANNING_DAYS=30;
 const monthDay=value=>String(value||'').slice(0,10);
 
 export const setSourceStatus=Base.setSourceStatus;
@@ -79,8 +80,9 @@ export function upcomingFinancialEvents({days=45,now=new Date()}={}){
 export function financialPosition(now=new Date()){
   ensureFinancialLife();
   const state=getState(),cash=personalCash(state,now),reserved=reservedSavings(state,now);
-  const events=upcomingFinancialEvents({days:30,now});
+  const events=upcomingFinancialEvents({days:PLANNING_DAYS,now});
   const payable=events.filter(e=>['expense','debt'].includes(e.type)&&safeFloat(e.amount)>0);
+  const timing=paymentDueBreakdown(payable,now);
   const due=payable.reduce((a,e)=>a+safeFloat(e.amount),0);
   const homeDue=payable.filter(e=>e.household).reduce((a,e)=>a+safeFloat(e.amount),0);
   const homeBudget=householdCommittedRemaining(now);
@@ -88,5 +90,9 @@ export function financialPosition(now=new Date()){
   const workTransport=Base.workTransportCommitment(now);
   const living=homeBudget+homeReserve;
   const committed=due+living+workTransport;
-  return {cash,reserved,due,homeDue,homeBudget,homeReserve,living,workTransport,committed,free:cash-reserved-committed};
+  // Preserve the existing 30-day planning formula for goals, health and forecasts.
+  // Available today is a separate read model, before future payments and budgets.
+  return {cash,reserved,due,homeDue,homeBudget,homeReserve,living,workTransport,committed,free:cash-reserved-committed,
+    ...timing,availableToday:cash-reserved-timing.dueNow,planningReserve:living+workTransport,
+    planningDays:PLANNING_DAYS,planningUntil:horizonEnd(now,PLANNING_DAYS).toISOString()};
 }

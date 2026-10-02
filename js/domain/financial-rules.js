@@ -30,6 +30,22 @@ export function horizonEnd(now, days) {
   return d;
 }
 
+// A future scheduled payment is not payable today. Compare civil days, not 9am
+// display timestamps or an overdue event's date shifted to today for the calendar.
+export function paymentDueBreakdown(events, now = new Date()) {
+  if (!Number.isFinite(new Date(now).getTime())) throw new Error('FECHA_INVALIDA');
+  const today = localDay(now), totals = {overdue:0, dueToday:0, futureDue:0};
+  for (const event of events) {
+    if (!['expense','debt'].includes(event?.type) || !(money(event.amount) > 0)) continue;
+    const value = event.dueDate || event.date, civil = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+    const date = new Date(civil ? `${value}T12:00:00` : value);
+    if (!Number.isFinite(date.getTime()) || civil && localDay(date) !== value) continue;
+    const day = localDay(date), key = day < today ? 'overdue' : day === today ? 'dueToday' : 'futureDue';
+    totals[key] += money(event.amount);
+  }
+  return {...totals, dueNow:totals.overdue + totals.dueToday};
+}
+
 export function inObservedPeriod(value, start, now) {
   const stamp = new Date(value).getTime();
   return Number.isFinite(stamp) && stamp >= new Date(start).getTime() && stamp <= new Date(now).getTime();
