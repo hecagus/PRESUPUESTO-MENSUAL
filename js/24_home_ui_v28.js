@@ -2,6 +2,7 @@
 import { $, fmtMoney, uuid } from './01_consts_utils.js';
 import { getState } from './02_data.js';
 import { Modal } from './03_render.js';
+import {paymentDueState} from './domain/financial-rules.js';
 import {
   ensureHousehold,householdItems,householdSummary,householdBudgetStatus,householdMonthlyEquivalent,householdUpcomingEvents,
   createHouseholdExpense,updateHouseholdExpense,setHouseholdExpenseActive,recordHouseholdExpense,recordDirectHouseholdExpense,
@@ -32,7 +33,8 @@ function itemStatus(item){
   if(item.kind==='obligation'){
     const overdue=overdueFor(item.id);if(overdue)return `⚠️ Vencido ${dateLabel(overdue.dueDate||overdue.date)} · ${fmtMoney(overdue.amount)} pendientes`;
     if(item.frequency==='variable')return 'Obligación variable · se reserva una estimación';
-    const next=nextFor(item.id);return next?`${freqLabel(item.frequency)} · próximo ${dateLabel(next.dueDate||next.date)}`:freqLabel(item.frequency);
+    const next=nextFor(item.id),status=next&&paymentDueState(next);
+    return next?`${freqLabel(item.frequency)} · ${{due_today:'Vence hoy',due_tomorrow:'Vence mañana',scheduled:'próximo'}[status]||'próximo'} ${dateLabel(next.dueDate||next.date)}${status==='due_today'?` · ${fmtMoney(next.amount)} pendientes`:''}`:freqLabel(item.frequency);
   }
   if(item.kind==='reserve')return item.nextDueDate?`Reserva concreta · comprar antes de ${dateLabel(`${item.nextDueDate}T12:00:00`)}`:'Reserva concreta · pendiente de comprar';
   if(item.kind==='optional'){

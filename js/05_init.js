@@ -10,6 +10,7 @@ import { ensureFinancialLife } from './21_financial_life_v27.js';
 import { renderFinancialPositionPanel, renderCalendarPreview, renderCalendarPage, initCalendarEvents } from './14_calendar_ui.js';
 import { renderOperatingCosts, initOperatingCostEvents } from './ui/operating-costs.js';
 import { showFuelModal } from './ui/fuel.js';
+import {showSourcePayment,showIncomePeriodCorrection} from './ui/source-payments.js';
 import { runAutomationEngine } from './17_automation_engine.js';
 import { ensureFinancialPlatform, renderFinancialPlatform, initFinancialPlatformEvents } from './19_platform_ui.js';
 import { renderHome, initHomeEvents } from './22_home_ui.js';
@@ -44,6 +45,7 @@ const ERROR_MESSAGES={
   CUOTA_INVALIDA:'La cuota debe ser mayor a 0.',TURNO_NO_ACTIVO:'No hay una actividad activa para finalizar.',TURNO_YA_ACTIVO:'Ya hay una actividad en curso.',FUENTE_NO_ENCONTRADA:'No se encontró esa fuente de ingreso.',ORIGEN_COMBUSTIBLE_REQUERIDO:'Selecciona de dónde se pagó el combustible.',
   CUENTA_COMBUSTIBLE_REQUERIDA:'Selecciona con qué pagaste el combustible.',
   FONDO_NO_APLICA:'Esa fuente no usa fondos de empresa.',BACKUP_INVALIDO:'El respaldo no es un JSON válido de esta aplicación.',COBRO_DUPLICADO:'Ya existe un cobro registrado para este periodo.',RECETA_INVALIDA:'Selecciona un ingrediente válido.',
+  COBRO_NO_ENCONTRADO:'No se encontró el cobro.',COBRO_CAMBIO:'El cobro cambió mientras lo revisabas. Vuelve a abrir la corrección.',
   INGREDIENTE_NO_ENCONTRADO:'No se encontró el ingrediente.',PRODUCTO_NO_ENCONTRADO:'No se encontró el producto.',CANTIDAD_INVALIDA:'Ingresa una cantidad mayor a 0.',
   FECHA_INVALIDA:'Elige una fecha válida.',FRECUENCIA_INVALIDA:'Elige una frecuencia de pago.',CUENTA_NO_ENCONTRADA:'Selecciona una cuenta activa.',
   COSTO_OPERATIVO_YA_PAGADO:'Este pago ya quedó liquidado.',COSTO_OPERATIVO_NO_ENCONTRADO:'No se encontró esa obligación de trabajo.',PAGO_OPERATIVO_NO_ENCONTRADO:'No se encontró ese vencimiento.'
@@ -90,7 +92,7 @@ function initGlobalEvents(){
 
 function initDelegation(){document.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(!b||b.disabled)return;const action=b.dataset.action,id=b.dataset.id;
   if(action==='ahorro')return Modal.show('Abonar ahorro',[{label:'Monto',key:'m',type:'number'}],d=>safe(()=>Data.abonarAhorro(id,d.m)));
-  if(action==='start-source')return safe(()=>Data.iniciarActividad(id));if(action==='finish-source')return finishActive();if(action==='pay-source')return Modal.show('Registrar pago',[{label:'Importe recibido ($)',key:'m',type:'number'}],d=>safe(()=>Data.registrarPagoFuente(id,d.m)));
+  if(action==='start-source')return safe(()=>Data.iniciarActividad(id));if(action==='finish-source')return finishActive();if(action==='pay-source')return showSourcePayment(id,safe);if(action==='correct-income-period')return showIncomePeriodCorrection(id,safe);
   if(action==='new-ingredient')return newIngredient();if(action==='update-ingredient')return updateIngredient(id);if(action==='new-product')return newProduct();if(action==='recipe-item')return recipeItem(id);if(action==='sale-product')return saleProduct(id);
 });}
 

@@ -26,7 +26,8 @@ export function resumenPeriodoFuente(store,sourceId,fecha=new Date()){
   const pago=(store.movimientos||[]).find(m=>m.sourceId===sourceId&&inObservedPeriod(m.fecha,0,fecha)&&m.tipo==='ingreso'&&m.periodo===periodo&&m.paymentKind==='source_period');
   const ingresos=(store.movimientos||[]).filter(m=>m.sourceId===sourceId&&m.tipo==='ingreso'&&m.categoria!=='Sistema'&&m.periodo===periodo&&isPersonalMovement(store,m)&&inObservedPeriod(m.fecha,0,fecha)).reduce((a,m)=>a+safeFloat(m.monto),0);
   const horas=turnos.reduce((a,t)=>a+horasTurno(t),0),km=turnos.reduce((a,t)=>a+safeFloat(t.kmRecorrido),0);
-  return {source,periodo,turnos:turnos.length,jornadas:new Set(turnos.map(t=>new Date(t.fecha).toDateString())).size,horas,km,pago:safeFloat(pago?.monto),pagado:Boolean(pago),ingresos};
+  const receivedMonth=sourceObservedTotals(store,sourceId,new Date(fecha.getFullYear(),fecha.getMonth(),1),fecha).income;
+  return {source,periodo,turnos:turnos.length,jornadas:new Set(turnos.map(t=>new Date(t.fecha).toDateString())).size,horas,km,pago:safeFloat(pago?.monto),pagado:Boolean(pago),ingresos,receivedMonth};
 }
 
 export function resumenGlobal(store,now=new Date()){
