@@ -3,6 +3,7 @@ import { safeFloat, uuid } from './01_consts_utils.js';
 import { getState, saveData } from './02_data.js';
 import { resumenGlobal } from './04_charts.js';
 import { financialPosition } from './21_financial_life_v27.js';
+import { financialScenario } from './app/financial-options.js';
 import { inObservedPeriod, isPersonalMovement, goalReserved, reservedSavings, monthlyIncomeProjection, observedTotals } from './domain/financial-rules.js';
 
 const PERSONAL_ACCOUNT_ID='acct-personal';
@@ -55,8 +56,8 @@ function addGoalMovement(goal,{type,amount,sourceId=null,note='',operationId=nul
 export function contributeToSavingsGoal(goalId,amount,{sourceId=null,note='',operationId=null}={}){
   const existing=operationId&&(getState().savingsGoals||[]).flatMap(g=>(g.history||[]).map(h=>({...h,goalId:g.id}))).find(h=>h.operationId===operationId);
   if(existing){if(existing.goalId!==goalId||existing.amount!==safeFloat(amount))throw new Error('OPERACION_INCOMPATIBLE');return getSavingsGoal(goalId);}
-  const goal=getSavingsGoal(goalId);if(!goal)throw new Error('META_NO_ENCONTRADA');const m=positive(amount),remaining=Math.max(0,goal.targetAmount-goal.reserved),summary=resumenGlobal(getState());
-  const reallyFree=Math.max(0,financialPosition().free),available=Math.max(0,Math.min(summary.disponible,reallyFree));if(remaining<=0)throw new Error('META_COMPLETA');if(m>remaining+0.0001)throw new Error('APORTE_SUPERA_META');if(m>available+0.0001)throw new Error('SALDO_DISPONIBLE_INSUFICIENTE');
+  const goal=getSavingsGoal(goalId);if(!goal)throw new Error('META_NO_ENCONTRADA');const m=positive(amount),remaining=Math.max(0,goal.targetAmount-goal.reserved);
+  const available=financialPosition().savingsAvailableNow;if(remaining<=0)throw new Error('META_COMPLETA');if(m>remaining+0.0001)throw new Error('APORTE_SUPERA_META');if(m>available+0.0001)throw new Error('SALDO_DISPONIBLE_INSUFICIENTE');
   goal.reserved+=m;addGoalMovement(goal,{type:'reserve',amount:m,sourceId,note,operationId});if(goal.reserved>=goal.targetAmount)goal.completedAt=goal.completedAt||new Date().toISOString();saveData();return goal;
 }
 export function withdrawFromSavingsGoal(goalId,amount,{note=''}={}){const goal=getSavingsGoal(goalId);if(!goal)throw new Error('META_NO_ENCONTRADA');const m=positive(amount);if(m>goal.reserved+0.0001)throw new Error('RETIRO_SUPERA_RESERVA');goal.reserved=Math.max(0,goal.reserved-m);goal.completedAt=null;addGoalMovement(goal,{type:'release',amount:m,note});saveData();return goal;}
@@ -74,7 +75,7 @@ export function savingsCapacity(goalId,now=new Date()){
   const state=getState(),summary=resumenGlobal(state,now),goal=savingsGoalSummary(goalId,now);if(!goal)return null;const sources=monthlySourceIncome(state,now),start=monthStart(now);
   /* El saldo inicial es patrimonio de partida, no capacidad mensual de ahorro. */
   const monthlyIncome=(state.movimientos||[]).filter(m=>isPersonalMovement(state,m)&&m.tipo==='ingreso'&&m.categoria!=='Sistema'&&inObservedPeriod(m.fecha,start,now)).reduce((a,m)=>a+safeFloat(m.monto),0);
-  const monthlyExpenses=(state.movimientos||[]).filter(m=>isPersonalMovement(state,m)&&m.tipo==='gasto'&&inObservedPeriod(m.fecha,start,now)).reduce((a,m)=>a+safeFloat(m.monto),0),estimatedMonthlyCapacity=Math.max(0,monthlyIncome-monthlyExpenses),incomeProjection=monthlyIncomeProjection(state,now),observed=observedTotals(state,now),safetyBuffer=Math.max(0,safeFloat(state.parametros?.moraVencida)+safeFloat(state.parametros?.metaBase)*7),reallyFree=Math.max(0,financialPosition(now).free),safeFreeCash=Math.max(0,Math.min(summary.disponible,reallyFree)),suggestedNow=Math.min(goal.requiredMonthly||goal.remaining,safeFreeCash,goal.remaining);
+  const monthlyExpenses=(state.movimientos||[]).filter(m=>isPersonalMovement(state,m)&&m.tipo==='gasto'&&inObservedPeriod(m.fecha,start,now)).reduce((a,m)=>a+safeFloat(m.monto),0),estimatedMonthlyCapacity=Math.max(0,monthlyIncome-monthlyExpenses),incomeProjection=monthlyIncomeProjection(state,now,financialScenario()),observed=observedTotals(state,now),position=financialPosition(now),safetyBuffer=position.planningReserve,safeFreeCash=position.savingsAvailableNow,suggestedNow=Math.min(goal.requiredMonthly||goal.remaining,safeFreeCash,goal.remaining);
   let pending=suggestedNow;const allocation=[...sources].sort((a,b)=>b.income-a.income).map(s=>{const suggested=Math.min(Math.max(0,s.income),pending);pending=Math.max(0,pending-suggested);return {...s,suggested};});
   return {goal,summary,sources:allocation,monthlyIncome,monthlyExpenses,incomeProjection,observed,capacityBasis:'actual_month_to_date',estimatedMonthlyCapacity,safetyBuffer,safeFreeCash,suggestedNow,unassignedSuggestion:pending};
 }

@@ -3,7 +3,8 @@ import { safeFloat } from './01_consts_utils.js';
 import { getState } from './02_data.js';
 import { upcomingFinancialEvents, financialPosition } from './21_financial_life_v27.js';
 import { householdReserveNeed } from './23_home_semantics.js';
-import { fixedIncomeEstimate, variableIncomeSample, horizonEnd } from './domain/financial-rules.js';
+import { fixedIncomeEstimate, variableIncomeSample, horizonEnd, localDay } from './domain/financial-rules.js';
+import { financialScenario, FORECAST_DAYS } from './app/financial-options.js';
 
 const DAY=86400000;
 const monthId=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
@@ -51,9 +52,9 @@ function reserveSnapshot(position,now){
   return {savings,baseLocked,accrued,accruedByItem,initial:baseLocked+accrued};
 }
 
-export function cashFlowForecast({days=45,now=new Date(),includeVariable=false}={}){
+export function cashFlowForecast({days=FORECAST_DAYS,now=new Date(),includeVariable=financialScenario().includeVariable}={}){
   const start=new Date(now),end=horizonEnd(start,days),position=financialPosition(start),reserve=reserveSnapshot(position,start);
-  let cash=position.cash,minCash=cash,totalIncome=0,totalOutflow=0,firstNegativeDate=null,firstTightDate=null,dynamicAccrued=reserve.accrued;
+  let cash=position.cash,minCash=cash,totalIncome=0,totalOutflow=0,firstNegativeDate=cash<0?start.toISOString():null,firstTightDate=cash-reserve.initial<0?start.toISOString():null,dynamicAccrued=reserve.accrued;
   const raw=[...upcomingFinancialEvents({days,now:start}),...(includeVariable?variableIncomeEvents({days,now:start}):[])].sort((a,b)=>new Date(a.date)-new Date(b.date)),events=[];
   for(const event of raw){
     if(new Date(event.date)>end||event.type==='goal'||alreadyPaid(event))continue;
@@ -66,30 +67,38 @@ export function cashFlowForecast({days=45,now=new Date(),includeVariable=false}=
       if(!(amount>0))continue;
       delta=-amount;totalOutflow+=amount;
     }else continue;
-    cash+=delta;minCash=Math.min(minCash,cash);
-
-    /* Una reserva progresiva para un recibo deja de estar bloqueada cuando ese recibo se paga en la proyección. */
-    if(event.household&&['expense','debt'].includes(event.type)&&reserve.accruedByItem.has(event.refId)){
-      dynamicAccrued=Math.max(0,dynamicAccrued-reserve.accruedByItem.get(event.refId));
-      reserve.accruedByItem.delete(event.refId);
+    events.push({...event,amount,delta,estimated});
+  }
+  // Los horarios de las recurrencias son de presentación, no horas de cobro/pago.
+  // Evaluar el cierre de cada día evita un faltante ficticio entre eventos del mismo día.
+  for(let i=0;i<events.length;){
+    const day=localDay(events[i].date),rows=[];
+    while(i<events.length&&localDay(events[i].date)===day){
+      const event=events[i++];rows.push(event);cash+=event.delta;
+      /* Una reserva progresiva deja de estar bloqueada al pagar su recibo proyectado. */
+      if(event.household&&['expense','debt'].includes(event.type)&&reserve.accruedByItem.has(event.refId)){
+        dynamicAccrued=Math.max(0,dynamicAccrued-reserve.accruedByItem.get(event.refId));
+        reserve.accruedByItem.delete(event.refId);
+      }
     }
     const projectedReserve=reserve.baseLocked+dynamicAccrued,projectedFree=cash-projectedReserve;
-    if(cash<0&&!firstNegativeDate)firstNegativeDate=event.date;
-    if(projectedFree<0&&!firstTightDate)firstTightDate=event.date;
-    events.push({...event,amount,delta,estimated,projectedCash:cash,projectedReserve,projectedFree});
+    minCash=Math.min(minCash,cash);
+    if(cash<0&&!firstNegativeDate)firstNegativeDate=rows[0].date;
+    if(projectedFree<0&&!firstTightDate)firstTightDate=rows[0].date;
+    for(const row of rows)Object.assign(row,{projectedCash:cash,projectedReserve,projectedFree,balanceBasis:'end_of_day'});
   }
   const endingReserve=reserve.baseLocked+dynamicAccrued,endingFree=cash-endingReserve;
   return {
-    now:start.toISOString(),days,includeVariable,startCash:position.cash,startFree:position.free,reserved:reserve.savings,
+    now:start.toISOString(),days,includeVariable,startCash:position.cash,startFree:position.cash-reserve.initial,availableToday:position.availableToday,reserved:reserve.savings,
     ongoingReserve:reserve.initial,endingReserve,totalExpectedIncome:totalIncome,totalExpectedOutflow:totalOutflow,endingCash:cash,endingFree,
     minCash,firstNegativeDate,firstTightDate,events,
-    risk:firstNegativeDate?'negative':firstTightDate||endingFree<0?'tight':position.free<0?'tight':'ok'
+    risk:firstNegativeDate?'negative':firstTightDate||endingFree<0?'tight':'ok'
   };
 }
 
-export function forecastDaily({days=30,now=new Date(),includeVariable=false}={}){
+export function forecastDaily({days=30,now=new Date(),includeVariable=financialScenario().includeVariable}={}){
   const forecast=cashFlowForecast({days,now,includeVariable}),rows=[];let cash=forecast.startCash,reserve=forecast.ongoingReserve,index=0;
-  for(let i=0;i<=days;i++){
+  for(let i=0;i<Math.max(1,Math.floor(days));i++){
     const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()+i,23,59,59);
     while(index<forecast.events.length&&new Date(forecast.events[index].date)<=d){cash=forecast.events[index].projectedCash;reserve=forecast.events[index].projectedReserve??reserve;index++;}
     rows.push({date:d.toISOString(),cash,reserve,free:cash-reserve});

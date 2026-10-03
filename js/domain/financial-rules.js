@@ -32,15 +32,20 @@ export function horizonEnd(now, days) {
 
 // A future scheduled payment is not payable today. Compare civil days, not 9am
 // display timestamps or an overdue event's date shifted to today for the calendar.
+export function paymentDueState(event,now=new Date()){
+  const value=event.dueDate||event.date,civil=typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date=new Date(civil?`${value}T12:00:00`:value);
+  if(!Number.isFinite(date.getTime())||civil&&localDay(date)!==value)return null;
+  const day=localDay(date),today=localDay(now),tomorrow=new Date(now);tomorrow.setDate(tomorrow.getDate()+1);
+  return day<today?'overdue':day===today?'due_today':day===localDay(tomorrow)?'due_tomorrow':'scheduled';
+}
 export function paymentDueBreakdown(events, now = new Date()) {
   if (!Number.isFinite(new Date(now).getTime())) throw new Error('FECHA_INVALIDA');
-  const today = localDay(now), totals = {overdue:0, dueToday:0, futureDue:0};
+  const totals = {overdue:0, dueToday:0, futureDue:0};
   for (const event of events) {
     if (!['expense','debt'].includes(event?.type) || !(money(event.amount) > 0)) continue;
-    const value = event.dueDate || event.date, civil = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
-    const date = new Date(civil ? `${value}T12:00:00` : value);
-    if (!Number.isFinite(date.getTime()) || civil && localDay(date) !== value) continue;
-    const day = localDay(date), key = day < today ? 'overdue' : day === today ? 'dueToday' : 'futureDue';
+    const status=paymentDueState(event,now);if(!status)continue;
+    const key=status==='overdue'?'overdue':status==='due_today'?'dueToday':'futureDue';
     totals[key] += money(event.amount);
   }
   return {...totals, dueNow:totals.overdue + totals.dueToday};
@@ -148,6 +153,34 @@ export function sourcePeriodId(frequency, value) {
   }
   if (['daily','per_shift','variable'].includes(f)) return localDay(d);
   return ym;
+}
+
+// A form's civil date must not shift to the previous day in Mexico.
+export function incomePeriodDate(value){
+  const civil=typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date=new Date(civil?`${value}T12:00:00`:value);
+  if(!Number.isFinite(date.getTime())||civil&&localDay(date)!==value)throw new Error('FECHA_INVALIDA');
+  return date;
+}
+
+export function latestIncomeDueDate(source,now=new Date()){
+  const today=startOfDay(now);
+  if(source.compensation==='biweekly'){
+    if(today.getDate()>=new Date(today.getFullYear(),today.getMonth()+1,0).getDate())return new Date(today.getFullYear(),today.getMonth()+1,0,12);
+    if(today.getDate()>=15)return new Date(today.getFullYear(),today.getMonth(),15,12);
+    return new Date(today.getFullYear(),today.getMonth(),0,12);
+  }
+  if(source.compensation==='weekly'){
+    const weekday=source.paySchedule?.weekDay??5;
+    today.setDate(today.getDate()-(today.getDay()-weekday+7)%7);today.setHours(12);return today;
+  }
+  if(source.compensation==='monthly'){
+    const day=Math.max(1,Math.min(31,Number(source.paySchedule?.day)||30));
+    let due=new Date(today.getFullYear(),today.getMonth(),Math.min(day,new Date(today.getFullYear(),today.getMonth()+1,0).getDate()),12);
+    if(localDay(due)>localDay(today))due=new Date(today.getFullYear(),today.getMonth()-1,Math.min(day,new Date(today.getFullYear(),today.getMonth(),0).getDate()),12);
+    return due;
+  }
+  today.setHours(12);return today;
 }
 
 export function fixedIncomeEstimate(state, source, now = new Date()) {
