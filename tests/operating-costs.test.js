@@ -136,7 +136,7 @@ test('proyección variable no resta un pago recurrente de nuevo dentro del ingre
 
 test('PWA calienta los nuevos módulos, los sirve offline y elimina la caché anterior al activar',async()=>{
   const source=await readFile(new URL('../sw.js',import.meta.url),'utf8'),listeners={},entries=new Map(),deleted=[];
-  const cache={put:async(request,response)=>entries.set(request.url,response),match:async(request)=>entries.get(request.url||request)};
+  const cache={put:async(request,response)=>entries.set(request.url,response),match:async(request)=>entries.get(typeof request==='string'?new URL(request,'https://app.test').href:request.url)};
   const ctx={self:{location:{origin:'https://app.test'},addEventListener:(type,fn)=>listeners[type]=fn,skipWaiting:async()=>{},clients:{claim:async()=>{}}},caches:{open:async()=>cache,keys:async()=>['hecagus-finance-3.1.5-shell-v14-today-position','other-cache'],delete:async key=>deleted.push(key),match:async request=>cache.match(request)},Request:class{constructor(path){this.url=`https://app.test${path}`;}},Response,URL,console,fetch:async()=>new Response('export const loaded=true;')};
   vm.runInNewContext(source,ctx);let pending;listeners.install({waitUntil:p=>pending=p});await pending;
   for(const path of ['/js/domain/financial-rules.js','/js/domain/operating-costs.js','/js/ui/operating-costs.js'])assert.ok(entries.has(`https://app.test${path}`));
