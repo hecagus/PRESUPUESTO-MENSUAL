@@ -7,6 +7,7 @@ import {
   setAccountActive,recordUniversalMovement,transferBetweenAccounts
 } from './15_accounts_engine.js';
 import { cashFlowForecast } from './16_forecast_engine.js';
+import {financialScenario,setVariableIncomeScenario} from './app/financial-options.js';
 import {
   ensureAutomationEngine,listAutomationRules,createReserveRule,setAutomationRuleActive,setMinFreeCashAlert,
   runAutomationEngine,smartAlerts
@@ -44,7 +45,7 @@ function renderAccountsHub(){
 }
 
 function renderForecast(forecast=null){
-  const page=document.body.dataset.page;if(page!=='index'&&page!=='calendar')return;const includeVariable=localStorage.getItem('forecast_include_variable')==='true',f=includeVariable?cashFlowForecast({days:45,includeVariable:true}):(forecast||cashFlowForecast({days:45}));
+  const page=document.body.dataset.page;if(page!=='index'&&page!=='calendar')return;const {includeVariable}=financialScenario(),f=forecast||cashFlowForecast();
   if(page==='index'){
     const anchor=$('calendarPreviewZone');if(!anchor)return;ensureAfter(anchor,'platformForecastZone','<section class="card" style="border-left:5px solid #7c3aed"><h2>🔮 Proyección de flujo</h2><div id="platformForecastSummary"></div></section>');
     const box=$('platformForecastSummary');if(box){
@@ -54,7 +55,7 @@ function renderForecast(forecast=null){
     renderForecastOption($('platformForecastZone'),includeVariable);return;
   }
   const anchor=$('calendarEvents');if(!anchor)return;ensureAfter(anchor,'platformForecastDetail','<section class="card" style="border-left:5px solid #7c3aed"><h2>🔮 Flujo proyectado</h2><div id="platformForecastTimeline"></div></section>');
-  const box=$('platformForecastTimeline');if(box)box.innerHTML=`<div class="grid-2" style="margin-bottom:8px"><div><small>Efectivo actual</small><strong style="display:block">${fmtMoney(f.startCash)}</strong></div><div><small>Libre al final</small><strong style="display:block">${fmtMoney(f.endingFree)}</strong></div></div>${f.events.slice(0,10).map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid #e2e8f0"><span>${dateLabel(e.date)} · ${esc(e.title)}${e.estimated?' <small>(estimado)</small>':''}</span><strong>${e.delta>=0?'+':'-'}${fmtMoney(Math.abs(e.delta))}<br><small>saldo ${fmtMoney(e.projectedCash)} · libre ${fmtMoney(e.projectedFree)}</small></strong></div>`).join('')||'<small>No hay movimientos futuros suficientes para proyectar.</small>'}`;
+  const box=$('platformForecastTimeline');if(box)box.innerHTML=`<div class="grid-2" style="margin-bottom:8px"><div><small>Efectivo actual</small><strong style="display:block">${fmtMoney(f.startCash)}</strong></div><div><small>Libre al final</small><strong style="display:block">${fmtMoney(f.endingFree)}</strong></div></div>${f.events.slice(0,10).map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid #e2e8f0"><span>${dateLabel(e.date)} · ${esc(e.title)}${e.estimated?' <small>(estimado)</small>':''}</span><strong>${e.delta>=0?'+':'-'}${fmtMoney(Math.abs(e.delta))}<br><small>al cierre: saldo ${fmtMoney(e.projectedCash)} · libre ${fmtMoney(e.projectedFree)}</small></strong></div>`).join('')||'<small>No hay movimientos futuros suficientes para proyectar.</small>'}`;
   renderForecastOption($('platformForecastDetail'),includeVariable);
 }
 
@@ -63,7 +64,7 @@ function renderForecastOption(zone,enabled){
   const label=document.createElement('label');label.dataset.forecastOption='';label.style.display='block';
   const input=document.createElement('input');input.type='checkbox';input.checked=enabled;
   label.append(input,document.createTextNode(' Incluir ingresos variables netos estimados (historial de hasta 8 semanas; requiere 14 días y 3 ingresos).'));
-  input.addEventListener('change',()=>{localStorage.setItem('forecast_include_variable',String(input.checked));renderForecast();});zone.append(label);
+  input.addEventListener('change',()=>{setVariableIncomeScenario(input.checked);changeHandler?.();renderFinancialPlatform();document.dispatchEvent(new CustomEvent('budget:data-changed'));});zone.append(label);
 }
 
 function renderAutomation(){
@@ -83,7 +84,7 @@ function renderAlerts(alerts=null){
 function renderHealth(){
   if(document.body.dataset.page!=='stats')return;const h=financialHealth(),anchor=$('statsGeneral')?.parentElement;if(!anchor)return;
   const zone=ensureBefore(anchor,'platformHealthZone','<section class="card" style="border-left:5px solid #0f766e"><div id="platformHealthContent"></div></section>'),box=$('platformHealthContent');
-  if(box)box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><h2 style="margin:0">🩺 Salud financiera</h2><small style="color:var(--text-sec)">Puntuación explicable, no una caja negra.</small></div><strong style="font-size:1.8rem">${h.score}/100</strong></div><strong style="display:block;margin:8px 0;text-transform:capitalize">Estado: ${esc(h.status)}${h.incomplete?' · estimación incompleta':''}</strong>${h.breakdown.map(b=>`<div style="padding:7px 0;border-top:1px solid #e2e8f0"><div style="display:flex;justify-content:space-between"><strong>${esc(b.label)}</strong><strong>${b.score??'—'}/${b.max}</strong></div><small>${esc(b.detail)}</small></div>`).join('')}<small style="display:block;margin-top:8px;color:var(--text-sec)">Ingreso mensual proyectado ${h.projection.available?fmtMoney(h.monthlyIncome):'sin historial suficiente'} · ingreso realmente cobrado (hasta 90 días) ${fmtMoney(h.ingresoRealPeriodo)} · gasto mensual observado ${h.monthlyExpense===null?'sin historial suficiente':fmtMoney(h.monthlyExpense)} · carga esencial mensual ${fmtMoney(h.essentialMonthly)}. Ingreso variable estimado ${h.projection.sources.some(s=>s.variable?.available)?fmtMoney(h.ingresoVariableEstimado)+' (no incluido)':'sin historial suficiente'}.</small>`;
+  if(box)box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><h2 style="margin:0">🩺 Salud financiera</h2><small style="color:var(--text-sec)">Puntuación explicable, no una caja negra.</small></div><strong style="font-size:1.8rem">${h.score}/100</strong></div><strong style="display:block;margin:8px 0;text-transform:capitalize">Estado: ${esc(h.status)}${h.incomplete?' · estimación incompleta':''}</strong>${h.breakdown.map(b=>`<div style="padding:7px 0;border-top:1px solid #e2e8f0"><div style="display:flex;justify-content:space-between"><strong>${esc(b.label)}</strong><strong>${b.score??'—'}/${b.max}</strong></div><small>${esc(b.detail)}</small></div>`).join('')}<small style="display:block;margin-top:8px;color:var(--text-sec)">Ingreso mensual proyectado ${h.projection.available?fmtMoney(h.monthlyIncome):'sin historial suficiente'} · ingreso realmente cobrado (hasta 90 días) ${fmtMoney(h.ingresoRealPeriodo)} · gasto mensual observado ${h.monthlyExpense===null?'sin historial suficiente':fmtMoney(h.monthlyExpense)} · carga esencial mensual ${fmtMoney(h.essentialMonthly)}. Ingreso variable estimado ${h.projection.sources.some(s=>s.variable?.available)?fmtMoney(h.ingresoVariableEstimado)+(h.scenario.includeVariable?' (incluido como estimación)':' (no incluido)'):'sin historial suficiente'}.</small>`;
   void zone;
 }
 
@@ -111,7 +112,7 @@ export function renderFinancialPlatform(){
   const page=document.body.dataset.page;
   if(page==='wallet'){renderAccountsHub();renderSmartGoals();return;}
   if(page==='index'||page==='calendar'){
-    const forecast=cashFlowForecast({days:45,includeVariable:localStorage.getItem('forecast_include_variable')==='true'}),alerts=smartAlerts(new Date(),{forecast});renderForecast(forecast);renderAlerts(alerts);if(page==='calendar')renderAutomation();return;
+    const forecast=cashFlowForecast(),alerts=smartAlerts(new Date(),{forecast});renderForecast(forecast);renderAlerts(alerts);if(page==='calendar')renderAutomation();return;
   }
   if(page==='stats'){renderHealth();return;}
   if(page==='historial')renderHistory();

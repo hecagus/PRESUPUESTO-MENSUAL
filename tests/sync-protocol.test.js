@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-class Storage{data=new Map();getItem(k){return this.data.get(k)||null;}setItem(k,v){this.data.set(k,String(v));}}
+class Storage{data=new Map();getItem(k){return this.data.get(k)||null;}setItem(k,v){this.data.set(k,String(v));}removeItem(k){this.data.delete(k);}}
 globalThis.localStorage=new Storage();
 Object.defineProperty(globalThis,'navigator',{value:{onLine:false},configurable:true});
 globalThis.document={hidden:false,getElementById:()=>null,dispatchEvent:()=>{},addEventListener:()=>{}};
@@ -50,9 +50,12 @@ test('unresolved merge cannot write to Firestore',async()=>{
 
 test('switching Google users isolates local budgets and preserves unsynced data',async()=>{
   const f=await fixture({dirty:false});Data.getState().movimientos[0].monto=250;
+  Data.getState().financialPlan={forecastPreferences:{includeVariable:true}};localStorage.setItem('forecast_include_variable','true');
   f.Sync.activateUser({uid:'bob'});assert.equal(Data.getState().movimientos.length,0);
+  assert.equal(localStorage.getItem('forecast_include_variable'),null);assert.notEqual(Data.getState().financialPlan?.forecastPreferences?.includeVariable,true);
   assert.equal(f.Sync.inspect().meta.baseRevision,0);assert.ok(localStorage.getItem('presupuesto_local_backup_alice'));
   Data.getState().movimientos.push({id:'bob-only',tipo:'ingreso',monto:20});
   f.Sync.activateUser({uid:'alice'});assert.equal(Data.getState().movimientos[0].monto,250);assert.equal(f.Sync.inspect().meta.dirty,true);
+  assert.equal(Data.getState().financialPlan.forecastPreferences.includeVariable,true);
   assert.ok(localStorage.getItem('presupuesto_local_backup_bob'));
 });

@@ -1,5 +1,5 @@
 import { defaultPersonalAccount,normalizeSource,migrateFixedIncome,migrateWorkSources,migrateTurns,migrateMovements,migrateProfile,migrateAccounts,normalizeBusiness } from './27_legacy_migrations.js';
-import { personalCash, actualPaymentDate, debtPeriodId, accountLedgerBalance, fuelFundTotals } from './domain/financial-rules.js';
+import { personalCash, actualPaymentDate, debtPeriodId, accountLedgerBalance, fuelFundTotals, incomePeriodDate } from './domain/financial-rules.js';
 /* v2.7.1 - Motor financiero configurable. Cero DOM. */
 import {
   STORAGE_KEY, LEGACY_KEYS, SCHEMA_VERSION, MAPA_DIAS, CAPABILITIES,
@@ -93,11 +93,26 @@ export function finalizarActividad({kmFinal=null,income=null}={}){if(!store.acti
 
 export function registrarPagoFuente(sourceId,monto,fecha=Date.now(),options={}){
   const source=fuenteById(sourceId);if(!source||!sourceUsable(source))throw new Error('FUENTE_NO_ENCONTRADA');
-  const date=actualPaymentDate(fecha),periodDate=new Date(options.periodDate??date),m=requirePositive(monto);
+  const date=actualPaymentDate(fecha),periodDate=incomePeriodDate(options.periodDate??date),m=requirePositive(monto);
   if(!Number.isFinite(periodDate.getTime()))throw new Error('FECHA_INVALIDA');
   const periodo=periodIdFor(source.compensation,periodDate);
   if(store.movimientos.some(x=>x.tipo==='ingreso'&&x.sourceId===source.id&&x.periodo===periodo&&x.paymentKind==='source_period'))throw new Error('COBRO_DUPLICADO');
   store.movimientos.push({id:uuid(),fecha:date.toISOString(),tipo:'ingreso',desc:`Pago · ${source.name}`,monto:m,categoria:'Trabajo',fuente:source.id,sourceId:source.id,accountId:PERSONAL_ACCOUNT_ID,affectsPersonal:true,periodo,paymentKind:'source_period'});return commit();
+}
+export function actualizarPeriodoPagoFuente(movementId,periodDate,{expectedPeriod}={}){
+  const movement=store.movimientos.find(m=>m.id===movementId&&m.tipo==='ingreso'&&m.paymentKind==='source_period'),source=movement&&fuenteById(movement.sourceId);
+  if(!movement||!source)throw new Error('COBRO_NO_ENCONTRADO');
+  if(expectedPeriod!==undefined&&movement.periodo!==expectedPeriod)throw new Error('COBRO_CAMBIO');
+  const periodo=periodIdFor(source.compensation,incomePeriodDate(periodDate));
+  if(store.movimientos.some(m=>m.id!==movementId&&m.tipo==='ingreso'&&m.paymentKind==='source_period'&&m.sourceId===source.id&&m.periodo===periodo))throw new Error('COBRO_DUPLICADO');
+  if(periodo===movement.periodo)return store;
+  const previousPeriod=movement.periodo,previousHistory=movement.periodHistory;
+  movement.periodHistory=[...(movement.periodHistory||[]),{from:movement.periodo,to:periodo,at:new Date().toISOString()}];
+  movement.periodo=periodo;
+  try{saveData();return store;}catch(error){
+    movement.periodo=previousPeriod;if(previousHistory===undefined)delete movement.periodHistory;else movement.periodHistory=previousHistory;
+    throw error;
+  }
 }
 export function registrarFondoFuente(sourceId,monto,descripcion='Depósito de empresa'){const source=fuenteById(sourceId);if(!source||!sourceUsable(source))throw new Error('FUENTE_NO_ENCONTRADA');if(source.fuelPayer!=='company')throw new Error('FONDO_NO_APLICA');if(!source.fundAccountId){const a={id:uuid(),name:`Fondo ${source.name}`,type:'third_party',ownership:'third_party',active:true};store.accounts.push(a);source.fundAccountId=a.id;}const m=requirePositive(monto);store.fondosCombustibleEmpresa.push({id:uuid(),fecha:new Date().toISOString(),monto:m,sourceId:source.id,accountId:source.fundAccountId,fuente:source.id,tipo:'deposito',desc:descripcion});return commit();}
 export function saldoFondoFuente(sourceId,now=new Date()){return fuelFundTotals(store,fuenteById(sourceId)?.fundAccountId,now);}

@@ -47,6 +47,10 @@ function renderMergeChoices(zone){
   const label=value=>value===undefined?'Eliminar':JSON.stringify(value);
   for(const conflict of result.conflicts){
     const row=document.createElement('label');row.style.display='block';
+    if(conflict.kind==='reservation_capacity'){
+      const message=document.createElement('p');message.textContent=`Las reservas combinadas (${conflict.reserved.toFixed(2)}) superan el efectivo (${conflict.cash.toFixed(2)}) en ${conflict.excess.toFixed(2)}. La fusión conserva los registros y queda pendiente. Libera parte de una meta antes de fusionar o elige una versión completa.`;
+      row.append(message);list.append(row);continue;
+    }
     const title=document.createElement('p');title.textContent=conflict.kind==='financial_period'?`Hay pagos en ambos dispositivos para el mismo período (${conflict.path}). Elige una versión o conserva ambos si son pagos distintos.`:conflict.path;row.append(title);
     const select=document.createElement('select');
     for(const [value,text] of [['','Elige una versión'],['local',`Dispositivo: ${label(conflict.local)}`],['remote',`Nube: ${label(conflict.remote)}`]]){
@@ -77,6 +81,7 @@ function activateUser(user){
   const owner=localStorage.getItem('presupuesto_state_owner_v1');
   if(user&&owner&&owner!==user.uid){
     localStorage.setItem(`presupuesto_local_backup_${owner}`,JSON.stringify(Data.getState()));
+    localStorage.removeItem('forecast_include_variable');
     const next=localStorage.getItem(`presupuesto_local_backup_${user.uid}`);
     Data.restaurar(next||JSON.stringify({profile:{onboarded:false},workSources:[],movimientos:[],turnos:[],wallet:{saldo:0,sobres:[]},parametros:{}}));
     observedHash=stateHash();

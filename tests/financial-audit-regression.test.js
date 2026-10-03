@@ -196,7 +196,7 @@ test('sync exige elección ante dos pagos completos concurrentes, pero conserva 
 });
 
 test('concurrente: dos aportaciones distintas actualizan saldo reservado sin reutilizar sólo uno de los totales',()=>{
-  const base={savingsGoals:[{id:'g',reserved:0,history:[]}],movimientos:[],deudas:[]},l=structuredClone(base),r=structuredClone(base);
+  const base={savingsGoals:[{id:'g',reserved:0,history:[]}],movimientos:[entry('opening','ingreso',1000,{categoria:'Sistema'})],deudas:[]},l=structuredClone(base),r=structuredClone(base);
   l.savingsGoals[0].reserved=100;l.savingsGoals[0].history.push({id:'l',type:'reserve',amount:100});
   r.savingsGoals[0].reserved=200;r.savingsGoals[0].history.push({id:'r',type:'reserve',amount:200});
   const merged=mergeStates(l,r,base);assert.deepEqual(merged.conflicts,[]);close(merged.state.savingsGoals[0].reserved,300);
@@ -259,7 +259,7 @@ test('fondos de empresa legacy funcionan en ambos lectores y nunca incrementan e
 
 test('reglas automáticas usan identidad estable entre dispositivos y no duplican aportes',()=>{
   const goal=Goals.createSavingsGoal({name:'Meta',targetAmount:10000,targetDate:'2027-03-01'});Automation.createReserveRule({goalId:goal.id,percent:10});
-  Data.getState().movimientos.push(entry('new-income','ingreso',1000));const base=structuredClone(Data.getState());
+  Data.getState().movimientos.push(entry('new-income','ingreso',1000,{fecha:now.toISOString()}));const base=structuredClone(Data.getState());
   Automation.runAutomationEngine();const local=structuredClone(Data.getState());Data.restaurar(JSON.stringify(base));Automation.runAutomationEngine();const remote=structuredClone(Data.getState());
   const merged=mergeStates(local,remote,base);assert.deepEqual(merged.conflicts,[]);close(merged.state.savingsGoals[0].reserved,100);
   assert.equal(merged.state.savingsGoals[0].history.length,1);assert.equal(merged.state.ruleApplications.filter(a=>a.status==='applied').length,1);

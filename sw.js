@@ -1,5 +1,5 @@
-/* v3.1.0 - Service worker resiliente. Un recurso fallido no invalida toda la instalación. */
-const CACHE='hecagus-finance-3.1.6-shell-v15-fuel-payment';
+/* v3.1.7 - Shell requerido completo antes de activar; recursos no críticos toleran fallos. */
+const CACHE='hecagus-finance-3.1.7-shell-v16-financial-contract';
 const APP_SHELL=[
   '/','/index.html','/onboarding.html','/admin.html','/home.html','/wallet.html','/stats.html','/historial.html','/calendar.html','/offline.html',
   '/style.css','/manifest.webmanifest','/hecagus-finance-192.png','/hecagus-finance-512.png','/js/pwa-bootstrap.js',
@@ -7,7 +7,7 @@ const APP_SHELL=[
   '/js/11_savings_goals.js','/js/12_savings_ui.js','/js/13_financial_life.js','/js/14_calendar_ui.js','/js/15_accounts_engine.js','/js/16_forecast_engine.js',
   '/js/17_automation_engine.js','/js/18_health_goals.js','/js/19_platform_ui.js','/js/20_home_engine.js','/js/21_financial_life_v27.js','/js/22_home_ui.js',
   '/js/23_home_semantics.js','/js/24_home_ui_v28.js','/js/25_activity_insights.js','/js/26_sync_merge.js','/js/27_legacy_migrations.js','/js/28_onboarding_living.js','/js/firebase-config.js',
-  '/js/domain/financial-rules.js','/js/domain/operating-costs.js','/js/ui/operating-costs.js','/js/ui/fuel.js'
+  '/js/domain/financial-rules.js','/js/domain/operating-costs.js','/js/ui/operating-costs.js','/js/ui/fuel.js','/js/ui/source-payments.js','/js/app/financial-options.js','/js/app/financial-context.js'
 ];
 
 async function warmShell(){
@@ -18,6 +18,11 @@ async function warmShell(){
       if(response.ok)await cache.put(request,response.clone());
     }catch(error){console.warn('PWA shell omitió',path,error);}
   }));
+  // Keep the previous worker active if a required page/module failed to load.
+  // Activating a partial JS graph would break an installed app offline.
+  for(const path of APP_SHELL.filter(p=>/\.(?:js|html)$/.test(p))){
+    if(!await cache.match(path))throw new Error(`PWA shell incompleto: ${path}`);
+  }
 }
 
 self.addEventListener('install',event=>{event.waitUntil(warmShell().then(()=>self.skipWaiting()));});

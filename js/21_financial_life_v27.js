@@ -41,6 +41,11 @@ function retireLegacyLivingState(){
 
 export function ensureFinancialLife(){
   Base.ensureFinancialLife();
+  const plan=getState().financialPlan;
+  if(typeof plan.forecastPreferences?.includeVariable!=='boolean'){
+    let includeVariable=false;try{includeVariable=globalThis.localStorage?.getItem('forecast_include_variable')==='true';}catch{}
+    plan.forecastPreferences={...plan.forecastPreferences,includeVariable};saveData();
+  }
   ensureHousehold();
   operatingObligations();
   retireLegacyLivingState();
@@ -90,9 +95,12 @@ export function financialPosition(now=new Date()){
   const workTransport=Base.workTransportCommitment(now);
   const living=homeBudget+homeReserve;
   const committed=due+living+workTransport;
-  // Preserve the existing 30-day planning formula for goals, health and forecasts.
-  // Available today is a separate read model, before future payments and budgets.
+  // Keep the cash-only planning figure as a legacy adapter, not an authorization
+  // to spend or save today. Explicit budgets/reserves stay protected separately.
+  const availableToday=cash-reserved-timing.dueNow;
+  const planningReserve=living+workTransport;
   return {cash,reserved,due,homeDue,homeBudget,homeReserve,living,workTransport,committed,free:cash-reserved-committed,
-    ...timing,availableToday:cash-reserved-timing.dueNow,planningReserve:living+workTransport,
+    cashOnlyPlanFree:cash-reserved-committed,...timing,availableToday,planningReserve,
+    savingsAvailableNow:Math.max(0,availableToday-planningReserve),
     planningDays:PLANNING_DAYS,planningUntil:horizonEnd(now,PLANNING_DAYS).toISOString()};
 }

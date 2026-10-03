@@ -111,13 +111,13 @@ test('proyección de la captura conserva ingresos $19800, egresos $9499 y efecti
   close(f.endingCash,15131.66);close(f.endingFree,14324.66);assert.equal(f.firstNegativeDate,null);
 });
 
-test('Inicio muestra disponible hoy positivo y el negativo original sólo en el plan futuro',()=>{
+test('Inicio muestra disponible hoy y una proyección con ingresos y pagos del mismo horizonte',()=>{
   food();UI.renderFinancialPositionPanel();UI.renderCalendarPreview();
   assert.equal(document.getElementById('mainSummaryValue').textContent,'$4,023.66');
   const summary=document.getElementById('financialPositionZone').textContent,plan=document.getElementById('calendarPreviewZone').textContent;
   assert.match(summary,/Exigible hoy\$0\.00/);assert.match(summary,/Disponible hoy\$4,023\.66/);
-  assert.doesNotMatch(document.getElementById('mainSummarySub').textContent,/no cubre/);assert.match(plan,/Pagos futuros · 30 días\$6,000\.00/);
-  assert.match(plan,/Libre después del plan · 30 días-\$1,976\.34/);assert.match(plan,/efectivo actual/);assert.doesNotMatch(plan,/Vencido/);
+  assert.doesNotMatch(document.getElementById('mainSummarySub').textContent,/no cubre/);assert.match(plan,/Pagos previstos · 45 días\$9,000\.00/);
+  assert.match(plan,/Disponible proyectado · 45 días-\$4,976\.34/);assert.match(plan,/efectivo actual/);assert.doesNotMatch(plan,/Vencido/);
 });
 
 test('un faltante realmente exigible hoy sí mantiene la alerta y el detalle negativo',()=>{
@@ -129,7 +129,7 @@ test('un faltante realmente exigible hoy sí mantiene la alerta y el detalle neg
 test('Calendario usa la misma separación y conserva fechas, navegación y datos',()=>{
   food();Life.financialPosition(now);const before=structuredClone(Data.getState());page(calendarHtml);UI.renderCalendarPage();
   const summary=document.getElementById('calendarPosition').textContent,events=document.getElementById('calendarEvents').textContent;
-  assert.match(summary,/Disponible hoy\$4,023\.66/);assert.match(summary,/Pagos futuros · 30 días\$6,000\.00/);assert.match(summary,/-\$1,976\.34/);
+  assert.match(summary,/Disponible hoy\$4,023\.66/);assert.match(summary,/Pagos previstos · 45 días\$9,000\.00/);assert.match(summary,/-\$4,976\.34/);
   assert.doesNotMatch(events,/Vencido/);assert.match(events,/15 de oct|15 oct/);assert.match(events,/31 de oct|31 oct/);
   assert.deepEqual(Data.getState(),before);assert.equal(document.querySelector('a[href="home.html"]').getAttribute('href'),'home.html');
   assert.equal(Object.hasOwn(Data.getState().financialPlan,'availableToday'),false);
