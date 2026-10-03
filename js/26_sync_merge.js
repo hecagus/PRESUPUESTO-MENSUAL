@@ -1,4 +1,5 @@
 /* Three-way merge. Missing baseline never implies that one device wins. */
+import {personalCash,reservedSavings} from './domain/financial-rules.js';
 const copy=value=>value===undefined?undefined:structuredClone(value);
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const equal=(a,b)=>{
@@ -88,6 +89,11 @@ export function mergeStates(local,remote,base,choices={}){
     }else conflicts.push({path,kind:'financial_period',local:copy(l),remote:copy(r),base:copy(rows.filter(m=>baseIds.has(m.id)))});
   }
   for(const d of state?.deudas||[]){const b=debtBalances.get(d.id);if(b)d.saldo=Math.max(0,(Number(b.saldo)||0)-debtPayments(state,d.id)+debtPayments(base,d.id));}
+  if(state){
+    const now=new Date(),cash=personalCash(state,now),reserved=reservedSavings(state,now);
+    if(reserved>Math.max(0,cash)+0.005)conflicts.push({path:'/financial-reservations/capacity',kind:'reservation_capacity',
+      cash,reserved,excess:reserved-Math.max(0,cash),local:{cash:personalCash(local,now),reserved:reservedSavings(local,now)},remote:{cash:personalCash(remote,now),reserved:reservedSavings(remote,now)}});
+  }
   if(state)state.turnoActivo=state.activeActivity??null;
   return {state,conflicts};
 }
