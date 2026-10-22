@@ -47,6 +47,8 @@ jobs:
           echo "sha1=$signing_sha1" >> "$GITHUB_OUTPUT"
           echo "$signing_sha1" > signing-output/SHA1
           echo "Preview signing SHA-1: $signing_sha1" >> "$GITHUB_STEP_SUMMARY"
+          cp "$HOME/.android/debug.keystore" "$RUNNER_TEMP/hecagus-preview.keystore"
+          echo "HECAGUS_PREVIEW_KEYSTORE=$RUNNER_TEMP/hecagus-preview.keystore" >> "$GITHUB_ENV"
       - name: Preserve preview signing identity
         if: steps.preview-signing.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
