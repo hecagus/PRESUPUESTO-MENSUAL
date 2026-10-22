@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "860840576898-qcdfaui3nbr35qbks0krn0sai0kbfop0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hecagus.presupuesto",
+            "certificate_hash": "8108b515a1ac0df7923010a814c67c0bf198056b"
+          }
+        },
+        {
           "client_id": "860840576898-enb0vvvu089pp7t54dm0cpm28jpui46e.apps.googleusercontent.com",
           "client_type": 3
         }
