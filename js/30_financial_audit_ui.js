@@ -18,7 +18,8 @@ function moneyInput(container,name,id,value,fields,allowNegative=false){
   const input=document.createElement('input');input.type='number';input.step='0.01';if(!allowNegative)input.min='0';input.required=true;input.value=Number(value||0).toFixed(2);input.style.cssText='width:125px;max-width:50%;border:1px solid #94a3b8;border-radius:8px;padding:9px;color:#0f172a;background:white;font-size:16px';
   fields[id]=input;label.append(title,input);container.append(label);
 }
-export function showFinancialAudit(onComplete=()=>{}){
+export function showFinancialAudit(onComplete=()=>{}, force=false){
+  if(force&&overlay){overlay.remove();overlay=null;document.body.style.overflow='';}
   const state=getState(),freshness=financialFreshness(state);
   if(!freshness.stale){if(overlay){overlay.remove();overlay=null;document.body.style.overflow='';}return false;}
   if(overlay)return true;
