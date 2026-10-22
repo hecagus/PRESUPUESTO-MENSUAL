@@ -2,15 +2,13 @@ import {cp,mkdir,readFile,readdir,rm,stat,writeFile} from 'node:fs/promises';
 import {build} from 'esbuild';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {validateGoogleServices} from './android-firebase-config.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const out=path.join(root,'www');
 let googleConfigured=false;
 try{
   const config=JSON.parse(await readFile(path.join(root,'android/app/google-services.json'),'utf8'));
-  if(config.project_info?.project_id!=='app-presupuesto-mensual')throw new Error('google-services.json pertenece a otro proyecto Firebase.');
-  const client=config.client?.find(c=>c.client_info?.android_client_info?.package_name==='com.hecagus.presupuesto');
-  if(!client||!client.oauth_client?.some(c=>c.client_type===3&&c.client_id))throw new Error('Falta el cliente Android com.hecagus.presupuesto o su cliente OAuth web.');
-  googleConfigured=true;
+  googleConfigured=validateGoogleServices(config,process.env.ANDROID_SIGNING_SHA1);
 }catch(error){if(error.code!=='ENOENT')throw error;}
 await rm(out,{recursive:true,force:true});await mkdir(out,{recursive:true});
 for(const name of await readdir(root)){

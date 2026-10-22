@@ -30,7 +30,7 @@ function sourceAdvice(capacity){
     if(s.income<=0)return `<div style="display:flex;justify-content:space-between;gap:8px"><span>${escapeHtml(s.name)}</span><small>sin ingreso este mes</small></div>`;
     return `<div style="display:flex;justify-content:space-between;gap:8px"><span>${escapeHtml(s.name)}</span><small>${s.suggested>0?`podrías apartar ${fmtMoney(s.suggested)}`:`generó ${fmtMoney(s.income)}`}</small></div>`;
   }).join('');
-  const general=capacity.suggestedNow>0?`<div style="margin-top:7px"><strong>💡 Sugerencia ahora: ${fmtMoney(capacity.suggestedNow)}</strong></div>`:'<div style="margin-top:7px"><small>Por ahora no detecto excedente seguro para apartar sin tocar tu colchón operativo.</small></div>';
+  const general=capacity.suggestedNow>0?`<div style="margin-top:7px"><strong>💡 Sugerencia ahora: ${fmtMoney(capacity.suggestedNow)}</strong></div>`:'<div style="margin-top:7px"><small>No hay disponible para apartar hoy después de pagos exigibles y reservas protegidas.</small></div>';
   return `<div style="margin-top:10px;padding:10px;background:#f8fafc;border-radius:10px">${rows}${general}</div>`;
 }
 

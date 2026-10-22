@@ -17,6 +17,40 @@ No cambia la ruta Firestore `users/{uid}/budget/state`, el esquema raíz, los ID
 
 Las rutas actuales y el logo se conservan. Los dos módulos nuevos se incorporan al shell PWA y se cambia su caché. Los importes y colores del resumen financiero conservan su comportamiento previo.
 
+## Corrección de fechas de un solo uso (3.1.4)
+
+En Costos de trabajo aparece «Corregir fechas a hoy · un solo uso» solamente si
+existen pagos personales de obligaciones operativas ya registrados con fecha real
+futura. No aparece para vencimientos programados sin un movimiento de pago. La
+revisión muestra todos los pagos afectados, sus fechas guardadas y el total; cancelar
+no modifica nada. Guardar indica que ya se pagaron y cambia `movimientos[].fecha`
+a la fecha/hora actual de confirmación. Cada importe empieza a afectar el efectivo
+hoy mediante el cálculo canónico existente.
+
+No se agregan ni eliminan movimientos, aunque compartan fecha o período. Se conservan
+IDs, importes históricos, cuentas, fuentes, frecuencia, `operatingPeriod`,
+`operatingDueDate`, `operatingExpectedAmount` y el tratamiento de abonos. Una obligación
+que ahora cuesta $490 no convierte pagos históricos de $499 a $490. Gastos de Hogar,
+deudas, movimientos sin la referencia de una obligación operativa, transferencias,
+metas y fondos de terceros no participan en esta corrección.
+
+`financialPlan.operatingPaymentDateRepair` guarda versión, fecha de aplicación y
+la fecha original de cada ID corregido. Es un campo aditivo del estado actual:
+conserva esquema 30, clave de almacenamiento y documento Firestore; se incluye en
+backups y sincronización normal. Después de guardar, la opción desaparece y un
+reintento no cambia fechas ni descuenta otra vez. Restaurar un backup anterior al
+cambio también restaura sus fechas y su estado anterior de uso; no se trata de una
+restricción de seguridad fuera del estado de la cuenta.
+
+Si cambian los pagos durante la revisión (edición, sincronización o cambio de cuenta),
+se exige abrirla nuevamente. Si falla la escritura local se revierten fechas,
+saldo derivado y marcador en memoria. La sincronización existente conserva los mismos
+IDs y exige resolver fechas incompatibles entre dispositivos; no crea cobros nuevos.
+No se accede al estado privado del usuario desde el despliegue ni se corrige
+automáticamente al cargar. El usuario aplica esta reparación desde su propia cuenta.
+
+La PWA 3.1.4 / shell v13 reemplaza la caché v12 y mantiene rutas y recursos offline.
+
 ## Verificación
 
 Tests de dominio, formulario con DOM, saldo/cuentas, métricas por fuente, abonos, liquidación, frecuencias, vencidos, finalización, backups, merge de sync, proyección variable sin doble conteo y service worker offline/actualización. Las reglas Firestore se ejecutan en CI con Java 21.

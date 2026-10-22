@@ -58,7 +58,9 @@ test('v2.3 la cuenta base no puede archivarse',()=>{
   assert.throws(()=>Accounts.setAccountActive('acct-personal',false),/CUENTA_BASE/);
 });
 
-test('v2.4 proyección usa pagos históricos para estimar próximos ingresos fijos',()=>{
+test('v2.4 proyección usa pagos históricos para estimar próximos ingresos fijos',t=>{
+  // La creación del compromiso y la proyección deben compartir el mismo reloj.
+  t.mock.timers.enable({apis:['Date'],now:new Date('2026-08-29T12:00:00')});
   Data.saldoInicial(2000);
   Data.crearFuenteTrabajo({name:'Empresa',kind:'employment',compensation:'monthly',trackTime:false,fuelPayer:'none'});
   const source=Data.getState().workSources[0];

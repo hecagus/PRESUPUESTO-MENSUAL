@@ -7,6 +7,6 @@ android/.gradle/
 android/**/build/
 android/local.properties
 android/app/src/main/assets/
-android/app/google-services.json
+# Firebase client configuration is public and required by the Android CI build.
 *.jks
 *.keystore

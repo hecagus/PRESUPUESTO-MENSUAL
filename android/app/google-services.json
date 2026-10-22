@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "860840576898",
+    "project_id": "app-presupuesto-mensual",
+    "storage_bucket": "app-presupuesto-mensual.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:860840576898:android:4f1dbdcda79263cd1e319b",
+        "android_client_info": {
+          "package_name": "com.hecagus.presupuesto"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "860840576898-p5spo4ofi9f54ofhkos2nkov4u7q4fhv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hecagus.presupuesto",
+            "certificate_hash": "9c7715964aa9983caf97bcee9b609170519c96fa"
+          }
+        },
+        {
+          "client_id": "860840576898-enb0vvvu089pp7t54dm0cpm28jpui46e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkjghqzl-WXGd-CyoDHg3syc13_qw6V4c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "860840576898-enb0vvvu089pp7t54dm0cpm28jpui46e.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
