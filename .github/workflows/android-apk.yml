@@ -81,10 +81,13 @@ jobs:
         env:
           ANDROID_SIGNING_SHA1: ${{ steps.preview-certificate.outputs.sha1 }}
         run: |
+          set -euo pipefail
           mkdir -p apk-output
           cp android/app/build/outputs/apk/debug/app-debug.apk apk-output/hecagus-android-preview.apk
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs apk-output/hecagus-android-preview.apk > apk-output/certificate.txt
-          apk_sha1=$(awk '/Signer #1 certificate SHA-1 digest:/ {print toupper($NF)}' apk-output/certificate.txt)
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs apk-output/hecagus-android-preview.apk | tee apk-output/certificate.txt
+          apk_sha1=$(awk '/^Signer .*certificate SHA-1 digest:/ {print toupper($NF)}' apk-output/certificate.txt | sort -u)
+          echo "APK signing SHA-1: $apk_sha1"
+          test "${#apk_sha1}" -eq 40
           test "$apk_sha1" = "$ANDROID_SIGNING_SHA1"
           cp signing-output/certificate.pem signing-output/SHA1 apk-output/
           sha256sum apk-output/hecagus-android-preview.apk > apk-output/SHA256SUMS
@@ -94,3 +97,4 @@ jobs:
           name: hecagus-android-preview
           path: apk-output/
           retention-days: 30
+
