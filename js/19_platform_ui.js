@@ -1,5 +1,5 @@
 /* v3.1.0 - UI integrada por página: una sola línea de tiempo y cálculos sólo donde se usan. */
-import { $, fmtMoney, safeFloat } from './01_consts_utils.js';
+import { $, fmtMoney, safeFloat, uuid } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { Modal } from './03_render.js';
 import {
@@ -17,8 +17,10 @@ import { financialHealth,goalPortfolioPlan } from './18_health_goals.js';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dateLabel=d=>new Date(d).toLocaleDateString('es-MX',{day:'numeric',month:'short'});
 const dateLong=d=>d?new Date(d).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}):'—';
+const dueLabel=d=>dateLong(/^\d{4}-\d{2}-\d{2}$/.test(String(d))?`${d}T12:00:00`:d);
 let eventsBound=false;
 let changeHandler=()=>{};
+let historyLimit=100;
 
 const ERRORS={
   NOMBRE_INVALIDO:'Escribe un nombre válido.',DESCRIPCION_INVALIDA:'Escribe una descripción.',MONTO_INVALIDO:'Ingresa un monto mayor a 0.',
@@ -29,7 +31,7 @@ const ERRORS={
 };
 
 function changed({automate=true}={}){if(automate)runAutomationEngine();changeHandler?.();document.dispatchEvent(new CustomEvent('budget:data-changed'));}
-function run(fn,opts){try{fn();changed(opts);}catch(e){console.error(e);alert(ERRORS[e.message]||'No se pudo completar la operación.');}}
+function run(fn,opts){try{Data.withTransaction(()=>{fn();if(opts?.automate!==false)runAutomationEngine();});changed({automate:false});return true;}catch(e){console.error(e);return Modal.error(ERRORS[e.message]||'No se pudo guardar. Revisa el espacio disponible e inténtalo de nuevo.');}}
 
 function ensureBefore(anchor,id,html){if($(id))return $(id);const node=document.createElement('div');node.id=id;node.innerHTML=html;anchor?.parentElement?.insertBefore(node,anchor);return node;}
 function ensureAfter(anchor,id,html){if($(id))return $(id);const node=document.createElement('div');node.id=id;node.innerHTML=html;anchor?.parentElement?.insertBefore(node,anchor.nextSibling);return node;}
@@ -63,8 +65,9 @@ function renderForecastOption(zone,enabled){
   if(!zone)return;zone.querySelector('[data-forecast-option]')?.remove();
   const label=document.createElement('label');label.dataset.forecastOption='';label.style.display='block';
   const input=document.createElement('input');input.type='checkbox';input.checked=enabled;
-  label.append(input,document.createTextNode(' Incluir ingresos variables netos estimados (historial de hasta 8 semanas; requiere 14 días y 3 ingresos).'));
-  input.addEventListener('change',()=>{setVariableIncomeScenario(input.checked);changeHandler?.();renderFinancialPlatform();document.dispatchEvent(new CustomEvent('budget:data-changed'));});zone.append(label);
+  label.append(input,document.createTextNode(' Incluir ingresos variables estimados'));
+  label.title='Usa hasta 8 semanas de historial; requiere al menos 14 días y 3 ingresos. Son una estimación, no dinero cobrado.';
+  input.addEventListener('change',()=>{setVariableIncomeScenario(input.checked);changeHandler?.();renderFinancialPlatform();document.dispatchEvent(new CustomEvent('budget:data-changed'));});(zone.querySelector('.card')||zone).append(label);
 }
 
 function renderAutomation(){
@@ -75,7 +78,7 @@ function renderAutomation(){
 
 function renderAlerts(alerts=null){
   const page=document.body.dataset.page;if(page!=='index'&&page!=='calendar')return;const rows=alerts||smartAlerts(),panel=$('panelAlerts');
-  if(panel){panel.querySelectorAll('[data-platform-alert]').forEach(node=>node.remove());for(const a of rows){const div=document.createElement('div');div.dataset.platformAlert='1';div.style.cssText='padding:7px 0;border-top:1px solid #e2e8f0';div.innerHTML=`${a.level==='critical'?'🔴':'🟠'} <strong>${esc(a.title)}</strong><br><small>${esc(a.message)}</small>`;panel.append(div);}}
+  if(panel){if(rows.length)panel.querySelector('[data-base-calm]')?.remove();panel.querySelectorAll('[data-platform-alert]').forEach(node=>node.remove());for(const a of rows){const div=document.createElement('div');div.dataset.platformAlert='1';div.style.cssText='padding:7px 0;border-top:1px solid #e2e8f0';div.innerHTML=`${a.level==='critical'?'🔴':'🟠'} <strong>${esc(a.title)}</strong><br><small>${esc(a.message)}</small>`;panel.append(div);}}
   if(page!=='calendar')return;
   let zone=$('platformCalendarAlerts');if(!rows.length){zone?.remove();return;}const anchor=$('calendarPosition');if(!anchor)return;if(!zone){zone=document.createElement('div');zone.id='platformCalendarAlerts';anchor.parentElement.insertAdjacentElement('afterend',zone);}
   zone.innerHTML=`<section class="card" style="border-left:5px solid #f59e0b"><h2>⚠️ Atención</h2>${rows.map(a=>`<div style="padding:5px 0"><strong>${esc(a.title)}</strong><br><small>${esc(a.message)}</small></div>`).join('')}</section>`;
@@ -89,22 +92,30 @@ function renderHealth(){
 }
 
 function renderSmartGoals(){
-  if(document.body.dataset.page!=='wallet')return;const anchor=$('savingsGoalsContainer');if(!anchor)return;ensureAfter(anchor,'platformSmartGoals','<section><h2 style="margin:14px 4px 8px">🧠 Plan inteligente de metas</h2><div id="platformSmartGoalRows"></div></section>');
-  const rows=$('platformSmartGoalRows'),plans=goalPortfolioPlan();if(!rows)return;
-  rows.innerHTML=plans.length?plans.map(p=>{const status=p.status==='complete'?'✅ Completada':p.status==='on_track'?'🟢 En ruta':p.status==='at_risk'?'🟠 Ajustada':'🔴 Sin capacidad detectada';const source=p.sourcePlan?.find(s=>s.suggested>0);return `<section class="card"><div style="display:flex;justify-content:space-between;gap:8px"><strong>🎯 ${esc(p.goal.name)}</strong><strong>${status}</strong></div>${p.status==='complete'?'<small>Objetivo alcanzado.</small>':`<div class="grid-2" style="margin-top:8px"><div><small>Necesitas / mes</small><strong style="display:block">${fmtMoney(p.requiredMonthly)}</strong></div><div><small>Capacidad mensual proyectada</small><strong style="display:block">${fmtMoney(p.availableMonthly)}</strong></div></div><small style="display:block;margin-top:7px">${p.suggestedNow>0?`Puedes apartar ahora hasta <strong>${fmtMoney(p.suggestedNow)}</strong>${source?` usando lo generado por ${esc(source.name)}`:''}.`:'No detecto dinero realmente libre suficiente para aportar ahora.'}${p.estimatedCompletionDate?` A este ritmo, fecha estimada: <strong>${dateLong(p.estimatedCompletionDate)}</strong>.`:''}</small>`}</section>`;}).join(''):'<small>Crea una meta para generar un plan.</small>';
+  if(document.body.dataset.page!=='wallet')return;
+  $('platformSmartGoals')?.remove();
+  for(const plan of goalPortfolioPlan()){
+    const card=[...document.querySelectorAll('[data-goal-card]')].find(el=>el.dataset.goalCard===plan.goal.id);if(!card||plan.status==='complete')continue;
+    card.querySelector('[data-smart-goal-info]')?.remove();const info=document.createElement('p');info.dataset.smartGoalInfo='';info.className='goal-plan-detail';
+    info.textContent=(plan.status==='on_track'?'En ruta. ':plan.status==='at_risk'?'Meta ajustada. ':'Falta capacidad para alcanzar la meta. ')+'Capacidad mensual proyectada: '+fmtMoney(plan.availableMonthly)+(plan.estimatedCompletionDate?' · Fecha estimada: '+dateLong(plan.estimatedCompletionDate):' · Aún no hay flujo suficiente para estimar una fecha')+'.';
+    card.insertBefore(info,card.lastElementChild);
+  }
 }
 
 function renderHistory(){
   if(document.body.dataset.page!=='historial'||!$('tablaBody'))return;const s=Data.getState(),events=[];
   for(const m of s.movimientos||[]){
     if(m.tipo==='transferencia'){const from=s.accounts.find(a=>a.id===m.fromAccountId),to=s.accounts.find(a=>a.id===m.toAccountId);events.push({fecha:m.fecha,title:'Transferencia',meta:`${from?.name||'Cuenta'} → ${to?.name||'Cuenta'}`,mode:'transfer',amount:safeFloat(m.monto)});}
-    else events.push({fecha:m.fecha,title:m.desc,meta:`${m.categoria||''}${m.accountId?` · ${s.accounts.find(a=>a.id===m.accountId)?.name||'Cuenta'}`:''}${m.affectsPersonal===false?' · no afecta patrimonio':''}`,mode:m.tipo,amount:safeFloat(m.monto)});
+    else events.push({fecha:m.fecha,title:m.desc,dateOnly:m.dateOnly===true||m.movementKind==='household_direct'&&m.dateOnly===undefined,meta:`${m.categoria||''}${m.accountId?` · ${s.accounts.find(a=>a.id===m.accountId)?.name||'Cuenta'}`:''}${m.affectsPersonal===false?' · no cambia el saldo':''}${m.operatingDueDate?` · Cubre vencimiento del ${dueLabel(m.operatingDueDate)}`:''}`,mode:m.affectsPersonal===false&&(m.goalId||m.categoria==='Meta')?'reservation':m.tipo,amount:safeFloat(m.monto)});
   }
   for(const t of s.turnos||[]){const src=s.workSources.find(x=>x.id===t.sourceId);events.push({fecha:t.fecha,title:`Actividad · ${src?.name||'Trabajo'}`,meta:`${safeFloat(t.duracionHoras).toFixed(1)} h${safeFloat(t.kmRecorrido)>0?` · ${safeFloat(t.kmRecorrido).toFixed(0)} km`:''}`,mode:'activity',amount:null});}
   for(const f of s.fondosCombustibleEmpresa||[]){const src=s.workSources.find(x=>x.id===f.sourceId);events.push({fecha:f.fecha,title:f.desc||`Depósito empresa · ${src?.name||'Trabajo'}`,meta:'Fondo de tercero · no afecta patrimonio',mode:'fund',amount:safeFloat(f.monto)});}
   for(const c of (s.cargasCombustible||[]).filter(x=>x.pagador==='empresa')){const src=s.workSources.find(x=>x.id===c.sourceId),account=s.accounts.find(a=>a.id===c.accountId);events.push({fecha:c.fecha,title:`Combustible${c.gasolinera?` · ${c.gasolinera}`:''}`,meta:`${src?.name||'Uso personal'}${account?` · ${account.name}`:''} · ${safeFloat(c.litros).toFixed(2)} L · fondo de tercero`,mode:'fuel',amount:safeFloat(c.costo)});}
   events.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
-  $('tablaBody').innerHTML=events.slice(0,150).map(e=>{let value='—',color='var(--text-sec)';if(e.mode==='transfer')value=`⇄ ${fmtMoney(e.amount)}`;else if(e.mode==='ingreso'){value=`+${fmtMoney(e.amount)}`;color='#16a34a';}else if(['gasto','fuel'].includes(e.mode)){value=`-${fmtMoney(e.amount)}`;color='#dc2626';}else if(e.mode==='fund'){value=`+${fmtMoney(e.amount)}`;color='#f59e0b';}return `<tr><td>${dateLabel(e.fecha)}<br><small>${new Date(e.fecha).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</small></td><td><strong>${esc(e.title)}</strong><br><small>${esc(e.meta)}</small></td><td style="text-align:right;font-weight:bold;color:${color}">${value}</td></tr>`;}).join('')||'<tr><td colspan="3">Sin actividad todavía</td></tr>';
+  $('tablaBody').innerHTML=events.slice(0,historyLimit).map(e=>{let value='—',color='var(--text-sec)';if(e.mode==='transfer')value=`⇄ ${fmtMoney(e.amount)}`;else if(e.mode==='reservation'){value=`⇄ ${fmtMoney(e.amount)}`;color='#6366f1';}else if(e.mode==='ingreso'){value=`+${fmtMoney(e.amount)}`;color='#16a34a';}else if(['gasto','fuel'].includes(e.mode)){value=`-${fmtMoney(e.amount)}`;color='#dc2626';}else if(e.mode==='fund'){value=`+${fmtMoney(e.amount)}`;color='#f59e0b';}return `<tr><td>${dateLabel(e.fecha)}${e.dateOnly?'':`<br><small>${new Date(e.fecha).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</small>`}</td><td><strong>${esc(e.title)}</strong><br><small>${esc(e.meta)}</small></td><td style="text-align:right;font-weight:bold;color:${color}">${value}</td></tr>`;}).join('')||'<tr><td colspan="3">Sin actividad todavía</td></tr>';
+  let controls=$('historyPagination');
+  if(!controls){controls=document.createElement('div');controls.id='historyPagination';controls.className='history-pagination';$('tablaBody').closest('table').insertAdjacentElement('afterend',controls);}
+  controls.innerHTML=`<p role="status">Mostrando ${Math.min(historyLimit,events.length)} de ${events.length} registros</p>${events.length>historyLimit?'<button class="btn btn-outline" data-platform-action="history-more">Ver 100 más</button>':''}`;
 }
 
 export function ensureFinancialPlatform(){ensureAccountsEngine();ensureAutomationEngine();}
@@ -120,8 +131,8 @@ export function renderFinancialPlatform(){
 
 function newAccount(){Modal.show('Nueva cuenta',[{label:'Nombre',key:'n',placeholder:'Efectivo, BBVA, Nu...'},{label:'Tipo',key:'t',type:'select',options:[{val:'cash',txt:'Efectivo / caja'},{val:'bank',txt:'Cuenta bancaria'},{val:'wallet',txt:'Wallet digital'}]}],d=>run(()=>createPersonalAccount({name:d.n,type:d.t}),{automate:false}));}
 function transfer(){const accounts=getPersonalAccounts({activeOnly:true});if(accounts.length<2)return alert('Necesitas al menos dos cuentas personales para transferir.');Modal.show('Transferir entre mis cuentas',[{label:'Desde',key:'f',type:'select',options:accounts.map(a=>({val:a.id,txt:`${a.name} · ${fmtMoney(accountBalance(a.id))}`}))},{label:'Hacia',key:'t',type:'select',options:accounts.map(a=>({val:a.id,txt:a.name}))},{label:'Monto',key:'m',type:'number'},{label:'Nota (opcional)',key:'n'}],d=>run(()=>transferBetweenAccounts({fromAccountId:d.f,toAccountId:d.t,amount:d.m,note:d.n}),{automate:false}));}
-function movement(){const accounts=getPersonalAccounts({activeOnly:true});if(!accounts.length)return alert('Primero crea una cuenta.');const sources=[{val:'',txt:'Personal / sin fuente'},...Data.getState().workSources.filter(s=>s.active!==false).map(s=>({val:s.id,txt:s.name}))];Modal.show('Nuevo movimiento',[{label:'Tipo',key:'t',type:'select',options:[{val:'expense',txt:'Gasto'},{val:'income',txt:'Ingreso'}]},{label:'Cuenta',key:'a',type:'select',options:accounts.map(a=>({val:a.id,txt:`${a.name} · ${fmtMoney(accountBalance(a.id))}`}))},{label:'Descripción',key:'d'},{label:'Monto',key:'m',type:'number'},{label:'Categoría',key:'c',placeholder:'Comida, vivienda, trabajo...'},{label:'Fuente (opcional)',key:'s',type:'select',options:sources}],d=>run(()=>recordUniversalMovement({type:d.t,description:d.d,amount:d.m,accountId:d.a,category:d.c||'Otro',sourceId:d.s||null})));}
+function movement(){const operationId=uuid();const accounts=getPersonalAccounts({activeOnly:true});if(!accounts.length)return alert('Primero crea una cuenta.');const sources=[{val:'',txt:'Personal / sin fuente'},...Data.getState().workSources.filter(s=>s.active!==false).map(s=>({val:s.id,txt:s.name}))];Modal.show('Nuevo movimiento',[{label:'Tipo',key:'t',type:'select',options:[{val:'expense',txt:'Gasto'},{val:'income',txt:'Ingreso'}]},{label:'Cuenta',key:'a',type:'select',options:accounts.map(a=>({val:a.id,txt:`${a.name} · ${fmtMoney(accountBalance(a.id))}`}))},{label:'Descripción',key:'d'},{label:'Monto',key:'m',type:'number'},{label:'Categoría',key:'c',placeholder:'Comida, vivienda, trabajo...'},{label:'Fuente (opcional)',key:'s',type:'select',options:sources}],d=>run(()=>recordUniversalMovement({type:d.t,description:d.d,amount:d.m,accountId:d.a,category:d.c||'Otro',sourceId:d.s||null,operationId})));}
 function newRule(){const goals=(Data.getState().savingsGoals||[]).filter(g=>g.active!==false&&safeFloat(g.reserved)<safeFloat(g.targetAmount));if(!goals.length)return alert('Primero crea una meta de ahorro activa.');const sources=[{val:'',txt:'Cualquier ingreso'},...Data.getState().workSources.filter(s=>s.active!==false).map(s=>({val:s.id,txt:s.name}))];Modal.show('Nueva automatización',[{label:'Meta',key:'g',type:'select',options:goals.map(g=>({val:g.id,txt:g.name}))},{label:'Apartar porcentaje de cada ingreso',key:'p',type:'number',value:10},{label:'Solo de esta fuente (opcional)',key:'s',type:'select',options:sources},{label:'Nombre de la regla (opcional)',key:'n'}],d=>run(()=>createReserveRule({goalId:d.g,percent:d.p,sourceId:d.s||null,name:d.n}),{automate:false}));}
 function minFree(){const current=Data.getState().automationPreferences?.minFreeCash||0;Modal.show('Colchón mínimo',[{label:'Avísame si mi dinero libre baja de ($)',key:'m',type:'number',value:current}],d=>run(()=>setMinFreeCashAlert(d.m),{automate:false}));}
 
-export function initFinancialPlatformEvents(onChange){changeHandler=onChange||(()=>{});if(eventsBound)return;eventsBound=true;document.addEventListener('click',e=>{const b=e.target.closest('[data-platform-action]');if(!b||b.disabled)return;const a=b.dataset.platformAction;if(a==='new-account')return newAccount();if(a==='transfer')return transfer();if(a==='movement')return movement();if(a==='archive-account')return run(()=>setAccountActive(b.dataset.id,false),{automate:false});if(a==='new-rule')return newRule();if(a==='min-free')return minFree();if(a==='toggle-rule')return run(()=>setAutomationRuleActive(b.dataset.id,b.dataset.active!=='true'),{automate:false});});}
+export function initFinancialPlatformEvents(onChange){changeHandler=onChange||(()=>{});if(eventsBound)return;eventsBound=true;document.addEventListener('click',e=>{const b=e.target.closest('[data-platform-action]');if(!b||b.disabled)return;const a=b.dataset.platformAction;if(a==='history-more'){historyLimit+=100;renderHistory();return;}if(a==='new-account')return newAccount();if(a==='transfer')return transfer();if(a==='movement')return movement();if(a==='archive-account')return run(()=>setAccountActive(b.dataset.id,false),{automate:false});if(a==='new-rule')return newRule();if(a==='min-free')return minFree();if(a==='toggle-rule')return run(()=>setAutomationRuleActive(b.dataset.id,b.dataset.active!=='true'),{automate:false});});}

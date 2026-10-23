@@ -2,7 +2,7 @@
 import { safeFloat } from './01_consts_utils.js';
 import { getState } from './02_data.js';
 import { financialContext } from './app/financial-context.js';
-import { savingsGoalSummary } from './11_savings_goals.js';
+import { savingsGoalSummary, savingsCapacity, savingsAdvicePortfolio } from './11_savings_goals.js';
 import { inObservedPeriod, isPersonalMovement, MONTH_DAYS } from './domain/financial-rules.js';
 
 const DAY=86400000;
@@ -32,28 +32,24 @@ export function financialHealth(now=new Date(),options={}){
     planningOutflow:monthly.outflow,additionalMonthly:monthly.additional,additionalObserved:monthly.additionalObserved,scenario,incomplete:measured.length<4||projection.insufficientSources.length>0};
 }
 
-function sourceIncome30(now=new Date()){
-  const state=getState(),cutoff=new Date(now.getTime()-30*DAY);
-  return (state.workSources||[]).filter(s=>s.active!==false&&s.status!=='ended'&&s.status!=='paused').map(source=>({id:source.id,name:source.name,income:(state.movimientos||[]).filter(m=>m.tipo==='ingreso'&&m.categoria!=='Sistema'&&isPersonalMovement(state,m)&&m.sourceId===source.id&&inObservedPeriod(m.fecha,cutoff,now)).reduce((a,m)=>a+safeFloat(m.monto),0)})).sort((a,b)=>b.income-a.income);
-}
 export function smartGoalPlan(goalId,now=new Date(),options={}){
   const summary=savingsGoalSummary(goalId,now);if(!summary)return null;const health=options.health||financialHealth(now,options),position=health.position,remaining=summary.remaining;
   if(summary.complete)return {goal:summary.goal,status:'complete',summary,requiredMonthly:0,availableMonthly:0,suggestedNow:0,estimatedCompletionDate:summary.goal.completedAt||now.toISOString(),sourcePlan:[]};
-  const availableMonthly=Math.max(0,health.monthlyIncome-health.planningOutflow),suggestedNow=Math.min(remaining,position.savingsAvailableNow,summary.requiredMonthly||remaining);
+  const advice=options.advice||savingsCapacity(goalId,now),availableMonthly=Math.max(0,health.monthlyIncome-health.planningOutflow),suggestedNow=advice?.suggestedNow||0;
   let status='blocked';if(availableMonthly>=summary.requiredMonthly&&summary.requiredMonthly>0)status='on_track';else if(availableMonthly>0||suggestedNow>0)status='at_risk';
   const monthsNeeded=availableMonthly>0?Math.max(0,remaining-suggestedNow)/availableMonthly:null,estimatedCompletionDate=suggestedNow>=remaining?now.toISOString():monthsNeeded!==null?new Date(now.getTime()+monthsNeeded*MONTH_DAYS*DAY).toISOString():null;
-  let pending=suggestedNow;const sourcePlan=sourceIncome30(now).map(s=>{const take=Math.min(s.income,pending);pending=Math.max(0,pending-take);return {...s,suggested:take};});
+  const sourcePlan=advice?.sources||[];
   return {goal:summary.goal,status,summary,requiredMonthly:summary.requiredMonthly,availableMonthly,suggestedNow,estimatedCompletionDate,sourcePlan,forecast:health.forecast,scenario:health.scenario};
 }
 export function goalPortfolioPlan(now=new Date(),options={}){
   const state=getState(),rank={high:0,normal:1,low:2};
   const health=financialHealth(now,options);
-  const plans=(state.savingsGoals||[]).filter(g=>g.active!==false).map(g=>smartGoalPlan(g.id,now,{health})).filter(Boolean).sort((a,b)=>(rank[a.goal.priority]??1)-(rank[b.goal.priority]??1));
+  const advice=savingsAdvicePortfolio(now);
+  const plans=(state.savingsGoals||[]).filter(g=>g.active!==false).map(g=>smartGoalPlan(g.id,now,{health,advice:advice.find(p=>p.goalId===g.id)})).filter(Boolean).sort((a,b)=>(rank[a.goal.priority]??1)-(rank[b.goal.priority]??1));
   let cash=health.position.savingsAvailableNow,monthly=Math.max(0,health.monthlyIncome-health.planningOutflow);
   for(const plan of plans){
     plan.suggestedNow=Math.min(plan.suggestedNow,cash);cash-=plan.suggestedNow;
     plan.availableMonthly=Math.min(monthly,plan.requiredMonthly);monthly-=plan.availableMonthly;
-    let allocation=plan.suggestedNow;for(const source of plan.sourcePlan){source.suggested=Math.min(source.income,allocation);allocation-=source.suggested;}
     if(plan.status!=='complete')plan.status=plan.availableMonthly>=plan.requiredMonthly&&plan.requiredMonthly>0?'on_track':plan.availableMonthly>0||plan.suggestedNow>0?'at_risk':'blocked';
     if(plan.status!=='complete')plan.estimatedCompletionDate=plan.suggestedNow>=plan.summary.remaining?now.toISOString():plan.availableMonthly>0?new Date(now.getTime()+(plan.summary.remaining-plan.suggestedNow)/plan.availableMonthly*MONTH_DAYS*DAY).toISOString():null;
   }

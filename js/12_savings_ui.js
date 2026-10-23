@@ -1,7 +1,7 @@
 /* v2.1.0 - UI de metas de ahorro y advertencias de retiro. */
 import { $, fmtMoney } from './01_consts_utils.js';
 import { Modal } from './03_render.js';
-import { getState } from './02_data.js';
+import { getState, withTransaction } from './02_data.js';
 import {
   ensureSavingsGoals,getSavingsGoals,createSavingsGoal,contributeToSavingsGoal,
   withdrawFromSavingsGoal,savingsGoalSummary,savingsCapacity,previewSavingsWithdrawal
@@ -20,8 +20,8 @@ const priorityLabel=p=>p==='high'?'Alta':p==='low'?'Baja':'Normal';
 const dateLabel=d=>d?new Date(d).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}):'Sin fecha límite';
 
 function run(action,onChange){
-  try{action();onChange?.();document.dispatchEvent(new CustomEvent('budget:data-changed'));}
-  catch(e){console.error(e);alert(ERRORS[e.message]||'No se pudo completar la operación.');}
+  try{withTransaction(action);onChange?.();document.dispatchEvent(new CustomEvent('budget:data-changed'));return true;}
+  catch(e){console.error(e);return Modal.error(ERRORS[e.message]||'No se pudo guardar. Revisa el espacio disponible e inténtalo de nuevo.');}
 }
 
 function sourceAdvice(capacity){
@@ -30,7 +30,7 @@ function sourceAdvice(capacity){
     if(s.income<=0)return `<div style="display:flex;justify-content:space-between;gap:8px"><span>${escapeHtml(s.name)}</span><small>sin ingreso este mes</small></div>`;
     return `<div style="display:flex;justify-content:space-between;gap:8px"><span>${escapeHtml(s.name)}</span><small>${s.suggested>0?`podrías apartar ${fmtMoney(s.suggested)}`:`generó ${fmtMoney(s.income)}`}</small></div>`;
   }).join('');
-  const general=capacity.suggestedNow>0?`<div style="margin-top:7px"><strong>💡 Sugerencia ahora: ${fmtMoney(capacity.suggestedNow)}</strong></div>`:'<div style="margin-top:7px"><small>No hay disponible para apartar hoy después de pagos exigibles y reservas protegidas.</small></div>';
+  const general=capacity.suggestedNow>0?`<div style="margin-top:7px"><strong>💡 Sugerencia para esta meta: ${fmtMoney(capacity.suggestedNow)}</strong></div>`:'<div style="margin-top:7px"><small>No hay margen recomendado para esta meta al considerar los próximos 45 días y las otras metas.</small></div>';
   return `<div style="margin-top:10px;padding:10px;background:#f8fafc;border-radius:10px">${rows}${general}</div>`;
 }
 
@@ -41,7 +41,7 @@ export function renderSavingsGoalsUI(){
     const goals=getSavingsGoals().filter(g=>g.active!==false);
     container.innerHTML=goals.length?goals.map(g=>{
       const r=savingsGoalSummary(g.id),c=savingsCapacity(g.id),done=r.complete;
-      return `<section class="card" style="border-left:5px solid ${done?'#16a34a':'#6366f1'}">
+      return `<section class="card" data-goal-card="${escapeHtml(g.id)}" style="border-left:5px solid ${done?'#16a34a':'#6366f1'}">
         <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
           <div><strong>🎯 ${escapeHtml(g.name)}</strong><small style="display:block;color:var(--text-sec);margin-top:3px">Prioridad ${priorityLabel(g.priority)} · ${dateLabel(g.targetDate)}</small></div>
           <strong>${r.progress.toFixed(0)}%</strong>
@@ -83,7 +83,11 @@ function contribute(id,onChange){
   Modal.show('Apartar dinero para la meta',[
     {label:'Monto a reservar ($)',key:'m',type:'number'},
     {label:'¿De qué ingreso proviene? (opcional)',key:'s',type:'select',options:sourceOptions}
-  ],d=>run(()=>contributeToSavingsGoal(id,d.m,{sourceId:d.s||null}),onChange));
+  ],d=>{
+    const advice=savingsCapacity(id);
+    if(Number(d.m)>advice.suggestedNow&&!confirm(`La sugerencia para esta meta es ${fmtMoney(advice.suggestedNow)}, considerando los pagos de los próximos 45 días y las demás metas. Apartar más puede dejar menos dinero para esos pagos. ¿Quieres apartar ${fmtMoney(Number(d.m))}?`))return false;
+    return run(()=>contributeToSavingsGoal(id,d.m,{sourceId:d.s||null}),onChange);
+  });
 }
 
 function withdraw(id,onChange){
@@ -94,9 +98,9 @@ function withdraw(id,onChange){
       const delay=p.delayDays!==null&&p.delayDays>0?`\nSi mantienes tu ritmo actual, podría retrasar la meta alrededor de ${p.delayDays} días.`:'';
       const recovery=p.recoveryLikely?'Con el flujo registrado este mes, parece recuperable si mantienes ese ritmo.':'Con el flujo registrado este mes, no puedo asegurar que puedas reponerlo sin ajustar gastos o ingresos.';
       const msg=`⚠️ Vas a liberar ${fmtMoney(p.amount)} de “${goal.name}”.\n\nReservado: ${fmtMoney(p.before.reserved)} → ${fmtMoney(p.afterReserved)}\nNuevo ritmo necesario: ${fmtMoney(p.afterRequiredMonthly)}/mes\nEso exige ${fmtMoney(p.extraPerMonth)} extra por mes.${delay}\n\n${recovery}\n\n¿Seguro que quieres usarlo?`;
-      if(!confirm(msg))return;
-      run(()=>withdrawFromSavingsGoal(id,p.amount),onChange);
-    }catch(e){console.error(e);alert(ERRORS[e.message]||'No se pudo calcular el retiro.');}
+      if(!confirm(msg))return false;
+      return run(()=>withdrawFromSavingsGoal(id,p.amount),onChange);
+    }catch(e){console.error(e);return Modal.error(ERRORS[e.message]||'No se pudo calcular el retiro.');}
   });
 }
 

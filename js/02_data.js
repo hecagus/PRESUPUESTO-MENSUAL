@@ -20,12 +20,29 @@ const INITIAL_STATE={
 
 let store=structuredClone(INITIAL_STATE);
 let unreadableStorage=null;
+let transactionDepth=0;
+// A financial capture is committed once; failed writes cannot leave phantom payments in memory.
+export function withTransaction(action){
+  const outer=transactionDepth===0,before=outer?structuredClone(store):null,previousUnreadable=unreadableStorage;
+  transactionDepth++;
+  try{
+    const result=action();
+    if(result&&typeof result.then==='function')throw new Error('TRANSACCION_ASINCRONA_NO_ADMITIDA');
+    transactionDepth--;
+    if(outer)saveData();
+    return result;
+  }catch(error){
+    transactionDepth=outer?0:transactionDepth-1;
+    if(outer){store=before;unreadableStorage=previousUnreadable;}
+    throw error;
+  }
+}
 export const getState=()=>store;
 export const createEmptyState=()=>structuredClone({...INITIAL_STATE,accounts:[defaultPersonalAccount()]});
 export const getCapabilities=()=>new Set(store.profile?.capabilities||[]);
 export const fuenteById=id=>store.workSources.find(x=>x.id===id)||null;
 export const cuentaById=id=>store.accounts.find(x=>x.id===id)||null;
-export function saveData(){if(unreadableStorage!==null)throw new Error('STORAGE_DATA_INVALIDA');store.schemaVersion=SCHEMA_VERSION;localStorage.setItem(STORAGE_KEY,JSON.stringify(store));}
+export function saveData(){if(unreadableStorage!==null)throw new Error('STORAGE_DATA_INVALIDA');store.schemaVersion=SCHEMA_VERSION;if(transactionDepth>0)return;localStorage.setItem(STORAGE_KEY,JSON.stringify(store));}
 
 const requireText=(value,code='DESCRIPCION_INVALIDA')=>{const text=String(value??'').trim();if(!text)throw new Error(code);return text;};
 const requirePositive=(value,code='MONTO_INVALIDO')=>{const n=safeFloat(value);if(!(n>0))throw new Error(code);return n;};
@@ -36,8 +53,9 @@ const sourceTransportMode=s=>s?.transport?.mode||s?.transportMode||store.profile
 
 
 export function loadData(){
-  let raw=localStorage.getItem(STORAGE_KEY);if(raw===null){for(const k of LEGACY_KEYS){const v=localStorage.getItem(k);if(v!==null){raw=v;break;}}}
+  const previous=structuredClone(store);let raw=null;try{raw=localStorage.getItem(STORAGE_KEY);if(raw===null){for(const k of LEGACY_KEYS){const v=localStorage.getItem(k);if(v!==null){raw=v;break;}}}
   if(raw!==null){try{const x=JSON.parse(raw);if(!x||typeof x!=='object'||Array.isArray(x)||!['profile','movimientos','parametros','wallet','workSources','deudas','financialPlan'].some(k=>Object.hasOwn(x,k)))throw new Error('BACKUP_INVALIDO');const sources=migrateWorkSources(x),profile=migrateProfile(x,sources),accounts=migrateAccounts(x,sources);store={...structuredClone(INITIAL_STATE),...x,profile,workSources:sources,accounts,assets:Array.isArray(x.assets)?x.assets:[],wallet:{...INITIAL_STATE.wallet,...(x.wallet||{})},parametros:{...INITIAL_STATE.parametros,...(x.parametros||{})},categoriasPersonalizadas:{...INITIAL_STATE.categoriasPersonalizadas,...(x.categoriasPersonalizadas||{})},ingresosFijos:migrateFixedIncome(x.ingresosFijos),turnos:migrateTurns(x.turnos,sources),movimientos:migrateMovements(x.movimientos),fondosCombustibleEmpresa:Array.isArray(x.fondosCombustibleEmpresa)?x.fondosCombustibleEmpresa:[],business:normalizeBusiness(x.business),activeActivity:x.activeActivity||x.turnoActivo||null,turnoActivo:x.turnoActivo||x.activeActivity||null};}catch(e){unreadableStorage=raw;throw Object.assign(new Error('STORAGE_DATA_INVALIDA'),{cause:e});}}else store=structuredClone(INITIAL_STATE);unreadableStorage=null;sanearDatos();return store;
+  }catch(error){store=previous;unreadableStorage=raw;throw Object.assign(new Error('STORAGE_DATA_INVALIDA'),{cause:error});}
 }
 
 export function deriveCapabilities(){
@@ -179,4 +197,4 @@ export function agregarIngredienteProducto(productId,ingredientId,cantidad){cons
 export function costoProducto(productId){const p=store.business.products.find(x=>x.id===productId);if(!p)return 0;return p.recipe.reduce((sum,r)=>sum+safeFloat(r.qty)*safeFloat(store.business.ingredients.find(i=>i.id===r.ingredientId)?.costPerUnit),0);}
 export function registrarVentaProducto(productId,cantidad=1,sourceId=null){const p=store.business.products.find(x=>x.id===productId&&x.active);if(!p)throw new Error('PRODUCTO_NO_ENCONTRADO');const q=requirePositive(cantidad,'CANTIDAD_INVALIDA'),source=fuenteById(sourceId)||store.workSources.find(s=>sourceUsable(s)&&s.kind==='business'),total=safeFloat(p.salePrice)*q,fecha=new Date().toISOString();store.business.sales.push({id:uuid(),fecha,productId:p.id,qty:q,total,sourceId:source?.id||null,unitCost:costoProducto(p.id)});store.movimientos.push({id:uuid(),fecha,tipo:'ingreso',desc:`Venta · ${p.name}`,monto:total,categoria:'Ventas',sourceId:source?.id||null,fuente:source?.id||'business',accountId:PERSONAL_ACCOUNT_ID,affectsPersonal:true});return commit();}
 
-export function restaurar(json){let x;try{x=JSON.parse(json);}catch{throw new Error('BACKUP_INVALIDO');}if(!x||typeof x!=='object'||Array.isArray(x))throw new Error('BACKUP_INVALIDO');const hasKnownData=['movimientos','turnos','deudas','wallet','parametros','ingresosFijos','profile','workSources'].some(k=>Object.prototype.hasOwnProperty.call(x,k));if(!hasKnownData)throw new Error('BACKUP_INVALIDO');if(unreadableStorage!==null){localStorage.setItem(`${STORAGE_KEY}_unreadable_${Date.now()}`,unreadableStorage);unreadableStorage=null;}const sources=migrateWorkSources(x),profile=migrateProfile(x,sources),accounts=migrateAccounts(x,sources);store={...structuredClone(INITIAL_STATE),...x,profile,workSources:sources,accounts,assets:Array.isArray(x.assets)?x.assets:[],parametros:{...INITIAL_STATE.parametros,...(x.parametros||{})},wallet:{...INITIAL_STATE.wallet,...(x.wallet||{})},categoriasPersonalizadas:{...INITIAL_STATE.categoriasPersonalizadas,...(x.categoriasPersonalizadas||{})},ingresosFijos:migrateFixedIncome(x.ingresosFijos),turnos:migrateTurns(x.turnos,sources),movimientos:migrateMovements(x.movimientos),fondosCombustibleEmpresa:Array.isArray(x.fondosCombustibleEmpresa)?x.fondosCombustibleEmpresa:[],business:normalizeBusiness(x.business),activeActivity:x.activeActivity||x.turnoActivo||null,turnoActivo:x.turnoActivo||x.activeActivity||null};return commit();}
+export function restaurar(json){return withTransaction(()=>{let x;try{x=JSON.parse(json);}catch{throw new Error('BACKUP_INVALIDO');}if(!x||typeof x!=='object'||Array.isArray(x))throw new Error('BACKUP_INVALIDO');const hasKnownData=['movimientos','turnos','deudas','wallet','parametros','ingresosFijos','profile','workSources'].some(k=>Object.prototype.hasOwnProperty.call(x,k));if(!hasKnownData)throw new Error('BACKUP_INVALIDO');if(unreadableStorage!==null){localStorage.setItem(`${STORAGE_KEY}_unreadable_${Date.now()}`,unreadableStorage);unreadableStorage=null;}const sources=migrateWorkSources(x),profile=migrateProfile(x,sources),accounts=migrateAccounts(x,sources);store={...structuredClone(INITIAL_STATE),...x,profile,workSources:sources,accounts,assets:Array.isArray(x.assets)?x.assets:[],parametros:{...INITIAL_STATE.parametros,...(x.parametros||{})},wallet:{...INITIAL_STATE.wallet,...(x.wallet||{})},categoriasPersonalizadas:{...INITIAL_STATE.categoriasPersonalizadas,...(x.categoriasPersonalizadas||{})},ingresosFijos:migrateFixedIncome(x.ingresosFijos),turnos:migrateTurns(x.turnos,sources),movimientos:migrateMovements(x.movimientos),fondosCombustibleEmpresa:Array.isArray(x.fondosCombustibleEmpresa)?x.fondosCombustibleEmpresa:[],business:normalizeBusiness(x.business),activeActivity:x.activeActivity||x.turnoActivo||null,turnoActivo:x.turnoActivo||x.activeActivity||null};return commit();});}

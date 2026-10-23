@@ -278,12 +278,13 @@ export function recordHouseholdExpense(id,amount=null,fecha=Date.now(),options={
   const existing=options.operationId&&(getState().movimientos||[]).find(m=>m.operationId===options.operationId);
   if(existing){if(existing.householdExpenseId!==id)throw new Error('OPERACION_INCOMPATIBLE');return householdById(id);}
   const state=getState(),item=householdById(id);if(!item||item.active===false)throw new Error('GASTO_HOGAR_NO_ENCONTRADO');
-  const d=actualPaymentDate(fecha);
+  const d=actualPaymentDate(fecha),accountId=options.accountId||PERSONAL_ACCOUNT_ID;
+  if(!state.accounts.some(a=>a.id===accountId&&a.active!==false&&a.ownership!=='third_party'))throw new Error('CUENTA_NO_ENCONTRADA');
   if(item.priority==='obligatory'&&(state.movimientos||[]).some(x=>x.tipo==='gasto'&&x.householdExpenseId===item.id&&isoDay(new Date(x.fecha))===isoDay(d)&&paidOccurrence(state,item,x.householdPeriod)))throw new Error('GASTO_HOGAR_YA_PAGADO');
   const period=options.period||(item.priority==='obligatory'?paymentPeriod(item,d):occurrenceKey(item,d));
   const status=occurrenceBalance(state,item,period,d),m=amount===null||amount===''?positive(item.priority==='obligatory'?status.remaining:item.amount):positive(amount);
   if(item.priority==='obligatory'&&paidOccurrence(state,item,period))throw new Error('GASTO_HOGAR_YA_PAGADO');
-  state.movimientos.push({id:options.operationId?`payment-${encodeURIComponent(options.operationId)}`:uuid(),...(options.operationId?{operationId:options.operationId}:{}),fecha:d.toISOString(),tipo:'gasto',desc:item.name,monto:m,categoria:item.category,accountId:PERSONAL_ACCOUNT_ID,affectsPersonal:true,householdExpenseId:item.id,householdPeriod:period,...(item.priority==='obligatory'?{householdExpectedAmount:status.target,...(options.settled===true?{householdSettled:true}:{})}:{})});
+  state.movimientos.push({id:options.operationId?`payment-${encodeURIComponent(options.operationId)}`:uuid(),...(options.operationId?{operationId:options.operationId}:{}),fecha:d.toISOString(),tipo:'gasto',desc:item.name,monto:m,categoria:item.category,accountId,affectsPersonal:true,householdExpenseId:item.id,householdPeriod:period,...(item.priority==='obligatory'?{householdExpectedAmount:status.target,...(options.settled===true?{householdSettled:true}:{})}:{})});
   if(item.frequency==='one_time'&&(item.priority!=='obligatory'||paidOccurrence(state,item,period)))item.active=false;
   saveData();return item;
 }

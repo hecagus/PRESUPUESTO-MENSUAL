@@ -20,7 +20,7 @@ function renderFuel(){
 function renderExpenses(){
   const state=getState(),box=$('operationalExpenseRows');if(!box)return;
   const rows=gastosOperativosRecientes(state,6);
-  box.innerHTML=rows.length?rows.map(m=>{const src=state.workSources?.find(s=>s.id===m.sourceId);return `<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid #e2e8f0"><span><strong>${esc(m.desc)}</strong><small style="display:block;color:var(--text-sec)">${dateLabel(m.fecha)} · ${esc(m.categoria||'Operativo')}${src?` · ${esc(src.name)}`:''}</small></span><strong style="color:#dc2626">-${fmtMoney(m.monto)}</strong></div>`;}).join(''):'<small>No hay costos operativos recientes. Cuando registres uno aparecerá aquí y también en Historial.</small>';
+  box.innerHTML=rows.length?rows.map(m=>{const src=state.workSources?.find(s=>s.id===m.sourceId);return `<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid #e2e8f0"><span><strong>${esc(m.desc)}</strong><small style="display:block;color:var(--text-sec)">${dateLabel(m.fecha)} · ${esc(m.categoria||'Operativo')}${src?` · ${esc(src.name)}`:''}${m.operatingDueDate?` · Cubre ${esc(dateLabel(`${m.operatingDueDate}T12:00:00`))}`:''}</small></span><strong style="color:#dc2626">-${fmtMoney(m.monto)}</strong></div>`;}).join(''):'<small>No hay costos operativos recientes. Cuando registres uno aparecerá aquí y también en Historial.</small>';
 }
 
 function renderSourcePerformance(){

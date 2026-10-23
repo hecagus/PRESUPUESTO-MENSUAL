@@ -14,6 +14,8 @@ import {showSourcePayment,showIncomePeriodCorrection} from './ui/source-payments
 import { runAutomationEngine } from './17_automation_engine.js';
 import { ensureFinancialPlatform, renderFinancialPlatform, initFinancialPlatformEvents } from './19_platform_ui.js';
 import { renderHome, initHomeEvents } from './22_home_ui.js';
+import { showStorageRecovery } from './ui/storage-recovery.js';
+import { initQuickExpense } from './ui/quick-expense.js';
 import { renderActivityInsights } from './25_activity_insights.js';
 
 /* El bootstrap del <head> captura lo más temprano posible; esto enlaza el resto del ciclo PWA. */
@@ -52,7 +54,7 @@ const ERROR_MESSAGES={
 };
 
 const emitChange=()=>document.dispatchEvent(new CustomEvent('budget:data-changed'));
-const safe=fn=>{try{fn();runAutomationEngine();refresh();emitChange();}catch(e){console.error(e);alert(ERROR_MESSAGES[e.message]||'No se pudo completar la operación.');}};
+const safe=fn=>{try{Data.withTransaction(()=>{fn();runAutomationEngine();});refresh();emitChange();return true;}catch(e){console.error(e);return Modal.error(ERROR_MESSAGES[e.message]||'No se pudo guardar. Revisa el espacio disponible e inténtalo de nuevo.');}};
 const sourceUsable=s=>s.active!==false&&s.status!=='paused'&&s.status!=='ended';
 
 function finishActive(){
@@ -77,13 +79,13 @@ function saleProduct(productId){Modal.show('Registrar venta',[{label:'Cantidad',
 
 function initAdminEvents(){
   $('btnFuel')?.addEventListener('click',fuelModal);$('btnCompanyFund')?.addEventListener('click',companyFundModal);
-  $('btnGastoHogar')?.addEventListener('click',()=>{location.href='home.html';});
+
   initOperatingCostEvents(safe);
   $('btnDeudaNueva')?.addEventListener('click',()=>Modal.show('Nueva deuda',[{label:'Nombre',key:'d'},{label:'Total',key:'t',type:'number'},{label:'Cuota',key:'c',type:'number'},{label:'Plan de pago',key:'f',type:'select',options:['Unico','Semanal','Quincenal','Mensual'].map(x=>({val:x,txt:x==='Unico'?'Una sola vez':x}))},{label:'Día de pago / vencimiento',key:'dp',type:'number',value:1}],d=>safe(()=>Data.nuevaDeuda(d.d,d.t,d.c,d.f,d.dp))));
   $('btnAbonoCuota')?.addEventListener('click',()=>{const id=$('abonoDeudaSelect')?.value;if(!id)return alert('Selecciona una deuda.');if(confirm('¿Confirmar abono?')){const operationId=uuid();safe(()=>Data.abonarDeuda(id,Date.now(),{operationId}));}});
   $('btnConfigKM')?.addEventListener('click',()=>{if(Data.getState().parametros.kmInicialConfigurado)return alert('El kilometraje ya se gestiona con tus actividades.');Modal.show('Configurar kilometraje',[{label:'KM actuales',key:'k',type:'number'}],d=>safe(()=>Data.configurarKM(d.k)));});
   $('btnExportJSON')?.addEventListener('click',async()=>{const json=JSON.stringify(Data.getState(),null,2);try{if(window.__hecagusNative)await window.__hecagusNative.copyBackup(json);else await navigator.clipboard.writeText(json);alert('Respaldo copiado.');}catch{const blob=new Blob([json],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`hecagus-finance-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url);alert('Respaldo descargado.');}});
-  $('btnRestoreBackup')?.addEventListener('click',()=>Modal.show('Restaurar respaldo',[{label:'JSON',key:'j'}],d=>{if(!confirm('Esto reemplazará los datos actuales. ¿Continuar?'))return;safe(()=>Data.restaurar(d.j));}));
+  $('btnRestoreBackup')?.addEventListener('click',()=>Modal.show('Restaurar respaldo',[{label:'JSON',key:'j'}],d=>{if(!confirm('Esto reemplazará los datos actuales. ¿Continuar?'))return false;return safe(()=>Data.restaurar(d.j));}));
 }
 
 function initGlobalEvents(){
@@ -100,9 +102,9 @@ function startTimer(){if(document.body.dataset.page!=='admin')return;window.setI
 
 document.addEventListener('budget:remote-applied',()=>{ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();const applied=runAutomationEngine();refresh();if(applied)notifyLocalChange();});
 document.addEventListener('DOMContentLoaded',()=>{
-  Data.loadData();ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();
+  try{Data.loadData();}catch(error){console.error(error);showStorageRecovery();return;}ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();
   if(!Data.getState().profile.onboarded){window.location.replace('onboarding.html');return;}
-  renderBottomNav();runAutomationEngine();refresh();initDelegation();initGlobalEvents();
+  renderBottomNav();initQuickExpense(refresh);runAutomationEngine();refresh();initDelegation();initGlobalEvents();
   initSavingsGoalEvents(refresh);initFinancialPlatformEvents(refresh);
   if(document.body.dataset.page==='home')initHomeEvents(refresh);
   if(document.body.dataset.page==='admin')initAdminEvents();

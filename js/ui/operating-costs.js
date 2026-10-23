@@ -6,7 +6,14 @@ import { getPersonalAccounts, recordUniversalMovement } from '../15_accounts_eng
 import { OPERATING_FREQUENCIES, localDay, operatingObligations, operatingUpcomingEvents, createOperatingObligation, payOperatingObligation, endOperatingObligation, operatingPaymentDateRepairPreview, repairOperatingPaymentDates } from '../domain/operating-costs.js';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const dateLabel=value=>new Date(value).toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'short'});
+const dateValue=value=>new Date(/^\d{4}-\d{2}-\d{2}$/.test(String(value))?`${value}T09:00:00`:value);
+const dateLabel=value=>{const date=dateValue(value);return Number.isFinite(date.getTime())?date.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'short',year:'numeric'}):'fecha no disponible';};
+const isAdvance=(dueDate,paidDate=new Date())=>{const due=dateValue(dueDate),paid=dateValue(paidDate);return Number.isFinite(due.getTime())&&Number.isFinite(paid.getTime())&&localDay(due)>localDay(paid);};
+function recordedPayments(item){
+  const rows=(getState().movimientos||[]).filter(m=>m.tipo==='gasto'&&m.operatingObligationId===item.id).slice().sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)||String(a.operatingDueDate||'').localeCompare(String(b.operatingDueDate||'')));
+  if(!rows.length)return '';
+  return `<details class="operating-payment-history"><summary>Pagos registrados (${rows.length})</summary><ul>${rows.map(m=>`<li data-operating-payment="${esc(m.id)}"><strong>${fmtMoney(m.monto)}</strong> · Pago del ${dateLabel(m.fecha)}<br><small>${m.operatingDueDate?`Cubre el vencimiento del ${dateLabel(m.operatingDueDate)}${isAdvance(m.operatingDueDate,m.fecha)?' · Anticipo':''}`:'Vencimiento no guardado en este registro'}</small></li>`).join('')}</ul></details>`;
+}
 const accounts=()=>getPersonalAccounts({activeOnly:true}).map(a=>({val:a.id,txt:a.name}));
 
 export function showOperatingCostModal(safe){
@@ -24,15 +31,18 @@ export function showOperatingCostModal(safe){
     if(data.frequency==='one_time')return recordUniversalMovement({type:'expense',description:data.name,amount:data.amount,category:data.category,accountId,sourceId,tags:['operational'],operationId});
     return createOperatingObligation({name:data.name,amount:data.amount,category:data.category,sourceId,accountId,frequency:data.frequency,nextDueDate:data.dueDate,operationId},{paid:data.firstPayment==='paid'});
   }));
-  const body=$('modalBody'),frequency=body.querySelector('[data-k="frequency"]'),amount=body.querySelector('[data-k="amount"]'),firstPayment=body.querySelector('[data-k="firstPayment"]');
+  const body=$('modalBody'),frequency=body.querySelector('[data-k="frequency"]'),amount=body.querySelector('[data-k="amount"]'),firstPayment=body.querySelector('[data-k="firstPayment"]'),dueDate=body.querySelector('[data-k="dueDate"]');
   const hint=document.createElement('small');hint.style.cssText='display:block;color:var(--text-sec);margin-top:8px';body.append(hint);
   const update=()=>{
     const recurring=frequency.value!=='one_time';
     for(const key of ['dueDate','firstPayment'])body.querySelector(`[data-k="${key}"]`).parentElement.hidden=!recurring;
     amount.parentElement.querySelector('label').textContent=recurring?'Importe por pago ($)':'Monto pagado ($)';
+    const advance=recurring&&firstPayment.value==='paid'&&isAdvance(dueDate.value);
+    $('modalTitle').textContent=advance?'Registrar anticipo operativo':'Registrar costo operativo';
     hint.textContent=recurring?`Es una obligación de trabajo. ${firstPayment.value==='paid'?'Este pago se descontará hoy, aunque el vencimiento sea futuro.':'El saldo bajará cuando registres un pago.'}${frequency.value==='weekly'?' Se repite cada semana el día del vencimiento elegido.':frequency.value==='biweekly'?' Los vencimientos son el 15 y el último día del mes.':''}`:'Registra un gasto que ya pagaste hoy.';
+    if(recurring&&firstPayment.value==='paid')hint.textContent+=` ${advance?'Anticipo. ':''}Importe a descontar hoy: ${fmtMoney(amount.value)}. Pago del ${dateLabel(new Date())}. Cubre el vencimiento del ${dateLabel(dueDate.value)}.`;
   };
-  frequency.addEventListener('change',update);firstPayment.addEventListener('change',update);update();
+  frequency.addEventListener('change',update);firstPayment.addEventListener('change',update);dueDate.addEventListener('change',update);amount.addEventListener('input',update);amount.addEventListener('change',update);update();
 }
 
 export function renderOperatingCosts(now=new Date()){
@@ -40,8 +50,9 @@ export function renderOperatingCosts(now=new Date()){
   const items=operatingObligations(),events=operatingUpcomingEvents({days:400,now});
   box.innerHTML=items.length?items.map(item=>{
     const next=events.find(e=>e.refId===item.id),source=getState().workSources.find(s=>s.id===item.sourceId),weekday=new Date(`${item.nextDueDate}T09:00:00`).toLocaleDateString('es-MX',{weekday:'long'});
+    const advance=next&&isAdvance(next.dueDate,now);
     const status=next&&{overdue:'Vencido',due_today:'Vence hoy',due_tomorrow:'Vence mañana',scheduled:'Próximo pago'}[paymentDueState(next,now)];
-    return `<div class="operating-obligation"><div class="operating-obligation-heading"><strong>${esc(item.name)}</strong><strong>${fmtMoney(item.amount)}</strong></div><small>${esc(OPERATING_FREQUENCIES[item.frequency])}${item.frequency==='weekly'?` · cada ${esc(weekday)}`:''} · ${esc(item.category)}${source?` · ${esc(source.name)}`:''}</small>${next?`<p class="operating-due${next.overdue?' overdue':''}">${status} · ${dateLabel(next.dueDate)}<br>Pendiente: <strong>${fmtMoney(next.amount)}</strong></p>`:`<p class="operating-due">${item.active===false?'Finalizada · sin pagos pendientes':'Sin pagos pendientes en los próximos 400 días'}</p>`}<div class="grid-2">${next?`<button class="btn btn-primary" data-operating-action="pay" data-id="${esc(item.id)}" data-period="${esc(next.operatingPeriod)}">Registrar pago</button>`:''}${item.active!==false?`<button class="btn btn-outline" data-operating-action="end" data-id="${esc(item.id)}">Finalizar obligación</button>`:''}</div></div>`;
+    return `<div class="operating-obligation"><div class="operating-obligation-heading"><strong>${esc(item.name)}</strong><strong>${fmtMoney(item.amount)}</strong></div><small>${esc(OPERATING_FREQUENCIES[item.frequency])}${item.frequency==='weekly'?` · cada ${esc(weekday)}`:''} · ${esc(item.category)}${source?` · ${esc(source.name)}`:''}</small>${next?`<p class="operating-due${next.overdue?' overdue':''}">${status} · ${dateLabel(next.dueDate)}<br>Pendiente: <strong>${fmtMoney(next.amount)}</strong></p>`:`<p class="operating-due">${item.active===false?'Finalizada · sin pagos pendientes':'Sin pagos pendientes en los próximos 400 días'}</p>`}<div class="grid-2">${next?`<button class="btn btn-primary" data-operating-action="pay" data-id="${esc(item.id)}" data-period="${esc(next.operatingPeriod)}">${advance?'Registrar anticipo':'Registrar pago'}</button>`:''}${item.active!==false?`<button class="btn btn-outline" data-operating-action="end" data-id="${esc(item.id)}">Finalizar obligación</button>`:''}</div>${recordedPayments(item)}</div>`;
   }).join(''):'<small>Agrega una frecuencia para programar obligaciones de trabajo, como la renta semanal de Mottu.</small>';
   const repair=operatingPaymentDateRepairPreview(now);
   if(repair.payments.length)box.insertAdjacentHTML('beforeend',`<div class="operating-obligation"><strong>Corregir pagos ya realizados</strong><p>${repair.payments.length} ${repair.payments.length===1?'pago registrado':'pagos registrados'} con fecha futura · ${fmtMoney(repair.total)}.</p><button class="btn btn-outline" data-operating-action="repair-dates">Corregir fechas a hoy · un solo uso</button></div>`);
@@ -71,7 +82,11 @@ export function initOperatingCostEvents(safe){
       {label:'Si pagas menos del pendiente',key:'settlement',type:'select',options:[{val:'partial',txt:'Conservar la diferencia pendiente'},{val:'settled',txt:'Liquidar: ya no debo la diferencia'}]}];
     if(options.length>1)fields.push({label:'Cuenta de pago',key:'accountId',type:'select',options,value:item.accountId});
     const operationId=uuid();
-    Modal.show(`Pagar · ${item.name}`,fields,data=>safe(()=>payOperatingObligation(id,{period:pending.operatingPeriod,amount:data.amount,accountId:data.accountId||options[0]?.val,settled:data.settlement==='settled',operationId})));
-    const note=document.createElement('p');note.textContent=`El pago se registra hoy y se descuenta de tu saldo al guardar. Cubre el vencimiento del ${dateLabel(pending.dueDate)}.`;$('modalBody').append(note);
+    const advance=isAdvance(pending.dueDate);
+    Modal.show(`${advance?'Registrar anticipo':'Pagar'} · ${item.name}`,fields,data=>safe(()=>payOperatingObligation(id,{period:pending.operatingPeriod,amount:data.amount,accountId:data.accountId||options[0]?.val,settled:data.settlement==='settled',operationId})));
+    const note=document.createElement('p');$('modalBody').append(note);
+    const updateSummary=()=>{note.textContent=`${advance?'Es un anticipo. ':''}El pago se registra hoy y se descuenta de tu saldo al guardar. Cubre el vencimiento del ${dateLabel(pending.dueDate)}. Importe a descontar hoy: ${fmtMoney($('modalBody').querySelector('[data-k="amount"]').value)}. Pago del ${dateLabel(new Date())}.`;};
+    $('modalBody').querySelector('[data-k="amount"]').addEventListener('input',updateSummary);
+    $('modalBody').querySelector('[data-k="amount"]').addEventListener('change',updateSummary);updateSummary();
   });
 }

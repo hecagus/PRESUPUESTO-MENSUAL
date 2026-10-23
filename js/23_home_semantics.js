@@ -2,7 +2,7 @@
 import { safeFloat } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import * as Base from './20_home_engine.js';
-import { normalizeFrequency, inObservedPeriod, localDay } from './domain/financial-rules.js';
+import { normalizeFrequency, inObservedPeriod, localDay, actualPaymentDate } from './domain/financial-rules.js';
 
 export const HOME_KINDS=Object.freeze({
   obligation:{label:'Obligación',icon:'🔴',description:'Lo tienes que pagar sí o sí.'},
@@ -126,7 +126,7 @@ export function householdSummary(now=new Date()){
 }
 
 export function recordHouseholdExpense(id,amount=null,fecha=Date.now(),options={}){
-  const kind=householdById(id)?.kind||'optional',item=Base.recordHouseholdExpense(id,amount,fecha,options);remember(id,kind);Data.sanearDatos();return decorate(item);
+  return Data.withTransaction(()=>{const kind=householdById(id)?.kind||'optional',item=Base.recordHouseholdExpense(id,amount,fecha,options);remember(id,kind);Data.sanearDatos();return decorate(item);});
 }
 
 function recentDirectDuplicate({name,amount,date,now=Date.now()}={}){
@@ -137,13 +137,19 @@ function recentDirectDuplicate({name,amount,date,now=Date.now()}={}){
 }
 
 export function recordDirectHouseholdExpense(config={}){
-  const date=String(config.date||config.nextDueDate||new Date().toISOString().slice(0,10)).slice(0,10),name=String(config.name||'').trim(),amount=safeFloat(config.amount);
+  return Data.withTransaction(()=>{
+  const today=localDay(new Date()),date=String(config.date||config.nextDueDate||today).slice(0,10),name=String(config.name||'').trim(),amount=safeFloat(config.amount),accountId=config.accountId||'acct-personal';
+  const existing=config.operationId&&(Data.getState().movimientos||[]).find(m=>m.operationId===config.operationId);
+  if(existing){if(existing.movementKind!=='household_direct'||existing.desc!==name||existing.monto!==amount||existing.accountId!==accountId||localDay(existing.fecha)!==date)throw new Error('OPERACION_INCOMPATIBLE');return householdById(existing.householdExpenseId);}
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||localDay(new Date(`${date}T12:00:00`))!==date)throw new Error('FECHA_HOGAR_INVALIDA');
+  const localDate=actualPaymentDate(date===today?new Date():`${date}T12:00:00`);
   if(config.allowDuplicate!==true&&recentDirectDuplicate({name,amount,date}))throw new Error('GASTO_HOGAR_DUPLICADO_RECIENTE');
-  const localDate=`${date}T12:00:00`,item=Base.createHouseholdExpense({...config,frequency:'one_time',priority:'discretionary',nextDueDate:date});
-  remember(item.id,'spent');Base.recordHouseholdExpense(item.id,config.amount,localDate);
+  const item=Base.createHouseholdExpense({...config,frequency:'one_time',priority:'discretionary',nextDueDate:date});
+  remember(item.id,'spent');Base.recordHouseholdExpense(item.id,config.amount,localDate,{accountId,operationId:config.operationId});
   const movement=[...(Data.getState().movimientos||[])].reverse().find(m=>m.householdExpenseId===item.id);
-  if(movement){movement.movementKind='household_direct';movement.recordedAt=new Date().toISOString();}
+  if(movement){movement.movementKind='household_direct';movement.recordedAt=new Date().toISOString();movement.dateOnly=date!==today;}
   Data.sanearDatos();return householdById(item.id);
+  });
 }
 
 export function recentDirectHouseholdExpenses(limit=8){

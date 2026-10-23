@@ -141,3 +141,20 @@ body[data-page="index"] #resumenHumanoContainer>section.card:last-child .grid-2 
 
 @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
 @keyframes pulse{0%{opacity:1}50%{opacity:.5}100%{opacity:1}}
+
+/* Primary daily action stays reachable above the navigation. */
+body.has-quick-expense{padding-bottom:160px}
+.quick-expense{position:fixed;right:max(18px,calc((100vw - 680px)/2));bottom:calc(90px + env(safe-area-inset-bottom));width:auto;min-height:48px;border-radius:999px;padding:12px 22px;z-index:45;box-shadow:0 6px 20px #1d4ed844}
+.modal-error{padding:12px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:10px;margin-top:12px}
+.modal details{margin:10px 0}.modal summary{cursor:pointer;color:var(--primary);padding:8px 0}
+.expense-status{position:fixed;bottom:155px;left:50%;transform:translateX(-50%);padding:12px 18px;border-radius:12px;background:#14532d;color:white;z-index:90;white-space:nowrap}
+.expense-status[hidden]{display:none}
+.history-pagination{text-align:center;padding-top:12px;color:var(--text-sec);font-size:.85rem}
+.history-pagination p{margin:0 0 10px}
+.operating-payment-history{margin-top:10px;font-size:.85rem}.operating-payment-history summary{padding:8px 0;cursor:pointer;color:var(--primary)}
+.operating-payment-history ul{list-style:none;padding:0}.operating-payment-history li{padding:8px 0;border-top:1px solid #e2e8f0}
+[data-forecast-option]{margin-top:12px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:.85rem;color:var(--text-sec)}
+.nav-link{color:#64748b}.nav-link:focus-visible,.btn:focus-visible{outline:3px solid #1d4ed8;outline-offset:3px}
+
+.goal-plan-detail{font-size:.85rem;color:var(--text-sec);line-height:1.5;margin-top:10px}
+[hidden]{display:none!important}

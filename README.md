@@ -52,7 +52,9 @@ Hogar diferencia semánticamente:
 - 🔵 **Opcional**: suscripción o gusto que no compromete dinero hasta pagarse.
 - 💸 **Gasto realizado**: salida real que queda en Historial sin crear un presupuesto futuro.
 
-La migración v3 mueve compromisos manuales antiguos hacia Hogar y desactiva la copia anterior. También incluye una reparación conservadora de dobles capturas directas idénticas: mismo concepto, monto y fecha, registradas dentro de una ventana de cinco minutos.
+La migración v3 mueve compromisos manuales antiguos hacia Hogar y desactiva la copia anterior. Se conservan todos los movimientos históricos: la igualdad de concepto, monto y fecha no prueba duplicación. La captura directa pide confirmar una compra igual registrada en los últimos cinco minutos y utiliza identidad de operación para evitar reintentos duplicados.
+
+La [auditoría de captura e integridad](docs/auditoria-ux-integridad.md) documenta los cambios de registro rápido, persistencia, consejos de ahorro e Historial, sus pruebas y los riesgos pendientes.
 
 ### PWA
 
