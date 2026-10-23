@@ -1,6 +1,6 @@
 /* Operational obligations have one schedule and real payments in the existing ledger. No DOM. */
 import { safeFloat, uuid } from '../01_consts_utils.js';
-import { getState, saveData } from '../02_data.js';
+import { getState, saveData, withTransaction } from '../02_data.js';
 import { recordUniversalMovement } from '../15_accounts_engine.js';
 import { occurrenceDates, occurrenceKey } from '../20_home_engine.js';
 import { horizonEnd, inObservedPeriod, actualPaymentDate, isPersonalMovement, personalCash, localDay as civilDay } from './financial-rules.js';
@@ -100,7 +100,7 @@ export function operatingUpcomingEvents({days=45,now=new Date()}={}){
   return events.sort((a,b)=>new Date(a.date)-new Date(b.date)||new Date(a.dueDate)-new Date(b.dueDate));
 }
 
-export function createOperatingObligation(config={}, {paid=false,date=new Date()}={}){
+export function createOperatingObligation(config={}, {paid=false,date=new Date()}={}){return withTransaction(()=>{
   const existing=config.operationId&&operatingObligations().find(item=>item.operationId===config.operationId);
   if(existing)return existing;
   const firstDate=dayDate(config.nextDueDate),accountId=config.accountId||'acct-personal';personalAccount(accountId);
@@ -116,7 +116,14 @@ export function createOperatingObligation(config={}, {paid=false,date=new Date()
   if(paid)payOperatingObligation(item.id,{period:occurrenceKey(item,first),amount:item.amount,date});
   else saveData();
   return item;
-}
+});}
+
+export function updateOperatingObligationAmount(id,amount){return withTransaction(()=>{
+  const item=operatingObligationById(id);if(!item)throw new Error('COSTO_OPERATIVO_NO_ENCONTRADO');
+  // Existing payments keep their per-occurrence target; unpaid occurrences use this amount.
+  item.amount=positive(amount);
+  return item;
+});}
 
 export function payOperatingObligation(id,{period,amount,date=new Date(),accountId,settled=false,operationId=null}={}){
   const existing=operationId&&(getState().movimientos||[]).find(m=>m.operationId===operationId);

@@ -25,11 +25,12 @@ const hasMeaningfulLocalData=()=>{
   return activity||customAccounts||planned||businessData||Boolean(s?.profile?.onboarded)||Boolean(s?.parametros?.saldoInicialConfigurado)||Boolean(s?.parametros?.kmInicialConfigurado);
 };
 
-function setStatus(message,tone='neutral'){const el=document.getElementById('syncStatus');if(!el)return;el.textContent=message;el.dataset.tone=tone;}
+function setStatus(message,tone='neutral'){const el=syncSurface().zone?.querySelector('#syncStatus');if(!el)return;el.textContent=message;el.dataset.tone=tone;}
 const nativeConfigurationMissing=()=>window.__hecagusNative?.googleConfigured===false;
+const syncSurface=()=>({card:document.getElementById('auditSyncCard')||document.getElementById('syncCard'),zone:document.getElementById('auditSyncPanel')||document.getElementById('syncPanel')});
 function renderNativeConfigurationError(){
   if(!FIREBASE_SYNC.enabled||!nativeConfigurationMissing())return false;
-  const card=document.getElementById('syncCard'),zone=document.getElementById('syncPanel');
+  const {card,zone}=syncSurface();
   card?.classList.remove('hidden');
   if(zone){
     zone.innerHTML='<div class="sync-state"><strong>⚠️ Google pendiente de configuración</strong><p id="syncStatus" role="alert" aria-live="polite" style="margin:6px 0 12px;color:var(--text-sec)"></p><button id="btnSyncLogin" class="btn btn-primary" disabled>Google no disponible</button></div>';
@@ -37,12 +38,12 @@ function renderNativeConfigurationError(){
   }
   return true;
 }
-export function renderSyncUI(){if(renderNativeConfigurationError())return;renderResetUI();const card=document.getElementById('syncCard'),zone=document.getElementById('syncPanel');if(!zone)return;if(!FIREBASE_SYNC.enabled||!authReady){card?.classList.add('hidden');return;}if(currentUser&&!conflictRemote){card?.classList.add('hidden');zone.innerHTML='';return;}card?.classList.remove('hidden');if(currentUser&&conflictRemote){zone.innerHTML='<div class="sync-conflict"><strong>⚠️ Conflicto de sincronización</strong><p style="margin:6px 0 10px">Hay cambios distintos en este dispositivo y en la nube. Puedes elegir una versión completa o combinar cambios. Los campos incompatibles requieren una elección explícita; las eliminaciones se respetan cuando existe una base común.</p><button id="btnUseCloud" class="btn btn-outline">Usar nube</button><button id="btnUseLocal" class="btn btn-outline" style="margin-top:7px">Conservar local</button><button id="btnMergeSync" class="btn btn-primary" style="margin-top:7px">Fusionar</button></div>';document.getElementById('btnUseCloud')?.addEventListener('click',()=>resolveUseCloud().catch(showSyncError));document.getElementById('btnUseLocal')?.addEventListener('click',()=>resolveUseLocal().catch(showSyncError));document.getElementById('btnMergeSync')?.addEventListener('click',()=>resolveMerge().catch(showSyncError));renderMergeChoices(zone);return;}zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización disponible</strong><p>Inicia sesión con Google para respaldar y sincronizar tus datos entre dispositivos.</p><p id="syncStatus" style="margin:6px 0 12px;color:var(--text-sec)" aria-live="polite">Listo para iniciar sesión.</p><button id="btnSyncLogin" class="btn btn-primary">Continuar con Google</button></div>';document.getElementById('btnSyncLogin')?.addEventListener('click',signIn);}
-function showSyncError(error){console.error('Firebase sync:',error);const card=document.getElementById('syncCard'),zone=document.getElementById('syncPanel'),code=String(error?.code||'');let message='⚠️ No se pudo sincronizar.';if(code.includes('unauthorized-domain'))message='⚠️ El dominio de esta app no está autorizado en Firebase Authentication.';else if(code.includes('popup-blocked'))message='⚠️ El navegador bloqueó la ventana de Google. Permite ventanas emergentes e intenta otra vez.';else if(code.includes('popup-closed'))message='Inicio de sesión cancelado.';else if(code.includes('operation-not-allowed'))message='⚠️ El proveedor Google no está habilitado en Firebase.';else if(code.includes('network-request-failed'))message='⚠️ No se pudo contactar Firebase. Revisa tu conexión e intenta otra vez.';else if(code.startsWith('sync/'))message=error.message;else if(code)message=`⚠️ Error de sincronización (${code}).`;card?.classList.remove('hidden');if(zone&&!document.getElementById('syncStatus'))zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización</strong><p id="syncStatus" style="margin:6px 0 0;color:var(--text-sec)" aria-live="polite"></p></div>';setStatus(message,code.includes('popup-closed')?'neutral':'error');}
+export function renderSyncUI(){if(renderNativeConfigurationError())return;renderResetUI();const {card,zone}=syncSurface();if(!zone)return;if(!FIREBASE_SYNC.enabled||!authReady){card?.classList.add('hidden');return;}if(currentUser&&!conflictRemote){card?.classList.add('hidden');zone.innerHTML='';return;}card?.classList.remove('hidden');if(currentUser&&conflictRemote){zone.innerHTML='<div class="sync-conflict"><strong>⚠️ Conflicto de sincronización</strong><p style="margin:6px 0 10px">Hay cambios distintos en este dispositivo y en la nube. Puedes elegir una versión completa o combinar cambios. Los campos incompatibles requieren una elección explícita; las eliminaciones se respetan cuando existe una base común.</p><button id="btnUseCloud" class="btn btn-outline">Usar nube</button><button id="btnUseLocal" class="btn btn-outline" style="margin-top:7px">Conservar local</button><button id="btnMergeSync" class="btn btn-primary" style="margin-top:7px">Fusionar</button></div>';zone.querySelector('#btnUseCloud')?.addEventListener('click',()=>resolveUseCloud().catch(showSyncError));zone.querySelector('#btnUseLocal')?.addEventListener('click',()=>resolveUseLocal().catch(showSyncError));zone.querySelector('#btnMergeSync')?.addEventListener('click',()=>resolveMerge().catch(showSyncError));renderMergeChoices(zone);return;}zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización disponible</strong><p>Inicia sesión con Google para respaldar y sincronizar tus datos entre dispositivos.</p><p id="syncStatus" style="margin:6px 0 12px;color:var(--text-sec)" aria-live="polite">Listo para iniciar sesión.</p><button id="btnSyncLogin" class="btn btn-primary">Continuar con Google</button></div>';zone.querySelector('#btnSyncLogin')?.addEventListener('click',signIn);}
+function showSyncError(error){console.error('Firebase sync:',error);const {card,zone}=syncSurface(),code=String(error?.code||'');let message='⚠️ No se pudo sincronizar.';if(code.includes('unauthorized-domain'))message='⚠️ El dominio de esta app no está autorizado en Firebase Authentication.';else if(code.includes('popup-blocked'))message='⚠️ El navegador bloqueó la ventana de Google. Permite ventanas emergentes e intenta otra vez.';else if(code.includes('popup-closed'))message='Inicio de sesión cancelado.';else if(code.includes('operation-not-allowed'))message='⚠️ El proveedor Google no está habilitado en Firebase.';else if(code.includes('network-request-failed'))message='⚠️ No se pudo contactar Firebase. Revisa tu conexión e intenta otra vez.';else if(code.startsWith('sync/'))message=error.message;else if(code)message=`⚠️ Error de sincronización (${code}).`;card?.classList.remove('hidden');if(zone&&!zone.querySelector('#syncStatus'))zone.innerHTML='<div class="sync-state"><strong>☁️ Sincronización</strong><p id="syncStatus" style="margin:6px 0 0;color:var(--text-sec)" aria-live="polite"></p></div>';setStatus(message,code.includes('popup-closed')?'neutral':'error');}
 export function notifyLocalChange(){if(!FIREBASE_SYNC.enabled)return;observedHash=stateHash();meta={...meta,dirty:true};saveMeta(meta);if(currentUser&&navigator.onLine){clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow().catch(showSyncError),1400);}}
 
 async function loadFirebase(){if(firebase)return firebase;const v=FIREBASE_SYNC.sdkVersion||'12.18.0';const [appMod,authMod,firestoreMod]=(window.__hecagusNative?.firebaseModules||await Promise.all([import(`https://www.gstatic.com/firebasejs/${v}/firebase-app.js`),import(`https://www.gstatic.com/firebasejs/${v}/firebase-auth.js`),import(`https://www.gstatic.com/firebasejs/${v}/firebase-firestore.js`)]));const app=appMod.initializeApp(FIREBASE_SYNC.config);auth=authMod.getAuth(app);db=firestoreMod.getFirestore(app);firebase={...authMod,...firestoreMod};await authMod.setPersistence(auth,authMod.browserLocalPersistence);return firebase;}
-async function signIn(){if(renderNativeConfigurationError())return;const button=document.getElementById('btnSyncLogin');try{if(button){button.disabled=true;button.textContent='Abriendo Google…';}setStatus('Abriendo acceso con Google…');const f=await loadFirebase(),provider=new f.GoogleAuthProvider(),result=window.__hecagusNative?await window.__hecagusNative.signInWithGoogle(f,auth):await f.signInWithPopup(auth,provider);activateUser(result.user);if(navigator.onLine)await syncNow();}catch(e){showSyncError(e);if(button){button.disabled=false;button.textContent='Continuar con Google';}}}
+async function signIn(){if(renderNativeConfigurationError())return;const button=syncSurface().zone?.querySelector('#btnSyncLogin');try{if(button){button.disabled=true;button.textContent='Abriendo Google…';}setStatus('Abriendo acceso con Google…');const f=await loadFirebase(),provider=new f.GoogleAuthProvider(),result=window.__hecagusNative?await window.__hecagusNative.signInWithGoogle(f,auth):await f.signInWithPopup(auth,provider);activateUser(result.user);if(navigator.onLine)await syncNow();}catch(e){showSyncError(e);if(button){button.disabled=false;button.textContent='Continuar con Google';}}}
 const docRef=()=>firebase.doc(db,'users',currentUser.uid,'budget','state');
 async function applyRemote(remote){Data.restaurar(JSON.stringify(remote.state));observedHash=stateHash();meta={...meta,baseRevision:Number(remote.revision)||0,baseState:clone(remote.state),dirty:false,lastSync:new Date().toISOString()};saveMeta(meta);conflictRemote=null;renderSyncUI();document.dispatchEvent(new CustomEvent('budget:remote-applied'));}
 export async function syncNow(options={}){
@@ -58,11 +59,15 @@ function renderMergeChoices(zone){
   const label=value=>value===undefined?'Eliminar':JSON.stringify(value);
   for(const conflict of result.conflicts){
     const row=document.createElement('label');row.style.display='block';
+    if(conflict.kind==='audit_concurrency'){
+      const message=document.createElement('p');message.textContent='Hay una conciliación y registros financieros distintos entre dispositivos. No se pueden sumar con seguridad: elige la versión completa del dispositivo o de la nube después de revisar cuál refleja tus saldos reales. Se conservan los registros mientras decides.';
+      row.append(message);list.append(row);continue;
+    }
     if(conflict.kind==='reservation_capacity'){
       const message=document.createElement('p');message.textContent=`Las reservas combinadas (${conflict.reserved.toFixed(2)}) superan el efectivo (${conflict.cash.toFixed(2)}) en ${conflict.excess.toFixed(2)}. La fusión conserva los registros y queda pendiente. Libera parte de una meta antes de fusionar o elige una versión completa.`;
       row.append(message);list.append(row);continue;
     }
-    const title=document.createElement('p');title.textContent=conflict.kind==='financial_period'?`Hay pagos en ambos dispositivos para el mismo período (${conflict.path}). Elige una versión o conserva ambos si son pagos distintos.`:conflict.path;row.append(title);
+    const title=document.createElement('p');title.textContent=conflict.kind==='account_reconciliation'?'Hay dos ajustes del mismo saldo. Elige la conciliación que refleja tu cuenta; no se deben sumar.':conflict.kind==='financial_period'?`Hay pagos en ambos dispositivos para el mismo período (${conflict.path}). Elige una versión o conserva ambos si son pagos distintos.`:conflict.path;row.append(title);
     const select=document.createElement('select');
     for(const [value,text] of [['','Elige una versión'],['local',`Dispositivo: ${label(conflict.local)}`],['remote',`Nube: ${label(conflict.remote)}`]]){
       const option=document.createElement('option');option.value=value;option.textContent=text;select.append(option);
@@ -90,17 +95,20 @@ function bindLifecycle(){if(lifecycleBound)return;lifecycleBound=true;document.a
 function activateUser(user){
   if(currentUser?.uid===user?.uid&&authReady)return;
   const owner=localStorage.getItem('presupuesto_state_owner_v1');
+  let accountStateChanged=false;
   if(user&&owner&&owner!==user.uid){
     localStorage.setItem(`presupuesto_local_backup_${owner}`,JSON.stringify(Data.getState()));
     localStorage.removeItem('forecast_include_variable');
     const next=localStorage.getItem(`presupuesto_local_backup_${user.uid}`);
     Data.restaurar(next||JSON.stringify({profile:{onboarded:false},workSources:[],movimientos:[],turnos:[],wallet:{saldo:0,sobres:[]},parametros:{}}));
     observedHash=stateHash();
+    accountStateChanged=true;
   }
   if(user)localStorage.setItem('presupuesto_state_owner_v1',user.uid);
   currentUser=user;conflictRemote=null;mergeChoices={};clearTimeout(syncTimer);
   if(user){META_KEY=`presupuesto_sync_meta_v2_${user.uid}`;meta=loadMeta();if((!meta.lastSync&&hasMeaningfulLocalData())||(meta.baseState&&syncOutcome(meta.baseState,Data.getState(),meta.baseRevision).dirty))meta={...meta,dirty:true};saveMeta(meta);}
   authReady=true;renderSyncUI();
+  if(accountStateChanged)document.dispatchEvent(new CustomEvent('budget:account-state-changed',{detail:{userId:currentUser.uid,onboarded:Boolean(Data.getState().profile?.onboarded)}}));
 }
 
 export function initSync(){

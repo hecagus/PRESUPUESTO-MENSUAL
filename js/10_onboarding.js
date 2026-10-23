@@ -1,4 +1,5 @@
 /* v2.7.1 - Acceso primero, PWA, onboarding adaptativo y edición conectada a Hogar. */
+import { showStorageRecovery } from './ui/storage-recovery.js';
 import { SOURCE_KINDS, COMPENSATIONS, TRANSPORT_MODES, fmtMoney } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { initSync, notifyLocalChange, prepareFreshBudget, syncNow } from './07_sync.js';
@@ -7,7 +8,7 @@ import { ensureFinancialLife, updateSourceLife } from './21_financial_life_v27.j
 import { householdById } from './23_home_semantics.js';
 import { HOUSING_MODES, nextHousingDate, validateLivingSetup, saveLivingSetup } from './28_onboarding_living.js';
 
-Data.loadData();ensureFinancialLife();initPWA();
+try{Data.loadData();}catch(error){showStorageRecovery();throw error;}ensureFinancialLife();initPWA();
 const edit=new URLSearchParams(location.search).get('edit')==='1';
 let step=0,sourceDrafts=[],setupShown=false,freshStarting=false;
 const $=id=>document.getElementById(id);

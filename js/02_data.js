@@ -20,12 +20,63 @@ const INITIAL_STATE={
 
 let store=structuredClone(INITIAL_STATE);
 let unreadableStorage=null;
+let transactionDepth=0;
+let lastFinancialSignature=null;
+let lastFinancialSourceTimes=[];
+let pendingFinancialBaseline=null;
+const FRESHNESS_INTERVAL=7*86400000;
+const isRealFinancialMovement=m=>m.categoria!=='Sistema'&&!m.goalTransfer&&!m.legacySavingsTransfer&&m.movementKind!=='reconciliation';
+const realFinancialSignature=s=>JSON.stringify({
+  movimientos:(s.movimientos||[]).filter(isRealFinancialMovement).map(m=>[m.id,m.tipo,m.monto,m.fecha,m.accountId,m.debtId]),
+  turnos:(s.turnos||[]).map(t=>[t.id,t.fin,t.ganancia]),
+  deudas:(s.deudas||[]).map(d=>[d.id,d.saldo,d.montoCuota,d.frecuencia]),
+});
+const validFinancialTime=value=>{if(value===null||value===undefined||value==='')return null;const time=new Date(value).getTime();return Number.isFinite(time)?time:null;};
+const financialSourceTimes=s=>[
+  ...(s.movimientos||[]).filter(isRealFinancialMovement).map(m=>m.recordedAt||m.fecha),
+  ...(s.turnos||[]).map(t=>t.fin),
+  ...(s.deudas||[]).map(d=>d.creadaEn||d.createdAt),
+].map(validFinancialTime).filter(time=>time!==null);
+// Replacing a budget establishes its baseline without claiming a new capture.
+const resetFinancialBaseline=()=>{pendingFinancialBaseline={signature:realFinancialSignature(store),sourceTimes:financialSourceTimes(store)};};
+// A financial capture is committed once; failed writes cannot leave phantom payments in memory.
+export function withTransaction(action){
+  const outer=transactionDepth===0,before=outer?structuredClone(store):null,previousUnreadable=unreadableStorage,previousSignature=lastFinancialSignature,previousSourceTimes=lastFinancialSourceTimes,previousBaseline=pendingFinancialBaseline;
+  transactionDepth++;
+  try{
+    const result=action();
+    if(result&&typeof result.then==='function')throw new Error('TRANSACCION_ASINCRONA_NO_ADMITIDA');
+    transactionDepth--;
+    if(outer)saveData();
+    return result;
+  }catch(error){
+    transactionDepth=outer?0:transactionDepth-1;
+    if(outer){store=before;unreadableStorage=previousUnreadable;lastFinancialSignature=previousSignature;lastFinancialSourceTimes=previousSourceTimes;pendingFinancialBaseline=previousBaseline;}
+    throw error;
+  }
+}
 export const getState=()=>store;
 export const createEmptyState=()=>structuredClone({...INITIAL_STATE,accounts:[defaultPersonalAccount()]});
 export const getCapabilities=()=>new Set(store.profile?.capabilities||[]);
 export const fuenteById=id=>store.workSources.find(x=>x.id===id)||null;
 export const cuentaById=id=>store.accounts.find(x=>x.id===id)||null;
-export function saveData(){if(unreadableStorage!==null)throw new Error('STORAGE_DATA_INVALIDA');store.schemaVersion=SCHEMA_VERSION;localStorage.setItem(STORAGE_KEY,JSON.stringify(store));}
+export function saveData(){
+  if(unreadableStorage!==null)throw new Error('STORAGE_DATA_INVALIDA');
+  if(transactionDepth>0)return;
+  const signature=realFinancialSignature(store),sourceTimes=financialSourceTimes(store),baseline=pendingFinancialBaseline||{signature:lastFinancialSignature,sourceTimes:lastFinancialSourceTimes};
+  let next={...store,schemaVersion:SCHEMA_VERSION};
+  if(baseline.signature!==null&&signature!==baseline.signature&&store.profile?.onboarded){
+    const now=Date.now(),freshness=store.financialPlan?.freshness||{};
+    // Use the persisted history before this capture, so a long gap remains auditable.
+    const references=[freshness.lastConfirmedAt,freshness.lastAuditedAt].map(validFinancialTime).concat(baseline.sourceTimes).filter(time=>time!==null&&time<=now);
+    const requiresAudit=freshness.requiresAudit===true||(references.length>0&&now-Math.max(...references)>=FRESHNESS_INTERVAL);
+    next={...next,financialPlan:{...store.financialPlan,freshness:{...freshness,lastConfirmedAt:new Date(now).toISOString(),...(requiresAudit?{requiresAudit:true}:{})}}};
+  }
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(next));
+  store.schemaVersion=SCHEMA_VERSION;
+  if(next.financialPlan!==store.financialPlan){store.financialPlan=store.financialPlan||{};store.financialPlan.freshness=next.financialPlan.freshness;}
+  lastFinancialSignature=signature;lastFinancialSourceTimes=sourceTimes;pendingFinancialBaseline=null;
+}
 
 const requireText=(value,code='DESCRIPCION_INVALIDA')=>{const text=String(value??'').trim();if(!text)throw new Error(code);return text;};
 const requirePositive=(value,code='MONTO_INVALIDO')=>{const n=safeFloat(value);if(!(n>0))throw new Error(code);return n;};
@@ -36,8 +87,9 @@ const sourceTransportMode=s=>s?.transport?.mode||s?.transportMode||store.profile
 
 
 export function loadData(){
-  let raw=localStorage.getItem(STORAGE_KEY);if(raw===null){for(const k of LEGACY_KEYS){const v=localStorage.getItem(k);if(v!==null){raw=v;break;}}}
-  if(raw!==null){try{const x=JSON.parse(raw);if(!x||typeof x!=='object'||Array.isArray(x)||!['profile','movimientos','parametros','wallet','workSources','deudas','financialPlan'].some(k=>Object.hasOwn(x,k)))throw new Error('BACKUP_INVALIDO');const sources=migrateWorkSources(x),profile=migrateProfile(x,sources),accounts=migrateAccounts(x,sources);store={...structuredClone(INITIAL_STATE),...x,profile,workSources:sources,accounts,assets:Array.isArray(x.assets)?x.assets:[],wallet:{...INITIAL_STATE.wallet,...(x.wallet||{})},parametros:{...INITIAL_STATE.parametros,...(x.parametros||{})},categoriasPersonalizadas:{...INITIAL_STATE.categoriasPersonalizadas,...(x.categoriasPersonalizadas||{})},ingresosFijos:migrateFixedIncome(x.ingresosFijos),turnos:migrateTurns(x.turnos,sources),movimientos:migrateMovements(x.movimientos),fondosCombustibleEmpresa:Array.isArray(x.fondosCombustibleEmpresa)?x.fondosCombustibleEmpresa:[],business:normalizeBusiness(x.business),activeActivity:x.activeActivity||x.turnoActivo||null,turnoActivo:x.turnoActivo||x.activeActivity||null};}catch(e){unreadableStorage=raw;throw Object.assign(new Error('STORAGE_DATA_INVALIDA'),{cause:e});}}else store=structuredClone(INITIAL_STATE);unreadableStorage=null;sanearDatos();return store;
+  const previous=structuredClone(store),previousSignature=lastFinancialSignature,previousSourceTimes=lastFinancialSourceTimes,previousBaseline=pendingFinancialBaseline;let raw=null;try{pendingFinancialBaseline={signature:null,sourceTimes:[]};raw=localStorage.getItem(STORAGE_KEY);if(raw===null){for(const k of LEGACY_KEYS){const v=localStorage.getItem(k);if(v!==null){raw=v;break;}}}
+  if(raw!==null){try{const x=JSON.parse(raw);if(!x||typeof x!=='object'||Array.isArray(x)||!['profile','movimientos','parametros','wallet','workSources','deudas','financialPlan'].some(k=>Object.hasOwn(x,k)))throw new Error('BACKUP_INVALIDO');const sources=migrateWorkSources(x),profile=migrateProfile(x,sources),accounts=migrateAccounts(x,sources);store={...structuredClone(INITIAL_STATE),...x,profile,workSources:sources,accounts,assets:Array.isArray(x.assets)?x.assets:[],wallet:{...INITIAL_STATE.wallet,...(x.wallet||{})},parametros:{...INITIAL_STATE.parametros,...(x.parametros||{})},categoriasPersonalizadas:{...INITIAL_STATE.categoriasPersonalizadas,...(x.categoriasPersonalizadas||{})},ingresosFijos:migrateFixedIncome(x.ingresosFijos),turnos:migrateTurns(x.turnos,sources),movimientos:migrateMovements(x.movimientos),fondosCombustibleEmpresa:Array.isArray(x.fondosCombustibleEmpresa)?x.fondosCombustibleEmpresa:[],business:normalizeBusiness(x.business),activeActivity:x.activeActivity||x.turnoActivo||null,turnoActivo:x.turnoActivo||x.activeActivity||null};}catch(e){unreadableStorage=raw;throw Object.assign(new Error('STORAGE_DATA_INVALIDA'),{cause:e});}}else store=structuredClone(INITIAL_STATE);unreadableStorage=null;sanearDatos();if(transactionDepth>0)resetFinancialBaseline();return store;
+  }catch(error){store=previous;unreadableStorage=raw;lastFinancialSignature=previousSignature;lastFinancialSourceTimes=previousSourceTimes;pendingFinancialBaseline=previousBaseline;throw Object.assign(new Error('STORAGE_DATA_INVALIDA'),{cause:error});}
 }
 
 export function deriveCapabilities(){
@@ -179,4 +231,4 @@ export function agregarIngredienteProducto(productId,ingredientId,cantidad){cons
 export function costoProducto(productId){const p=store.business.products.find(x=>x.id===productId);if(!p)return 0;return p.recipe.reduce((sum,r)=>sum+safeFloat(r.qty)*safeFloat(store.business.ingredients.find(i=>i.id===r.ingredientId)?.costPerUnit),0);}
 export function registrarVentaProducto(productId,cantidad=1,sourceId=null){const p=store.business.products.find(x=>x.id===productId&&x.active);if(!p)throw new Error('PRODUCTO_NO_ENCONTRADO');const q=requirePositive(cantidad,'CANTIDAD_INVALIDA'),source=fuenteById(sourceId)||store.workSources.find(s=>sourceUsable(s)&&s.kind==='business'),total=safeFloat(p.salePrice)*q,fecha=new Date().toISOString();store.business.sales.push({id:uuid(),fecha,productId:p.id,qty:q,total,sourceId:source?.id||null,unitCost:costoProducto(p.id)});store.movimientos.push({id:uuid(),fecha,tipo:'ingreso',desc:`Venta · ${p.name}`,monto:total,categoria:'Ventas',sourceId:source?.id||null,fuente:source?.id||'business',accountId:PERSONAL_ACCOUNT_ID,affectsPersonal:true});return commit();}
 
-export function restaurar(json){let x;try{x=JSON.parse(json);}catch{throw new Error('BACKUP_INVALIDO');}if(!x||typeof x!=='object'||Array.isArray(x))throw new Error('BACKUP_INVALIDO');const hasKnownData=['movimientos','turnos','deudas','wallet','parametros','ingresosFijos','profile','workSources'].some(k=>Object.prototype.hasOwnProperty.call(x,k));if(!hasKnownData)throw new Error('BACKUP_INVALIDO');if(unreadableStorage!==null){localStorage.setItem(`${STORAGE_KEY}_unreadable_${Date.now()}`,unreadableStorage);unreadableStorage=null;}const sources=migrateWorkSources(x),profile=migrateProfile(x,sources),accounts=migrateAccounts(x,sources);store={...structuredClone(INITIAL_STATE),...x,profile,workSources:sources,accounts,assets:Array.isArray(x.assets)?x.assets:[],parametros:{...INITIAL_STATE.parametros,...(x.parametros||{})},wallet:{...INITIAL_STATE.wallet,...(x.wallet||{})},categoriasPersonalizadas:{...INITIAL_STATE.categoriasPersonalizadas,...(x.categoriasPersonalizadas||{})},ingresosFijos:migrateFixedIncome(x.ingresosFijos),turnos:migrateTurns(x.turnos,sources),movimientos:migrateMovements(x.movimientos),fondosCombustibleEmpresa:Array.isArray(x.fondosCombustibleEmpresa)?x.fondosCombustibleEmpresa:[],business:normalizeBusiness(x.business),activeActivity:x.activeActivity||x.turnoActivo||null,turnoActivo:x.turnoActivo||x.activeActivity||null};return commit();}
+export function restaurar(json){return withTransaction(()=>{let x;try{x=JSON.parse(json);}catch{throw new Error('BACKUP_INVALIDO');}if(!x||typeof x!=='object'||Array.isArray(x))throw new Error('BACKUP_INVALIDO');const hasKnownData=['movimientos','turnos','deudas','wallet','parametros','ingresosFijos','profile','workSources'].some(k=>Object.prototype.hasOwnProperty.call(x,k));if(!hasKnownData)throw new Error('BACKUP_INVALIDO');if(unreadableStorage!==null){localStorage.setItem(`${STORAGE_KEY}_unreadable_${Date.now()}`,unreadableStorage);unreadableStorage=null;}const sources=migrateWorkSources(x),profile=migrateProfile(x,sources),accounts=migrateAccounts(x,sources);store={...structuredClone(INITIAL_STATE),...x,profile,workSources:sources,accounts,assets:Array.isArray(x.assets)?x.assets:[],parametros:{...INITIAL_STATE.parametros,...(x.parametros||{})},wallet:{...INITIAL_STATE.wallet,...(x.wallet||{})},categoriasPersonalizadas:{...INITIAL_STATE.categoriasPersonalizadas,...(x.categoriasPersonalizadas||{})},ingresosFijos:migrateFixedIncome(x.ingresosFijos),turnos:migrateTurns(x.turnos,sources),movimientos:migrateMovements(x.movimientos),fondosCombustibleEmpresa:Array.isArray(x.fondosCombustibleEmpresa)?x.fondosCombustibleEmpresa:[],business:normalizeBusiness(x.business),activeActivity:x.activeActivity||x.turnoActivo||null,turnoActivo:x.turnoActivo||x.activeActivity||null};const result=commit();resetFinancialBaseline();return result;});}

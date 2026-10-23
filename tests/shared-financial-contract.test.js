@@ -38,7 +38,8 @@ test('se puede apartar $328 cobrados aunque las obligaciones futuras superen el 
   const before=Life.financialPosition();assert.ok(before.free<0);close(before.availableToday,4276.87);
   Goals.contributeToSavingsGoal(g.id,328,{sourceId:'gig'});
   const after=Life.financialPosition();close(after.cash,before.cash);close(after.reserved,1135);close(after.availableToday,3948.87);
-  close(Goals.savingsCapacity(g.id).safeFreeCash,after.savingsAvailableNow);close(Health.smartGoalPlan(g.id).suggestedNow,Math.min(after.savingsAvailableNow,Goals.savingsGoalSummary(g.id).requiredMonthly));
+  // Manual availability keeps its contract; advice must also protect forthcoming payments.
+  close(Goals.savingsCapacity(g.id).safeFreeCash,after.savingsAvailableNow);close(Health.smartGoalPlan(g.id).suggestedNow,0);
 });
 test('los ingresos esperados nunca autorizan a apartar efectivo inexistente',()=>{
   Data.registrarPagoFuente('salary',1000,now,{periodDate:'2026-09-30'});food();const g=goal();

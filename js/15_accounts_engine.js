@@ -1,6 +1,6 @@
 /* v2.3.0 - Cuentas reales, transferencias y movimientos universales. */
 import { safeFloat, uuid, ACCOUNT_TYPES } from './01_consts_utils.js';
-import { getState, saveData, sanearDatos } from './02_data.js';
+import { getState, saveData, sanearDatos, withTransaction } from './02_data.js';
 import { personalCash, actualPaymentDate, accountLedgerBalance } from './domain/financial-rules.js';
 
 const EPS=0.005;
@@ -59,8 +59,9 @@ export function setAccountActive(accountId,active){
 }
 
 export function recordUniversalMovement({type,description,amount,accountId,category='Otro',sourceId=null,tags=[],date=new Date(),operatingPayment=null,operationId=null}={}){
+  return withTransaction(()=>{
   const existing=operationId&&(getState().movimientos||[]).find(m=>m.operationId===operationId);
-  if(existing){if(existing.accountId!==accountId||existing.monto!==safeFloat(amount))throw new Error('OPERACION_INCOMPATIBLE');return existing;}
+  if(existing){if(existing.accountId!==accountId||existing.monto!==safeFloat(amount)||existing.tipo!==(type==='income'?'ingreso':'gasto')||existing.desc!==String(description??'').trim())throw new Error('OPERACION_INCOMPATIBLE');return existing;}
   ensureAccountsEngine();const state=getState(),account=state.accounts.find(a=>a.id===accountId&&a.ownership!=='third_party'&&a.active!==false);
   if(!account)throw new Error('CUENTA_NO_ENCONTRADA');
   const tipo=type==='income'?'ingreso':type==='expense'?'gasto':null;if(!tipo)throw new Error('TIPO_MOVIMIENTO_INVALIDO');
@@ -72,6 +73,8 @@ export function recordUniversalMovement({type,description,amount,accountId,categ
     ...(operatingPayment?{operatingObligationId:operatingPayment.id,operatingPeriod:operatingPayment.period,operatingDueDate:operatingPayment.dueDate,operatingExpectedAmount:operatingPayment.expectedAmount,...(operatingPayment.settled===true?{operatingSettled:true}:{})}:{})
   };
   state.movimientos.push(movement);sanearDatos();return movement;
+
+  });
 }
 
 export function transferBetweenAccounts({fromAccountId,toAccountId,amount,note=''}={}){

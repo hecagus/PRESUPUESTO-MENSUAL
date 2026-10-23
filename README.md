@@ -1,4 +1,4 @@
-# La app del HecAgus · v3.0.0
+# La app del HecAgus · v3.1.8
 
 **La app del HecAgus** es un sistema financiero personal configurable, offline-first y sincronizable. Modela dinero, hogar, trabajo, cuentas, fondos de terceros, deudas, metas y negocio sin depender de nombres concretos de empresas o plataformas.
 
@@ -52,7 +52,11 @@ Hogar diferencia semánticamente:
 - 🔵 **Opcional**: suscripción o gusto que no compromete dinero hasta pagarse.
 - 💸 **Gasto realizado**: salida real que queda en Historial sin crear un presupuesto futuro.
 
-La migración v3 mueve compromisos manuales antiguos hacia Hogar y desactiva la copia anterior. También incluye una reparación conservadora de dobles capturas directas idénticas: mismo concepto, monto y fecha, registradas dentro de una ventana de cinco minutos.
+La migración v3 mueve compromisos manuales antiguos hacia Hogar y desactiva la copia anterior. Se conservan todos los movimientos históricos: la igualdad de concepto, monto y fecha no prueba duplicación. La captura directa pide confirmar una compra igual registrada en los últimos cinco minutos y utiliza identidad de operación para evitar reintentos duplicados.
+
+La [auditoría de captura e integridad](docs/auditoria-ux-integridad.md) documenta los cambios de registro rápido, persistencia, consejos de ahorro e Historial, sus pruebas y los riesgos pendientes.
+
+La [conciliación al regresar](docs/financial-freshness.md) pide saldos reales tras siete días sin registros, confirma los apartados dentro de las cuentas y permite actualizar saldos manualmente. Los ajustes conservan el historial y no se cuentan como ingresos o gastos de consumo.
 
 ### PWA
 
@@ -92,6 +96,9 @@ El navegador conserva la decisión final sobre cuándo permite mostrar su diálo
 23_home_semantics.js     semántica, migración y reparación de Hogar
 24_home_ui_v28.js        UI actual de Hogar
 25_activity_insights.js  rendimiento de actividad/combustible
+26_sync_merge.js         fusión y conflictos de sincronización
+29_financial_freshness.js antigüedad y conciliación transaccional
+30_financial_audit_ui.js revisión de cuentas, apartados y trabajo
 pwa-bootstrap.js         arranque PWA temprano
 ```
 

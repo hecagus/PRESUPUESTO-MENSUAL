@@ -2,7 +2,7 @@
 import { $, APP_VERSION, COMPENSATIONS, uuid } from './01_consts_utils.js';
 import * as Data from './02_data.js';
 import { Modal, renderIndex, renderWallet, renderStats, renderAdmin } from './03_render.js';
-import { initSync, notifyLocalChange } from './07_sync.js';
+import { initSync, notifyLocalChange, renderSyncUI } from './07_sync.js';
 import { initPWA, promptInstall, canPromptInstall } from './08_pwa.js';
 import { ensureSavingsGoals } from './11_savings_goals.js';
 import { renderSavingsGoalsUI, initSavingsGoalEvents } from './12_savings_ui.js';
@@ -14,6 +14,10 @@ import {showSourcePayment,showIncomePeriodCorrection} from './ui/source-payments
 import { runAutomationEngine } from './17_automation_engine.js';
 import { ensureFinancialPlatform, renderFinancialPlatform, initFinancialPlatformEvents } from './19_platform_ui.js';
 import { renderHome, initHomeEvents } from './22_home_ui.js';
+import { showStorageRecovery } from './ui/storage-recovery.js';
+import { initQuickExpense } from './ui/quick-expense.js';
+import {financialFreshness} from './29_financial_freshness.js';
+import {showFinancialAudit,isFinancialAuditOpen} from './30_financial_audit_ui.js';
 import { renderActivityInsights } from './25_activity_insights.js';
 
 /* El bootstrap del <head> captura lo más temprano posible; esto enlaza el resto del ciclo PWA. */
@@ -26,6 +30,8 @@ function renderBottomNav(){
 }
 
 const refresh=()=>{
+  if(financialFreshness().stale){showFinancialAudit(returnFromAudit);return;}
+  if(isFinancialAuditOpen())return;
   const page=document.body.dataset.page;
   if(page==='index'){renderIndex();renderFinancialPositionPanel();renderCalendarPreview();}
   else if(page==='home')renderHome();
@@ -52,7 +58,7 @@ const ERROR_MESSAGES={
 };
 
 const emitChange=()=>document.dispatchEvent(new CustomEvent('budget:data-changed'));
-const safe=fn=>{try{fn();runAutomationEngine();refresh();emitChange();}catch(e){console.error(e);alert(ERROR_MESSAGES[e.message]||'No se pudo completar la operación.');}};
+const safe=fn=>{if(financialFreshness().stale){showFinancialAudit(returnFromAudit);return false;}try{Data.withTransaction(()=>{fn();runAutomationEngine();});refresh();emitChange();return true;}catch(e){console.error(e);return Modal.error(ERROR_MESSAGES[e.message]||'No se pudo guardar. Revisa el espacio disponible e inténtalo de nuevo.');}};
 const sourceUsable=s=>s.active!==false&&s.status!=='paused'&&s.status!=='ended';
 
 function finishActive(){
@@ -77,17 +83,23 @@ function saleProduct(productId){Modal.show('Registrar venta',[{label:'Cantidad',
 
 function initAdminEvents(){
   $('btnFuel')?.addEventListener('click',fuelModal);$('btnCompanyFund')?.addEventListener('click',companyFundModal);
-  $('btnGastoHogar')?.addEventListener('click',()=>{location.href='home.html';});
+
   initOperatingCostEvents(safe);
   $('btnDeudaNueva')?.addEventListener('click',()=>Modal.show('Nueva deuda',[{label:'Nombre',key:'d'},{label:'Total',key:'t',type:'number'},{label:'Cuota',key:'c',type:'number'},{label:'Plan de pago',key:'f',type:'select',options:['Unico','Semanal','Quincenal','Mensual'].map(x=>({val:x,txt:x==='Unico'?'Una sola vez':x}))},{label:'Día de pago / vencimiento',key:'dp',type:'number',value:1}],d=>safe(()=>Data.nuevaDeuda(d.d,d.t,d.c,d.f,d.dp))));
   $('btnAbonoCuota')?.addEventListener('click',()=>{const id=$('abonoDeudaSelect')?.value;if(!id)return alert('Selecciona una deuda.');if(confirm('¿Confirmar abono?')){const operationId=uuid();safe(()=>Data.abonarDeuda(id,Date.now(),{operationId}));}});
   $('btnConfigKM')?.addEventListener('click',()=>{if(Data.getState().parametros.kmInicialConfigurado)return alert('El kilometraje ya se gestiona con tus actividades.');Modal.show('Configurar kilometraje',[{label:'KM actuales',key:'k',type:'number'}],d=>safe(()=>Data.configurarKM(d.k)));});
   $('btnExportJSON')?.addEventListener('click',async()=>{const json=JSON.stringify(Data.getState(),null,2);try{if(window.__hecagusNative)await window.__hecagusNative.copyBackup(json);else await navigator.clipboard.writeText(json);alert('Respaldo copiado.');}catch{const blob=new Blob([json],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`hecagus-finance-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url);alert('Respaldo descargado.');}});
-  $('btnRestoreBackup')?.addEventListener('click',()=>Modal.show('Restaurar respaldo',[{label:'JSON',key:'j'}],d=>{if(!confirm('Esto reemplazará los datos actuales. ¿Continuar?'))return;safe(()=>Data.restaurar(d.j));}));
+  $('btnRestoreBackup')?.addEventListener('click',()=>Modal.show('Restaurar respaldo',[{label:'JSON',key:'j'}],d=>{if(!confirm('Esto reemplazará los datos actuales. ¿Continuar?'))return false;return safe(()=>Data.restaurar(d.j));}));
 }
 
 function initGlobalEvents(){
   $('btnInstallApp')?.addEventListener('click',async()=>{if(canPromptInstall())await promptInstall();});
+  document.addEventListener('click',event=>{
+    if(event.target.closest('[data-open-financial-audit]'))showFinancialAudit(returnFromAudit,{manual:true});
+  });
+  document.addEventListener('click',event=>{
+    if(!isFinancialAuditOpen()&&financialFreshness().stale){event.preventDefault();event.stopImmediatePropagation();showFinancialAudit(returnFromAudit);}
+  },true);
 }
 
 function initDelegation(){document.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(!b||b.disabled)return;const action=b.dataset.action,id=b.dataset.id;
@@ -98,14 +110,38 @@ function initDelegation(){document.addEventListener('click',e=>{const b=e.target
 
 function startTimer(){if(document.body.dataset.page!=='admin')return;window.setInterval(()=>{const t=Data.getState().activeActivity,el=$('activityTimer');if(!el)return;if(!t){el.textContent='00:00:00';return;}const diff=Math.max(0,Date.now()-t.inicio);el.textContent=`${Math.floor(diff/3600000)}h ${Math.floor((diff%3600000)/60000)}m`;},1000);}
 
-document.addEventListener('budget:remote-applied',()=>{ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();const applied=runAutomationEngine();refresh();if(applied)notifyLocalChange();});
+let appStarted=false;
+const returnFromAudit=()=>window.location.reload();
+document.addEventListener('budget:audit-opened',()=>renderSyncUI());
+document.addEventListener('budget:audit-closed',()=>{renderSyncUI();if(appStarted)refresh();});
+document.addEventListener('budget:account-state-changed',()=>{
+  if(Data.getState().profile?.onboarded)window.location.reload();
+  else window.location.replace('onboarding.html');
+});
+document.addEventListener('budget:remote-applied',()=>{
+  if(!Data.getState().profile?.onboarded){window.location.replace('onboarding.html');return;}
+  ensureSavingsGoals();
+  if(isFinancialAuditOpen()){
+    if(!appStarted&&!financialFreshness().stale){window.location.reload();return;}
+    showFinancialAudit(returnFromAudit,{manual:true,rebuild:true,notice:'Se recibió otra versión de tus datos. Revisa de nuevo los saldos antes de guardar.'});return;
+  }
+  if(showFinancialAudit(returnFromAudit))return;
+  if(!appStarted){window.location.reload();return;}
+  ensureFinancialLife();ensureFinancialPlatform();const applied=runAutomationEngine();refresh();if(applied)notifyLocalChange();
+});
 document.addEventListener('DOMContentLoaded',()=>{
-  Data.loadData();ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();
+  try{Data.loadData();}catch(error){console.error(error);showStorageRecovery();return;}
   if(!Data.getState().profile.onboarded){window.location.replace('onboarding.html');return;}
-  renderBottomNav();runAutomationEngine();refresh();initDelegation();initGlobalEvents();
+  ensureSavingsGoals();
+  if(showFinancialAudit(returnFromAudit)){initSync();return;}
+  ensureFinancialLife();ensureFinancialPlatform();
+  renderBottomNav();initQuickExpense(refresh);runAutomationEngine();refresh();initDelegation();initGlobalEvents();
   initSavingsGoalEvents(refresh);initFinancialPlatformEvents(refresh);
   if(document.body.dataset.page==='home')initHomeEvents(refresh);
   if(document.body.dataset.page==='admin')initAdminEvents();
   if(document.body.dataset.page==='calendar')initCalendarEvents(refresh);
-  startTimer();initSync();console.log(`La app del HecAgus v${APP_VERSION}`);
+  startTimer();appStarted=true;initSync();
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)showFinancialAudit(returnFromAudit);});
+  window.addEventListener('pageshow',()=>showFinancialAudit(returnFromAudit));
+  console.log(`La app del HecAgus v${APP_VERSION}`);
 });

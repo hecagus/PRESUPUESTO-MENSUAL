@@ -33,7 +33,7 @@ export function resumenPeriodoFuente(store,sourceId,fecha=new Date()){
 export function resumenGlobal(store,now=new Date()){
   const personal=(store.movimientos||[]).filter(m=>isPersonalMovement(store,m)&&inObservedPeriod(m.fecha,0,now));
   const ingresos=personal.filter(m=>m.tipo==='ingreso'&&m.categoria!=='Sistema').reduce((a,m)=>a+safeFloat(m.monto),0);
-  const gastos=personal.filter(m=>m.tipo==='gasto').reduce((a,m)=>a+safeFloat(m.monto),0);
+  const gastos=personal.filter(m=>m.tipo==='gasto'&&m.movementKind!=='reconciliation').reduce((a,m)=>a+safeFloat(m.monto),0);
   const ahorro=reservedSavings(store,now);
   const saldo=personalCash(store,now);
   return {ingresos,gastos,saldo,ahorro,disponible:saldo-ahorro};
