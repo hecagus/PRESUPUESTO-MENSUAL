@@ -133,10 +133,11 @@ test('nombres importados se muestran como texto sin crear elementos ejecutables'
 
 test('historial muestra vencimientos, reservas neutrales y permite leer más de 150 eventos',()=>{
   const rows=Array.from({length:170},(_,i)=>({...income(`expense-${i}`,10),tipo:'gasto',desc:'Compra '+i}));
-  rows.push({...income('weekly-a',125),tipo:'gasto',desc:'Servicio',operatingDueDate:'2026-10-08'},{...income('weekly-b',125),tipo:'gasto',desc:'Servicio',operatingDueDate:'2026-10-15'}, {...income('reserve',50),tipo:'gasto',desc:'Reserva',categoria:'Meta',goalId:'g',affectsPersonal:false});reset({movimientos:rows});
+  rows.push({...income('weekly-a',125),tipo:'gasto',desc:'Servicio',operatingDueDate:'2026-10-08'},{...income('weekly-b',125),tipo:'gasto',desc:'Servicio',operatingDueDate:'2026-10-15'}, {...income('reserve',50),tipo:'gasto',desc:'Reserva',categoria:'Meta',goalId:'g',affectsPersonal:false},{...income('audit',200),tipo:'gasto',desc:'Ajuste de conciliación',categoria:'Sistema',movementKind:'reconciliation',reconciliation:{previousBalance:500,confirmedBalance:300}});reset({movimientos:rows});
   page('historial','<table><tbody id="tablaBody"></tbody></table>');Platform.initFinancialPlatformEvents();Platform.renderFinancialPlatform();assert.equal(document.querySelectorAll('#tablaBody tr').length,100);
-  document.querySelector('[data-platform-action="history-more"]').click();assert.equal(document.querySelectorAll('#tablaBody tr').length,173);assert.match(document.getElementById('tablaBody').textContent,/Cubre vencimiento del 8 oct/);assert.match(document.getElementById('tablaBody').textContent,/Cubre vencimiento del 15 oct/);
+  document.querySelector('[data-platform-action="history-more"]').click();assert.equal(document.querySelectorAll('#tablaBody tr').length,174);assert.match(document.getElementById('tablaBody').textContent,/Cubre vencimiento del 8 oct/);assert.match(document.getElementById('tablaBody').textContent,/Cubre vencimiento del 15 oct/);
   const reserve=[...document.querySelectorAll('tr')].find(tr=>tr.textContent.includes('Reserva'));assert.match(reserve.lastElementChild.textContent,/⇄/);assert.doesNotMatch(reserve.lastElementChild.textContent,/-/);assert.equal(document.querySelector('[data-platform-action="history-more"]'),null);
+  const adjustment=[...document.querySelectorAll('tr')].find(tr=>tr.textContent.includes('Ajuste de conciliación'));assert.match(adjustment.textContent,/\$500.00 → \$300.00/);assert.match(adjustment.lastElementChild.textContent,/↻ -\$200.00/);assert.equal(adjustment.lastElementChild.style.color,'rgb(99, 102, 241)');
 });
 
 test('anticipos operativos indican cobertura y fecha real sin borrar pagos iguales',()=>{

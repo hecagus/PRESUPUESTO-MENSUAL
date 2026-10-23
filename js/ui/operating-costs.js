@@ -3,7 +3,7 @@ import { getState } from '../02_data.js';
 import { Modal } from '../03_render.js';
 import {paymentDueState} from '../domain/financial-rules.js';
 import { getPersonalAccounts, recordUniversalMovement } from '../15_accounts_engine.js';
-import { OPERATING_FREQUENCIES, localDay, operatingObligations, operatingUpcomingEvents, createOperatingObligation, payOperatingObligation, endOperatingObligation, operatingPaymentDateRepairPreview, repairOperatingPaymentDates } from '../domain/operating-costs.js';
+import { OPERATING_FREQUENCIES, localDay, operatingObligations, operatingUpcomingEvents, createOperatingObligation, updateOperatingObligationAmount, payOperatingObligation, endOperatingObligation, operatingPaymentDateRepairPreview, repairOperatingPaymentDates } from '../domain/operating-costs.js';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dateValue=value=>new Date(/^\d{4}-\d{2}-\d{2}$/.test(String(value))?`${value}T09:00:00`:value);
@@ -52,7 +52,7 @@ export function renderOperatingCosts(now=new Date()){
     const next=events.find(e=>e.refId===item.id),source=getState().workSources.find(s=>s.id===item.sourceId),weekday=new Date(`${item.nextDueDate}T09:00:00`).toLocaleDateString('es-MX',{weekday:'long'});
     const advance=next&&isAdvance(next.dueDate,now);
     const status=next&&{overdue:'Vencido',due_today:'Vence hoy',due_tomorrow:'Vence mañana',scheduled:'Próximo pago'}[paymentDueState(next,now)];
-    return `<div class="operating-obligation"><div class="operating-obligation-heading"><strong>${esc(item.name)}</strong><strong>${fmtMoney(item.amount)}</strong></div><small>${esc(OPERATING_FREQUENCIES[item.frequency])}${item.frequency==='weekly'?` · cada ${esc(weekday)}`:''} · ${esc(item.category)}${source?` · ${esc(source.name)}`:''}</small>${next?`<p class="operating-due${next.overdue?' overdue':''}">${status} · ${dateLabel(next.dueDate)}<br>Pendiente: <strong>${fmtMoney(next.amount)}</strong></p>`:`<p class="operating-due">${item.active===false?'Finalizada · sin pagos pendientes':'Sin pagos pendientes en los próximos 400 días'}</p>`}<div class="grid-2">${next?`<button class="btn btn-primary" data-operating-action="pay" data-id="${esc(item.id)}" data-period="${esc(next.operatingPeriod)}">${advance?'Registrar anticipo':'Registrar pago'}</button>`:''}${item.active!==false?`<button class="btn btn-outline" data-operating-action="end" data-id="${esc(item.id)}">Finalizar obligación</button>`:''}</div>${recordedPayments(item)}</div>`;
+    return `<div class="operating-obligation"><div class="operating-obligation-heading"><strong>${esc(item.name)}</strong><strong>${fmtMoney(item.amount)}</strong></div><small>${esc(OPERATING_FREQUENCIES[item.frequency])}${item.frequency==='weekly'?` · cada ${esc(weekday)}`:''} · ${esc(item.category)}${source?` · ${esc(source.name)}`:''}</small>${next?`<p class="operating-due${next.overdue?' overdue':''}">${status} · ${dateLabel(next.dueDate)}<br>Pendiente: <strong>${fmtMoney(next.amount)}</strong></p>`:`<p class="operating-due">${item.active===false?'Finalizada · sin pagos pendientes':'Sin pagos pendientes en los próximos 400 días'}</p>`}<div class="grid-2">${next?`<button class="btn btn-primary" data-operating-action="pay" data-id="${esc(item.id)}" data-period="${esc(next.operatingPeriod)}">${advance?'Registrar anticipo':'Registrar pago'}</button>`:''}<button class="btn btn-outline" data-operating-action="edit-amount" data-id="${esc(item.id)}">Corregir importe</button>${item.active!==false?`<button class="btn btn-outline" data-operating-action="end" data-id="${esc(item.id)}">Finalizar obligación</button>`:''}</div>${recordedPayments(item)}</div>`;
   }).join(''):'<small>Agrega una frecuencia para programar obligaciones de trabajo, como la renta semanal de Mottu.</small>';
   const repair=operatingPaymentDateRepairPreview(now);
   if(repair.payments.length)box.insertAdjacentHTML('beforeend',`<div class="operating-obligation"><strong>Corregir pagos ya realizados</strong><p>${repair.payments.length} ${repair.payments.length===1?'pago registrado':'pagos registrados'} con fecha futura · ${fmtMoney(repair.total)}.</p><button class="btn btn-outline" data-operating-action="repair-dates">Corregir fechas a hoy · un solo uso</button></div>`);
@@ -68,12 +68,20 @@ function showPaymentDateRepair(safe){
   $('modalBody').innerHTML=`<p>Confirma que estos ${preview.payments.length} ${preview.payments.length===1?'pago ya se hizo':'pagos ya se hicieron'}. Se descontarán ${fmtMoney(preview.total)} de tu saldo hoy.</p>${preview.payments.map(m=>`<p><strong>${esc(m.desc)}</strong> · ${fmtMoney(m.monto)}<br><small>Fecha guardada: ${dateLabel(m.fecha)}</small></p>`).join('')}<p>Se conserva cada pago, su importe y el vencimiento que cubre. Las fechas originales quedarán guardadas. Esta corrección se puede usar una sola vez.</p>`;
 }
 
+function showAmountCorrection(item,safe){
+  Modal.show(`Corregir importe · ${item.name}`,[{label:'Importe por pago ($)',key:'amount',type:'number',value:item.amount,required:true,min:0.01}],data=>safe(()=>updateOperatingObligationAmount(item.id,data.amount)));
+  const note=document.createElement('p');
+  note.textContent='El nuevo importe se aplicará a los vencimientos sin pagos registrados. Los pagos previos quedarán intactos, con sus importes, fechas y períodos cubiertos. Si un vencimiento ya tiene abonos, conservará su importe original. Guardar esta corrección no registra un pago ni modifica tu saldo.';
+  $('modalBody').append(note);
+}
+
 export function initOperatingCostEvents(safe){
   $('btnGastoOperativo')?.addEventListener('click',()=>showOperatingCostModal(safe));
   $('operatingObligationRows')?.addEventListener('click',event=>{
     const button=event.target.closest('[data-operating-action]');if(!button)return;
     if(button.dataset.operatingAction==='repair-dates'){showPaymentDateRepair(safe);return;}
     const id=button.dataset.id,item=operatingObligations().find(x=>x.id===id);if(!item)return;
+    if(button.dataset.operatingAction==='edit-amount'){showAmountCorrection(item,safe);return;}
     if(button.dataset.operatingAction==='end'){
       if(confirm(`¿Finalizar la obligación ${item.name}? Los pagos vencidos siguen pendientes; se dejan de programar nuevos pagos desde mañana.`))safe(()=>endOperatingObligation(id));return;
     }

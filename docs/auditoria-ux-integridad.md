@@ -8,6 +8,9 @@
 | Alta | Restaurar estructuras anidadas inválidas reemplazaba el estado antes de terminar la validación. | Restauración transaccional; se conserva el estado anterior. Arranque fallido ofrece descarga y recuperación, sin reinicio automático. |
 | Alta | Nombres importados se interpolaban como HTML en el renderer base. | Se escapan nombres, descripciones, unidades e identificadores antes de insertarlos en plantillas. |
 | Alta | Varias reglas podían reservar más del 100% de un mismo ingreso, utilizando efectivo anterior. | Se descuenta lo ya aplicado a ese ingreso antes de ejecutar otra regla. No se reescriben aplicaciones históricas. |
+| Alta | El regreso después de una ausencia prolongada seguía mostrando saldos y consejos antiguos. | Revisión obligatoria tras siete días sin registros; confirma cuentas, apartados, deudas y trabajo antes de automatizar. Acceso manual disponible. |
+| Alta | Fusionar conciliaciones concurrentes podía sumar dos ajustes del mismo saldo. | Se bloquea la fusión de revisiones incompatibles y se exige elegir una versión completa. También se detectan movimientos del otro dispositivo ausentes de una revisión. |
+| Media | No había forma directa de corregir el monto futuro de una obligación operativa. | “Corregir importe” modifica períodos futuros sin reescribir pagos completos ni expectativas de un período parcialmente pagado. |
 | Media | El consejo de ahorro ignoraba pagos futuros y reutilizaba fuentes entre metas. | Un único fondo de consejo, repartido por prioridad; respeta el mínimo de flujo previsto en 45 días sin ingresos variables estimados. Las fuentes descuentan gastos y reservas identificados. |
 | Media | Diferentes semanas pagadas el mismo día parecían cargos duplicados. | Actividad e Historial muestran vencimientos cubiertos; los pagos futuros se presentan como anticipos. |
 | Media | Las reservas de metas se veían como gastos rojos. | Se presentan como apartados neutrales, indicando que no cambian el saldo. |
@@ -28,9 +31,8 @@
 
 ## Validación
 
-- Suite principal: 278 pruebas aprobadas, sin omisiones ni fallos.
-- Regresiones nuevas: 14 escenarios de restauración, almacenamiento, cuentas, idempotencia, consejos, automatización, XSS, formulario, historial y anticipos.
-- Verificación móvil a 390 px con datos ficticios: Panel → gasto → Hogar/Wallet/Historial, meta consolidada y cobertura operativa.
+- Suite principal: **338 pruebas aprobadas**, sin fallos ni omisiones. Incluye restauración, almacenamiento, cuentas, idempotencia, consejos, automatización, XSS, formularios, historial, anticipos y [conciliación al regresar](financial-freshness.md).
+- Verificación móvil a 390 px con datos ficticios: Panel → gasto → Hogar/Wallet/Historial, meta consolidada, cobertura operativa, regreso automático y actualización manual de saldos.
 - Empaquetado web Android correcto, con configuración nativa Google detectada.
 - Reglas Firestore y APK instalado en dispositivo no ejecutados de nuevo en esta auditoría. No hay Java/SDK Android local; la revisión no acredita un nuevo binario instalado.
 
@@ -39,6 +41,6 @@
 1. Concurrencia entre varias pestañas web sin conexión: el snapshot local completo carece de bloqueo o comparación de revisión local. La fusión remota existente no resuelve por sí sola este caso. Requiere protocolo local y pruebas entre contextos antes de desplegarlo.
 2. Reducir la densidad del Panel: calendario y proyección todavía repiten parte de la información. Conviene una vista breve con expansión a detalle.
 3. Unificar gasto directo y consumo de presupuestos mediante selección explícita, conservando la distinción entre plan y movimiento. No conviene inferir la asignación sólo por categoría cuando existen varios presupuestos.
-4. Filtros por cuenta, categoría y rango de fechas; edición/reversión auditada de pagos operativos equivocados. Mostrar cobertura mejora la explicación, pero no determina si un pago real fue capturado por error.
+4. Filtros por cuenta, categoría y rango de fechas; edición/reversión auditada de pagos operativos históricos equivocados. Corregir el monto futuro no determina ni modifica cuánto se pagó realmente antes.
 
 La auditoría no autoriza borrar movimientos, fusionar ramas ni sustituir la instalación del usuario.

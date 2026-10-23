@@ -118,6 +118,13 @@ export function createOperatingObligation(config={}, {paid=false,date=new Date()
   return item;
 });}
 
+export function updateOperatingObligationAmount(id,amount){return withTransaction(()=>{
+  const item=operatingObligationById(id);if(!item)throw new Error('COSTO_OPERATIVO_NO_ENCONTRADO');
+  // Existing payments keep their per-occurrence target; unpaid occurrences use this amount.
+  item.amount=positive(amount);
+  return item;
+});}
+
 export function payOperatingObligation(id,{period,amount,date=new Date(),accountId,settled=false,operationId=null}={}){
   const existing=operationId&&(getState().movimientos||[]).find(m=>m.operationId===operationId);
   if(existing){if(existing.operatingObligationId!==id||period&&existing.operatingPeriod!==period)throw new Error('OPERACION_INCOMPATIBLE');return existing;}

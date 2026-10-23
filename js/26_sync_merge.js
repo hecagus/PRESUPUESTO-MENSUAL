@@ -9,9 +9,38 @@ const equal=(a,b)=>{
   return false;
 };
 const identified=value=>Array.isArray(value)&&value.every(v=>object(v)&&typeof v.id==='string'&&v.id.length>0)&&new Set(value.map(v=>v.id)).size===value.length;
+const hasUnseenFinancialChanges=(candidate,audited,base)=>{
+  for(const field of ['movimientos','accounts','savingsGoals','deudas','workSources','turnos']){
+    const rows=candidate?.[field]||[],known=audited?.[field]||[],previous=base?.[field]||[];
+    if(equal(rows,previous))continue;
+    if(identified(rows)&&identified(known)&&identified(previous)){
+      const current=new Map(rows.map(row=>[row.id,row])),included=new Map(known.map(row=>[row.id,row])),baseline=new Map(previous.map(row=>[row.id,row]));
+      // Additions, edits and deletions count only if the audit's snapshot
+      // does not already contain that exact change.
+      for(const id of new Set([...current.keys(),...baseline.keys()])){
+        if(!equal(current.get(id),baseline.get(id))&&!equal(current.get(id),included.get(id)))return true;
+      }
+    }else if(!equal(rows,known))return true;
+  }
+  return false;
+};
 
 export function mergeStates(local,remote,base,choices={}){
   const conflicts=[];
+  const audits=value=>value?.financialPlan?.freshness?.auditHistory||[];
+  const baseAuditIds=new Set(audits(base).map(a=>a.id));
+  const localAuditIds=new Set(audits(local).map(a=>a.id)),remoteAuditIds=new Set(audits(remote).map(a=>a.id));
+  const localAudits=audits(local).filter(a=>!baseAuditIds.has(a.id)&&!remoteAuditIds.has(a.id));
+  const remoteAudits=audits(remote).filter(a=>!baseAuditIds.has(a.id)&&!localAuditIds.has(a.id));
+  // An audit certifies accounts, goals, debt and work together. An unseen
+  // transaction from the other device may already be included in a confirmed
+  // bank balance, so adding it could charge twice. Independent audits also
+  // cannot be composed by adding their adjustments or choosing fields.
+  // Keep both histories for review; the sync UI requires a complete snapshot.
+  const unseenLocalChanges=remoteAudits.length>0&&hasUnseenFinancialChanges(local,remote,base);
+  const unseenRemoteChanges=localAudits.length>0&&hasUnseenFinancialChanges(remote,local,base);
+  const concurrentAudits=localAudits.length>0&&remoteAudits.length>0||unseenLocalChanges||unseenRemoteChanges;
+  if(concurrentAudits)conflicts.push({path:'/financial-audits/concurrency',kind:'audit_concurrency',local:copy(localAudits),remote:copy(remoteAudits),base:copy(audits(base)),unseenLocalChanges,unseenRemoteChanges});
   const signedHistory=goal=>(goal?.history||[]).reduce((sum,h)=>sum+(h.type==='reserve'?Number(h.amount)||0:h.type==='release'?-(Number(h.amount)||0):0),0);
   const goalBalances=new Map();
   for(const b of base?.savingsGoals||[]){
@@ -62,6 +91,26 @@ export function mergeStates(local,remote,base,choices={}){
   const state=merge(clean(local),clean(remote),clean(base),'');
   for(const goal of state?.savingsGoals||[]){
     const b=goalBalances.get(goal.id);if(b)goal.reserved=Math.max(0,(Number(b.reserved)||0)+signedHistory(goal)-signedHistory(b));
+  }
+  // Older audit versions did not save a batch snapshot. Their independent
+  // adjustments still require a choice when both devices changed one account.
+  // A shared adjustment is already incorporated; only branch-unique additions
+  // since the common base participate in this conflict.
+  const reconciliationGroups=new Map(),reconciliationBaseIds=new Set((base?.movimientos||[]).map(m=>m.id));
+  const localMovementIds=new Set((local?.movimientos||[]).map(m=>m.id)),remoteMovementIds=new Set((remote?.movimientos||[]).map(m=>m.id));
+  for(const movement of state?.movimientos||[]){
+    if(movement.movementKind!=='reconciliation'||movement.affectsPersonal===false||!movement.accountId)continue;
+    const rows=reconciliationGroups.get(movement.accountId)||[];rows.push(movement);reconciliationGroups.set(movement.accountId,rows);
+  }
+  for(const [accountId,rows] of reconciliationGroups){
+    const l=rows.filter(m=>!reconciliationBaseIds.has(m.id)&&localMovementIds.has(m.id)&&!remoteMovementIds.has(m.id));
+    const r=rows.filter(m=>!reconciliationBaseIds.has(m.id)&&remoteMovementIds.has(m.id)&&!localMovementIds.has(m.id));
+    if(!l.length||!r.length||concurrentAudits)continue;
+    const path=`/financial-reconciliations/${encodeURIComponent(accountId)}`,choice=choices[path];
+    if(choice==='local'||choice==='remote'){
+      const removed=new Set((choice==='local'?r:l).map(m=>m.id));
+      state.movimientos=state.movimientos.filter(m=>!removed.has(m.id));
+    }else conflicts.push({path,kind:'account_reconciliation',accountId,local:copy(l),remote:copy(r),base:copy(rows.filter(m=>reconciliationBaseIds.has(m.id)))});
   }
   // Concurrent full payments with different UUIDs must not silently settle/charge twice.
   // Partial abonos that together fit the target remain independent, legitimate records.

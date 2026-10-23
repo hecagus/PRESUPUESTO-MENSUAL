@@ -158,3 +158,18 @@ body.has-quick-expense{padding-bottom:160px}
 
 .goal-plan-detail{font-size:.85rem;color:var(--text-sec);line-height:1.5;margin-top:10px}
 [hidden]{display:none!important}
+
+.audit-entry{margin-top:14px;font-size:.9rem}
+.audit-overlay{position:fixed;inset:0;z-index:120;background:#eef2f8;overflow-y:auto;padding:18px 12px calc(24px + env(safe-area-inset-bottom));color:var(--text-main)}
+.audit-form{max-width:650px;margin:auto;background:white;border-radius:20px;padding:22px;box-shadow:0 10px 35px #0f172a12}
+.audit-form h1{font-size:1.5rem;line-height:1.2;margin:0 0 10px}.audit-intro{line-height:1.5}
+.audit-notice{background:#eff6ff;border-radius:10px;padding:12px;font-size:.88rem;line-height:1.5;margin:14px 0}
+.audit-section{margin-top:22px}.audit-section h2{font-size:1.02rem;text-transform:none;letter-spacing:0;color:var(--text-main);margin:0 0 8px}
+.audit-help{font-size:.82rem;color:var(--text-sec);line-height:1.45}.audit-field{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #e2e8f0;font-size:.9rem}
+.audit-field>span{flex:1;min-width:0}.audit-field small{display:block;margin-top:4px}.audit-field>.input-control{width:145px;max-width:52%;margin:0}
+.audit-field:has(select){display:block}.audit-field>select.input-control{width:100%;max-width:100%;margin-top:8px}
+.audit-new-account{padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin:12px 0}.audit-new-account>label{font-size:.9rem}
+.audit-section>.btn{margin-top:10px}.audit-summary{margin-top:20px;padding:14px;background:#f0fdf4;border-radius:12px;font-size:.9rem;line-height:1.6}.audit-summary p{margin:2px 0}.audit-summary small{color:var(--text-sec)}
+.audit-actions{display:grid;gap:8px;margin-top:12px}.audit-error{color:#b91c1c;margin-top:12px;font-size:.9rem}
+.audit-form :focus-visible{outline:3px solid #1d4ed8;outline-offset:3px}
+.audit-sync{max-width:650px;margin:16px auto 0}
