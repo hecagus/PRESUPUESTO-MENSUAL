@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">La app del HecAgus</string>
+    <string name="title_activity_main">La app del HecAgus</string>
+    <string name="package_name">com.hecagus.presupuesto</string>
+    <string name="custom_url_scheme">com.hecagus.presupuesto</string>
+</resources>

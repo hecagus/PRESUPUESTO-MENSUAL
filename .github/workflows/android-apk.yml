@@ -1,0 +1,102 @@
+name: Android APK
+on:
+  pull_request:
+    branches: [main]
+    paths: ['android/**', 'native/**', 'scripts/**', 'capacitor.config.json', 'package*.json', 'js/**', '*.html', '*.css', '.github/workflows/android-apk.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Restore preview signing identity
+        id: preview-signing
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: ${{ runner.os }}-hecagus-preview-signing-v1-${{ github.ref }}
+      - name: Prepare preview certificate
+        id: preview-certificate
+        run: |
+          mkdir -p "$HOME/.android" signing-output
+          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+            keytool -genkeypair -keystore "$HOME/.android/debug.keystore" \
+              -storepass android -keypass android -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname 'CN=Android Debug,O=Android,C=US'
+          fi
+          keytool -exportcert -rfc -keystore "$HOME/.android/debug.keystore" \
+            -storepass android -alias androiddebugkey -file signing-output/certificate.pem
+          keytool -J-Duser.language=en -J-Duser.country=US -list -v \
+            -keystore "$HOME/.android/debug.keystore" -storepass android \
+            -alias androiddebugkey > signing-output/certificate.txt
+          signing_sha1=$(openssl x509 -in signing-output/certificate.pem -noout -fingerprint -sha1 | cut -d= -f2 | tr -d ':')
+          test "${#signing_sha1}" -eq 40
+          echo "sha1=$signing_sha1" >> "$GITHUB_OUTPUT"
+          echo "$signing_sha1" > signing-output/SHA1
+          echo "Preview signing SHA-1: $signing_sha1" >> "$GITHUB_STEP_SUMMARY"
+          cp "$HOME/.android/debug.keystore" "$RUNNER_TEMP/hecagus-preview.keystore"
+          echo "HECAGUS_PREVIEW_KEYSTORE=$RUNNER_TEMP/hecagus-preview.keystore" >> "$GITHUB_ENV"
+      - name: Preserve preview signing identity
+        if: steps.preview-signing.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: ${{ steps.preview-signing.outputs.cache-primary-key }}
+      - name: Publish public signing certificate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hecagus-android-signing-certificate
+          path: signing-output/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Install dependencies
+        run: npm ci
+      - name: Test financial and native adapters
+        run: npm test
+      - name: Prepare bundled resources
+        env:
+          ANDROID_SIGNING_SHA1: ${{ steps.preview-certificate.outputs.sha1 }}
+        run: npm run android:sync
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Android SDK
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Build installable preview APK
+        run: cd android && bash gradlew assembleDebug
+      - name: Inspect APK and certificate
+        env:
+          ANDROID_SIGNING_SHA1: ${{ steps.preview-certificate.outputs.sha1 }}
+        run: |
+          set -euo pipefail
+          mkdir -p apk-output
+          cp android/app/build/outputs/apk/debug/app-debug.apk apk-output/hecagus-android-preview.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs apk-output/hecagus-android-preview.apk | tee apk-output/certificate.txt
+          apk_sha1=$(awk '/^Signer .*certificate SHA-1 digest:/ {print toupper($NF)}' apk-output/certificate.txt | sort -u)
+          echo "APK signing SHA-1: $apk_sha1"
+          test "${#apk_sha1}" -eq 40
+          test "$apk_sha1" = "$ANDROID_SIGNING_SHA1"
+          cp signing-output/certificate.pem signing-output/SHA1 apk-output/
+          sha256sum apk-output/hecagus-android-preview.apk > apk-output/SHA256SUMS
+          cp docs/android-apk.md apk-output/README.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hecagus-android-preview
+          path: apk-output/
+          retention-days: 30
+
