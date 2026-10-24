@@ -22,7 +22,7 @@ let store=structuredClone(INITIAL_STATE);
 let unreadableStorage=null;
 let lastFinancialSignature=null;
 const realFinancialSignature=s=>JSON.stringify({
-  movimientos:(s.movimientos||[]).filter(m=>m.categoria!=='Sistema'&&!m.goalTransfer&&!m.legacySavingsTransfer&&m.movementKind!=='reconciliation').map(m=>[m.id,m.tipo,m.monto,m.fecha,m.accountId,m.debtId]),
+  movimientos:(s.movimientos||[]).filter(m=>m.categoria!=='Sistema'&&!m.goalTransfer&&!m.legacySavingsTransfer&&m.movementKind!=='reconciliation').map(m=>[m.id,m.tipo,m.monto,m.fecha,m.accountId,m.debtId,m.sourceId,m.periodo,m.paymentKind,m.categoria,m.desc]),
   turnos:(s.turnos||[]).map(t=>[t.id,t.fin,t.ganancia]),
   deudas:(s.deudas||[]).map(d=>[d.id,d.saldo,d.montoCuota,d.frecuencia]),
 });
