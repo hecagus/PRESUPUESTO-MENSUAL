@@ -81,3 +81,19 @@ test('restaurar respaldo antiguo no lo convierte silenciosamente en información
   assert.equal(Fresh.financialFreshness().stale,true);
   assert.equal(Data.getState().movimientos.length,1);
 });
+
+test('corregir el periodo de un cobro real renueva la vigencia sin inventar ingresos',()=>{
+  const m=Data.getState().movimientos[0];
+  m.sourceId='job';
+  m.paymentKind='source_period';
+  m.periodo=Rules.sourcePeriodId('biweekly',m.fecha);
+  Data.restaurar(JSON.stringify(Data.getState()));
+  assert.equal(Fresh.financialFreshness().stale,true);
+  const oldCount=Data.getState().movimientos.length;
+  const previousPeriod=Data.getState().movimientos[0].periodo;
+  Data.actualizarPeriodoPagoFuente('old-real',new Date(Date.now()-45*86400000),{expectedPeriod:previousPeriod});
+  assert.equal(Fresh.financialFreshness().stale,false);
+  assert.equal(Data.getState().movimientos.length,oldCount);
+  assert.notEqual(Data.getState().movimientos[0].periodo,previousPeriod);
+  assert.equal(Data.getState().movimientos[0].periodHistory.length,1);
+});
