@@ -16,13 +16,16 @@ import { ensureFinancialPlatform, renderFinancialPlatform, initFinancialPlatform
 import { renderHome, initHomeEvents } from './22_home_ui.js';
 import { renderActivityInsights } from './25_activity_insights.js';
 import { initFinancialIntelligence,renderFinancialIntelligence } from './32_financial_intelligence_ui.js';
+import { initExperienceUI } from './ui/quick-entry.js';
+import { initHistoryFilters } from './ui/history-filters.js';
+import { showFinancialAudit } from './30_financial_audit_ui.js';
 
 /* El bootstrap del <head> captura lo más temprano posible; esto enlaza el resto del ciclo PWA. */
 initPWA();
 
 function renderBottomNav(){
   const nav=document.querySelector('.bottom-nav');if(!nav)return;const page=document.body.dataset.page;
-  const items=[['index','index.html','▥','Panel'],['home','home.html','⌂','Hogar'],['wallet','wallet.html','◉','Wallet'],['admin','admin.html','▶','Actividad'],['historial','historial.html','≡','Historial']];
+  const items=[['index','index.html','▥','Inicio'],['home','home.html','⌂','Hogar'],['wallet','wallet.html','◉','Cuentas'],['admin','admin.html','▶','Actividad'],['historial','historial.html','≡','Historial']];
   nav.innerHTML=items.map(([key,href,icon,label])=>`<a href="${href}" class="nav-link ${page===key?'active':''}"${page===key?' aria-current="page"':''}><span aria-hidden="true">${icon}</span>${label}</a>`).join('');
 }
 
@@ -100,14 +103,31 @@ function initDelegation(){document.addEventListener('click',e=>{const b=e.target
 
 function startTimer(){if(document.body.dataset.page!=='admin')return;window.setInterval(()=>{const t=Data.getState().activeActivity,el=$('activityTimer');if(!el)return;if(!t){el.textContent='00:00:00';return;}const diff=Math.max(0,Date.now()-t.inicio);el.textContent=`${Math.floor(diff/3600000)}h ${Math.floor((diff%3600000)/60000)}m`;},1000);}
 
-document.addEventListener('budget:remote-applied',()=>{ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();const applied=runAutomationEngine();refresh();if(applied)notifyLocalChange();});
+let appStarted=false;
+const returnFromAudit=()=>window.location.reload();
+document.addEventListener('budget:remote-applied',()=>{
+  if(showFinancialAudit(returnFromAudit,true))return;
+  // A previous local account may have been stale; initialize the full app
+  // only after the canonical cloud account has been loaded.
+  if(!appStarted){window.location.reload();return;}
+  ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();
+  const applied=runAutomationEngine();refresh();if(applied)notifyLocalChange();
+});
 document.addEventListener('DOMContentLoaded',()=>{
-  Data.loadData();ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();
+  Data.loadData();
   if(!Data.getState().profile.onboarded){window.location.replace('onboarding.html');return;}
-  renderBottomNav();initFinancialIntelligence();runAutomationEngine();refresh();initDelegation();initGlobalEvents();
+  if(showFinancialAudit(returnFromAudit)){initSync();return;}
+  ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();
+  renderBottomNav();initHistoryFilters();initFinancialIntelligence();
+  initExperienceUI(()=>{runAutomationEngine();refresh();emitChange();});
+  runAutomationEngine();refresh();initDelegation();initGlobalEvents();
   initSavingsGoalEvents(refresh);initFinancialPlatformEvents(refresh);
   if(document.body.dataset.page==='home')initHomeEvents(refresh);
   if(document.body.dataset.page==='admin')initAdminEvents();
   if(document.body.dataset.page==='calendar')initCalendarEvents(refresh);
-  startTimer();initSync();console.log(`La app del HecAgus v${APP_VERSION}`);
+  startTimer();appStarted=true;initSync();
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden)showFinancialAudit(returnFromAudit);
+  });
+  console.log(`La app del HecAgus v${APP_VERSION}`);
 });

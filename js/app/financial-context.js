@@ -15,7 +15,7 @@ function monthlyFinancialPlan(state,now,scenario){
   const essential=home.mandatory+home.budgeted+commitments+operating+transport;
   const items=new Map((state.financialPlan?.householdExpenses||[]).map(item=>[item.id,item]));
   const extra=(state.movimientos||[]).filter(m=>{
-    if(m.tipo!=='gasto'||!isPersonalMovement(state,m)||!inObservedPeriod(m.fecha,observed.start,now)||m.commitmentId||m.operatingObligationId||m.debtId)return false;
+    if(m.tipo!=='gasto'||m.categoria==='Sistema'||m.movementKind==='reconciliation'||!isPersonalMovement(state,m)||!inObservedPeriod(m.fecha,observed.start,now)||m.commitmentId||m.operatingObligationId||m.debtId)return false;
     if(m.householdExpenseId){
       const item=items.get(m.householdExpenseId),kind=state.financialPlan?.householdKinds?.[m.householdExpenseId];
       // A scheduled or budgeted expense already has a monthly provision. Count only

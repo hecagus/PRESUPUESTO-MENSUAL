@@ -143,6 +143,135 @@ body[data-page="index"] #resumenHumanoContainer>section.card:last-child .grid-2 
 @keyframes pulse{0%{opacity:1}50%{opacity:.5}100%{opacity:1}}
 
 
+/* =========================================================
+   FASE B: EXPERIENCIA — controles táctiles, búsqueda, contraste.
+   Preferencia visual aislada del motor financiero.
+   ========================================================= */
+.header:has(.phase-b-header-tools){display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left}
+.header:has(.phase-b-header-tools)>h1{flex:1;text-align:left;min-width:0}
+.header .dashboard-brand{margin:0;min-width:0;flex:1}
+.phase-b-header-tools{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.phase-b-header-action,.phase-b-theme-toggle{
+  border:1px solid var(--border);border-radius:12px;background:var(--surface);
+  color:var(--text-main);font-weight:700;cursor:pointer;min-height:42px
+}
+.phase-b-header-action{padding:0 12px;background:var(--primary);color:#fff;border-color:transparent;font-size:.82rem}
+.phase-b-theme-toggle{width:43px;font-size:1.1rem}
+.bottom-nav a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{
+  outline:3px solid var(--primary);outline-offset:2px
+}
+.phase-b-quick-card{padding:16px 18px}
+.phase-b-quick-card h2{margin-bottom:10px}
+.phase-b-action-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.phase-b-action{
+  display:flex;justify-content:center;align-items:center;flex-direction:column;gap:5px;
+  min-height:68px;padding:9px 4px;border:1px solid var(--border);
+  border-radius:14px;background:var(--surface-soft);color:var(--text-main);
+  font-size:.83rem;font-weight:700;cursor:pointer
+}
+.phase-b-action span{font-size:1.5rem;line-height:1;color:var(--primary)}
+.phase-b-action-hint{margin-top:11px;color:var(--text-sec);font-size:.74rem;line-height:1.4}
+.quick-entry-dialog{
+  width:min(94vw,440px);max-height:calc(100dvh - 30px);overflow-y:auto;
+  margin:auto;padding:23px;border:1px solid var(--border);border-radius:22px;
+  background:var(--surface);color:var(--text-main);box-shadow:0 25px 70px rgba(0,0,0,.24)
+}
+.quick-entry-dialog::backdrop{background:rgba(11,20,35,.62)}
+.quick-entry-fallback{position:fixed;inset:0;z-index:200}
+.quick-entry-form h2{font-size:1.25rem;margin-bottom:6px}
+.quick-entry-help{font-size:.79rem;line-height:1.45;color:var(--text-sec);margin-bottom:13px}
+.quick-entry-label{display:block;font-size:.83rem;color:var(--text-main);font-weight:600;margin-top:9px}
+.quick-entry-label .input-control{margin-top:5px;margin-bottom:4px;font-weight:400}
+.quick-entry-error{color:var(--danger);min-height:1.3em;margin-top:7px;font-size:.83rem}
+.quick-entry-actions{display:flex;gap:10px;margin-top:8px}
+.quick-entry-actions .btn{min-height:45px}
+
+.history-filters{border:1px solid var(--border);border-radius:15px;background:var(--surface-soft);padding:12px;margin:12px 0 14px}
+.history-filters label{display:block;min-width:0;font-size:.77rem;font-weight:600;color:var(--text-sec)}
+.history-filters label span{display:block;margin-bottom:5px}
+.history-filters input,.history-filters select{
+  width:100%;min-height:44px;min-width:0;padding:9px 10px;
+  border:1px solid var(--border);border-radius:10px;background:var(--surface);
+  color:var(--text-main);font:inherit;font-size:.9rem
+}
+.history-filter-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
+.history-filter-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px}
+.history-filter-footer small{color:var(--text-sec);font-size:.72rem}
+.history-clear{background:none;border:0;padding:7px;color:var(--primary);font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.history-table{width:100%;table-layout:fixed}
+.history-table th:first-child{width:26%}
+.history-table th:last-child{width:29%;text-align:right}
+.history-table td{vertical-align:top;overflow-wrap:anywhere;padding:12px 4px}
+.history-table td small{display:block;font-size:.71rem;line-height:1.35;margin-top:3px;color:var(--text-sec)}
+.history-table td strong{font-size:.84rem}
+.history-amount{text-align:right;font-size:.81rem;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
+.history-amount--income{color:var(--success)}
+.history-amount--expense{color:var(--text-main)}
+.history-amount--thirdparty,.history-amount--reconciliation{color:var(--text-sec)}
+.history-state{
+  display:inline-block;margin-top:7px;padding:2px 7px;border-radius:999px;
+  background:var(--surface-soft);border:1px solid var(--border);color:var(--text-sec);
+  font-size:.66rem;line-height:1.5;font-weight:700
+}
+.history-state--income,.history-state--expense{color:var(--text-main)}
+.history-state--reconciliation{border-style:dashed}
+.history-empty{padding:18px 6px;color:var(--text-sec);text-align:center}
+
+html[data-theme="dark"]{
+  color-scheme:dark;--primary:#88acff;--primary-dark:#6e9cfa;--primary-soft:#172b4a;
+  --success:#5de0a0;--danger:#ff8585;--warning:#ffc879;
+  --bg:#0b1422;--surface:#162235;--surface-soft:#1c2b42;
+  --text-main:#f1f5fa;--text-sec:#b2c2d6;--border:#33455e;
+  --shadow-sm:0 4px 16px rgba(0,0,0,.24);--shadow-md:0 12px 30px rgba(0,0,0,.3)
+}
+html[data-theme="dark"],html[data-theme="dark"] body{background:var(--bg);color:var(--text-main)}
+html[data-theme="dark"] .header{background:rgba(18,32,51,.94);border-color:var(--border)}
+html[data-theme="dark"] .header h1,html[data-theme="dark"] .dashboard-brand h1{color:var(--text-main)}
+html[data-theme="dark"] .bottom-nav{background:rgba(22,34,53,.97);border-color:var(--border)}
+html[data-theme="dark"] .nav-link{color:var(--text-sec)}
+html[data-theme="dark"] .nav-link.active{color:var(--primary)}
+html[data-theme="dark"] .card,html[data-theme="dark"] .modal{background:var(--surface);color:var(--text-main);border-color:var(--border)}
+html[data-theme="dark"] .btn-outline,html[data-theme="dark"] .input-control,
+html[data-theme="dark"] button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-warning),
+html[data-theme="dark"] select,html[data-theme="dark"] input:not([type="checkbox"]){
+  color:var(--text-main);border-color:var(--border)
+}
+html[data-theme="dark"] .input-control,html[data-theme="dark"] .btn-outline,
+html[data-theme="dark"] select,html[data-theme="dark"] input:not([type="checkbox"]){background:var(--surface-soft)}
+html[data-theme="dark"] .phase-b-header-action{background:#3469c7;color:#fff}
+html[data-theme="dark"] body[data-page="index"]{background:linear-gradient(180deg,#0d1728,var(--bg))}
+html[data-theme="dark"] .dashboard-income-hero,
+html[data-theme="dark"] .dashboard-today-card{background:var(--surface)}
+html[data-theme="dark"] .dashboard-income-value{color:var(--success)}
+html[data-theme="dark"] .dashboard-section-title{color:var(--text-main)}
+html[data-theme="dark"] .dashboard-today-metrics li{background:var(--surface-soft);border-color:var(--border)}
+html[data-theme="dark"] .card-hero{background:linear-gradient(135deg,#133b35,#152b39);border-color:#326c60}
+html[data-theme="dark"] .card-hero::before{background:rgba(255,255,255,.03)}
+html[data-theme="dark"] .hero-title,html[data-theme="dark"] .hero-value,html[data-theme="dark"] .hero-desc{color:#a5f4d1}
+html[data-theme="dark"] .hero-desc{background:rgba(255,255,255,.06)}
+html[data-theme="dark"] body[data-page="index"] #resumenHumanoContainer>.grid-2>.card:first-child,
+html[data-theme="dark"] body[data-page="index"] #resumenHumanoContainer>.grid-2>.card:nth-child(2),
+html[data-theme="dark"] body[data-page="index"] #resumenHumanoContainer>section.card:last-child{background:var(--surface-soft)!important;border-color:var(--border)!important}
+html[data-theme="dark"] body[data-page="index"] #resumenHumanoContainer>.grid-2>.card:first-child :is(strong,div,small),
+html[data-theme="dark"] body[data-page="index"] #resumenHumanoContainer>section.card:last-child :is(h3,strong){color:var(--text-main)!important}
+html[data-theme="dark"] body[data-page="index"] #resumenHumanoContainer>section.card:last-child .grid-2>div{background:var(--surface);border-color:var(--border)}
+html[data-theme="dark"] .modal label[style]{color:var(--text-sec)!important}
+html[data-theme="dark"] .modal h3{color:var(--primary)}
+html[data-theme="dark"] .history-row{border-color:var(--border)}
+@media(max-width:380px){
+  .header:has(.phase-b-header-tools){padding:10px}
+  .header .dashboard-brand h1{font-size:.94rem}
+  .header .dashboard-brand small{display:none}
+  .phase-b-header-action{padding:0 8px;font-size:.72rem}
+  .phase-b-theme-toggle{width:39px}
+  .phase-b-action-grid{gap:5px}
+  .history-table th:first-child{width:24%}
+  .history-table th:last-child{width:31%}
+}
+@media(prefers-reduced-motion:reduce){
+  .quick-entry-dialog,.modal{animation:none}
+}
+
 /* Fase C — área de inteligencia basada en movimientos confirmados */
 .intelligence-page .card{display:block}
 .intelligence-page .card h2{margin-bottom:8px}
