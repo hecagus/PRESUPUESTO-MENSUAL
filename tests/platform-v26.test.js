@@ -13,6 +13,7 @@ globalThis.localStorage=new MemoryStorage();
 const Data=await import('../js/02_data.js');
 const Savings=await import('../js/11_savings_goals.js');
 const Life=await import('../js/13_financial_life.js');
+const Home=await import('../js/20_home_engine.js');
 const Accounts=await import('../js/15_accounts_engine.js');
 const Forecast=await import('../js/16_forecast_engine.js');
 const Automation=await import('../js/17_automation_engine.js');
@@ -58,15 +59,14 @@ test('v2.3 la cuenta base no puede archivarse',()=>{
   assert.throws(()=>Accounts.setAccountActive('acct-personal',false),/CUENTA_BASE/);
 });
 
-test('v2.4 proyección usa pagos históricos para estimar próximos ingresos fijos',t=>{
-  // La creación del compromiso y la proyección deben compartir el mismo reloj.
-  t.mock.timers.enable({apis:['Date'],now:new Date('2026-08-29T12:00:00')});
+test('v2.4 proyección usa pagos históricos para estimar próximos ingresos fijos',()=>{
   Data.saldoInicial(2000);
   Data.crearFuenteTrabajo({name:'Empresa',kind:'employment',compensation:'monthly',trackTime:false,fuelPayer:'none'});
   const source=Data.getState().workSources[0];
   Data.getState().movimientos.push({id:'pay-old',fecha:'2026-08-01T12:00:00.000Z',tipo:'ingreso',desc:'Pago · Empresa',monto:8000,categoria:'Trabajo',sourceId:source.id,accountId:'acct-personal',affectsPersonal:true,paymentKind:'source_period'});
   Data.saveData();
-  Life.createCommitment({name:'Renta',amount:4000,dueDay:5,category:'Vivienda'});
+  // En v3, Hogar es la fuente canónica; el adaptador de compromisos v2 quedó retirado.
+  Home.createHouseholdExpense({name:'Renta',amount:4000,frequency:'monthly',dueDay:5,category:'Vivienda',priority:'obligatory',nextDueDate:'2026-09-05'});
   const forecast=Forecast.cashFlowForecast({days:40,now:new Date('2026-08-29T12:00:00')});
   assert.ok(forecast.totalExpectedIncome>=8000);
   assert.ok(forecast.totalExpectedOutflow>=4000);

@@ -1,6 +1,11 @@
 /* v3.0.0 - Arranque PWA mínimo. Se ejecuta en <head> antes del motor de la app. */
 window.__hecagusInstallPrompt=window.__hecagusInstallPrompt||null;
 window.__hecagusSWError=null;
+// Solo preferencia de presentación; no altera la persistencia financiera.
+try {if(localStorage.getItem('hecagus-ux-theme-v1')==='dark'){
+  document.documentElement.dataset.theme='dark';
+  document.documentElement.style.colorScheme='dark';
+}}catch{}
 
 window.addEventListener('beforeinstallprompt',event=>{
   event.preventDefault();

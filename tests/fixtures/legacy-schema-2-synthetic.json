@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 2,
+  "profile": {
+    "displayName": "Ejemplo antiguo",
+    "onboarded": true
+  },
+  "movimientos": [
+    {
+      "tipo": "ingreso",
+      "desc": "Ingreso antiguo",
+      "fecha": "2023-03-01T12:00:00.000Z",
+      "monto": 750
+    },
+    {
+      "tipo": "gasto",
+      "desc": "Pago de comida",
+      "fecha": "2023-03-02T12:00:00.000Z",
+      "monto": 120
+    }
+  ],
+  "turnos": [
+    {
+      "tipo": "uber",
+      "fecha": "2023-03-02T12:00:00.000Z",
+      "ganancia": 310
+    }
+  ],
+  "workSources": [],
+  "wallet": {
+    "saldo": 630,
+    "sobres": []
+  },
+  "deudas": [
+    {
+      "desc": "Crédito",
+      "saldo": 500
+    }
+  ],
+  "parametros": {
+    "saldoInicialConfigurado": true
+  },
+  "notaExterna": "La migración piloto debe preservar campos desconocidos"
+}
