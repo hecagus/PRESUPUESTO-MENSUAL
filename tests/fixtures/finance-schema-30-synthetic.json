@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 30,
+  "profile": {
+    "onboarded": true,
+    "displayName": "Ejemplo actual",
+    "useCases": [
+      "personal",
+      "work"
+    ]
+  },
+  "accounts": [
+    {
+      "id": "acct-personal",
+      "name": "Efectivo",
+      "type": "cash",
+      "ownership": "personal",
+      "active": true
+    },
+    {
+      "id": "acct-empresa",
+      "name": "Tarjeta trabajo",
+      "type": "third_party",
+      "ownership": "third_party",
+      "active": true
+    }
+  ],
+  "workSources": [
+    {
+      "id": "src-1",
+      "name": "Trabajo A",
+      "kind": "employment",
+      "compensation": "biweekly",
+      "active": true
+    }
+  ],
+  "movimientos": [
+    {
+      "id": "m1",
+      "tipo": "ingreso",
+      "monto": 1000,
+      "fecha": "2026-09-15T12:00:00.000Z",
+      "desc": "Sueldo",
+      "categoria": "Trabajo",
+      "accountId": "acct-personal",
+      "sourceId": "src-1",
+      "periodo": "2026-09-Q1",
+      "paymentKind": "source_period"
+    },
+    {
+      "id": "m2",
+      "tipo": "gasto",
+      "monto": 250,
+      "fecha": "2026-09-16T12:00:00.000Z",
+      "desc": "Comida",
+      "categoria": "Comida",
+      "accountId": "acct-personal"
+    },
+    {
+      "id": "m3",
+      "tipo": "transferencia",
+      "monto": 50,
+      "fecha": "2026-09-17T12:00:00.000Z",
+      "desc": "Mover a banco",
+      "fromAccountId": "acct-personal",
+      "toAccountId": "banco",
+      "accountId": null,
+      "affectsPersonal": false
+    }
+  ],
+  "turnos": [
+    {
+      "id": "turno-1",
+      "fecha": "2026-09-15T15:00:00.000Z",
+      "sourceId": "src-1",
+      "kmRecorrido": 12,
+      "ganancia": null
+    }
+  ],
+  "deudas": [
+    {
+      "id": "deuda-1",
+      "desc": "Pago semanal",
+      "saldo": 1200,
+      "montoCuota": 300,
+      "diaPago": 4,
+      "frecuencia": "Semanal"
+    }
+  ],
+  "fondosCombustibleEmpresa": [
+    {
+      "id": "deposit-1",
+      "sourceId": "src-1",
+      "accountId": "acct-empresa",
+      "monto": 200,
+      "fecha": "2026-09-15T09:00:00.000Z"
+    }
+  ],
+  "cargasCombustible": [
+    {
+      "id": "fuel-1",
+      "sourceId": "src-1",
+      "accountId": "acct-empresa",
+      "pagador": "empresa",
+      "costo": 80,
+      "litros": 4,
+      "km": 4010,
+      "fecha": "2026-09-16T09:00:00.000Z"
+    }
+  ],
+  "financialPlan": {
+    "householdExpenses": [
+      {
+        "id": "home-1",
+        "amount": 1250,
+        "category": "Comida",
+        "kind": "budget"
+      }
+    ],
+    "freshness": {
+      "lastAuditedAt": null
+    }
+  },
+  "wallet": {
+    "saldo": 750,
+    "sobres": []
+  },
+  "savingsGoals": [
+    {
+      "id": "goal-1",
+      "name": "Fondo",
+      "reserved": 100,
+      "targetAmount": 2000,
+      "history": []
+    }
+  ],
+  "parametros": {
+    "ultimoKM": 4010,
+    "saldoInicialConfigurado": true
+  },
+  "extraPreserved": {
+    "nested": {
+      "value": "no perder"
+    }
+  }
+}
