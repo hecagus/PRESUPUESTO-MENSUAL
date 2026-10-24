@@ -100,7 +100,7 @@ export function parseMoneyCell(cell){
   if(!validMoney(value))throw Error('CSV_IMPORTE');
   return cash(value);
 }
-const index=(mapping,key,width)=>{const n=Number(mapping?.[key]);return Number.isInteger(n)&&n>=0&&n<width?n:null;};
+const index=(mapping,key,width)=>{const value=mapping?.[key];if(value===null||value===undefined||value==='')return null;const n=Number(value);return Number.isInteger(n)&&n>=0&&n<width?n:null;};
 export function movementFingerprint({accountId,date,type,amount,description}){
   return [accountId,localDay(date),type,cents(amount),norm(description)].join('|');
 }
