@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="theme-color" content="#2563eb"><title>Inteligencia financiera · HecAgus</title>
+  <script src="./js/pwa-bootstrap.js"></script>
+  <link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/hecagus-finance-192.png" type="image/png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="inteligencia">
+<header class="header"><h1>🧠 Inteligencia financiera</h1></header>
+<main class="container intelligence-page">
+  <section class="card">
+    <h2>Recomendaciones explicables</h2>
+    <p>Basadas únicamente en movimientos realmente registrados. No se consideran proyecciones, ajustes de saldo ni fondos de empresa.</p>
+    <div id="intelligenceInsights" aria-live="polite"></div>
+  </section>
+  <section class="card">
+    <h2>Reglas de categorización</h2>
+    <p>Las reglas sugieren una categoría para futuras importaciones. No modifican tu historial.</p>
+    <form id="categoryRuleForm" class="intelligence-form">
+      <label>Texto a reconocer <input id="rulePattern" required maxlength="100" placeholder="Ej. supermercado"></label>
+      <div class="intelligence-grid">
+        <label>Coincidencia <select id="ruleMatch"><option value="contains">Contiene</option><option value="equals">Exacta</option><option value="starts">Empieza con</option></select></label>
+        <label>Tipo <select id="ruleType"><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label>
+      </div>
+      <label>Categoría <input id="ruleCategory" required maxlength="64" placeholder="Ej. Comida"></label>
+      <button type="submit" class="btn btn-primary">Crear regla</button>
+    </form>
+    <div id="categoryRuleList"></div>
+  </section>
+  <section class="card">
+    <h2>Importar movimientos CSV</h2>
+    <p>Selecciona una cuenta personal. El archivo se analiza en este dispositivo y no se envía a ningún servicio. <strong>Importar no registra pagos de obligaciones ni períodos salariales.</strong></p>
+    <form id="csvImportForm" class="intelligence-form">
+      <label>Cuenta destinataria <select id="csvAccount" required></select></label>
+      <label>Archivo CSV (máximo 1 MB, 1000 filas) <input id="csvFile" type="file" accept=".csv,text/csv" required></label>
+      <div class="intelligence-grid">
+        <label>Fecha <select id="csvDate" required></select></label>
+        <label>Concepto <select id="csvDescription" required></select></label>
+        <label>Importe firmado <select id="csvAmount"></select></label>
+        <label>Cargo <select id="csvDebit"></select></label>
+        <label>Abono <select id="csvCredit"></select></label>
+      </div>
+      <label>Si utilizas importe firmado, los valores positivos son
+        <select id="csvPositive"><option value="income">Ingresos</option><option value="expense">Gastos</option></select>
+      </label>
+      <p class="intelligence-hint">Selecciona Importe o el par Cargo y Abono. Fecha: AAAA-MM-DD o DD/MM/AAAA. No se admiten fechas futuras.</p>
+      <button type="submit" class="btn btn-outline">Analizar y previsualizar</button>
+    </form>
+    <div id="csvPreview" aria-live="polite"></div>
+  </section>
+  <section class="card">
+    <h2>Conciliar saldo de una cuenta</h2>
+    <p>Confirma el saldo real de una cuenta. La diferencia quedará en Historial como ajuste de sistema y no contará como gasto o salario observado. <strong>No marcará deudas como pagadas.</strong></p>
+    <form id="accountReconciliationForm" class="intelligence-form">
+      <label>Cuenta <select id="reconcileAccount" required></select></label>
+      <label>Saldo real confirmado (MXN) <input id="reconcileBalance" type="number" step="0.01" required></label>
+      <button type="submit" class="btn btn-primary">Revisar diferencia</button>
+    </form>
+    <p id="reconcileStatus" role="status" aria-live="polite"></p>
+  </section>
+  <p id="intelligenceStatus" class="intelligence-status" role="status" aria-live="polite"></p>
+</main>
+<nav class="bottom-nav" aria-label="Navegación principal"></nav>
+<script type="module" src="./js/05_init.js"></script>
+</body></html>
