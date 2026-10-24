@@ -15,6 +15,7 @@ import { runAutomationEngine } from './17_automation_engine.js';
 import { ensureFinancialPlatform, renderFinancialPlatform, initFinancialPlatformEvents } from './19_platform_ui.js';
 import { renderHome, initHomeEvents } from './22_home_ui.js';
 import { renderActivityInsights } from './25_activity_insights.js';
+import { initFinancialIntelligence,renderFinancialIntelligence } from './32_financial_intelligence_ui.js';
 import { initExperienceUI } from './ui/quick-entry.js';
 import { initHistoryFilters } from './ui/history-filters.js';
 import { showFinancialAudit } from './30_financial_audit_ui.js';
@@ -36,6 +37,7 @@ const refresh=()=>{
   else if(page==='stats')renderStats();
   else if(page==='admin'){renderAdmin();renderActivityInsights();renderOperatingCosts();}
   else if(page==='calendar')renderCalendarPage();
+  else if(page==='inteligencia')renderFinancialIntelligence();
   /* Historial y extensiones financieras tienen un solo renderer canónico en platform_ui. */
   renderSavingsGoalsUI();renderFinancialPlatform();
 };
@@ -116,7 +118,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(!Data.getState().profile.onboarded){window.location.replace('onboarding.html');return;}
   if(showFinancialAudit(returnFromAudit)){initSync();return;}
   ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();
-  renderBottomNav();initHistoryFilters();
+  renderBottomNav();initHistoryFilters();initFinancialIntelligence();
   initExperienceUI(()=>{runAutomationEngine();refresh();emitChange();});
   runAutomationEngine();refresh();initDelegation();initGlobalEvents();
   initSavingsGoalEvents(refresh);initFinancialPlatformEvents(refresh);
