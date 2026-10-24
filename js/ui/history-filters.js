@@ -33,7 +33,7 @@ export function buildHistoryEvents(state) {
   for (const c of (s.cargasCombustible || []).filter(x => x.pagador === 'empresa')) {
     const account=nameOf(accounts,c.accountId,'');
     events.push({fecha:c.fecha,title:'Combustible' + (c.gasolinera ? ' · ' + c.gasolinera : ''),
-      meta:[nameOf(sources,c.sourceId,'Uso personal'),account,safeFloat(c.litros).toFixed(2)+' L','Fondos de terceros'].filter(Boolean).join(' · '),
+      meta:[nameOf(sources,c.sourceId,'Uso personal'),account,safeFloat(c.litros).toFixed(2)+' L','fondo de tercero'].filter(Boolean).join(' · '),
       kind:'thirdparty',amount:-safeFloat(c.costo),status:'Pagado por empresa'});
   }
   return events.filter(e=>validDate(e.fecha)).sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
