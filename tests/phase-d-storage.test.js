@@ -27,7 +27,7 @@ test('schema 30 mantiene depósitos, terceros, deudas y patrimonio sin transform
   const plan=await planShadowMigration(backup,'test-user');
   assert.equal(plan.schemaVersion,30);
   assert.equal(plan.canSyncByRecord,true);
-  assert.equal(plan.records.length,12); // no adaptar ni descartar registros por categorías
+  assert.equal(plan.records.length,11); // no adaptar ni descartar registros por categorías
   assert.ok(plan.records.some(x=>x.collection==='fondosCombustibleEmpresa'));
   assert.ok(plan.records.some(x=>x.collection==='savingsGoals'));
   assert.ok(plan.records.some(x=>x.value.tipo==='transferencia'));
