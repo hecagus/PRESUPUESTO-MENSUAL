@@ -3,6 +3,7 @@
 import { getState, saveData, restaurar } from './02_data.js';
 import { accountLedgerBalance, isPersonalMovement, actualPaymentDate, localDay } from './domain/financial-rules.js';
 import { uuid } from './01_consts_utils.js';
+import { assertSyncSize } from './26_sync_merge.js';
 
 const own=(o,k)=>Object.prototype.hasOwnProperty.call(o||{},k);
 const norm=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().replace(/\s+/g,' ').toLowerCase();
@@ -155,6 +156,8 @@ export function applyCSVImport(preview,selectedIndexes,now=new Date()){
       sourceId:null,fuente:'personal',affectsPersonal:true,movementKind:'universal',
       importBatchId:batch,importSource:'csv',tags:[]});
   }
+  // No producir un estado que Firebase rechazaría por superar el tamaño seguro.
+  assertSyncSize(next);
   replaceAtomically(next);
   return {created:items.length,batchId:batch};
 }
@@ -175,6 +178,7 @@ export function applyReconciliation(plan){
     desc:'Ajuste de conciliación · '+fresh.accountName,monto:Math.abs(fresh.delta),
     categoria:'Sistema',accountId:fresh.accountId,affectsPersonal:true,movementKind:'reconciliation',
     reconciliation:{auditedAt:stamp,previousBalance:fresh.registered,confirmedBalance:fresh.actual}});
+  assertSyncSize(next);
   replaceAtomically(next);return {created:1,delta:fresh.delta};
 }
 export function explainConfirmedSpending(state=getState(),now=new Date()){
