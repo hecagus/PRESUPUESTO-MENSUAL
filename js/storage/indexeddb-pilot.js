@@ -108,7 +108,6 @@ export async function readShadowSnapshot({owner='local',factory=globalThis.index
       a.onsuccess=()=>audit=a.result;
       r.onsuccess=()=>records=r.result;
       for(const req of [s,a,r])req.onerror=()=>fail(req.error||Error('PILOT_READ'));
-      tx.oncomplete=()=>{}; // completion below uses the settled request values
       // Deferred value via same transaction; each request fires before transaction completion.
       const guard=tx.objectStore(STORES.audit).get(owner);
       guard.onsuccess=()=>setValue({snapshot,audit,records});
