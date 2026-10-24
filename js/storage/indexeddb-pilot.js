@@ -40,7 +40,8 @@ export async function planShadowMigration(raw,owner='local'){
   }
   if(records.length>25000)throw Error('PILOT_TOO_MANY_RECORDS');
   const digest=await sha256(raw);
-  return {raw,owner,digest,bytes:utf8(raw).byteLength,records,counts,issues,
+  const recordsDigest=await sha256(JSON.stringify([...records].sort((a,b)=>a.key.localeCompare(b.key))));
+  return {raw,owner,digest,recordsDigest,bytes:utf8(raw).byteLength,records,counts,issues,
     canSyncByRecord:issues.length===0,mode:'shadow',schemaVersion:state.schemaVersion??null};
 }
 function openPilot(factory=globalThis.indexedDB){
@@ -87,7 +88,7 @@ export async function writeShadowSnapshot(raw,{owner='local',factory=globalThis.
         const records=tx.objectStore(STORES.records);
         for(const row of plan.records)records.put(row);
         const report={owner,createdAt:stamp,mode:'shadow',digest:plan.digest,bytes:plan.bytes,
-          recordCount:plan.records.length,counts:plan.counts,issues:plan.issues,
+          recordCount:plan.records.length,recordsDigest:plan.recordsDigest,counts:plan.counts,issues:plan.issues,
           schemaVersion:plan.schemaVersion,canSyncByRecord:plan.canSyncByRecord};
         tx.objectStore(STORES.audit).put(report);
         setValue(report);
@@ -118,6 +119,8 @@ export async function readShadowSnapshot({owner='local',factory=globalThis.index
   const actual=await sha256(data.snapshot.raw);
   if(actual!==data.snapshot.digest||actual!==data.audit.digest)throw Error('PILOT_CORRUPTED');
   if(data.records.length!==data.audit.recordCount)throw Error('PILOT_INCOMPLETE_RECORDS');
+  const recordsHash=await sha256(JSON.stringify([...data.records].sort((a,b)=>a.key.localeCompare(b.key))));
+  if(recordsHash!==data.audit.recordsDigest)throw Error('PILOT_RECORD_CORRUPTED');
   return {backup:data.snapshot.raw,report:data.audit,records:data.records};
 }
 export async function rollbackShadowSnapshot({owner='local',factory=globalThis.indexedDB}={}){
