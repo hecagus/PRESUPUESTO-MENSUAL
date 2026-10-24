@@ -34,6 +34,7 @@ const refresh=()=>{
   else if(page==='stats')renderStats();
   else if(page==='admin'){renderAdmin();renderActivityInsights();renderOperatingCosts();}
   else if(page==='calendar')renderCalendarPage();
+  else if(page==='inteligencia')renderFinancialIntelligence();
   /* Historial y extensiones financieras tienen un solo renderer canónico en platform_ui. */
   renderSavingsGoalsUI();renderFinancialPlatform();
 };
@@ -103,7 +104,7 @@ document.addEventListener('budget:remote-applied',()=>{ensureSavingsGoals();ensu
 document.addEventListener('DOMContentLoaded',()=>{
   Data.loadData();ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();
   if(!Data.getState().profile.onboarded){window.location.replace('onboarding.html');return;}
-  renderBottomNav();runAutomationEngine();refresh();initDelegation();initGlobalEvents();
+  renderBottomNav();initFinancialIntelligence();runAutomationEngine();refresh();initDelegation();initGlobalEvents();
   initSavingsGoalEvents(refresh);initFinancialPlatformEvents(refresh);
   if(document.body.dataset.page==='home')initHomeEvents(refresh);
   if(document.body.dataset.page==='admin')initAdminEvents();
