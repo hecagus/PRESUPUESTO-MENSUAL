@@ -65,7 +65,7 @@ test('v2.4 proyección usa pagos históricos para estimar próximos ingresos fij
   const source=Data.getState().workSources[0];
   Data.getState().movimientos.push({id:'pay-old',fecha:'2026-08-01T12:00:00.000Z',tipo:'ingreso',desc:'Pago · Empresa',monto:8000,categoria:'Trabajo',sourceId:source.id,accountId:'acct-personal',affectsPersonal:true,paymentKind:'source_period'});
   Data.saveData();
-  // Hogar es la fuente canónica de compromisos desde v3; evitar adaptadores legacy.
+  // En v3, Hogar es la fuente canónica; el adaptador de compromisos v2 quedó retirado.
   Home.createHouseholdExpense({name:'Renta',amount:4000,frequency:'monthly',dueDay:5,category:'Vivienda',priority:'obligatory',nextDueDate:'2026-09-05'});
   const forecast=Forecast.cashFlowForecast({days:40,now:new Date('2026-08-29T12:00:00')});
   assert.ok(forecast.totalExpectedIncome>=8000);
