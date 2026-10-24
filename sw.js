@@ -1,5 +1,5 @@
 /* v3.1.7 - Shell requerido completo antes de activar; recursos no críticos toleran fallos. */
-const CACHE='hecagus-finance-3.1.7-shell-v16-financial-contract';
+const CACHE='hecagus-finance-3.1.7-shell-v18-financial-intelligence';
 const APP_SHELL=[
   '/','/index.html','/onboarding.html','/admin.html','/home.html','/wallet.html','/stats.html','/historial.html','/calendar.html','/offline.html',
   '/style.css','/manifest.webmanifest','/hecagus-finance-192.png','/hecagus-finance-512.png','/js/pwa-bootstrap.js',
