@@ -87,7 +87,7 @@ export function initExperienceUI(onRecorded){
   const header=document.querySelector('.header');
   if(header){
     const toolbar=el('div','phase-b-header-tools');
-    const action=el('button','phase-b-header-action','+ Registrar');action.type='button';action.setAttribute('data-quick-action','expense');
+    const action=el('button','phase-b-header-action','+ Gasto');action.type='button';action.setAttribute('data-quick-action','expense');action.setAttribute('aria-label','Registrar gasto');action.title='Registrar gasto';
     const theme=el('button','phase-b-theme-toggle');theme.type='button';theme.id='phaseBTheme';
     toolbar.append(action,theme);header.append(toolbar);
     theme.addEventListener('click',()=>setTheme(currentTheme()==='dark'?'light':'dark'));
