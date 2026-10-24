@@ -15,6 +15,7 @@ import { runAutomationEngine } from './17_automation_engine.js';
 import { ensureFinancialPlatform, renderFinancialPlatform, initFinancialPlatformEvents } from './19_platform_ui.js';
 import { renderHome, initHomeEvents } from './22_home_ui.js';
 import { renderActivityInsights } from './25_activity_insights.js';
+import { initFinancialIntelligence,renderFinancialIntelligence } from './32_financial_intelligence_ui.js';
 
 /* El bootstrap del <head> captura lo más temprano posible; esto enlaza el resto del ciclo PWA. */
 initPWA();
