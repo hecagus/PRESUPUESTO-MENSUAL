@@ -143,3 +143,9 @@ npm run test:rules
 ```
 
 `test:rules` requiere Java 21 y ejecuta exclusivamente un proyecto `demo-` en el emulador. Comprueba acceso del propietario, rechazo entre usuarios, rechazo sin autenticación y bloqueo fuera del espacio de presupuestos. CI ejecuta ambas suites.
+
+## v3.1.8 — Suspensión por falta de registros y auditoría de regreso
+
+Si transcurren siete días sin movimientos reales, turnos confirmados o cambios de deuda, se suspende la presentación financiera hasta realizar una auditoría. El usuario confirma saldos por cuenta, principal de deudas y situación laboral. Las diferencias de dinero se anotan como ajustes identificados de sistema, no como salarios o gastos observados. La información histórica permanece intacta; los pagos programados que no se han registrado continúan pendientes de verificar.
+
+La lógica y las limitaciones se documentan en [Vigencia financiera y auditoría](docs/financial-freshness.md). No cambia el esquema 30 ni la ruta de Firestore; el nuevo shell PWA incorpora ambos módulos offline.
