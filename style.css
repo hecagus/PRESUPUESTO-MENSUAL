@@ -141,3 +141,42 @@ body[data-page="index"] #resumenHumanoContainer>section.card:last-child .grid-2 
 
 @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
 @keyframes pulse{0%{opacity:1}50%{opacity:.5}100%{opacity:1}}
+
+
+/* Fase C — área de inteligencia basada en movimientos confirmados */
+.intelligence-page .card{display:block}
+.intelligence-page .card h2{margin-bottom:8px}
+.intelligence-page .card>p{color:var(--text-sec);font-size:.84rem;line-height:1.55;margin-bottom:12px}
+.intelligence-form{display:grid;gap:11px;margin-bottom:12px}
+.intelligence-form label{display:block;color:var(--text-main);font-size:.84rem;font-weight:600}
+.intelligence-form :is(input,select){display:block;width:100%;min-width:0;min-height:43px;margin-top:5px;padding:10px;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--text-main);font:inherit;font-weight:400}
+.intelligence-form input[type=file]{font-size:.79rem;overflow:hidden}
+.intelligence-form .btn{min-height:46px}
+.intelligence-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.intelligence-hint{font-size:.78rem!important;color:var(--text-sec);line-height:1.5;margin:8px 0!important}
+.intelligence-rule,.intelligence-insight{padding:13px 0;border-top:1px solid var(--border);overflow-wrap:anywhere}
+.intelligence-rule{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.intelligence-rule strong,.intelligence-insight strong{display:block;font-size:.89rem}
+.intelligence-rule small,.intelligence-insight small{display:block;color:var(--text-sec);margin-top:5px;font-size:.72rem;line-height:1.45}
+.intelligence-rule-buttons{display:flex;gap:6px}
+.intelligence-rule-buttons .btn{width:auto;padding:8px;min-height:39px;font-size:.73rem}
+.intelligence-insight p{font-size:.85rem;line-height:1.5;margin:6px 0}
+.intelligence-entry{display:block;text-decoration:none;color:var(--text-main)}
+.intelligence-entry small{display:block;color:var(--text-sec);margin-top:7px;line-height:1.5}
+.intelligence-csv-scroll{overflow:auto;max-height:50vh;border:1px solid var(--border);border-radius:12px}
+.intelligence-csv-table{min-width:640px;font-size:.78rem}
+.intelligence-csv-table td{vertical-align:top}
+.intelligence-csv-table input:not([type=checkbox]){width:130px;max-width:100%;padding:7px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text-main)}
+.intelligence-csv-table input[type=checkbox]{width:20px;height:20px;accent-color:var(--primary)}
+.intelligence-csv-table small{display:block;color:var(--text-sec);font-size:.69rem}
+.intelligence-preview-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.intelligence-preview-actions .btn{width:auto;flex:1 1 150px;min-height:44px;font-size:.82rem}
+.intelligence-preview-actions strong{width:100%;font-size:.82rem}
+.intelligence-status{font-size:.84rem;color:var(--success);font-weight:600;padding:5px}
+.intelligence-status[data-error=true]{color:var(--danger)}
+.intelligence-page :is(button,input,select):focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+@media(max-width:360px){
+ .intelligence-grid{grid-template-columns:1fr}
+ .intelligence-rule{flex-direction:column;align-items:stretch}
+ .intelligence-rule-buttons .btn{flex:1}
+}
