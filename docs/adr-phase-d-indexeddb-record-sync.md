@@ -84,3 +84,23 @@ Un cambio de almacenamiento principal necesita **Web Locks** o mecanismo equival
 **NO-GO hoy:** no sustituir \`saveData()\` ni activar sincronización por registro hasta tener restauración desde 3+ respaldos reales, prueba de caída durante commit en Android, aprobación de reglas Firestore, QA de doble dispositivo/offline y un rollback validado de punta a punta.
 
 **Integración futura:** PR #41 (auditoría de inactividad) debe bloquear el inicio de sincronización granular durante una conciliación; PR #43 mejora interfaz; PR #44 agrega lotes CSV y ajustes cuya atomicidad también debe preservarse. Revisar conflictos en \`05_init.js\` y \`sw.js\` al unificar.
+
+
+## 8. Prueba manual del IndexedDB nativo (datos sintéticos)
+
+En el preview del PR #45, abrir DevTools de Chrome, pestaña Consola, y ejecutar:
+
+\`\`\`js
+const raw = await fetch('/tests/fixtures/finance-schema-30-synthetic.json').then(r => r.text());
+const pilot = await import('/js/storage/indexeddb-pilot.js');
+const report = await pilot.writeShadowSnapshot(raw, {owner:'phase-d-demo'});
+console.log('Migrado en sombra:', report);
+const verified = await pilot.readShadowSnapshot({owner:'phase-d-demo'});
+console.assert(verified.backup === raw, 'No coincide el respaldo');
+const restored = await pilot.rollbackShadowSnapshot({owner:'phase-d-demo'});
+console.assert(restored.restorableBackup === raw, 'Rollback no coincide');
+\`\`\`
+
+Si la copia de pruebas \`phase-d-demo\` ya existe, ejecutar primero \`rollbackShadowSnapshot\` tras comprobarla; nunca eliminar bases de datos completas ni limpiar todo el almacenamiento del origen. Para revisar transacciones y stores, abrir **Application → IndexedDB → hecagus-indexeddb-pilot-v1**. El ejercicio no toca \`moto_finanzas_vFinal\` ni Firestore.
+
+**Nota:** el protocolo incremental está separado y no debe invocarse como sincronización real: aún no hay backend, reglas por registro ni transacciones multi-entidad.
