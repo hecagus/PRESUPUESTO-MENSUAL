@@ -3,7 +3,19 @@
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="theme-color" content="#2563eb"><title>Historial · La app del HecAgus</title><script src="./js/pwa-bootstrap.js"></script><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/hecagus-finance-192.png" type="image/png"><link rel="stylesheet" href="style.css"></head>
 <body data-page="historial">
 <header class="header"><h1>📜 Historial</h1></header>
-<main class="container"><section class="card"><h2>Todo lo que pasó</h2><p style="font-size:.82rem;color:var(--text-sec);margin-bottom:10px">Dinero, jornadas, fondos de empresa y combustible en una sola línea de tiempo.</p><table><thead><tr><th style="width:25%">Fecha</th><th>Detalle</th><th style="text-align:right">Monto</th></tr></thead><tbody id="tablaBody"></tbody></table></section></main>
+<main class="container"><section class="card"><h2>Todo lo que pasó</h2><p style="font-size:.82rem;color:var(--text-sec);margin-bottom:10px">Dinero, jornadas, fondos de empresa y combustible en una sola línea de tiempo.</p><div class="history-filters" aria-label="Filtros del historial">
+      <label class="history-search"><span>Buscar en movimientos</span><input id="historySearch" type="search" autocomplete="off" placeholder="Concepto, cuenta, categoría…" aria-label="Buscar en historial"></label>
+      <div class="history-filter-row">
+        <label><span>Tipo</span><select id="historyKind">
+          <option value="all">Todos</option><option value="income">Ingresos</option><option value="expense">Gastos</option>
+          <option value="transfer">Transferencias</option><option value="reconciliation">Conciliaciones</option>
+          <option value="activity">Jornadas</option><option value="thirdparty">Fondos de empresa</option>
+        </select></label>
+        <label><span>Período</span><select id="historyDays"><option value="0">Todo</option><option value="30">Últimos 30 días</option><option value="90">Últimos 90 días</option><option value="365">Último año</option></select></label>
+      </div>
+      <div class="history-filter-footer"><small id="historyCount" role="status" aria-live="polite"></small><button id="historyClear" type="button" class="history-clear">Limpiar filtros</button></div>
+    </div>
+    <table class="history-table"><thead><tr><th style="width:25%">Fecha</th><th>Detalle</th><th style="text-align:right">Monto</th></tr></thead><tbody id="tablaBody"></tbody></table></section></main>
 <nav class="bottom-nav" aria-label="Navegación principal"></nav>
 <script type="module" src="./js/05_init.js"></script>
 </body></html>

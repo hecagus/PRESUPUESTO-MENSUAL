@@ -15,6 +15,8 @@ import { runAutomationEngine } from './17_automation_engine.js';
 import { ensureFinancialPlatform, renderFinancialPlatform, initFinancialPlatformEvents } from './19_platform_ui.js';
 import { renderHome, initHomeEvents } from './22_home_ui.js';
 import { renderActivityInsights } from './25_activity_insights.js';
+import { initExperienceUI } from './ui/quick-entry.js';
+import { initHistoryFilters } from './ui/history-filters.js';
 import { showFinancialAudit } from './30_financial_audit_ui.js';
 
 /* El bootstrap del <head> captura lo más temprano posible; esto enlaza el resto del ciclo PWA. */
@@ -22,7 +24,7 @@ initPWA();
 
 function renderBottomNav(){
   const nav=document.querySelector('.bottom-nav');if(!nav)return;const page=document.body.dataset.page;
-  const items=[['index','index.html','▥','Panel'],['home','home.html','⌂','Hogar'],['wallet','wallet.html','◉','Wallet'],['admin','admin.html','▶','Actividad'],['historial','historial.html','≡','Historial']];
+  const items=[['index','index.html','▥','Inicio'],['home','home.html','⌂','Hogar'],['wallet','wallet.html','◉','Cuentas'],['admin','admin.html','▶','Actividad'],['historial','historial.html','≡','Historial']];
   nav.innerHTML=items.map(([key,href,icon,label])=>`<a href="${href}" class="nav-link ${page===key?'active':''}"${page===key?' aria-current="page"':''}><span aria-hidden="true">${icon}</span>${label}</a>`).join('');
 }
 
@@ -114,7 +116,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(!Data.getState().profile.onboarded){window.location.replace('onboarding.html');return;}
   if(showFinancialAudit(returnFromAudit)){initSync();return;}
   ensureSavingsGoals();ensureFinancialLife();ensureFinancialPlatform();
-  renderBottomNav();runAutomationEngine();refresh();initDelegation();initGlobalEvents();
+  renderBottomNav();initHistoryFilters();
+  initExperienceUI(()=>{runAutomationEngine();refresh();emitChange();});
+  runAutomationEngine();refresh();initDelegation();initGlobalEvents();
   initSavingsGoalEvents(refresh);initFinancialPlatformEvents(refresh);
   if(document.body.dataset.page==='home')initHomeEvents(refresh);
   if(document.body.dataset.page==='admin')initAdminEvents();
