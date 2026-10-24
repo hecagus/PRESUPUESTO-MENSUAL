@@ -47,6 +47,7 @@ function openQuickEntry(type,onRecorded){
   const categoryLabel=el('label','quick-entry-label','Categoría');
   const category=el('select','input-control');category.id='quickCategory';category.name='quickCategory';
   for(const name of CATEGORIES[type])category.add(new Option(name,name));
+  category.value='Otro'; // No asumir una categoría antes de que el usuario la elija.
   categoryLabel.append(category);
   const error=el('p','quick-entry-error');error.id='quickEntryError';error.setAttribute('role','alert');
   const actions=el('div','quick-entry-actions');
