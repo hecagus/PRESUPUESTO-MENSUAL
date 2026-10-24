@@ -13,6 +13,7 @@ import {
   runAutomationEngine,smartAlerts
 } from './17_automation_engine.js';
 import { financialHealth,goalPortfolioPlan } from './18_health_goals.js';
+import { renderHistory } from './ui/history-filters.js';
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dateLabel=d=>new Date(d).toLocaleDateString('es-MX',{day:'numeric',month:'short'});
@@ -94,18 +95,6 @@ function renderSmartGoals(){
   rows.innerHTML=plans.length?plans.map(p=>{const status=p.status==='complete'?'✅ Completada':p.status==='on_track'?'🟢 En ruta':p.status==='at_risk'?'🟠 Ajustada':'🔴 Sin capacidad detectada';const source=p.sourcePlan?.find(s=>s.suggested>0);return `<section class="card"><div style="display:flex;justify-content:space-between;gap:8px"><strong>🎯 ${esc(p.goal.name)}</strong><strong>${status}</strong></div>${p.status==='complete'?'<small>Objetivo alcanzado.</small>':`<div class="grid-2" style="margin-top:8px"><div><small>Necesitas / mes</small><strong style="display:block">${fmtMoney(p.requiredMonthly)}</strong></div><div><small>Capacidad mensual proyectada</small><strong style="display:block">${fmtMoney(p.availableMonthly)}</strong></div></div><small style="display:block;margin-top:7px">${p.suggestedNow>0?`Puedes apartar ahora hasta <strong>${fmtMoney(p.suggestedNow)}</strong>${source?` usando lo generado por ${esc(source.name)}`:''}.`:'No detecto dinero realmente libre suficiente para aportar ahora.'}${p.estimatedCompletionDate?` A este ritmo, fecha estimada: <strong>${dateLong(p.estimatedCompletionDate)}</strong>.`:''}</small>`}</section>`;}).join(''):'<small>Crea una meta para generar un plan.</small>';
 }
 
-function renderHistory(){
-  if(document.body.dataset.page!=='historial'||!$('tablaBody'))return;const s=Data.getState(),events=[];
-  for(const m of s.movimientos||[]){
-    if(m.tipo==='transferencia'){const from=s.accounts.find(a=>a.id===m.fromAccountId),to=s.accounts.find(a=>a.id===m.toAccountId);events.push({fecha:m.fecha,title:'Transferencia',meta:`${from?.name||'Cuenta'} → ${to?.name||'Cuenta'}`,mode:'transfer',amount:safeFloat(m.monto)});}
-    else events.push({fecha:m.fecha,title:m.desc,meta:`${m.categoria||''}${m.accountId?` · ${s.accounts.find(a=>a.id===m.accountId)?.name||'Cuenta'}`:''}${m.affectsPersonal===false?' · no afecta patrimonio':''}`,mode:m.tipo,amount:safeFloat(m.monto)});
-  }
-  for(const t of s.turnos||[]){const src=s.workSources.find(x=>x.id===t.sourceId);events.push({fecha:t.fecha,title:`Actividad · ${src?.name||'Trabajo'}`,meta:`${safeFloat(t.duracionHoras).toFixed(1)} h${safeFloat(t.kmRecorrido)>0?` · ${safeFloat(t.kmRecorrido).toFixed(0)} km`:''}`,mode:'activity',amount:null});}
-  for(const f of s.fondosCombustibleEmpresa||[]){const src=s.workSources.find(x=>x.id===f.sourceId);events.push({fecha:f.fecha,title:f.desc||`Depósito empresa · ${src?.name||'Trabajo'}`,meta:'Fondo de tercero · no afecta patrimonio',mode:'fund',amount:safeFloat(f.monto)});}
-  for(const c of (s.cargasCombustible||[]).filter(x=>x.pagador==='empresa')){const src=s.workSources.find(x=>x.id===c.sourceId),account=s.accounts.find(a=>a.id===c.accountId);events.push({fecha:c.fecha,title:`Combustible${c.gasolinera?` · ${c.gasolinera}`:''}`,meta:`${src?.name||'Uso personal'}${account?` · ${account.name}`:''} · ${safeFloat(c.litros).toFixed(2)} L · fondo de tercero`,mode:'fuel',amount:safeFloat(c.costo)});}
-  events.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
-  $('tablaBody').innerHTML=events.slice(0,150).map(e=>{let value='—',color='var(--text-sec)';if(e.mode==='transfer')value=`⇄ ${fmtMoney(e.amount)}`;else if(e.mode==='ingreso'){value=`+${fmtMoney(e.amount)}`;color='#16a34a';}else if(['gasto','fuel'].includes(e.mode)){value=`-${fmtMoney(e.amount)}`;color='#dc2626';}else if(e.mode==='fund'){value=`+${fmtMoney(e.amount)}`;color='#f59e0b';}return `<tr><td>${dateLabel(e.fecha)}<br><small>${new Date(e.fecha).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</small></td><td><strong>${esc(e.title)}</strong><br><small>${esc(e.meta)}</small></td><td style="text-align:right;font-weight:bold;color:${color}">${value}</td></tr>`;}).join('')||'<tr><td colspan="3">Sin actividad todavía</td></tr>';
-}
 
 export function ensureFinancialPlatform(){ensureAccountsEngine();ensureAutomationEngine();}
 export function renderFinancialPlatform(){
